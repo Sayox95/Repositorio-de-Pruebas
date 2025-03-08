@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reporte de Incidencias</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 10px;
+    }
+    #map {
+      height: 400px;
+      width: 100%;
+      max-width: 100%;
+    }
+    /* Ocultar formulario de incidencia inicialmente */
+    #form_incidencia {
+      display: none;
+      margin-top: 20px;
+      border: 1px solid #ccc;
+      padding: 15px;
+      border-radius: 5px;
+    }
+    .info-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 10px;
+      text-align: center;
+    }
+    .info-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      font-weight: bold;
+      width: 100%;
+    }
+    .info-box input,
+    .info-box select,
+    .info-box textarea {
+      width: 90%;
+      max-width: 300px;
+      padding: 8px;
+      font-size: 16px;
+    }
+    button {
+      padding: 10px;
+      font-size: 16px;
+      cursor: pointer;
+      margin-top: 10px;
+      max-width: 300px;
+    }
+    @media screen and (max-width: 600px) {
+      .info-container {
+        grid-template-columns: 1fr;
+      }
+      #map {
+        height: 300px;
+      }
+      h2, h3 {
+        text-align: center;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <h2>Reporte de Incidencias</h2>
+  
+  <!-- Leyenda de tipos de puntos -->
+  <div id="leyenda" style="display: flex; align-items: center; gap: 20px; margin-bottom: 10px;">
+    <div style="display: flex; align-items: center;">
+      <img src="https://maps.google.com/mapfiles/ms/icons/red-dot.png" width="20" height="20" alt="Hospitales">
+      <span style="margin-left: 5px;">Hospitales</span>
+    </div>
+    <div style="display: flex; align-items: center;">
+      <img src="https://maps.google.com/mapfiles/ms/icons/blue-dot.png" width="20" height="20" alt="Instituciones">
+      <span style="margin-left: 5px;">Instituciones</span>
+    </div>
+    <div style="display: flex; align-items: center;">
+      <img src="https://maps.google.com/mapfiles/ms/icons/yellow-dot.png" width="20" height="20" alt="Seguridad">
+      <span style="margin-left: 5px;">Seguridad</span>
+    </div>
+  </div>
+
+  <!-- Mapa -->
+  <div id="map"></div>
+  
+  <!-- Información del punto seleccionado -->
+  <div id="info_punto" style="margin-top: 20px; border: 1px solid #ccc; padding: 15px; border-radius: 5px; display: none;">
+    <h3>Información del punto seleccionado</h3>
+    <p><strong>ID:</strong> <span id="info_id"></span></p>
+    <p><strong>CLAVE:</strong> <span id="info_clave"></span></p>
+    <p><strong>CLIENTE:</strong> <span id="info_cliente"></span></p>
+    <p><strong>TIPO:</strong> <span id="info_tipo"></span></p>
+    <p><strong>DIRECCIÓN:</strong> <span id="info_direccion"></span></p>
+    <p><strong>MUNICIPIO:</strong> <span id="info_municipio"></span></p>
+    <p><strong>CIRCUITO:</strong> <span id="info_circuito"></span></p>
+    <p><strong>LATITUD:</strong> <span id="info_lat"></span></p>
+    <p><strong>LONGITUD:</strong> <span id="info_lon"></span></p>
+    <button id="btn_incidencia" type="button">Reportar incidencia</button>
+  </div>
+
+  <!-- Formulario para reportar incidencia -->
+  <form id="form_incidencia">
+    <h3>Formulario de Incidencia</h3>
+    <p>Complete la información para el reporte.</p>
+    <div class="info-container">
+      <div class="info-box">
+        <label for="incidencia_descripcion">Descripción de la incidencia</label>
+        <textarea id="incidencia_descripcion" rows="3"></textarea>
+      </div>
+      <div class="info-box">
+        <label for="incidencia_prioridad">Prioridad</label>
+        <select id="incidencia_prioridad">
+          <option value="" selected disabled>Seleccione...</option>
+          <option value="Alta">Alta</option>
+          <option value="Media">Media</option>
+          <option value="Baja">Baja</option>
+        </select>
+      </div>
+      <div class="info-box">
+        <label for="incidencia_observaciones">Observaciones</label>
+        <textarea id="incidencia_observaciones" rows="3"></textarea>
+      </div>
+    </div>
+    <button type="button" onclick="guardarIncidencia()">Guardar Incidencia</button>
+  </form>
+
+  <!-- Mensaje de carga -->
+  <div id="loadingPopup" style="display: none; 
+      position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      background: rgba(0, 0, 0, 0.7); color: white; padding: 20px; 
+      font-size: 18px; border-radius: 10px; z-index: 1000;">
+    Guardando información... Por favor, espere.
+  </div>
+
+  <script>
+    // URL de tu Apps Script para guardar incidencias (reemplaza con tu URL real)
+    var apiIncidenciaURL = "https://script.google.com/macros/s/AKfycbzR8XtTCAjmumMQ1JGbLMxnKKvtttv2tAh9kO0VyRdkkj43PlTGj9gkxoLbKQGtQag/exec";
+
+    // Inicializar el mapa
+    var map = L.map('map').setView([15.5, -87.5], 7);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+    // Definir iconos según el tipo
+    var iconHospital = L.icon({
+      iconUrl: 'https://maps.google.com/mapfiles/ms/icons/red-dot.png',
+      iconSize: [32, 32],
+      iconAnchor: [16, 32]
+    });
+    var iconInstitucion = L.icon({
+      iconUrl: 'https://maps.google.com/mapfiles/ms/icons/blue-dot.png',
+      iconSize: [32, 32],
+      iconAnchor: [16, 32]
+    });
+    var iconSeguridad = L.icon({
+      iconUrl: 'https://maps.google.com/mapfiles/ms/icons/yellow-dot.png',
+      iconSize: [32, 32],
+      iconAnchor: [16, 32]
+    });
+
+    // Array de objetos con la información de los puntos
+    var puntos = [
+
+{ id: 1, clave: "140294", cliente: "IHSS", tipo: "HOSPITALES", direccion: "ATRAS DEL COSULTORIO ANTIGU", municipio: "SAN PEDRO SULA", circuito: "BER248", lat: 15.54256492, lon: -88.015043 },
+{ id: 2, clave: "169468", cliente: "IHSS", tipo: "HOSPITALES", direccion: "BO CIENAGUITA", municipio: "PUERTO CORTÉS", circuito: "MAS352", lat: 15.81106788, lon: -87.93533427 },
+{ id: 3, clave: "169475", cliente: "IHSS", tipo: "HOSPITALES", direccion: "BO CIENAGUITA", municipio: "PUERTO CORTÉS", circuito: "MAS352", lat: 15.81114529, lon: -87.93535129 },
+{ id: 4, clave: "276409", cliente: "I H S S", tipo: "HOSPITALES", direccion: "CLINICA PERIFERICA P64 VILLAN", municipio: "VILLANUEVA", circuito: "VNU324", lat: 15.31806555, lon: -87.99006505 },
+{ id: 5, clave: "478149", cliente: "I H S S", tipo: "HOSPITALES", direccion: "COL.PRIMAVERA CALLE PRINCIPAL", municipio: "CHOLOMA", circuito: "CHM215", lat: 15.61480538, lon: -87.9576632 },
+{ id: 6, clave: "617668", cliente: "IHSSOFCINAS FESITRANH", tipo: "HOSPITALES", direccion: "COL.FESITRANH OFICINAS SEGUNDA", municipio: "SAN PEDRO SULA", circuito: "LVI227", lat: 15.5575039, lon: -87.99115362 },
+{ id: 7, clave: "992581", cliente: "MINISTERIO DE SALUD PULBLICA", tipo: "HOSPITALES", direccion: "COL.MIGUEL CALVO 2 CLINICA PER", municipio: "VILLANUEVA", circuito: "VNU394", lat: 15.33318319, lon: -87.99026659 },
+{ id: 8, clave: "1271483", cliente: "I.H.S.S.", tipo: "HOSPITALES", direccion: "COL.TEPEACA FTE.BURGUER KING", municipio: "SAN PEDRO SULA", circuito: "CIR244", lat: 15.50269694, lon: -88.00924496 },
+{ id: 9, clave: "1273692", cliente: "INST.HONDUREO DE SEGURIDAD SO", tipo: "HOSPITALES", direccion: "CALPULES CONTIGUO INTAE", municipio: "SAN PEDRO SULA", circuito: "EST221", lat: 15.47031921, lon: -87.97330959 },
+{ id: 10, clave: "1400315", cliente: "IHSS", tipo: "HOSPITALES", direccion: "CARRETERA A OCCIDENTE RESTAU", municipio: "QUIMISTAN", circuito: "NCO364", lat: 15.35945105, lon: -88.19191328 },
+{ id: 11, clave: "1508060", cliente: "INST HOND DE SEGURIDAD SOCIAL", tipo: "HOSPITALES", direccion: "COL ORQUIDEA BLANCA N.E CENTRO", municipio: "SAN PEDRO SULA", circuito: "BVI268", lat: 15.51536717, lon: -88.0342592 },
+{ id: 12, clave: "1593541", cliente: "INST.HONDUREO DE SEGURIDAD SO", tipo: "HOSPITALES", direccion: "COL.CALPULES CONT.INTAEOFICI", municipio: "SAN PEDRO SULA", circuito: "EST221", lat: 15.46978383, lon: -87.973458 },
+{ id: 13, clave: "113020", cliente: "MINIST SALUDHOSP LEONARDO M", tipo: "HOSPITALES", direccion: "AREA DE LAVANDERIA", municipio: "SAN PEDRO SULA", circuito: "LPT232", lat: 15.5001149, lon: -88.03110838 },
+{ id: 14, clave: "615453", cliente: "MINIST SALUD HOSP LEONARDO MA", tipo: "HOSPITALES", direccion: "HOSP.LEONARDO MARTINEZ (COCINA", municipio: "SAN PEDRO SULA", circuito: "LPT232", lat: 15.50043951, lon: -88.03107121 },
+{ id: 15, clave: "615455", cliente: "MINIST SALUDHOSP LEONARDO MAR", tipo: "HOSPITALES", direccion: "HOSP.LEONARDO MARTINEZ(CASA DE", municipio: "SAN PEDRO SULA", circuito: "LPT232", lat: 15.50104884, lon: -88.03028182 },
+{ id: 16, clave: "953068", cliente: "MINSALUD HOS LEONARDO MARTINE", tipo: "HOSPITALES", direccion: "BO PAZ BARAHONA 10 AVE 7-9 CLL", municipio: "SAN PEDRO SULA", circuito: "LPT232", lat: 15.49975282, lon: -88.03100254 },
+{ id: 17, clave: "963678", cliente: "MINISTERIO DE SALUD", tipo: "HOSPITALES", direccion: "BO.EL BENQUE 9-10AV 7-12CLL HO", municipio: "SAN PEDRO SULA", circuito: "LPT232", lat: 15.49959636, lon: -88.03088328 },
+{ id: 18, clave: "1593014", cliente: "MINISTERIO DE SALUD PUBLICA", tipo: "HOSPITALES", direccion: "PAZ BARAHONA 7-9CLL 10AVHOSPIT", municipio: "SAN PEDRO SULA", circuito: "LPT232", lat: 15.50101127, lon: -88.03122525 },
+{ id: 19, clave: "1593529", cliente: "HOSPITAL LEONARDO MARTINEZ", tipo: "HOSPITALES", direccion: "BO.EL BENQUE 7CLL. 9-10AVE. S", municipio: "SAN PEDRO SULA", circuito: "LPT232", lat: 15.50126437, lon: -88.03010948 },
+{ id: 20, clave: "1880589", cliente: "HOSPITAL LEONARDO MARTINEZ", tipo: "HOSPITALES", direccion: "BO. LEMPIRA 9-10 7CALLE S.O.", municipio: "SAN PEDRO SULA", circuito: "LPT232", lat: 15.50107125, lon: -88.03026282 },
+{ id: 21, clave: "285907", cliente: "MINIST SALUDHOSP MARIO C RIVA", tipo: "HOSPITALES", direccion: "BOULEVAR HACIA COLONIA POTOSI", municipio: "SAN PEDRO SULA", circuito: "BVI268", lat: 15.52402798, lon: -88.0412109 },
+{ id: 22, clave: "707831", cliente: "SECRETARIA DE SALUD", tipo: "HOSPITALES", direccion: "CONT-COLONIA EL PEDREGAL N.O", municipio: "SAN PEDRO SULA", circuito: "BVI268", lat: 15.52400888, lon: -88.04158683 },
+{ id: 23, clave: "1605971", cliente: "MINISTERIO DE SALUD PUBLICA", tipo: "HOSPITALES", direccion: "HOSPITAL M C RIVAS SALA DE RAD", municipio: "SAN PEDRO SULA", circuito: "BVI268", lat: 15.5240379, lon: -88.0410278 },
+{ id: 24, clave: "1676544", cliente: "MINISTERIO DE SALUD PUBLICA", tipo: "HOSPITALES", direccion: "EL PEDREGAL HOSP.MARIO CATARI", municipio: "SAN PEDRO SULA", circuito: "BVI268", lat: 15.52335219, lon: -88.04159362 },
+{ id: 25, clave: "1676545", cliente: "MINISTERIO DE SALUD PUBLICA", tipo: "HOSPITALES", direccion: "EL PEDREGAL HOSP.MARIO CATARI", municipio: "SAN PEDRO SULA", circuito: "BER283", lat: 15.52567022, lon: -88.04149693 },
+{ id: 26, clave: "1676546", cliente: "MINISTERIO DE SALUD PUBLICA", tipo: "HOSPITALES", direccion: "EL PEDREGAL HOSP.MARIO CATARI", municipio: "SAN PEDRO SULA", circuito: "BVI268", lat: 15.52376078, lon: -88.04170388 },
+{ id: 27, clave: "2014764", cliente: "SECRETARIASALUD FUNDC ABRIGO", tipo: "HOSPITALES", direccion: "CTG ALBERGUE HOSPITAL MARIO", municipio: "CHOLOMA", circuito: "BVI268", lat: 15.52429637, lon: -88.04366435 },
+{ id: 28, clave: "5093203", cliente: "SECRETARIA DE SALUD", tipo: "HOSPITALES", direccion: "REF-CONTE. REFRIGERADOS ESTADI", municipio: "SAN PEDRO SULA", circuito: "LPT203", lat: 15.46677993, lon: -88.003194 },
+{ id: 29, clave: "5103419", cliente: "SECRETARIA DE SALUD PUBLICA", tipo: "HOSPITALES", direccion: "C-0 B-0 REF-HOSPITAL MOVIL SPS", municipio: "SAN PEDRO SULA", circuito: "BER283", lat: 15.52554292, lon: -88.042136 },
+{ id: 30, clave: "215557", cliente: "MINIST SALUDHOSP PTO CORTES", tipo: "HOSPITALES", direccion: "CARRETERA A OMOA", municipio: "PUERTO CORTÉS", circuito: "TSZ224", lat: 15.81450374, lon: -87.93632071 },
+{ id: 31, clave: "978817", cliente: "MINISTERIO DE SALUD PUBLICA", tipo: "HOSPITALES", direccion: "HOSPITAL DEL AREA DE PUERTO CO", municipio: "PUERTO CORTÉS", circuito: "TSZ224", lat: 15.8144059, lon: -87.93627139 },
+{ id: 32, clave: "5155568", cliente: "SECRETARIA DE SALUD PUBLICA", tipo: "HOSPITALES", direccion: "C-1 --SALA DE RECUPERACION HOS", municipio: "PUERTO CORTÉS", circuito: "TSZ224", lat: 15.81452994, lon: -87.93560598 },
+{ id: 33, clave: "5155573", cliente: "SECRETARIA DE SALUD PUBLICA", tipo: "HOSPITALES", direccion: "C-1 --SALA DE EMERGENCIAS HOSP", municipio: "PUERTO CORTÉS", circuito: "TSZ224", lat: 15.81565394, lon: -87.93627201 },
+{ id: 34, clave: "116196", cliente: "Registro Nacional de las Personas", tipo: "INSTITUCIONES", direccion: "18 19 CALLE 12 AVE S O NO", municipio: "SAN PEDRO SULA", circuito: "LPT234", lat: 15.4908833, lon: -88.03465129 },
+{ id: 35, clave: "153443", cliente: "Registro Nacional de las Personas", tipo: "INSTITUCIONES", direccion: "1 1/2 CDA S CAFETERIA KARLA", municipio: "POTRERILLOS", circuito: "CAR390", lat: 15.22851116, lon: -87.96529827 },
+{ id: 36, clave: "159404", cliente: "Registro Nacional de las Personas", tipo: "INSTITUCIONES", direccion: "BO.EL CENTRO 1CLL 2-3AVEN.O ED", municipio: "CHOLOMA", circuito: "CHM215", lat: 15.6123323, lon: -87.95378613 },
+{ id: 37, clave: "169759", cliente: "Registro Nacional de las Personas", tipo: "INSTITUCIONES", direccion: "PUERTO CORTES", municipio: "PUERTO CORTÉS", circuito: "TAL258", lat: 15.84577779, lon: -87.9465912 },
+{ id: 38, clave: "220668", cliente: "Registro Nacional de las Personas", tipo: "INSTITUCIONES", direccion: "OFICINAS RNP 1618 BO EL CENTRO", municipio: "QUIMISTAN", circuito: "NCO364", lat: 15.34760964, lon: -88.40178371 },
+{ id: 39, clave: "294899", cliente: "Registro Nacional de las Personas", tipo: "INSTITUCIONES", direccion: "PERSONAS 19 AVE.2-3 CLLE.FTE.L", municipio: "SONAGUERA", circuito: "CHM251", lat: 15.60809, lon: -87.953167 },
+{ id: 40, clave: "330590", cliente: "Registro Nacional de las Personas", tipo: "INSTITUCIONES", direccion: "BO CABA#AS FTE CAMPO DE FOOT B", municipio: "VILLANUEVA", circuito: "VNU323", lat: 15.31164836, lon: -87.99072409 },
+{ id: 41, clave: "574053", cliente: "Registro Nacional de las Personas", tipo: "INSTITUCIONES", direccion: "BO EL CENTRO PLAZA ENG LOCAL N", municipio: "PUERTO CORTÉS", circuito: "TAL258", lat: 15.8457284, lon: -87.94637829 },
+{ id: 42, clave: "607939", cliente: "Registro Nacional de las Personas", tipo: "INSTITUCIONES", direccion: "PROYECTO SAMA VISION BO LA LOM", municipio: "SAN MARCOS", circuito: "NCO364", lat: 15.29800371, lon: -88.41071893 },
+{ id: 43, clave: "633555", cliente: "Registro Nacional de las Personas", tipo: "INSTITUCIONES", direccion: "9AVE 6-7 CLL S.O.", municipio: "SAN PEDRO SULA", circuito: "LPT232", lat: 15.50142106, lon: -88.02993874 },
+{ id: 44, clave: "679279", cliente: "Registro Nacional de las Personas", tipo: "INSTITUCIONES", direccion: "BO EL CENTRO FRENTE A MUNICIPA", municipio: "LA LIMA", circuito: "SMT291", lat: 15.43834145, lon: -87.92683688 },
+{ id: 45, clave: "787935", cliente: "Registro Nacional de las Personas", tipo: "INSTITUCIONES", direccion: "LOCAL EN MUNICIPALIDAD DE OMO", municipio: "OMOA", circuito: "MAS352", lat: 15.77601988, lon: -88.03412282 },
+{ id: 46, clave: "802939", cliente: "Registro Nacional de las Personas", tipo: "INSTITUCIONES", direccion: "BO.EL CENTRO PLAZA EN SEGUNDA", municipio: "PUERTO CORTÉS", circuito: "TAL258", lat: 15.84578721, lon: -87.94613015 },
+{ id: 47, clave: "904006", cliente: "Registro Nacional de las Personas", tipo: "INSTITUCIONES", direccion: "BO.CENTRO 1 ARRIBA DEL PARQUE", municipio: "SAN MANUEL", circuito: "VNU324", lat: 15.33061581, lon: -87.92024095 },
+{ id: 48, clave: "962581", cliente: "Registro Nacional de las Personas", tipo: "INSTITUCIONES", direccion: "MERCADO MPAL SALIDA A SAN MANU", municipio: "VILLANUEVA", circuito: "VNU324", lat: 15.31778828, lon: -87.99029658 },
+{ id: 49, clave: "992540", cliente: "Registro Nacional de las Personas", tipo: "INSTITUCIONES", direccion: "COL.COLOMBIA 10AVE. 5CLL. N.O.", municipio: "SAN PEDRO SULA", circuito: "BER282", lat: 15.51878887, lon: -88.0284591 },
+{ id: 50, clave: "1167706", cliente: "Registro Nacional de las Personas", tipo: "INSTITUCIONES", direccion: "BO EL CENTRO FTE A PARQUE MACU", municipio: "MACUELIZO", circuito: "LEC362", lat: 15.31310667, lon: -88.54083461 },
+{ id: 51, clave: "1251459", cliente: "Registro Nacional de las Personas", tipo: "INSTITUCIONES", direccion: "REGISTRO FTE AL PARQUE PETOA", municipio: "PETOA", circuito: "NCO364", lat: 15.26845665, lon: -88.2891504 },
+{ id: 52, clave: "1259929", cliente: "Registro Nacional de las Personas", tipo: "INSTITUCIONES", direccion: "BO ARRIBA AZACUALPA VALLE S B", municipio: "AZACUALPA", circuito: "LEC362", lat: 15.34259602, lon: -88.55416443 },
+{ id: 53, clave: "1651639", cliente: "Registro Nacional de las Personas", tipo: "INSTITUCIONES", direccion: "BO.EL CENTRO PIMIENTA OFICIN", municipio: "PIMIENTA", circuito: "VNU323", lat: 15.27555459, lon: -87.97371744 },
+{ id: 54, clave: "4473020", cliente: "Registro Nacional de las Personas", tipo: "INSTITUCIONES", direccion: "BO CENTRO DERECHA DE PLAZA LOS", municipio: "OMOA", circuito: "MAS352", lat: 15.77455792, lon: -88.03551563 },
+{ id: 55, clave: "4482566", cliente: "Registro Nacional de las Personas", tipo: "INSTITUCIONES", direccion: "COL TRASCERROS", municipio: "NUEVA FRONTERA", circuito: "LEC362", lat: 15.30469795, lon: -88.66119391 },
+{ id: 56, clave: "5053784", cliente: "Registro Nacional de las Personas", tipo: "INSTITUCIONES", direccion: "BO JOSE C DEL VALLE VILLANUEVA", municipio: "VILLANUEVA", circuito: "VNU323", lat: 15.31185489, lon: -87.99069017 },
+{ id: 57, clave: "5190585", cliente: "Registro Nacional de las Personas", tipo: "INSTITUCIONES", direccion: "C-1", municipio: "PIMIENTA", circuito: "VNU323", lat: 15.27702301, lon: -87.97326603 },
+{ id: 58, clave: "757104", cliente: "Tribunal Superior de Cuentas (TSC)", tipo: "INSTITUCIONES", direccion: "BA. LAS ACACIAS 3 AVE 8-9 CLL", municipio: "SAN PEDRO SULA", circuito: "BER288", lat: 15.51272358, lon: -88.02411265 },
+{ id: 59, clave: "136743", cliente: "Instituto Formación Profesional (INFOP)", tipo: "INSTITUCIONES", direccion: "3 CDAS E VALENTIN FLORES", municipio: "SAN PEDRO SULA", circuito: "LPT203", lat: 15.47430442, lon: -88.02634672 },
+{ id: 60, clave: "1637463", cliente: "Instituto Formación Profesional (INFOP)", tipo: "INSTITUCIONES", direccion: "CALLE A RESID PALOS VERDES SA", municipio: "SAN PEDRO SULA", circuito: "LPT203", lat: 15.47511176, lon: -88.02624594 },
+{ id: 61, clave: "358618", cliente: "DIPOL", tipo: "SEGURIDAD", direccion: "COL.TREJO 11CLL 22-23AVECA-126", municipio: "SAN PEDRO SULA", circuito: "BVI270", lat: 15.49583332, lon: -88.04300129 },
+{ id: 62, clave: "949000", cliente: "DIRECCION DE INTELIGENCIA POL", tipo: "SEGURIDAD", direccion: "RES. CAMPISA B/B/ L2 P2", municipio: "SAN PEDRO SULA", circuito: "LVI236", lat: 15.54631622, lon: -87.98671287 },
+{ id: 63, clave: "1043970", cliente: "DIRECCION DE INTELIGENCIA POLI", tipo: "SEGURIDAD", direccion: "VILLAS MACKEY 8 Y 7 CLL 1 AVE", municipio: "SAN PEDRO SULA", circuito: "BER290", lat: 15.55613762, lon: -88.03173212 },
+{ id: 64, clave: "1043971", cliente: "DIRECCION DE INTELIGENCIA POLI", tipo: "SEGURIDAD", direccion: "RES.VILLAS MACKEY 8 Y 7 CLL 1", municipio: "SAN PEDRO SULA", circuito: "BER290", lat: 15.55611673, lon: -88.03171527 },
+{ id: 65, clave: "1043972", cliente: "DIRECCION DE INTELIGENCIA POLI", tipo: "SEGURIDAD", direccion: "RES.VILLAS MACKEY 8 Y 7 CLL 1", municipio: "SAN PEDRO SULA", circuito: "BER290", lat: 15.55619849, lon: -88.03166272 },
+{ id: 66, clave: "1276071", cliente: "BIENES INCAUTADOS OABI", tipo: "SEGURIDAD", direccion: "COL.TREJO IV ETAPA BOULVLAS TO", municipio: "SAN PEDRO SULA", circuito: "LPT233", lat: 15.4867621, lon: -88.04378111 },
+{ id: 67, clave: "1339431", cliente: "DIPOL", tipo: "SEGURIDAD", direccion: "RSD CAMPISA II ETAPA BLQ L CAS", municipio: "SAN PEDRO SULA", circuito: "BER280", lat: 15.53390675, lon: -87.99310035 },
+{ id: 68, clave: "1737516", cliente: "CARDOZA RAFAEL AROLDO", tipo: "SEGURIDAD", direccion: "RES.LOS CEDROS B4 L3 P20 N.O.", municipio: "SAN PEDRO SULA", circuito: "BER290", lat: 15.55159509, lon: -88.03279143 },
+{ id: 69, clave: "5215892", cliente: "DIRECCION DE ASUNTOS DISCIPLIN", tipo: "SEGURIDAD", direccion: "COL TREJO CALLE 12-21 23 AV", municipio: "SAN PEDRO SULA", circuito: "LPT233", lat: 15.49040004, lon: -88.04380005 },
+{ id: 70, clave: "1620323", cliente: "MINISTERIO DE DEFENSA", tipo: "SEGURIDAD", direccion: "3 BATALLON INFANTERIAGRLOGIST", municipio: "SAN PEDRO SULA", circuito: "NCO364", lat: 15.39701423, lon: -88.17736819 },
+{ id: 71, clave: "136915", cliente: "MINIST DEFENSAFUERZA AEREA", tipo: "SEGURIDAD", direccion: "COLONIA ALTAMIRA", municipio: "SAN PEDRO SULA", circuito: "LPT234", lat: 15.48889682, lon: -88.03658666 },
+{ id: 72, clave: "615644", cliente: "MINIST DEFENSAFUERZA AEREA", tipo: "SEGURIDAD", direccion: "AEROP R V MORALESCERCA BOMBA", municipio: "SAN PEDRO SULA", circuito: "SMT284", lat: 15.44740982, lon: -87.93820362 },
+{ id: 73, clave: "641012", cliente: "MINIST DEFENSAFUERZA AEREA", tipo: "SEGURIDAD", direccion: "COL FUERZA AEREA SECTOR COL LO", municipio: "SAN PEDRO SULA", circuito: "LPT234", lat: 15.48878634, lon: -88.03660187 },
+{ id: 74, clave: "641013", cliente: "MINIST DEFENSA F A H", tipo: "SEGURIDAD", direccion: "COL FUERZAS AEREA21CLLE 19-21A", municipio: "SAN PEDRO SULA", circuito: "LPT234", lat: 15.48853166, lon: -88.03666871 },
+{ id: 75, clave: "641014", cliente: "MINIST DEFENSA F A H", tipo: "SEGURIDAD", direccion: "COL FUERZAS AEREA21CLLE 19-21A", municipio: "SAN PEDRO SULA", circuito: "LPT234", lat: 15.48867337, lon: -88.03711192 },
+{ id: 76, clave: "641015", cliente: "MINIST DEFENSA F A H", tipo: "SEGURIDAD", direccion: "COL PUERTA AREA21CLLE19-21AVE", municipio: "SAN PEDRO SULA", circuito: "LPT234", lat: 15.48882282, lon: -88.0365945 },
+{ id: 77, clave: "641016", cliente: "MINIST DEFENSA F A H", tipo: "SEGURIDAD", direccion: "COL FUERZAS ARMANDAS SECTOR CO", municipio: "SAN PEDRO SULA", circuito: "LPT234", lat: 15.48882216, lon: -88.03673557 },
+{ id: 78, clave: "641017", cliente: "MINIST DEFENSA F A H", tipo: "SEGURIDAD", direccion: "COL FUERZAS AEREA 21CLLE COL.A", municipio: "SAN PEDRO SULA", circuito: "LPT234", lat: 15.48894165, lon: -88.0365691 },
+{ id: 79, clave: "641018", cliente: "MINIST DEFENSA F A H", tipo: "SEGURIDAD", direccion: "COL FUERZAS ARMADAS SECTOR LOS", municipio: "SAN PEDRO SULA", circuito: "LPT234", lat: 15.48902175, lon: -88.03668423 },
+{ id: 80, clave: "641019", cliente: "MINIST DEFENSA F A H", tipo: "SEGURIDAD", direccion: "COL FUERZAS AEREA SECTORCOL LO", municipio: "SAN PEDRO SULA", circuito: "LPT234", lat: 15.48866854, lon: -88.03676628 },
+{ id: 81, clave: "641020", cliente: "MINIST DEFENSA F A H", tipo: "SEGURIDAD", direccion: "COL FUERZAS AREA M-19 CALLE DE", municipio: "SAN PEDRO SULA", circuito: "CIR245", lat: 15.49032637, lon: -88.00106266 },
+{ id: 82, clave: "641021", cliente: "MINIST DEFENSA F A H", tipo: "SEGURIDAD", direccion: "COL PUERTA AREA 21CLLE 19-21AV", municipio: "SAN PEDRO SULA", circuito: "LPT234", lat: 15.48899206, lon: -88.03653222 },
+{ id: 83, clave: "642749", cliente: "MINIST DEFENSA F A H", tipo: "SEGURIDAD", direccion: "COL FUERZA AEREA M-19 SECTOR L", municipio: "SAN PEDRO SULA", circuito: "LPT234", lat: 15.48861679, lon: -88.0366464 },
+{ id: 84, clave: "676801", cliente: "MINIST DEFENSABAS AER ARMANDO", tipo: "SEGURIDAD", direccion: "AEROPUERTO RAMON VILLEDAMORALE", municipio: "LA LIMA", circuito: "SMT284", lat: 15.44661113, lon: -87.93808008 },
+{ id: 85, clave: "1745903", cliente: "FUERZA AREA HONDURENA", tipo: "SEGURIDAD", direccion: "ANTIGUA TERMINAL AEROPUERTO RA", municipio: "SAN PEDRO SULA", circuito: "SMT284", lat: 15.4478068, lon: -87.93249787 },
+{ id: 86, clave: "803951", cliente: "FUERZAS ARMADAS DE HONDURAS", tipo: "SEGURIDAD", direccion: "JARDINES DEL VALLE IV ETAPA 6-", municipio: "SAN PEDRO SULA", circuito: "BER282", lat: 15.5360902, lon: -88.02747204 },
+{ id: 87, clave: "1448297", cliente: "FUERZAS ARMADAS DE HONDURAS", tipo: "SEGURIDAD", direccion: "JARDINES DEL VALLE 6-10CLL 2AV", municipio: "SAN PEDRO SULA", circuito: "BER282", lat: 15.53594557, lon: -88.02747133 },
+{ id: 88, clave: "158404", cliente: "MINIST DEFENSATERCER BATALLON", tipo: "SEGURIDAD", direccion: "TERCER BATALLON EN NAC", municipio: "SAN PEDRO SULA", circuito: "NCO364", lat: 15.40403496, lon: -88.18299831 },
+{ id: 89, clave: "233668", cliente: "MINIST DEFENSA", tipo: "SEGURIDAD", direccion: "ALUMB ALREDEDOR DEL LICEO Y BR", municipio: "SAN PEDRO SULA", circuito: "BER282", lat: 15.52045769, lon: -88.02862742 },
+{ id: 90, clave: "233671", cliente: "MINISTERIO DE DEFENSA", tipo: "SEGURIDAD", direccion: "ALUMBRADO DEL LICEO MILITAR DE", municipio: "SAN PEDRO SULA", circuito: "BER282", lat: 15.52050577, lon: -88.03050871 },
+{ id: 91, clave: "233673", cliente: "MINIST DEFENSALICEO MILITAR", tipo: "SEGURIDAD", direccion: "AULAS DEL LICEO MILITAR Y BOMB", municipio: "SAN PEDRO SULA", circuito: "BER282", lat: 15.52136967, lon: -88.02888293 },
+{ id: 92, clave: "234223", cliente: "MINIST DEFENSACOL DE OFICIALE", tipo: "SEGURIDAD", direccion: "COL DE OFICIALES CARRETERA A", municipio: "SAN PEDRO SULA", circuito: "NCO364", lat: 15.39346101, lon: -88.17751592 },
+{ id: 93, clave: "261660", cliente: "MINIST DEFENSA 105 BRIGADA", tipo: "SEGURIDAD", direccion: "SALIDA A PTO CORTES BRIGAD", municipio: "SAN PEDRO SULA", circuito: "BER282", lat: 15.52005405, lon: -88.02568255 },
+{ id: 94, clave: "276814", cliente: "FUERZAS ARMADAS DE HONDURAS", tipo: "SEGURIDAD", direccion: "COL LOPEZ ARELLANO", municipio: "CHOLOMA", circuito: "LVI235", lat: 15.57213483, lon: -87.95384108 },
+{ id: 95, clave: "282447", cliente: "MINIST DEFENSAFUERZAS ARMADAS", tipo: "SEGURIDAD", direccion: "2DO. BAT DE ARTILLERIA QUIMIS", municipio: "QUIMISTAN", circuito: "NCO364", lat: 15.38253779, lon: -88.38343304 },
+{ id: 96, clave: "294438", cliente: "MINIST DEFENSA 105 BRIGADA", tipo: "SEGURIDAD", direccion: "COMEDOR DE LA 105 BRIGADA INF", municipio: "SAN PEDRO SULA", circuito: "BER282", lat: 15.52008223, lon: -88.02986136 },
+{ id: 97, clave: "440791", cliente: "MINIST DEFENSA LICEO MILITAR", tipo: "SEGURIDAD", direccion: "LICEO MILITAR 105 BRIGAD", municipio: "SAN PEDRO SULA", circuito: "BER282", lat: 15.52216978, lon: -88.02734321 },
+{ id: 98, clave: "444323", cliente: "MINIST DEFENSALICEO MILITAR", tipo: "SEGURIDAD", direccion: "10 AVE N.O. CIRCUNVALA CION 1", municipio: "SAN PEDRO SULA", circuito: "BER282", lat: 15.52168934, lon: -88.02633235 },
+{ id: 99, clave: "444324", cliente: "MINIST DEFENSA 105 BRIGADA", tipo: "SEGURIDAD", direccion: "10 AVE 105 BR", municipio: "SAN PEDRO SULA", circuito: "BER282", lat: 15.5196473, lon: -88.02917771 },
+{ id: 100, clave: "932629", cliente: "MINISTERIO DE DEFENSA", tipo: "SEGURIDAD", direccion: "ENTRADA PCPAL.DE COL.COLOMBIA", municipio: "SAN PEDRO SULA", circuito: "BER282", lat: 15.51968699, lon: -88.03039959 },
+{ id: 101, clave: "1255632", cliente: "MINISTERIO DE DEFENSA PUBLICA", tipo: "SEGURIDAD", direccion: "POSTA POLICIAL SECTOR DECHAMEL", municipio: "SAN PEDRO SULA", circuito: "LPT250", lat: 15.43048706, lon: -88.02087758 },
+{ id: 102, clave: "1620318", cliente: "MINISTERIO DE DEFENSA", tipo: "SEGURIDAD", direccion: "3ER BATALLON DE INFANTERIANAC", municipio: "SAN PEDRO SULA", circuito: "NCO364", lat: 15.40406972, lon: -88.17985844 },
+{ id: 103, clave: "1620319", cliente: "MINISTERIO DE DEFENSA", tipo: "SEGURIDAD", direccion: "3ER BATALLON DE INFANTERIANAC", municipio: "SAN PEDRO SULA", circuito: "NCO364", lat: 15.40224869, lon: -88.17893505 },
+{ id: 104, clave: "1620320", cliente: "MINISTERIO DE DEFENSA", tipo: "SEGURIDAD", direccion: "3ER BATALLON DE INFANTERIANAC", municipio: "SAN PEDRO SULA", circuito: "NCO364", lat: 15.40294729, lon: -88.18185541 },
+{ id: 105, clave: "1620321", cliente: "MINISTERIO DE DEFENSA", tipo: "SEGURIDAD", direccion: "3ER BATALLON DE INFANTERIANAC", municipio: "SAN PEDRO SULA", circuito: "NCO364", lat: 15.40129431, lon: -88.17822153 },
+{ id: 106, clave: "1620322", cliente: "MINISTERIO DE DEFENSA", tipo: "SEGURIDAD", direccion: "3 BATALLON DE INFANTERIAFTE.CO", municipio: "SAN PEDRO SULA", circuito: "NCO364", lat: 15.40210208, lon: -88.18101205 },
+{ id: 107, clave: "1620324", cliente: "MINISTERIO DE DEFENSA", tipo: "SEGURIDAD", direccion: "3ER.BATALLON DE IFANTERIA FTE.", municipio: "SAN PEDRO SULA", circuito: "NCO364", lat: 15.39623262, lon: -88.17646001 },
+{ id: 108, clave: "1620325", cliente: "MINISTERIO DE DEFENSA", tipo: "SEGURIDAD", direccion: "3ER BATALLON DE INFANTERIA NA", municipio: "SAN PEDRO SULA", circuito: "NCO364", lat: 15.39786669, lon: -88.17342239 },
+{ id: 109, clave: "1625906", cliente: "MINISTERIO DE DEFENSA", tipo: "SEGURIDAD", direccion: "3ER BATALLON DE INFANERTERIA F", municipio: "SAN PEDRO SULA", circuito: "NCO364", lat: 15.39623166, lon: -88.17321756 },
+{ id: 110, clave: "2014767", cliente: "LICEO MILITAR", tipo: "SEGURIDAD", direccion: "LICEO MILITAR 105 BRIGADA N O", municipio: "CHOLOMA", circuito: "BER282", lat: 15.52065534, lon: -88.02726023 },
+{ id: 111, clave: "2014768", cliente: "SECRETARIA DE DEFENSA", tipo: "SEGURIDAD", direccion: "JARDIN DE NI#OS LICEO MILITA", municipio: "CHOLOMA", circuito: "BER282", lat: 15.52176852, lon: -88.02652985 },
+{ id: 112, clave: "5034760", cliente: "INST. LICEO MILITAR DEL NORTE", tipo: "SEGURIDAD", direccion: "REF-JARDIN DE NIÑOS LICEO MILI", municipio: "SAN PEDRO SULA", circuito: "BER282", lat: 15.5217825, lon: -88.02871252 },
+{ id: 113, clave: "5177721", cliente: "INSTITUTO DE PREVISION MILITAR", tipo: "SEGURIDAD", direccion: "C-1 Liceo Militar del norte ft", municipio: "SAN PEDRO SULA", circuito: "BER282", lat: 15.52060295, lon: -88.02872803 },
+{ id: 114, clave: "169768", cliente: "MINIST DEFENSABASE NAVAL", tipo: "SEGURIDAD", direccion: "BASE NAVAL PUERTO CORTES", municipio: "PUERTO CORTÉS", circuito: "TSZ224", lat: 15.82587791, lon: -87.93249132 },
+{ id: 115, clave: "364857", cliente: "FUERZAS ARMADAS DE HONDURAS", tipo: "SEGURIDAD", direccion: "POLICIA NACIONAL PREVENTIVA T", municipio: "OMOA", circuito: "MAS352", lat: 15.63291924, lon: -88.2538892 },
+{ id: 116, clave: "563559", cliente: "MINIST DEFENSABASE NAVAL", tipo: "SEGURIDAD", direccion: "BARRIO EL PORVENIR", municipio: "PUERTO CORTÉS", circuito: "TSZ224", lat: 15.82767057, lon: -87.9322994 },
+{ id: 117, clave: "568543", cliente: "MINIST DEFENSAESC TECNICA BAS", tipo: "SEGURIDAD", direccion: "BO. EL PORVENIR ESC TECNIC", municipio: "PUERTO CORTÉS", circuito: "TSZ224", lat: 15.82684885, lon: -87.93108597 },
+{ id: 118, clave: "568544", cliente: "MINIST DEFESABASE NAVAL", tipo: "SEGURIDAD", direccion: "BARRIO EL PORVENIR", municipio: "PUERTO CORTÉS", circuito: "TSZ224", lat: 15.82697495, lon: -87.93247191 },
+{ id: 119, clave: "666291", cliente: "MINIST DEFENSABASE NAVAL", tipo: "SEGURIDAD", direccion: "BASE NAVAL DE PTO CORTES", municipio: "PUERTO CORTÉS", circuito: "TSZ224", lat: 15.82684877, lon: -87.93125418 },
+{ id: 120, clave: "2015916", cliente: "MINISTERIO DE DEFENSA", tipo: "SEGURIDAD", direccion: "BASE NAVAL BO EL PORVENIR PUER", municipio: "PUERTO CORTÉS", circuito: "TSZ224", lat: 15.85574475, lon: -87.9323907 },
+{ id: 121, clave: "5132320", cliente: "FUERZAS ARMADAS DE HONDURAS", tipo: "SEGURIDAD", direccion: "B-0 BO. EL PORVENIR BASE NAV", municipio: "PUERTO CORTÉS", circuito: "TSZ224", lat: 15.82732626, lon: -87.93214824 },
+{ id: 122, clave: "1365459", cliente: "HOSPITAL MILITAR", tipo: "SEGURIDAD", direccion: "PLANTA DE TRATAMIENTO 105 BR", municipio: "SAN PEDRO SULA", circuito: "BER282", lat: 15.52229401, lon: -88.02761617 },
+{ id: 123, clave: "1365460", cliente: "HOSPITAL MILITAR", tipo: "SEGURIDAD", direccion: "105 BRIGADA SAN PEDRO SULA", municipio: "SAN PEDRO SULA", circuito: "BER282", lat: 15.52168943, lon: -88.02876901 },
+{ id: 124, clave: "1880597", cliente: "HOPITAL MILITAR", tipo: "SEGURIDAD", direccion: "COL COLOMBIA CONT A LA 105", municipio: "SAN PEDRO SULA", circuito: "BER282", lat: 15.52155498, lon: -88.0289509 },
+{ id: 125, clave: "2014763", cliente: "HOSPITAL MILITAR", tipo: "SEGURIDAD", direccion: "EN 105 BRIGADA COL COLOMBIA N", municipio: "SAN PEDRO SULA", circuito: "BER282", lat: 15.52153696, lon: -88.02895045 },
+{ id: 126, clave: "639101", cliente: "VI JUEGOS CENTROAMERICANOS", tipo: "SEGURIDAD", direccion: "POLIDEPORTIVO NO 2 CHAMELECON", municipio: "SAN PEDRO SULA", circuito: "LPT250", lat: 15.42732869, lon: -88.00847032 },
+{ id: 127, clave: "1878519", cliente: "MINISTERIO DE DEFENSA Y SEG. P", tipo: "SEGURIDAD", direccion: "COL. LOSUSA 1-4 AVE. S.ECUARTE", municipio: "SAN PEDRO SULA", circuito: "LPT249", lat: 15.43707932, lon: -88.00590019 },
+{ id: 128, clave: "112163", cliente: "POLICIA PREVENTIVA DGPP", tipo: "SEGURIDAD", direccion: "7 CALLE 12 AVE S E CANT", municipio: "SAN PEDRO SULA", circuito: "CIR242", lat: 15.499069, lon: -88.013005 },
+{ id: 129, clave: "123946", cliente: "SECRETARIA DE SEGURIDAD", tipo: "SEGURIDAD", direccion: "BA.RIO PIEDRAS 24-25AVE 5CLL C", municipio: "SAN PEDRO SULA", circuito: "BVI270", lat: 15.50316183, lon: -88.04598386 },
+{ id: 130, clave: "135436", cliente: "CASTELLANOS CANDIDA", tipo: "SEGURIDAD", direccion: "COL.JUAN LINDO 8CLL 30-31AVE C", municipio: "SAN PEDRO SULA", circuito: "BVI268", lat: 15.5167317, lon: -88.04703261 },
+{ id: 131, clave: "147970", cliente: "POLICIA PREVENTIVA DGPP", tipo: "SEGURIDAD", direccion: "MEGA POSTA POLICIAL FTE.FERRET", municipio: "SAN PEDRO SULA", circuito: "LPT250", lat: 15.43031064, lon: -88.02096094 },
+{ id: 132, clave: "152758", cliente: "POLICIA PREVENTIVA DGPP", tipo: "SEGURIDAD", direccion: "PIMIENTA", municipio: "PIMIENTA", circuito: "VNU323", lat: 15.27571662, lon: -87.9738765 },
+{ id: 133, clave: "153425", cliente: "POLICIA PREVENTIVA DGPP", tipo: "SEGURIDAD", direccion: "CUERPO ESPECIAL DE SEG", municipio: "POTRERILLOS", circuito: "CAR390", lat: 15.22807589, lon: -87.96561284 },
+{ id: 134, clave: "157956", cliente: "POLICIA PREVENTIVA DGPP", tipo: "SEGURIDAD", direccion: "COFRADIA PTE-51", municipio: "SAN PEDRO SULA", circuito: "NCO365", lat: 15.40928198, lon: -88.15226177 },
+{ id: 135, clave: "159824", cliente: "POLICIA PREVENTIVA DGPP", tipo: "SEGURIDAD", direccion: "SUB DELEGACION DE LA POLICIA N", municipio: "CHOLOMA", circuito: "CHM215", lat: 15.61132311, lon: -87.95059685 },
+{ id: 136, clave: "169771", cliente: "TRANSITO", tipo: "SEGURIDAD", direccion: "BO.CAMPO ROJO PTO.CORTES", municipio: "PUERTO CORTÉS", circuito: "MAS353", lat: 15.823339, lon: -87.901331 },
+{ id: 137, clave: "197052", cliente: "POLICIA PREVENTIVA DGPP", tipo: "SEGURIDAD", direccion: "SUB DELEGACION PNP BARACO", municipio: "PUERTO CORTÉS", circuito: "RNA385", lat: 15.77464552, lon: -87.8528012 },
+{ id: 138, clave: "311789", cliente: "POLICIA PREVENTIVA DGPP", tipo: "SEGURIDAD", direccion: "ALDEA MONTERREY P-438 CHOLOM", municipio: "CHOLOMA", circuito: "CHM216", lat: 15.58911375, lon: -87.8754506 },
+{ id: 139, clave: "327403", cliente: "POLICIA PREVENTIVA DGPP", tipo: "SEGURIDAD", direccion: "SUB DELEGACION DE POLICIA NACI", municipio: "PUERTO CORTÉS", circuito: "RNA385", lat: 15.75753314, lon: -87.86885033 },
+{ id: 140, clave: "337705", cliente: "POLICIA PREVENTIVA DGPP", tipo: "SEGURIDAD", direccion: "EDIFICIO VIEJO DE ESCUELA NO 1", municipio: "PETOA", circuito: "NCO364", lat: 15.27273082, lon: -88.28307743 },
+{ id: 141, clave: "356467", cliente: "POLICIA PREVENTIVA DGPP", tipo: "SEGURIDAD", direccion: "POL NAC PREVENTIVA AZACUALPA", municipio: "AZACUALPA", circuito: "LEC362", lat: 15.343136, lon: -88.552055 },
+{ id: 142, clave: "357322", cliente: "POLICIA PREVENTIVA DGPP", tipo: "SEGURIDAD", direccion: "CUYAMEL", municipio: "OMOA", circuito: "MAS352", lat: 15.66043264, lon: -88.20080637 },
+{ id: 143, clave: "469354", cliente: "MINIST.SEG.POLICIA PREV.POSTA", tipo: "SEGURIDAD", direccion: "CIUDAD PLANETA POSTA EN CONSTR", municipio: "LA LIMA", circuito: "SMT284", lat: 15.45852798, lon: -87.94831743 },
+{ id: 144, clave: "481087", cliente: "POLICIA PREVENTIVA DGPP", tipo: "SEGURIDAD", direccion: "COL.STA FEDOS CAMINOS EST.PO", municipio: "VILLANUEVA", circuito: "VNU391", lat: 15.38369236, lon: -87.98325606 },
+{ id: 145, clave: "497784", cliente: "POLICIA PREVENTIVA DGPP", tipo: "SEGURIDAD", direccion: "COL LA PRADERA FTE PTE-404 POS", municipio: "SAN PEDRO SULA", circuito: "RET289", lat: 15.48132033, lon: -87.98231878 },
+{ id: 146, clave: "501559", cliente: "POLICIA PREVENTIVA DGPP", tipo: "SEGURIDAD", direccion: "POSTA POLICIAL TRASCERROS MACU", municipio: "NUEVA FRONTERA", circuito: "LEC362", lat: 15.30792438, lon: -88.66048612 },
+{ id: 147, clave: "595445", cliente: "MINIST.SEGPOSTA POLICIAL", tipo: "SEGURIDAD", direccion: "COL LOS CASTA¿OS 1 CLL PTE 81", municipio: "SAN PEDRO SULA", circuito: "BER280", lat: 15.54719781, lon: -88.00038331 },
+{ id: 148, clave: "604108", cliente: "POLICIA PREVENTIVA DGPP", tipo: "SEGURIDAD", direccion: "FUSEP 1 AVE.9 CLLE BO.LEMPIRA", municipio: "SAN PEDRO SULA", circuito: "BER208", lat: 15.49864486, lon: -88.02412978 },
+{ id: 149, clave: "604109", cliente: "POLICIA PREVENTIVA DGPP", tipo: "SEGURIDAD", direccion: "BO.LEMPIRA 9 10 CLLE.1 AVE.S.O", municipio: "SAN PEDRO SULA", circuito: "BER208", lat: 15.49843448, lon: -88.02408611 },
+{ id: 150, clave: "612056", cliente: "POLICIA PREVENTIVA DGPP", tipo: "SEGURIDAD", direccion: "3 AVE.9-10CLLE S.O.FUSEP1ERA E", municipio: "SAN PEDRO SULA", circuito: "BER208", lat: 15.49835584, lon: -88.02504837 },
+{ id: 151, clave: "625151", cliente: "POLICIA PREVENTIVA DGPP", tipo: "SEGURIDAD", direccion: "BO LEMPIRA M-196 PTE 74 C-2-70", municipio: "SAN PEDRO SULA", circuito: "BER208", lat: 15.49841889, lon: -88.02444486 },
+{ id: 152, clave: "665053", cliente: "POLICIA PREVENTIVA DGPP", tipo: "SEGURIDAD", direccion: "EL OCOTILLO BLOQUE 15", municipio: "SAN PEDRO SULA", circuito: "BER205", lat: 15.53905779, lon: -87.92904101 },
+{ id: 153, clave: "681031", cliente: "MINIST.SEGURIDDISTRITO POLICI", tipo: "SEGURIDAD", direccion: "BO.GUAMILITO L-05 8AVE LOCAL-1", municipio: "SAN PEDRO SULA", circuito: "BER208", lat: 15.50746449, lon: -88.02818458 },
+{ id: 154, clave: "686932", cliente: "POLICIA PREVENTIVA DGPP", tipo: "SEGURIDAD", direccion: "BO-LA GURDIA CONTIGUO A CENTRO", municipio: "SAN PEDRO SULA", circuito: "LPT230", lat: 15.48209992, lon: -88.02839159 },
+{ id: 155, clave: "686933", cliente: "POLICIA PREVENTIVA DGPP", tipo: "SEGURIDAD", direccion: "BO-LA GUARDIA COTGUO A CENTRO", municipio: "SAN PEDRO SULA", circuito: "LPT230", lat: 15.4817054, lon: -88.02807001 },
+{ id: 156, clave: "750483", cliente: "POLICIA PREVENTIVA DGPP", tipo: "SEGURIDAD", direccion: "BO.CAB¿AS 18CLL 14AVE CONTG.CA", municipio: "SAN PEDRO SULA", circuito: "LPT204", lat: 15.48708554, lon: -88.01277877 },
+{ id: 157, clave: "754261", cliente: "MINIST SEGUR.ANTENA POLICIA N", tipo: "SEGURIDAD", direccion: "ALDEA LA CUMBRE ANTENA DE LA P", municipio: "SAN PEDRO SULA", circuito: "LPT250", lat: 15.44829458, lon: -88.03975533 },
+{ id: 158, clave: "797792", cliente: "SALGADO PEREZ WALDINA LIZZETTE", tipo: "SEGURIDAD", direccion: "BRISAS DEL CARIBE 2CLL OMOA", municipio: "OMOA", circuito: "MAS352", lat: 15.78507283, lon: -88.02167805 },
+{ id: 159, clave: "817660", cliente: "POLICIA PREVENTIVA DGPP", tipo: "SEGURIDAD", direccion: "CENTRO SULA ATRAS DE TORTILLER", municipio: "LA LIMA", circuito: "SMT291", lat: 15.43632335, lon: -87.92642754 },
+{ id: 160, clave: "826669", cliente: "TRANSITO", tipo: "SEGURIDAD", direccion: "POSTA DE TRANSITO CONTG.A FENO", municipio: "PUERTO CORTÉS", circuito: "MAS353", lat: 15.82356401, lon: -87.90089772 },
+{ id: 161, clave: "842157", cliente: "RAPALO RUBENIO", tipo: "SEGURIDAD", direccion: "BO.EL CENTRO QUIMISTAN S.B.", municipio: "QUIMISTAN", circuito: "NCO364", lat: 15.34813289, lon: -88.40481441 },
+{ id: 162, clave: "871913", cliente: "TRANSITO", tipo: "SEGURIDAD", direccion: "COMPLEJO POLICIAL DE TRANSITO", municipio: "SAN PEDRO SULA", circuito: "LPT230", lat: 15.48140992, lon: -88.02859887 },
+{ id: 163, clave: "901397", cliente: "POLICIA PREVENTIVA DGPP", tipo: "SEGURIDAD", direccion: "COL.9 DE MAYO CLL.PRINC.2ARRIB", municipio: "SAN PEDRO SULA", circuito: "NCO365", lat: 15.4219149, lon: -88.16306466 },
+{ id: 164, clave: "939670", cliente: "TRANSITO", tipo: "SEGURIDAD", direccion: "DIRECCION GRAL.DE TRANSITO BOU", municipio: "SAN PEDRO SULA", circuito: "RET289", lat: 15.47414136, lon: -87.97132787 },
+{ id: 165, clave: "941312", cliente: "MINIST.SEGURIDADDNSEI", tipo: "SEGURIDAD", direccion: "COL. JARDINE DEL VALLE P33 35", municipio: "SAN PEDRO SULA", circuito: "BER282", lat: 15.53825134, lon: -88.02464225 },
+{ id: 166, clave: "954040", cliente: "MEGA POSTA POLICIAL", tipo: "SEGURIDAD", direccion: "FTE AL RANCHOCRUZE CEIBIT", municipio: "QUIMISTAN", circuito: "NCO364", lat: 15.31340186, lon: -88.25362453 },
+{ id: 167, clave: "969199", cliente: "POLICIA PREVENTIVA DGPP", tipo: "SEGURIDAD", direccion: "POSTA POLICIAL RIO BLANCO CTG", municipio: "SAN PEDRO SULA", circuito: "LVI227", lat: 15.54992833, lon: -88.00584176 },
+{ id: 168, clave: "1018317", cliente: "POLICIA PREVENTIVA DGPP", tipo: "SEGURIDAD", direccion: "COL KILOMETRO 71 CLL PCPL CTG", municipio: "VILLANUEVA", circuito: "VNU393", lat: 15.41680885, lon: -88.01456425 },
+{ id: 169, clave: "1073718", cliente: "SECRETARIA DE SEGURIDAD", tipo: "SEGURIDAD", direccion: "RES.VILLA REAL C125 BLQ.EDCP", municipio: "SAN PEDRO SULA", circuito: "BER290", lat: 15.55473744, lon: -88.03102382 },
+{ id: 170, clave: "1193675", cliente: "DIRECCION GRAL DE INVESTIG CRI", tipo: "SEGURIDAD", direccion: "BO CENTRO CTG A MUNICIPALIDAD", municipio: "QUIMISTAN", circuito: "NCO364", lat: 15.34765427, lon: -88.40474601 },
+{ id: 171, clave: "1212813", cliente: "PAZ RAPALO SALVADOR REINALDO", tipo: "SEGURIDAD", direccion: "COL.POTOSILOTE 34 BLO.13ERA E", municipio: "SAN PEDRO SULA", circuito: "BVI268", lat: 15.52010816, lon: -88.042558 },
+{ id: 172, clave: "1359313", cliente: "MINISTERIO DE SEGURIDAD PUBLIC", tipo: "SEGURIDAD", direccion: "BASE DEL COE COBRAS COL FESITR", municipio: "SAN PEDRO SULA", circuito: "LVI227", lat: 15.56245659, lon: -87.98604216 },
+{ id: 173, clave: "1371428", cliente: "MINSTERIO DE SEGURIDAD", tipo: "SEGURIDAD", direccion: "BO.EL OBELISCO OFICINA DE TRA", municipio: "VILLANUEVA", circuito: "VNU323", lat: 15.3173929, lon: -87.99383418 },
+{ id: 174, clave: "1448287", cliente: "MEDINA RAMIREZ YUNELI DISBETH", tipo: "SEGURIDAD", direccion: "COL.UNIVERSIDAD 22B.CLL 7-8AVE", municipio: "SAN PEDRO SULA", circuito: "BER282", lat: 15.52722507, lon: -88.02476172 },
+{ id: 175, clave: "1448868", cliente: "MINISTERIO DE SEGURIDAD PUBLIC", tipo: "SEGURIDAD", direccion: "BO COPEN POLICIA NACIONAL PREV", municipio: "PUERTO CORTÉS", circuito: "TSZ223", lat: 15.84281774, lon: -87.93920075 },
+{ id: 176, clave: "1454312", cliente: "MINISTERIO DE SEGURIDAD PUBLIC", tipo: "SEGURIDAD", direccion: "POL PREVENTIVA BO SUNCERY 7 CL", municipio: "SAN PEDRO SULA", circuito: "CIR242", lat: 15.49894181, lon: -88.01284787 },
+{ id: 177, clave: "1485258", cliente: "MINISTERIO DE SEGURIDAD PUBLIC", tipo: "SEGURIDAD", direccion: "BO LEMPIRA 9 CLL 1 AV S O POLI", municipio: "SAN PEDRO SULA", circuito: "BER208", lat: 15.4983777, lon: -88.02412069 },
+{ id: 178, clave: "1535415", cliente: "SECRETARIA DE SEGURIDAD", tipo: "SEGURIDAD", direccion: "DORMITORIOS POLICIA NACIONAL B", municipio: "SAN PEDRO SULA", circuito: "LPT230", lat: 15.4817261, lon: -88.02794361 },
+{ id: 179, clave: "1535416", cliente: "MINISTERIO DE SEGURIDAD PUBLIC", tipo: "SEGURIDAD", direccion: "BO LA GUARDIA CAFETERIA POLICI", municipio: "SAN PEDRO SULA", circuito: "LPT230", lat: 15.4809913, lon: -88.02853004 },
+{ id: 180, clave: "1593543", cliente: "MINISTERIO DE SEGURIDAD PUBLIC", tipo: "SEGURIDAD", direccion: "COL.ISLAS DEL PROGRESO 31CLL.", municipio: "SAN PEDRO SULA", circuito: "LPT204", lat: 15.47663361, lon: -88.02106548 },
+{ id: 181, clave: "1653293", cliente: "MINISTERIO DE SEGURIDAD PUBLIC", tipo: "SEGURIDAD", direccion: "BO LA CURVA 1 AV 8-9 CLL POL N", municipio: "PUERTO CORTÉS", circuito: "TAL258", lat: 15.84320011, lon: -87.93928106 },
+{ id: 182, clave: "1668097", cliente: "MINISTERIO DE SEGURIDAD", tipo: "SEGURIDAD", direccion: "ALDEA EL ZAPOTAL CLL PRINCIPAL", municipio: "SAN PEDRO SULA", circuito: "LVI227", lat: 15.58710894, lon: -88.02277085 },
+{ id: 183, clave: "1681799", cliente: "SECRETARIA DE EDUCACIÓN", tipo: "SEGURIDAD", direccion: "BO.EL CENTRO 1CLL. PTE.54 CON", municipio: "CHOLOMA", circuito: "CHM215", lat: 15.61150819, lon: -87.95079522 },
+{ id: 184, clave: "1740555", cliente: "MINIST.SEG.ESTACION DE POLICI", tipo: "SEGURIDAD", direccion: "RES.LOS CASTA#OS LKK 1-2 PAR", municipio: "CHOLOMA", circuito: "RNA386", lat: 15.6653226, lon: -87.94009642 },
+{ id: 185, clave: "1911628", cliente: "DIRECCION POLICIAL INVESTIGACI", tipo: "SEGURIDAD", direccion: "BLVD DEL ESTE SECTOR CALPULES", municipio: "SAN PEDRO SULA", circuito: "RET289", lat: 15.47077405, lon: -87.96852211 },
+{ id: 186, clave: "1957866", cliente: "SECRETRARIA DE SEGURIDAD", tipo: "SEGURIDAD", direccion: "POLICIA NACIONAL DEL AEROPUERT", municipio: "SAN PEDRO SULA", circuito: "SMT284", lat: 15.44634986, lon: -87.93320774 },
+{ id: 187, clave: "2022752", cliente: "SECRETARIA DE SEGURIDAD PUBLIC", tipo: "SEGURIDAD", direccion: "COL RIVERA HERNANDEZ N E SPS", municipio: "SAN PEDRO SULA", circuito: "RET287", lat: 15.47140574, lon: -87.9487668 },
+{ id: 188, clave: "2022753", cliente: "SECRETARIA DE SEGURIDAD PUBLIC", tipo: "SEGURIDAD", direccion: "COL RIVERA HERNANDEZ N E SPS", municipio: "SAN PEDRO SULA", circuito: "RET287", lat: 15.47140574, lon: -87.9487668 },
+{ id: 189, clave: "2022754", cliente: "SECRETARIA DE SEGURIDAD PUBLIC", tipo: "SEGURIDAD", direccion: "COL RIVERA HERNANDEZ N E SPS", municipio: "SAN PEDRO SULA", circuito: "RET287", lat: 15.47140574, lon: -87.9487668 },
+{ id: 190, clave: "2049874", cliente: "SECRETARIA DE SEGURIDAD PUBLIC", tipo: "SEGURIDAD", direccion: "COL MUNICIPAL CTG CASA 195 S E", municipio: "SAN PEDRO SULA", circuito: "EST221", lat: 15.46959263, lon: -87.9775333 },
+{ id: 191, clave: "5047110", cliente: "SECRETARIA DE SEGURIDAD", tipo: "SEGURIDAD", direccion: "NO. CASA-1 BLOQUE-0 PISO-1 REF", municipio: "SAN PEDRO SULA", circuito: "CIR242", lat: 15.49901392, lon: -88.012832 },
+{ id: 192, clave: "5047341", cliente: "SECRETARIA DE SEGURIDAD", tipo: "SEGURIDAD", direccion: "NO. CASA-1 REF-Bulevar del nor", municipio: "SAN PEDRO SULA", circuito: "BER282", lat: 15.52009993, lon: -88.0272 },
+{ id: 193, clave: "5053707", cliente: "SECRETARIA DE SEGURIDAD", tipo: "SEGURIDAD", direccion: "POSTA DE POLICIA COL MONTELIMA", municipio: "QUIMISTAN", circuito: "NCO364", lat: 15.35952493, lon: -88.192392 },
+{ id: 194, clave: "5056600", cliente: "SECRETARIA DE SEGURIDAD", tipo: "SEGURIDAD", direccion: "ESTACION DE POLICIA COL 9 DE D", municipio: "PUERTO CORTÉS", circuito: "MAS352", lat: 15.82364566, lon: -87.92076142 },
+{ id: 195, clave: "5089899", cliente: "SECRETARIA DE SEGURIDAD", tipo: "SEGURIDAD", direccion: "NO. CASA-1 BLOQUE-0 PISO-1 REF", municipio: "CHOLOMA", circuito: "CHM252", lat: 15.59565491, lon: -87.944069 },
+{ id: 196, clave: "5092886", cliente: "SECRETARIA DE SEGURIDAD", tipo: "SEGURIDAD", direccion: "NO. CASA-1 BLOQUE-0 PISO-1 REF", municipio: "PUERTO CORTÉS", circuito: "TSZ224", lat: 15.86237093, lon: -87.924891 },
+{ id: 197, clave: "5100520", cliente: "SECRETARIA DE SEGURIDAD", tipo: "SEGURIDAD", direccion: "C-1 REF-posta policial rio bij", municipio: "CHOLOMA", circuito: "RNA385", lat: 15.70925859, lon: -87.92873521 },
+{ id: 198, clave: "5111510", cliente: "SECRETARIA DE SEGURIDAD", tipo: "SEGURIDAD", direccion: "C-1 REF-posta policial ctg a h", municipio: "PUERTO CORTÉS", circuito: "TSZ224", lat: 15.83023988, lon: -87.92869201 },
+{ id: 199, clave: "5113253", cliente: "SECRETARIA DE SEGURIDAD", tipo: "SEGURIDAD", direccion: "C-0 B-0 REF-BO EL PARAISO SAN", municipio: "SAN MANUEL", circuito: "VNU324", lat: 15.32998589, lon: -87.92258601 },
+{ id: 200, clave: "5155618", cliente: "SECRETARIA DE SEGURIDAD", tipo: "SEGURIDAD", direccion: "C-1 resd los castaños choloma", municipio: "CHOLOMA", circuito: "RNA386", lat: 15.66586196, lon: -87.93806101 },
+{ id: 201, clave: "5177420", cliente: "SECRETARIA DE SEGURIDAD", tipo: "SEGURIDAD", direccion: "C-1 Clinica de Especialidades", municipio: "SAN PEDRO SULA", circuito: "LPT230", lat: 15.4817814, lon: -88.02852304 },
+{ id: 202, clave: "5178756", cliente: "SECRETARIA DE SEGURIDAD PUBLIC", tipo: "SEGURIDAD", direccion: "C-1 Estacion Fronteriza de la", municipio: "OMOA", circuito: "MAS352", lat: 15.58248495, lon: -88.37075302 },
+{ id: 203, clave: "5181983", cliente: "SECRETARIA DE SEGURIDAD", tipo: "SEGURIDAD", direccion: "C-1 --aldea corinto scanner", municipio: "OMOA", circuito: "MAS352", lat: 15.59437588, lon: -88.37041496 },
+{ id: 204, clave: "5193837", cliente: "SECRETARIA DE SEGURIDAD", tipo: "SEGURIDAD", direccion: "C-1 aduana corinto", municipio: "OMOA", circuito: "MAS352", lat: 15.59453798, lon: -88.37155404 },
+{ id: 205, clave: "5303794", cliente: "SECRETARIA DE SEGURIDAD", tipo: "SEGURIDAD", direccion: "C-1", municipio: "SAN PEDRO SULA", circuito: "BER290", lat: 15.56778993, lon: -88.034424 }
+
+    ];
+
+    // Crear marcadores y agregarlos al mapa
+    var marcadores = {};
+    var puntoSeleccionado = null; // Variable global para almacenar el punto seleccionado
+
+    puntos.forEach(function(p) {
+      var icono;
+      if (p.tipo === "HOSPITALES") icono = iconHospital;
+      else if (p.tipo === "INSTITUCIONES") icono = iconInstitucion;
+      else if (p.tipo === "SEGURIDAD") icono = iconSeguridad;
+      else icono = iconInstitucion;
+
+      var marker = L.marker([p.lat, p.lon], { icon: icono })
+        .addTo(map)
+        .on('click', function() {
+          document.getElementById("info_id").textContent = p.id;
+          document.getElementById("info_clave").textContent = p.clave;
+          document.getElementById("info_cliente").textContent = p.cliente;
+          document.getElementById("info_tipo").textContent = p.tipo;
+          document.getElementById("info_direccion").textContent = p.direccion;
+          document.getElementById("info_municipio").textContent = p.municipio;
+          document.getElementById("info_circuito").textContent = p.circuito;
+          document.getElementById("info_lat").textContent = p.lat;
+          document.getElementById("info_lon").textContent = p.lon;
+          puntoSeleccionado = p;
+          document.getElementById("info_punto").style.display = "block";
+          document.getElementById("form_incidencia").style.display = "none";
+        });
+      marcadores[p.id] = marker;
+    });
+
+    // Mostrar formulario de incidencia al presionar el botón
+    document.getElementById("btn_incidencia").addEventListener("click", function() {
+      document.getElementById("form_incidencia").style.display = "block";
+    });
+
+    // Función para guardar la incidencia usando fetch con mode "no-cors"
+    function guardarIncidencia() {
+      // Mostrar mensaje de carga
+      document.getElementById("loadingPopup").style.display = "block";
+      
+      var datosIncidencia = {
+        idPunto: puntoSeleccionado ? puntoSeleccionado.id : "",
+        clave: puntoSeleccionado ? puntoSeleccionado.clave : "",
+        cliente: puntoSeleccionado ? puntoSeleccionado.cliente : "",
+        tipo: puntoSeleccionado ? puntoSeleccionado.tipo : "",
+        direccion: puntoSeleccionado ? puntoSeleccionado.direccion : "",
+        municipio: puntoSeleccionado ? puntoSeleccionado.municipio : "",
+        circuito: puntoSeleccionado ? puntoSeleccionado.circuito : "",
+        lat: puntoSeleccionado ? puntoSeleccionado.lat : "",
+        lon: puntoSeleccionado ? puntoSeleccionado.lon : "",
+        descripcion: document.getElementById("incidencia_descripcion").value,
+        prioridad: document.getElementById("incidencia_prioridad").value,
+        observaciones: document.getElementById("incidencia_observaciones").value
+      };
+
+      fetch(apiIncidenciaURL, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(datosIncidencia)
+      })
+      .then(function() {
+        document.getElementById("loadingPopup").style.display = "none";
+        alert("Incidencia guardada exitosamente.");
+        document.getElementById("incidencia_descripcion").value = "";
+        document.getElementById("incidencia_prioridad").value = "";
+        document.getElementById("incidencia_observaciones").value = "";
+        document.getElementById("form_incidencia").style.display = "none";
+      })
+      .catch(function(error) {
+        document.getElementById("loadingPopup").style.display = "none";
+        console.error("Error al guardar incidencia:", error);
+        alert("Error al guardar incidencia. Revisa la consola.");
+      });
+    }
+  </script>
+</body>
+</html>
