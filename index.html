@@ -1,454 +1,1588 @@
 <!DOCTYPE html>
+
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Reporte de Incidencias</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-  <style>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Control de Combustible</title>
+<!-- Roboto font for consistent typography -->
+<link href="https://fonts.googleapis.com/css2?family=Roboto&amp;display=swap" rel="stylesheet"/>
+<style>
+    /* Animaciones para transiciones */
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .fade-in-up {
+      animation: fadeInUp 0.5s ease-out forwards;
+    }
+
+    /* Global page styles */
+    /* Global page styles */
     body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      padding: 10px;
+      font-family: 'Roboto', sans-serif;
+      background: #f4f4f4;
+      padding: 20px;
     }
-    #map {
-      height: 400px;
+    .formulario {
+      max-width: 800px;
+      margin: 0 auto;
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    h2 { text-align: center; }
+    label { display: block; margin-top: 10px; }
+    input, select, textarea {
       width: 100%;
-      max-width: 100%;
-    }
-    /* Ocultar formulario de incidencia inicialmente */
-    #form_incidencia {
-      display: none;
-      margin-top: 20px;
-      border: 1px solid #ccc;
-      padding: 15px;
-      border-radius: 5px;
-    }
-    .info-container {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-      gap: 10px;
-      text-align: center;
-    }
-    .info-box {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      font-weight: bold;
-      width: 100%;
-    }
-    .info-box input,
-    .info-box select,
-    .info-box textarea {
-      width: 90%;
-      max-width: 300px;
       padding: 8px;
-      font-size: 16px;
+      margin-top: 5px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
     }
     button {
       padding: 10px;
+      background-color: #007BFF;
+      color: white;
+      border: none;
+      border-radius: 5px;
       font-size: 16px;
       cursor: pointer;
-      margin-top: 10px;
-      max-width: 300px;
+      margin: 5px 0;
     }
-    @media screen and (max-width: 600px) {
-      .info-container {
-        grid-template-columns: 1fr;
-      }
-      #map {
-        height: 300px;
-      }
-      h2, h3 {
-        text-align: center;
-      }
+    button:hover { background-color: #0056b3; }
+    #mensaje_cargando {
+      text-align: center;
+      font-weight: bold;
+      color: #007BFF;
+      margin-bottom: 15px;
+    }
+
+    /* Styles for preview pages to mimic Letter dimensions */
+    @page {
+      size: letter;
+      margin: 1.27cm;
+    }
+    .page {
+      background: white;
+      width: 216mm;           /* Carta: 8.5in = 216mm */
+      height: 279mm;          /* Carta: 11in = 279mm */
+      margin: 20px auto;      /* Separación entre páginas */
+      padding: 1.27cm;        /* Márgenes internos de 1.27cm */
+      box-shadow: 0 0 5px rgba(0,0,0,0.1);
+      display: flex;          /* Contenedor flex para extender contenido */
+      flex-direction: column; /* Organizar header y contenido en columna */
+      overflow: hidden;       /* Ocultar desbordes */
+      page-break-after: always;
+    }
+    @media print {
+      .page { page-break-after: always; margin: 0; box-shadow: none; }
+      body { margin: 0; }
+    }
+    .format-header {
+      text-align: center;
+      font-weight: bold;
+      border: 1px solid #000;
+      padding: 5px;
+      margin-bottom: 10px;
+      font-size: 18px;
+    }
+    .preview-box {
+      display: flex;
+      gap: 10px; /* Gap between columns */
+      flex: 1; /* Fill vertical space under header */
+    }
+    .invoice-box {
+      flex: 0 0 55%; /* Width ratio for invoice box */
+      height: 100%;  /* Fill parent height */
+    }
+    .summary-box {
+      flex: 0 0 45%; /* Width ratio for summary box */
+      height: 100%;  /* Fill parent height */
+    }
+    .invoice-box .placeholder {
+      width: 100%; height: 100%;
+      border: 2px dashed #666;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #666;
+      font-style: italic;
+    }
+    .summary-box table {
+      width: 100%; height: 100%;
+      border-collapse: collapse;
+    }
+    .summary-box td:first-child { width: 30%; }
+    .summary-box td:nth-child(2) { width: 70%; }
+    .summary-box td {
+      font-size: 14px;
+      border: 1px solid #ccc;
+      padding: 8px;
+      vertical-align: top;
+    }
+
+    /* Adjust page 2 to fill remaining height */
+    #photos_table_container {
+      flex: 1;               /* Fill vertical space under header */
+      display: flex;
+      flex-direction: column;
+    }
+    .photos-table {
+      flex: 1;               /* Fill all available height */
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+    .photos-table td {
+      border: 1px solid #ccc;
+      padding: 4px;
+      vertical-align: top;
+      overflow: hidden;
+      width: 45%;
+      height: 300px; /* Ajustado a 300px según pedido */
+    }
+    .photos-table td[rowspan="2"] {
+      width: 55%;
+      height: 530px; /* Ajustado a 530px según pedido */
+    }
+    .photos-table img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+      margin: 0 auto;
+    }
+    .photo-title { font-size: 14px; font-weight: bold; margin-bottom: 4px; }
+    .photo-footer { font-size: 14px; font-weight: bold; text-align: left; padding: 6px; }
+    /* Pie de página: altura fija distinta de las fotos */
+    .photos-table tr:last-child td {
+      height: 20px; /* Ajustado a 20px para el pie de página */ /* Ajusta este valor para cambiar el largo del pie de página */
+    }
+      /* Ensure preview content matches Letter width */
+    html, body { box-sizing: border-box; }
+    #preview_contenido {
+      width: 216mm;       /* Match page width for PDF capture */
+      margin: 0 auto;
+      overflow: visible;
     }
   </style>
+<style>
+.spinner {
+  border: 6px solid #f3f3f3;
+  border-top: 6px solid #3498db;
+  border-radius: 50%;
+  width: 60px;
+  height: 60px;
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+</style>
+<style>
+#toast-alert {
+  visibility: hidden;
+  min-width: 280px;
+  background-color: #c62828;
+  color: white;
+  text-align: center;
+  border-radius: 5px;
+  padding: 14px 28px;
+  position: fixed;
+  z-index: 9999;
+  left: 50%;
+  bottom: 30px;
+  font-size: 16px;
+  transform: translateX(-50%);
+}
+#toast-alert.show {
+  visibility: visible;
+  animation: fadein 0.5s, fadeout 0.5s 2.5s;
+}
+@keyframes fadein {
+  from { bottom: 10px; opacity: 0; }
+  to   { bottom: 30px; opacity: 1; }
+}
+@keyframes fadeout {
+  from { bottom: 30px; opacity: 1; }
+  to   { bottom: 10px; opacity: 0; }
+}
+</style>
+<div id="toast-alert">⚠️ Hay campos obligatorios sin completar.</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+
+<style>
+@keyframes fadeOutUp {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(-20px); }
+}
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-out-up {
+  animation: fadeOutUp 0.3s forwards;
+}
+.fade-in-down {
+  animation: fadeInDown 0.3s ease-out forwards;
+}
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
+<script src="https://unpkg.com/blueimp-load-image/js/load-image.all.min.js"></script>
+
+<style>
+@media screen and (max-width: 768px) {
+  .formulario {
+    padding: 15px;
+    margin: 0 10px;
+    box-shadow: none;
+    border-radius: 0;
+  }
+
+  input, select, textarea, button {
+    font-size: 16px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  label {
+    font-size: 14px;
+    margin-top: 15px;
+    display: block;
+  }
+
+  button {
+    padding: 12px;
+    font-weight: bold;
+    width: 100%;
+  }
+
+  .paso {
+    padding: 10px;
+    margin-bottom: 20px;
+  }
+
+  body {
+    padding: 10px;
+    margin: 0;
+  }
+}
+</style>
+
 </head>
 <body>
-
-  <h2>Reporte de Incidencias</h2>
-  
-  <!-- Leyenda de tipos de puntos -->
-  <div id="leyenda" style="display: flex; align-items: center; gap: 20px; margin-bottom: 10px;">
-    <div style="display: flex; align-items: center;">
-      <img src="https://maps.google.com/mapfiles/ms/icons/red-dot.png" width="20" height="20" alt="Hospitales">
-      <span style="margin-left: 5px;">Hospitales</span>
-    </div>
-    <div style="display: flex; align-items: center;">
-      <img src="https://maps.google.com/mapfiles/ms/icons/blue-dot.png" width="20" height="20" alt="Instituciones">
-      <span style="margin-left: 5px;">Instituciones</span>
-    </div>
-    <div style="display: flex; align-items: center;">
-      <img src="https://maps.google.com/mapfiles/ms/icons/yellow-dot.png" width="20" height="20" alt="Seguridad">
-      <span style="margin-left: 5px;">Seguridad</span>
-    </div>
-  </div>
-
-  <!-- Mapa -->
-  <div id="map"></div>
-  
-  <!-- Información del punto seleccionado -->
-  <div id="info_punto" style="margin-top: 20px; border: 1px solid #ccc; padding: 15px; border-radius: 5px; display: none;">
-    <h3>Información del punto seleccionado</h3>
-    <p><strong>ID:</strong> <span id="info_id"></span></p>
-    <p><strong>CLAVE:</strong> <span id="info_clave"></span></p>
-    <p><strong>CLIENTE:</strong> <span id="info_cliente"></span></p>
-    <p><strong>TIPO:</strong> <span id="info_tipo"></span></p>
-    <p><strong>DIRECCIÓN:</strong> <span id="info_direccion"></span></p>
-    <p><strong>MUNICIPIO:</strong> <span id="info_municipio"></span></p>
-    <p><strong>CIRCUITO:</strong> <span id="info_circuito"></span></p>
-    <p><strong>LATITUD:</strong> <span id="info_lat"></span></p>
-    <p><strong>LONGITUD:</strong> <span id="info_lon"></span></p>
-    <button id="btn_incidencia" type="button">Reportar incidencia</button>
-  </div>
-
-  <!-- Formulario para reportar incidencia -->
-  <form id="form_incidencia">
-    <h3>Formulario de Incidencia</h3>
-    <p>Complete la información para el reporte.</p>
-    <div class="info-container">
-      <div class="info-box">
-        <label for="incidencia_descripcion">Descripción de la incidencia</label>
-        <textarea id="incidencia_descripcion" rows="3"></textarea>
-      </div>
-      <div class="info-box">
-        <label for="incidencia_prioridad">Prioridad</label>
-        <select id="incidencia_prioridad">
-          <option value="" selected disabled>Seleccione...</option>
-          <option value="Alta">Alta</option>
-          <option value="Media">Media</option>
-          <option value="Baja">Baja</option>
-        </select>
-      </div>
-      <div class="info-box">
-        <label for="incidencia_observaciones">Observaciones</label>
-        <textarea id="incidencia_observaciones" rows="3"></textarea>
-      </div>
-    </div>
-    <button type="button" onclick="guardarIncidencia()">Guardar Incidencia</button>
-  </form>
-
-  <!-- Mensaje de carga -->
-  <div id="loadingPopup" style="display: none; 
-      position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-      background: rgba(0, 0, 0, 0.7); color: white; padding: 20px; 
-      font-size: 18px; border-radius: 10px; z-index: 1000;">
-    Guardando información... Por favor, espere.
-  </div>
-
-  <script>
-    // URL de tu Apps Script para guardar incidencias (reemplaza con tu URL real)
-    var apiIncidenciaURL = "https://script.google.com/macros/s/AKfycbzR8XtTCAjmumMQ1JGbLMxnKKvtttv2tAh9kO0VyRdkkj43PlTGj9gkxoLbKQGtQag/exec";
-
-    // Inicializar el mapa
-    var map = L.map('map').setView([15.5, -87.5], 7);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-
-    // Definir iconos según el tipo
-    var iconHospital = L.icon({
-      iconUrl: 'https://maps.google.com/mapfiles/ms/icons/red-dot.png',
-      iconSize: [32, 32],
-      iconAnchor: [16, 32]
+<div id="notification" style="display:none; position:fixed; top:20px; left:50%; transform:translateX(-50%); background:#28a745; color:white; padding:15px 30px; border-radius:5px; opacity:0; transition:opacity 0.5s ease-in-out; z-index:1000;">Información enviada correctamente</div>
+<!-- Initial loading message displayed while fetching data -->
+<div id="mensaje_cargando">Cargando información, por favor espere...</div>
+<!-- Formulario: oculto hasta cargar sectores y procesos -->
+<div class="formulario" id="formulario_contenido" style="display:none;">
+<h2>Reporte de Gasto de Combustible</h2>
+<!-- Sector selector populated dinámicamente -->
+<!-- Placa selector dependiente del sector -->
+<datalist id="placas"></datalist>
+<!-- Proceso seleccionado por usuario (movido) -->
+<!-- Datos del colaborador -->
+<!-- Kilometraje y gasto -->
+<!-- Nuevo campo: Litros Consumidos, no aparece en preview ni PDF -->
+<!-- Motivación del viaje -->
+<!-- Motivación del viaje -->
+<!-- Proceso seleccionado por usuario -->
+<!-- Fecha y duración -->
+<!-- Datos del vehículo y factura -->
+<!-- Inputs de imágenes (galería o cámara) reordered -->
+<!-- Botón para generar vista previa -->
+<div class="paso" id="paso1" style="display:block;"><label for="sector">Seleccionar Sector:</label><span class="error-msg" id="error_sector" style="color:red; display:none;">(Campo obligatorio)</span><select id="sector"><option value="">Seleccione un sector</option></select><label for="placa">Seleccionar Placa del Vehículo:</label><span class="error-msg" id="error_placa" style="color:red; display:none;">(Campo obligatorio)</span><input autocomplete="off" id="placa" list="placas" placeholder="Escribe o selecciona una placa" type="text"/><label for="proceso">Proceso:</label><span class="error-msg" id="error_proceso" style="color:red; display:none;">(Campo obligatorio)</span><select id="proceso"><option value="">Seleccione un proceso</option></select><label for="nombre">Nombre Completo:</label><span class="error-msg" id="error_nombre" style="color:red; display:none;">(Campo obligatorio)</span><input id="nombre" required="" type="text"/><label for="identidad">No. Identidad:</label><span class="error-msg" id="error_identidad" style="color:red; display:none;">(Campo obligatorio)</span><input id="identidad" maxlength="15" oninput="maskIdentidad(this)" required="" type="text"/><label for="total">Total Gastado (L):</label><span class="error-msg" id="error_total" style="color:red; display:none;">(Campo obligatorio)</span><input id="total" step="0.01" type="number"/><label for="litros">Litros Consumidos:</label><span class="error-msg" id="error_litros" style="color:red; display:none;">(Campo obligatorio)</span><input id="litros" step="0.01" type="number"/><label for="motivo">Motivo del Llenado:</label><span class="error-msg" id="error_motivo" style="color:red; display:none;">(Campo obligatorio)</span><textarea id="motivo" rows="3"></textarea><label for="fecha">Fecha:</label><span class="error-msg" id="error_fecha" style="color:red; display:none;">(Campo obligatorio)</span><input id="fecha" type="date"/><label for="horas">Horas de Viaje:</label><input id="horas" type="text"/><label for="km">Km Actual del Vehículo:</label><span class="error-msg" id="error_km" style="color:red; display:none;">(Campo obligatorio)</span><input id="km" type="number"/><label for="nombre_comercio">Nombre del comercio:</label><span class="error-msg" id="error_nombre_comercio" style="color:red; display:none;">(Campo obligatorio)</span><input id="nombre_comercio" placeholder="Nombre del comercio" type="text"/><label for="factura">Número de Factura:</label><span class="error-msg" id="error_factura" style="color:red; display:none;">(Campo obligatorio)</span><input id="factura" oninput="maskFactura(this)" type="text"/><div><button onclick="validarYVerificarDuplicado();" type="button">Siguiente</button></div></div><div class="paso" id="paso2" style="display:none;;text-align:center;"><label for="foto_tablero_antes">Fotografía Tablero Antes:</label><img alt="Ejemplo de fotografía" src="https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/main/imagenes/Tablero%20antes%20de%20llenado.png" style="display: block; margin: 10px auto; height: 200px; object-fit: contain; border-radius: 8px;"/><span class="error-msg" id="error_foto_tablero_antes" style="color:red; display:none;">(Campo obligatorio)</span><button onclick="activarCamara('foto_tablero_antes')" style=" margin: 5px" type="button">Tomar Fotografía</button><button onclick="abrirGaleria('foto_tablero_antes')" style=" margin: 5px" type="button">Subir desde Galería</button><div class="preview" id="preview_foto_tablero_antes"></div><div><button onclick="mostrarPaso(1)" style=" margin: 5px" type="button">Anterior</button><button onclick="if(validarImagenPaso('foto_tablero_antes')){siguientePaso(3);}" style=" margin: 5px" type="button">Siguiente</button></div><input accept="image/*" hidden="True" id="foto_tablero_antes" type="file"/></div><div class="paso" id="paso3" style="display:none;;text-align:center;"><label for="foto_bomba">Fotografía Bomba en 0:</label><img alt="Ejemplo de fotografía" src="https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/main/imagenes/Bomba%20en%20cero.png" style="display: block; margin: 10px auto; height: 200px; object-fit: contain; border-radius: 8px;"/><span class="error-msg" id="error_foto_bomba" style="color:red; display:none;">(Campo obligatorio)</span><button onclick="activarCamara('foto_bomba')" style=" margin: 5px" type="button">Tomar Fotografía</button><button onclick="abrirGaleria('foto_bomba')" style=" margin: 5px" type="button">Subir desde Galería</button><div class="preview" id="preview_foto_bomba"></div><div><button onclick="mostrarPaso(2)" style=" margin: 5px" type="button">Anterior</button><button onclick="if(validarImagenPaso('foto_bomba')){siguientePaso(4);}" style=" margin: 5px" type="button">Siguiente</button></div><input accept="image/*" hidden="True" id="foto_bomba" type="file"/></div><div class="paso" id="paso4" style="display:none;;text-align:center;"><label for="foto_frontal">Fotografía Frontal del Vehículo o VIN con Vehículo:</label><img alt="Ejemplo de fotografía" src="https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/main/imagenes/Vista%20Frontal.png" style="display: block; margin: 10px auto; height: 200px; object-fit: contain; border-radius: 8px;"/><span class="error-msg" id="error_foto_frontal" style="color:red; display:none;">(Campo obligatorio)</span><button onclick="activarCamara('foto_frontal')" style=" margin: 5px" type="button">Tomar Fotografía</button><button onclick="abrirGaleria('foto_frontal')" style=" margin: 5px" type="button">Subir desde Galería</button><div class="preview" id="preview_foto_frontal"></div><div><button onclick="mostrarPaso(3)" style=" margin: 5px" type="button">Anterior</button><button onclick="if(validarImagenPaso('foto_frontal')){siguientePaso(5);}" style=" margin: 5px" type="button">Siguiente</button></div><input accept="image/*" hidden="True" id="foto_frontal" type="file"/></div><div class="paso" id="paso5" style="display:none;;text-align:center;"><label for="foto_bomba_llenado">Fotografía Bomba Llena:</label><img alt="Ejemplo de fotografía" src="https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/main/imagenes/Bomba%20llena.png" style="display: block; margin: 10px auto; height: 200px; object-fit: contain; border-radius: 8px;"/><span class="error-msg" id="error_foto_bomba_llenado" style="color:red; display:none;">(Campo obligatorio)</span><button onclick="activarCamara('foto_bomba_llenado')" style=" margin: 5px" type="button">Tomar Fotografía</button><button onclick="abrirGaleria('foto_bomba_llenado')" style=" margin: 5px" type="button">Subir desde Galería</button><div class="preview" id="preview_foto_bomba_llenado"></div><div><button onclick="mostrarPaso(4)" style=" margin: 5px" type="button">Anterior</button><button onclick="if(validarImagenPaso('foto_bomba_llenado')){siguientePaso(6);}" style=" margin: 5px" type="button">Siguiente</button></div><input accept="image/*" hidden="True" id="foto_bomba_llenado" type="file"/></div><div class="paso" id="paso6" style="display:none;;text-align:center;"><input accept="image/*" hidden="True" id="foto_despues" type="file"/><label for="foto_despues">Fotografía Tablero Después de Llenado:</label><img alt="Ejemplo de fotografía" src="https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/main/imagenes/Tablero%20antes%20de%20llenado.png" style="display: block; margin: 10px auto; height: 200px; object-fit: contain; border-radius: 8px;"/><span class="error-msg" id="error_foto_despues" style="color:red; display:none;">(Campo obligatorio)</span><button onclick="activarCamara('foto_despues')" style=" margin: 5px" type="button">Tomar Fotografía</button><button onclick="abrirGaleria('foto_despues')" style=" margin: 5px" type="button">Subir desde Galería</button><div class="preview" id="preview_foto_despues"></div><div><button onclick="mostrarPaso(5)" style=" margin: 5px" type="button">Anterior</button><button onclick="if(validarImagenPaso('foto_despues')){siguientePaso(7);}" style=" margin: 5px" type="button">Siguiente</button></div></div><div class="paso" id="paso7" style="display:none; text-align: center;"><h2>Fotografía de la Factura:</h2><img alt="Ejemplo factura" src="https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/main/imagenes/Factura.png" style="display: block; margin: 10px auto; height: 200px; object-fit: contain; border-radius: 8px;"/><input accept="image/*" hidden="True" id="foto_factura" type="file"/><button onclick="activarCamara('foto_factura')" style=" margin: 5px" type="button">Tomar Fotografía</button><button onclick="abrirGaleria('foto_factura')" style=" margin: 5px" type="button">Subir desde Galería</button><div class="preview" id="preview_foto_factura"></div>
+<div style="display: flex; justify-content: center;  margin-top: 20px;">
+<button onclick="mostrarPaso(6)" style="margin: 5px;" type="button">Anterior</button>
+<button id="guardar_reporte" style="margin: 5px;" type="button">Guardar Reporte</button>
+</div>
+</div></div>
+<!-- Contenedor de vista previa: dos páginas A4 simuladas -->
+<div id="preview_contenido" style="display:none;">
+<!-- Página 1: resumen e inserción de factura -->
+<div class="page" id="preview_page1">
+<h3 class="format-header" id="format_header"></h3>
+<div class="preview-box">
+<div class="invoice-box">
+<div class="placeholder" id="placeholder_box">Pegar Factura Original en este Espacio</div>
+</div>
+<div class="summary-box" id="summary_box"></div>
+</div>
+</div>
+<!-- Página 2: galería de fotografías con pie de página -->
+<div class="page" id="preview_page2">
+<h3 class="format-header">FOTOGRAFÍAS</h3>
+<div id="photos_table_container"></div>
+</div>
+<!-- Página 3: separador -->
+<!-- Página 3: solo fotografía de la factura -->
+<div class="page" id="preview_page3">
+<h3 class="format-header">FACTURA ORIGINAL</h3>
+<div class="invoice-box">
+<img id="factura_only_img" style="width:auto; height:800px; object-fit:contain; display:block; margin:0 auto;"/>
+</div>
+</div>
+<button id="enviar_reporte">Enviar Reporte</button>
+<button id="modificar_reporte">Modificar Reporte</button>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script>
+// Mostrar previews para cada campo de imagen
+['foto_tablero_antes','foto_bomba','foto_despues','foto_bomba_llenado','foto_frontal','foto_factura'].forEach(id => {
+  const input = document.getElementById(id);
+  if (input) {
+    input.addEventListener('change', () => {
+      if (input.files && input.files.length > 0) {
+        const archivo = input.files[0];
+        
+        // Validar antigüedad de la foto (no mayor a 48 horas)
+        const fileDate = new Date(archivo.lastModified);
+        if (Date.now() - fileDate.getTime() > 48 * 3600 * 1000) {
+          alert('La fotografía debe ser reciente (no mayor a 48 horas).');
+          input.value = '';
+          return;
+        }
+        const url = URL.createObjectURL(archivo);
+        const contenedor = document.getElementById('preview_' + id);
+        if (contenedor) {
+          contenedor.innerHTML = `<img src="${url}" style="max-width:100%; max-height:300px;">`;
+        }
+      }
     });
-    var iconInstitucion = L.icon({
-      iconUrl: 'https://maps.google.com/mapfiles/ms/icons/blue-dot.png',
-      iconSize: [32, 32],
-      iconAnchor: [16, 32]
-    });
-    var iconSeguridad = L.icon({
-      iconUrl: 'https://maps.google.com/mapfiles/ms/icons/yellow-dot.png',
-      iconSize: [32, 32],
-      iconAnchor: [16, 32]
-    });
+  }
+});
 
-    // Array de objetos con la información de los puntos
-    var puntos = [
 
-{ id: 1, clave: "140294", cliente: "IHSS", tipo: "HOSPITALES", direccion: "ATRAS DEL COSULTORIO ANTIGU", municipio: "SAN PEDRO SULA", circuito: "BER248", lat: 15.54256492, lon: -88.015043 },
-{ id: 2, clave: "169468", cliente: "IHSS", tipo: "HOSPITALES", direccion: "BO CIENAGUITA", municipio: "PUERTO CORTÉS", circuito: "MAS352", lat: 15.81106788, lon: -87.93533427 },
-{ id: 3, clave: "169475", cliente: "IHSS", tipo: "HOSPITALES", direccion: "BO CIENAGUITA", municipio: "PUERTO CORTÉS", circuito: "MAS352", lat: 15.81114529, lon: -87.93535129 },
-{ id: 4, clave: "276409", cliente: "I H S S", tipo: "HOSPITALES", direccion: "CLINICA PERIFERICA P64 VILLAN", municipio: "VILLANUEVA", circuito: "VNU324", lat: 15.31806555, lon: -87.99006505 },
-{ id: 5, clave: "478149", cliente: "I H S S", tipo: "HOSPITALES", direccion: "COL.PRIMAVERA CALLE PRINCIPAL", municipio: "CHOLOMA", circuito: "CHM215", lat: 15.61480538, lon: -87.9576632 },
-{ id: 6, clave: "617668", cliente: "IHSSOFCINAS FESITRANH", tipo: "HOSPITALES", direccion: "COL.FESITRANH OFICINAS SEGUNDA", municipio: "SAN PEDRO SULA", circuito: "LVI227", lat: 15.5575039, lon: -87.99115362 },
-{ id: 7, clave: "992581", cliente: "MINISTERIO DE SALUD PULBLICA", tipo: "HOSPITALES", direccion: "COL.MIGUEL CALVO 2 CLINICA PER", municipio: "VILLANUEVA", circuito: "VNU394", lat: 15.33318319, lon: -87.99026659 },
-{ id: 8, clave: "1271483", cliente: "I.H.S.S.", tipo: "HOSPITALES", direccion: "COL.TEPEACA FTE.BURGUER KING", municipio: "SAN PEDRO SULA", circuito: "CIR244", lat: 15.50269694, lon: -88.00924496 },
-{ id: 9, clave: "1273692", cliente: "INST.HONDUREO DE SEGURIDAD SO", tipo: "HOSPITALES", direccion: "CALPULES CONTIGUO INTAE", municipio: "SAN PEDRO SULA", circuito: "EST221", lat: 15.47031921, lon: -87.97330959 },
-{ id: 10, clave: "1400315", cliente: "IHSS", tipo: "HOSPITALES", direccion: "CARRETERA A OCCIDENTE RESTAU", municipio: "QUIMISTAN", circuito: "NCO364", lat: 15.35945105, lon: -88.19191328 },
-{ id: 11, clave: "1508060", cliente: "INST HOND DE SEGURIDAD SOCIAL", tipo: "HOSPITALES", direccion: "COL ORQUIDEA BLANCA N.E CENTRO", municipio: "SAN PEDRO SULA", circuito: "BVI268", lat: 15.51536717, lon: -88.0342592 },
-{ id: 12, clave: "1593541", cliente: "INST.HONDUREO DE SEGURIDAD SO", tipo: "HOSPITALES", direccion: "COL.CALPULES CONT.INTAEOFICI", municipio: "SAN PEDRO SULA", circuito: "EST221", lat: 15.46978383, lon: -87.973458 },
-{ id: 13, clave: "113020", cliente: "MINIST SALUDHOSP LEONARDO M", tipo: "HOSPITALES", direccion: "AREA DE LAVANDERIA", municipio: "SAN PEDRO SULA", circuito: "LPT232", lat: 15.5001149, lon: -88.03110838 },
-{ id: 14, clave: "615453", cliente: "MINIST SALUD HOSP LEONARDO MA", tipo: "HOSPITALES", direccion: "HOSP.LEONARDO MARTINEZ (COCINA", municipio: "SAN PEDRO SULA", circuito: "LPT232", lat: 15.50043951, lon: -88.03107121 },
-{ id: 15, clave: "615455", cliente: "MINIST SALUDHOSP LEONARDO MAR", tipo: "HOSPITALES", direccion: "HOSP.LEONARDO MARTINEZ(CASA DE", municipio: "SAN PEDRO SULA", circuito: "LPT232", lat: 15.50104884, lon: -88.03028182 },
-{ id: 16, clave: "953068", cliente: "MINSALUD HOS LEONARDO MARTINE", tipo: "HOSPITALES", direccion: "BO PAZ BARAHONA 10 AVE 7-9 CLL", municipio: "SAN PEDRO SULA", circuito: "LPT232", lat: 15.49975282, lon: -88.03100254 },
-{ id: 17, clave: "963678", cliente: "MINISTERIO DE SALUD", tipo: "HOSPITALES", direccion: "BO.EL BENQUE 9-10AV 7-12CLL HO", municipio: "SAN PEDRO SULA", circuito: "LPT232", lat: 15.49959636, lon: -88.03088328 },
-{ id: 18, clave: "1593014", cliente: "MINISTERIO DE SALUD PUBLICA", tipo: "HOSPITALES", direccion: "PAZ BARAHONA 7-9CLL 10AVHOSPIT", municipio: "SAN PEDRO SULA", circuito: "LPT232", lat: 15.50101127, lon: -88.03122525 },
-{ id: 19, clave: "1593529", cliente: "HOSPITAL LEONARDO MARTINEZ", tipo: "HOSPITALES", direccion: "BO.EL BENQUE 7CLL. 9-10AVE. S", municipio: "SAN PEDRO SULA", circuito: "LPT232", lat: 15.50126437, lon: -88.03010948 },
-{ id: 20, clave: "1880589", cliente: "HOSPITAL LEONARDO MARTINEZ", tipo: "HOSPITALES", direccion: "BO. LEMPIRA 9-10 7CALLE S.O.", municipio: "SAN PEDRO SULA", circuito: "LPT232", lat: 15.50107125, lon: -88.03026282 },
-{ id: 21, clave: "285907", cliente: "MINIST SALUDHOSP MARIO C RIVA", tipo: "HOSPITALES", direccion: "BOULEVAR HACIA COLONIA POTOSI", municipio: "SAN PEDRO SULA", circuito: "BVI268", lat: 15.52402798, lon: -88.0412109 },
-{ id: 22, clave: "707831", cliente: "SECRETARIA DE SALUD", tipo: "HOSPITALES", direccion: "CONT-COLONIA EL PEDREGAL N.O", municipio: "SAN PEDRO SULA", circuito: "BVI268", lat: 15.52400888, lon: -88.04158683 },
-{ id: 23, clave: "1605971", cliente: "MINISTERIO DE SALUD PUBLICA", tipo: "HOSPITALES", direccion: "HOSPITAL M C RIVAS SALA DE RAD", municipio: "SAN PEDRO SULA", circuito: "BVI268", lat: 15.5240379, lon: -88.0410278 },
-{ id: 24, clave: "1676544", cliente: "MINISTERIO DE SALUD PUBLICA", tipo: "HOSPITALES", direccion: "EL PEDREGAL HOSP.MARIO CATARI", municipio: "SAN PEDRO SULA", circuito: "BVI268", lat: 15.52335219, lon: -88.04159362 },
-{ id: 25, clave: "1676545", cliente: "MINISTERIO DE SALUD PUBLICA", tipo: "HOSPITALES", direccion: "EL PEDREGAL HOSP.MARIO CATARI", municipio: "SAN PEDRO SULA", circuito: "BER283", lat: 15.52567022, lon: -88.04149693 },
-{ id: 26, clave: "1676546", cliente: "MINISTERIO DE SALUD PUBLICA", tipo: "HOSPITALES", direccion: "EL PEDREGAL HOSP.MARIO CATARI", municipio: "SAN PEDRO SULA", circuito: "BVI268", lat: 15.52376078, lon: -88.04170388 },
-{ id: 27, clave: "2014764", cliente: "SECRETARIASALUD FUNDC ABRIGO", tipo: "HOSPITALES", direccion: "CTG ALBERGUE HOSPITAL MARIO", municipio: "CHOLOMA", circuito: "BVI268", lat: 15.52429637, lon: -88.04366435 },
-{ id: 28, clave: "5093203", cliente: "SECRETARIA DE SALUD", tipo: "HOSPITALES", direccion: "REF-CONTE. REFRIGERADOS ESTADI", municipio: "SAN PEDRO SULA", circuito: "LPT203", lat: 15.46677993, lon: -88.003194 },
-{ id: 29, clave: "5103419", cliente: "SECRETARIA DE SALUD PUBLICA", tipo: "HOSPITALES", direccion: "C-0 B-0 REF-HOSPITAL MOVIL SPS", municipio: "SAN PEDRO SULA", circuito: "BER283", lat: 15.52554292, lon: -88.042136 },
-{ id: 30, clave: "215557", cliente: "MINIST SALUDHOSP PTO CORTES", tipo: "HOSPITALES", direccion: "CARRETERA A OMOA", municipio: "PUERTO CORTÉS", circuito: "TSZ224", lat: 15.81450374, lon: -87.93632071 },
-{ id: 31, clave: "978817", cliente: "MINISTERIO DE SALUD PUBLICA", tipo: "HOSPITALES", direccion: "HOSPITAL DEL AREA DE PUERTO CO", municipio: "PUERTO CORTÉS", circuito: "TSZ224", lat: 15.8144059, lon: -87.93627139 },
-{ id: 32, clave: "5155568", cliente: "SECRETARIA DE SALUD PUBLICA", tipo: "HOSPITALES", direccion: "C-1 --SALA DE RECUPERACION HOS", municipio: "PUERTO CORTÉS", circuito: "TSZ224", lat: 15.81452994, lon: -87.93560598 },
-{ id: 33, clave: "5155573", cliente: "SECRETARIA DE SALUD PUBLICA", tipo: "HOSPITALES", direccion: "C-1 --SALA DE EMERGENCIAS HOSP", municipio: "PUERTO CORTÉS", circuito: "TSZ224", lat: 15.81565394, lon: -87.93627201 },
-{ id: 34, clave: "116196", cliente: "Registro Nacional de las Personas", tipo: "INSTITUCIONES", direccion: "18 19 CALLE 12 AVE S O NO", municipio: "SAN PEDRO SULA", circuito: "LPT234", lat: 15.4908833, lon: -88.03465129 },
-{ id: 35, clave: "153443", cliente: "Registro Nacional de las Personas", tipo: "INSTITUCIONES", direccion: "1 1/2 CDA S CAFETERIA KARLA", municipio: "POTRERILLOS", circuito: "CAR390", lat: 15.22851116, lon: -87.96529827 },
-{ id: 36, clave: "159404", cliente: "Registro Nacional de las Personas", tipo: "INSTITUCIONES", direccion: "BO.EL CENTRO 1CLL 2-3AVEN.O ED", municipio: "CHOLOMA", circuito: "CHM215", lat: 15.6123323, lon: -87.95378613 },
-{ id: 37, clave: "169759", cliente: "Registro Nacional de las Personas", tipo: "INSTITUCIONES", direccion: "PUERTO CORTES", municipio: "PUERTO CORTÉS", circuito: "TAL258", lat: 15.84577779, lon: -87.9465912 },
-{ id: 38, clave: "220668", cliente: "Registro Nacional de las Personas", tipo: "INSTITUCIONES", direccion: "OFICINAS RNP 1618 BO EL CENTRO", municipio: "QUIMISTAN", circuito: "NCO364", lat: 15.34760964, lon: -88.40178371 },
-{ id: 39, clave: "294899", cliente: "Registro Nacional de las Personas", tipo: "INSTITUCIONES", direccion: "PERSONAS 19 AVE.2-3 CLLE.FTE.L", municipio: "SONAGUERA", circuito: "CHM251", lat: 15.60809, lon: -87.953167 },
-{ id: 40, clave: "330590", cliente: "Registro Nacional de las Personas", tipo: "INSTITUCIONES", direccion: "BO CABA#AS FTE CAMPO DE FOOT B", municipio: "VILLANUEVA", circuito: "VNU323", lat: 15.31164836, lon: -87.99072409 },
-{ id: 41, clave: "574053", cliente: "Registro Nacional de las Personas", tipo: "INSTITUCIONES", direccion: "BO EL CENTRO PLAZA ENG LOCAL N", municipio: "PUERTO CORTÉS", circuito: "TAL258", lat: 15.8457284, lon: -87.94637829 },
-{ id: 42, clave: "607939", cliente: "Registro Nacional de las Personas", tipo: "INSTITUCIONES", direccion: "PROYECTO SAMA VISION BO LA LOM", municipio: "SAN MARCOS", circuito: "NCO364", lat: 15.29800371, lon: -88.41071893 },
-{ id: 43, clave: "633555", cliente: "Registro Nacional de las Personas", tipo: "INSTITUCIONES", direccion: "9AVE 6-7 CLL S.O.", municipio: "SAN PEDRO SULA", circuito: "LPT232", lat: 15.50142106, lon: -88.02993874 },
-{ id: 44, clave: "679279", cliente: "Registro Nacional de las Personas", tipo: "INSTITUCIONES", direccion: "BO EL CENTRO FRENTE A MUNICIPA", municipio: "LA LIMA", circuito: "SMT291", lat: 15.43834145, lon: -87.92683688 },
-{ id: 45, clave: "787935", cliente: "Registro Nacional de las Personas", tipo: "INSTITUCIONES", direccion: "LOCAL EN MUNICIPALIDAD DE OMO", municipio: "OMOA", circuito: "MAS352", lat: 15.77601988, lon: -88.03412282 },
-{ id: 46, clave: "802939", cliente: "Registro Nacional de las Personas", tipo: "INSTITUCIONES", direccion: "BO.EL CENTRO PLAZA EN SEGUNDA", municipio: "PUERTO CORTÉS", circuito: "TAL258", lat: 15.84578721, lon: -87.94613015 },
-{ id: 47, clave: "904006", cliente: "Registro Nacional de las Personas", tipo: "INSTITUCIONES", direccion: "BO.CENTRO 1 ARRIBA DEL PARQUE", municipio: "SAN MANUEL", circuito: "VNU324", lat: 15.33061581, lon: -87.92024095 },
-{ id: 48, clave: "962581", cliente: "Registro Nacional de las Personas", tipo: "INSTITUCIONES", direccion: "MERCADO MPAL SALIDA A SAN MANU", municipio: "VILLANUEVA", circuito: "VNU324", lat: 15.31778828, lon: -87.99029658 },
-{ id: 49, clave: "992540", cliente: "Registro Nacional de las Personas", tipo: "INSTITUCIONES", direccion: "COL.COLOMBIA 10AVE. 5CLL. N.O.", municipio: "SAN PEDRO SULA", circuito: "BER282", lat: 15.51878887, lon: -88.0284591 },
-{ id: 50, clave: "1167706", cliente: "Registro Nacional de las Personas", tipo: "INSTITUCIONES", direccion: "BO EL CENTRO FTE A PARQUE MACU", municipio: "MACUELIZO", circuito: "LEC362", lat: 15.31310667, lon: -88.54083461 },
-{ id: 51, clave: "1251459", cliente: "Registro Nacional de las Personas", tipo: "INSTITUCIONES", direccion: "REGISTRO FTE AL PARQUE PETOA", municipio: "PETOA", circuito: "NCO364", lat: 15.26845665, lon: -88.2891504 },
-{ id: 52, clave: "1259929", cliente: "Registro Nacional de las Personas", tipo: "INSTITUCIONES", direccion: "BO ARRIBA AZACUALPA VALLE S B", municipio: "AZACUALPA", circuito: "LEC362", lat: 15.34259602, lon: -88.55416443 },
-{ id: 53, clave: "1651639", cliente: "Registro Nacional de las Personas", tipo: "INSTITUCIONES", direccion: "BO.EL CENTRO PIMIENTA OFICIN", municipio: "PIMIENTA", circuito: "VNU323", lat: 15.27555459, lon: -87.97371744 },
-{ id: 54, clave: "4473020", cliente: "Registro Nacional de las Personas", tipo: "INSTITUCIONES", direccion: "BO CENTRO DERECHA DE PLAZA LOS", municipio: "OMOA", circuito: "MAS352", lat: 15.77455792, lon: -88.03551563 },
-{ id: 55, clave: "4482566", cliente: "Registro Nacional de las Personas", tipo: "INSTITUCIONES", direccion: "COL TRASCERROS", municipio: "NUEVA FRONTERA", circuito: "LEC362", lat: 15.30469795, lon: -88.66119391 },
-{ id: 56, clave: "5053784", cliente: "Registro Nacional de las Personas", tipo: "INSTITUCIONES", direccion: "BO JOSE C DEL VALLE VILLANUEVA", municipio: "VILLANUEVA", circuito: "VNU323", lat: 15.31185489, lon: -87.99069017 },
-{ id: 57, clave: "5190585", cliente: "Registro Nacional de las Personas", tipo: "INSTITUCIONES", direccion: "C-1", municipio: "PIMIENTA", circuito: "VNU323", lat: 15.27702301, lon: -87.97326603 },
-{ id: 58, clave: "757104", cliente: "Tribunal Superior de Cuentas (TSC)", tipo: "INSTITUCIONES", direccion: "BA. LAS ACACIAS 3 AVE 8-9 CLL", municipio: "SAN PEDRO SULA", circuito: "BER288", lat: 15.51272358, lon: -88.02411265 },
-{ id: 59, clave: "136743", cliente: "Instituto Formación Profesional (INFOP)", tipo: "INSTITUCIONES", direccion: "3 CDAS E VALENTIN FLORES", municipio: "SAN PEDRO SULA", circuito: "LPT203", lat: 15.47430442, lon: -88.02634672 },
-{ id: 60, clave: "1637463", cliente: "Instituto Formación Profesional (INFOP)", tipo: "INSTITUCIONES", direccion: "CALLE A RESID PALOS VERDES SA", municipio: "SAN PEDRO SULA", circuito: "LPT203", lat: 15.47511176, lon: -88.02624594 },
-{ id: 61, clave: "358618", cliente: "DIPOL", tipo: "SEGURIDAD", direccion: "COL.TREJO 11CLL 22-23AVECA-126", municipio: "SAN PEDRO SULA", circuito: "BVI270", lat: 15.49583332, lon: -88.04300129 },
-{ id: 62, clave: "949000", cliente: "DIRECCION DE INTELIGENCIA POL", tipo: "SEGURIDAD", direccion: "RES. CAMPISA B/B/ L2 P2", municipio: "SAN PEDRO SULA", circuito: "LVI236", lat: 15.54631622, lon: -87.98671287 },
-{ id: 63, clave: "1043970", cliente: "DIRECCION DE INTELIGENCIA POLI", tipo: "SEGURIDAD", direccion: "VILLAS MACKEY 8 Y 7 CLL 1 AVE", municipio: "SAN PEDRO SULA", circuito: "BER290", lat: 15.55613762, lon: -88.03173212 },
-{ id: 64, clave: "1043971", cliente: "DIRECCION DE INTELIGENCIA POLI", tipo: "SEGURIDAD", direccion: "RES.VILLAS MACKEY 8 Y 7 CLL 1", municipio: "SAN PEDRO SULA", circuito: "BER290", lat: 15.55611673, lon: -88.03171527 },
-{ id: 65, clave: "1043972", cliente: "DIRECCION DE INTELIGENCIA POLI", tipo: "SEGURIDAD", direccion: "RES.VILLAS MACKEY 8 Y 7 CLL 1", municipio: "SAN PEDRO SULA", circuito: "BER290", lat: 15.55619849, lon: -88.03166272 },
-{ id: 66, clave: "1276071", cliente: "BIENES INCAUTADOS OABI", tipo: "SEGURIDAD", direccion: "COL.TREJO IV ETAPA BOULVLAS TO", municipio: "SAN PEDRO SULA", circuito: "LPT233", lat: 15.4867621, lon: -88.04378111 },
-{ id: 67, clave: "1339431", cliente: "DIPOL", tipo: "SEGURIDAD", direccion: "RSD CAMPISA II ETAPA BLQ L CAS", municipio: "SAN PEDRO SULA", circuito: "BER280", lat: 15.53390675, lon: -87.99310035 },
-{ id: 68, clave: "1737516", cliente: "CARDOZA RAFAEL AROLDO", tipo: "SEGURIDAD", direccion: "RES.LOS CEDROS B4 L3 P20 N.O.", municipio: "SAN PEDRO SULA", circuito: "BER290", lat: 15.55159509, lon: -88.03279143 },
-{ id: 69, clave: "5215892", cliente: "DIRECCION DE ASUNTOS DISCIPLIN", tipo: "SEGURIDAD", direccion: "COL TREJO CALLE 12-21 23 AV", municipio: "SAN PEDRO SULA", circuito: "LPT233", lat: 15.49040004, lon: -88.04380005 },
-{ id: 70, clave: "1620323", cliente: "MINISTERIO DE DEFENSA", tipo: "SEGURIDAD", direccion: "3 BATALLON INFANTERIAGRLOGIST", municipio: "SAN PEDRO SULA", circuito: "NCO364", lat: 15.39701423, lon: -88.17736819 },
-{ id: 71, clave: "136915", cliente: "MINIST DEFENSAFUERZA AEREA", tipo: "SEGURIDAD", direccion: "COLONIA ALTAMIRA", municipio: "SAN PEDRO SULA", circuito: "LPT234", lat: 15.48889682, lon: -88.03658666 },
-{ id: 72, clave: "615644", cliente: "MINIST DEFENSAFUERZA AEREA", tipo: "SEGURIDAD", direccion: "AEROP R V MORALESCERCA BOMBA", municipio: "SAN PEDRO SULA", circuito: "SMT284", lat: 15.44740982, lon: -87.93820362 },
-{ id: 73, clave: "641012", cliente: "MINIST DEFENSAFUERZA AEREA", tipo: "SEGURIDAD", direccion: "COL FUERZA AEREA SECTOR COL LO", municipio: "SAN PEDRO SULA", circuito: "LPT234", lat: 15.48878634, lon: -88.03660187 },
-{ id: 74, clave: "641013", cliente: "MINIST DEFENSA F A H", tipo: "SEGURIDAD", direccion: "COL FUERZAS AEREA21CLLE 19-21A", municipio: "SAN PEDRO SULA", circuito: "LPT234", lat: 15.48853166, lon: -88.03666871 },
-{ id: 75, clave: "641014", cliente: "MINIST DEFENSA F A H", tipo: "SEGURIDAD", direccion: "COL FUERZAS AEREA21CLLE 19-21A", municipio: "SAN PEDRO SULA", circuito: "LPT234", lat: 15.48867337, lon: -88.03711192 },
-{ id: 76, clave: "641015", cliente: "MINIST DEFENSA F A H", tipo: "SEGURIDAD", direccion: "COL PUERTA AREA21CLLE19-21AVE", municipio: "SAN PEDRO SULA", circuito: "LPT234", lat: 15.48882282, lon: -88.0365945 },
-{ id: 77, clave: "641016", cliente: "MINIST DEFENSA F A H", tipo: "SEGURIDAD", direccion: "COL FUERZAS ARMANDAS SECTOR CO", municipio: "SAN PEDRO SULA", circuito: "LPT234", lat: 15.48882216, lon: -88.03673557 },
-{ id: 78, clave: "641017", cliente: "MINIST DEFENSA F A H", tipo: "SEGURIDAD", direccion: "COL FUERZAS AEREA 21CLLE COL.A", municipio: "SAN PEDRO SULA", circuito: "LPT234", lat: 15.48894165, lon: -88.0365691 },
-{ id: 79, clave: "641018", cliente: "MINIST DEFENSA F A H", tipo: "SEGURIDAD", direccion: "COL FUERZAS ARMADAS SECTOR LOS", municipio: "SAN PEDRO SULA", circuito: "LPT234", lat: 15.48902175, lon: -88.03668423 },
-{ id: 80, clave: "641019", cliente: "MINIST DEFENSA F A H", tipo: "SEGURIDAD", direccion: "COL FUERZAS AEREA SECTORCOL LO", municipio: "SAN PEDRO SULA", circuito: "LPT234", lat: 15.48866854, lon: -88.03676628 },
-{ id: 81, clave: "641020", cliente: "MINIST DEFENSA F A H", tipo: "SEGURIDAD", direccion: "COL FUERZAS AREA M-19 CALLE DE", municipio: "SAN PEDRO SULA", circuito: "CIR245", lat: 15.49032637, lon: -88.00106266 },
-{ id: 82, clave: "641021", cliente: "MINIST DEFENSA F A H", tipo: "SEGURIDAD", direccion: "COL PUERTA AREA 21CLLE 19-21AV", municipio: "SAN PEDRO SULA", circuito: "LPT234", lat: 15.48899206, lon: -88.03653222 },
-{ id: 83, clave: "642749", cliente: "MINIST DEFENSA F A H", tipo: "SEGURIDAD", direccion: "COL FUERZA AEREA M-19 SECTOR L", municipio: "SAN PEDRO SULA", circuito: "LPT234", lat: 15.48861679, lon: -88.0366464 },
-{ id: 84, clave: "676801", cliente: "MINIST DEFENSABAS AER ARMANDO", tipo: "SEGURIDAD", direccion: "AEROPUERTO RAMON VILLEDAMORALE", municipio: "LA LIMA", circuito: "SMT284", lat: 15.44661113, lon: -87.93808008 },
-{ id: 85, clave: "1745903", cliente: "FUERZA AREA HONDURENA", tipo: "SEGURIDAD", direccion: "ANTIGUA TERMINAL AEROPUERTO RA", municipio: "SAN PEDRO SULA", circuito: "SMT284", lat: 15.4478068, lon: -87.93249787 },
-{ id: 86, clave: "803951", cliente: "FUERZAS ARMADAS DE HONDURAS", tipo: "SEGURIDAD", direccion: "JARDINES DEL VALLE IV ETAPA 6-", municipio: "SAN PEDRO SULA", circuito: "BER282", lat: 15.5360902, lon: -88.02747204 },
-{ id: 87, clave: "1448297", cliente: "FUERZAS ARMADAS DE HONDURAS", tipo: "SEGURIDAD", direccion: "JARDINES DEL VALLE 6-10CLL 2AV", municipio: "SAN PEDRO SULA", circuito: "BER282", lat: 15.53594557, lon: -88.02747133 },
-{ id: 88, clave: "158404", cliente: "MINIST DEFENSATERCER BATALLON", tipo: "SEGURIDAD", direccion: "TERCER BATALLON EN NAC", municipio: "SAN PEDRO SULA", circuito: "NCO364", lat: 15.40403496, lon: -88.18299831 },
-{ id: 89, clave: "233668", cliente: "MINIST DEFENSA", tipo: "SEGURIDAD", direccion: "ALUMB ALREDEDOR DEL LICEO Y BR", municipio: "SAN PEDRO SULA", circuito: "BER282", lat: 15.52045769, lon: -88.02862742 },
-{ id: 90, clave: "233671", cliente: "MINISTERIO DE DEFENSA", tipo: "SEGURIDAD", direccion: "ALUMBRADO DEL LICEO MILITAR DE", municipio: "SAN PEDRO SULA", circuito: "BER282", lat: 15.52050577, lon: -88.03050871 },
-{ id: 91, clave: "233673", cliente: "MINIST DEFENSALICEO MILITAR", tipo: "SEGURIDAD", direccion: "AULAS DEL LICEO MILITAR Y BOMB", municipio: "SAN PEDRO SULA", circuito: "BER282", lat: 15.52136967, lon: -88.02888293 },
-{ id: 92, clave: "234223", cliente: "MINIST DEFENSACOL DE OFICIALE", tipo: "SEGURIDAD", direccion: "COL DE OFICIALES CARRETERA A", municipio: "SAN PEDRO SULA", circuito: "NCO364", lat: 15.39346101, lon: -88.17751592 },
-{ id: 93, clave: "261660", cliente: "MINIST DEFENSA 105 BRIGADA", tipo: "SEGURIDAD", direccion: "SALIDA A PTO CORTES BRIGAD", municipio: "SAN PEDRO SULA", circuito: "BER282", lat: 15.52005405, lon: -88.02568255 },
-{ id: 94, clave: "276814", cliente: "FUERZAS ARMADAS DE HONDURAS", tipo: "SEGURIDAD", direccion: "COL LOPEZ ARELLANO", municipio: "CHOLOMA", circuito: "LVI235", lat: 15.57213483, lon: -87.95384108 },
-{ id: 95, clave: "282447", cliente: "MINIST DEFENSAFUERZAS ARMADAS", tipo: "SEGURIDAD", direccion: "2DO. BAT DE ARTILLERIA QUIMIS", municipio: "QUIMISTAN", circuito: "NCO364", lat: 15.38253779, lon: -88.38343304 },
-{ id: 96, clave: "294438", cliente: "MINIST DEFENSA 105 BRIGADA", tipo: "SEGURIDAD", direccion: "COMEDOR DE LA 105 BRIGADA INF", municipio: "SAN PEDRO SULA", circuito: "BER282", lat: 15.52008223, lon: -88.02986136 },
-{ id: 97, clave: "440791", cliente: "MINIST DEFENSA LICEO MILITAR", tipo: "SEGURIDAD", direccion: "LICEO MILITAR 105 BRIGAD", municipio: "SAN PEDRO SULA", circuito: "BER282", lat: 15.52216978, lon: -88.02734321 },
-{ id: 98, clave: "444323", cliente: "MINIST DEFENSALICEO MILITAR", tipo: "SEGURIDAD", direccion: "10 AVE N.O. CIRCUNVALA CION 1", municipio: "SAN PEDRO SULA", circuito: "BER282", lat: 15.52168934, lon: -88.02633235 },
-{ id: 99, clave: "444324", cliente: "MINIST DEFENSA 105 BRIGADA", tipo: "SEGURIDAD", direccion: "10 AVE 105 BR", municipio: "SAN PEDRO SULA", circuito: "BER282", lat: 15.5196473, lon: -88.02917771 },
-{ id: 100, clave: "932629", cliente: "MINISTERIO DE DEFENSA", tipo: "SEGURIDAD", direccion: "ENTRADA PCPAL.DE COL.COLOMBIA", municipio: "SAN PEDRO SULA", circuito: "BER282", lat: 15.51968699, lon: -88.03039959 },
-{ id: 101, clave: "1255632", cliente: "MINISTERIO DE DEFENSA PUBLICA", tipo: "SEGURIDAD", direccion: "POSTA POLICIAL SECTOR DECHAMEL", municipio: "SAN PEDRO SULA", circuito: "LPT250", lat: 15.43048706, lon: -88.02087758 },
-{ id: 102, clave: "1620318", cliente: "MINISTERIO DE DEFENSA", tipo: "SEGURIDAD", direccion: "3ER BATALLON DE INFANTERIANAC", municipio: "SAN PEDRO SULA", circuito: "NCO364", lat: 15.40406972, lon: -88.17985844 },
-{ id: 103, clave: "1620319", cliente: "MINISTERIO DE DEFENSA", tipo: "SEGURIDAD", direccion: "3ER BATALLON DE INFANTERIANAC", municipio: "SAN PEDRO SULA", circuito: "NCO364", lat: 15.40224869, lon: -88.17893505 },
-{ id: 104, clave: "1620320", cliente: "MINISTERIO DE DEFENSA", tipo: "SEGURIDAD", direccion: "3ER BATALLON DE INFANTERIANAC", municipio: "SAN PEDRO SULA", circuito: "NCO364", lat: 15.40294729, lon: -88.18185541 },
-{ id: 105, clave: "1620321", cliente: "MINISTERIO DE DEFENSA", tipo: "SEGURIDAD", direccion: "3ER BATALLON DE INFANTERIANAC", municipio: "SAN PEDRO SULA", circuito: "NCO364", lat: 15.40129431, lon: -88.17822153 },
-{ id: 106, clave: "1620322", cliente: "MINISTERIO DE DEFENSA", tipo: "SEGURIDAD", direccion: "3 BATALLON DE INFANTERIAFTE.CO", municipio: "SAN PEDRO SULA", circuito: "NCO364", lat: 15.40210208, lon: -88.18101205 },
-{ id: 107, clave: "1620324", cliente: "MINISTERIO DE DEFENSA", tipo: "SEGURIDAD", direccion: "3ER.BATALLON DE IFANTERIA FTE.", municipio: "SAN PEDRO SULA", circuito: "NCO364", lat: 15.39623262, lon: -88.17646001 },
-{ id: 108, clave: "1620325", cliente: "MINISTERIO DE DEFENSA", tipo: "SEGURIDAD", direccion: "3ER BATALLON DE INFANTERIA NA", municipio: "SAN PEDRO SULA", circuito: "NCO364", lat: 15.39786669, lon: -88.17342239 },
-{ id: 109, clave: "1625906", cliente: "MINISTERIO DE DEFENSA", tipo: "SEGURIDAD", direccion: "3ER BATALLON DE INFANERTERIA F", municipio: "SAN PEDRO SULA", circuito: "NCO364", lat: 15.39623166, lon: -88.17321756 },
-{ id: 110, clave: "2014767", cliente: "LICEO MILITAR", tipo: "SEGURIDAD", direccion: "LICEO MILITAR 105 BRIGADA N O", municipio: "CHOLOMA", circuito: "BER282", lat: 15.52065534, lon: -88.02726023 },
-{ id: 111, clave: "2014768", cliente: "SECRETARIA DE DEFENSA", tipo: "SEGURIDAD", direccion: "JARDIN DE NI#OS LICEO MILITA", municipio: "CHOLOMA", circuito: "BER282", lat: 15.52176852, lon: -88.02652985 },
-{ id: 112, clave: "5034760", cliente: "INST. LICEO MILITAR DEL NORTE", tipo: "SEGURIDAD", direccion: "REF-JARDIN DE NIÑOS LICEO MILI", municipio: "SAN PEDRO SULA", circuito: "BER282", lat: 15.5217825, lon: -88.02871252 },
-{ id: 113, clave: "5177721", cliente: "INSTITUTO DE PREVISION MILITAR", tipo: "SEGURIDAD", direccion: "C-1 Liceo Militar del norte ft", municipio: "SAN PEDRO SULA", circuito: "BER282", lat: 15.52060295, lon: -88.02872803 },
-{ id: 114, clave: "169768", cliente: "MINIST DEFENSABASE NAVAL", tipo: "SEGURIDAD", direccion: "BASE NAVAL PUERTO CORTES", municipio: "PUERTO CORTÉS", circuito: "TSZ224", lat: 15.82587791, lon: -87.93249132 },
-{ id: 115, clave: "364857", cliente: "FUERZAS ARMADAS DE HONDURAS", tipo: "SEGURIDAD", direccion: "POLICIA NACIONAL PREVENTIVA T", municipio: "OMOA", circuito: "MAS352", lat: 15.63291924, lon: -88.2538892 },
-{ id: 116, clave: "563559", cliente: "MINIST DEFENSABASE NAVAL", tipo: "SEGURIDAD", direccion: "BARRIO EL PORVENIR", municipio: "PUERTO CORTÉS", circuito: "TSZ224", lat: 15.82767057, lon: -87.9322994 },
-{ id: 117, clave: "568543", cliente: "MINIST DEFENSAESC TECNICA BAS", tipo: "SEGURIDAD", direccion: "BO. EL PORVENIR ESC TECNIC", municipio: "PUERTO CORTÉS", circuito: "TSZ224", lat: 15.82684885, lon: -87.93108597 },
-{ id: 118, clave: "568544", cliente: "MINIST DEFESABASE NAVAL", tipo: "SEGURIDAD", direccion: "BARRIO EL PORVENIR", municipio: "PUERTO CORTÉS", circuito: "TSZ224", lat: 15.82697495, lon: -87.93247191 },
-{ id: 119, clave: "666291", cliente: "MINIST DEFENSABASE NAVAL", tipo: "SEGURIDAD", direccion: "BASE NAVAL DE PTO CORTES", municipio: "PUERTO CORTÉS", circuito: "TSZ224", lat: 15.82684877, lon: -87.93125418 },
-{ id: 120, clave: "2015916", cliente: "MINISTERIO DE DEFENSA", tipo: "SEGURIDAD", direccion: "BASE NAVAL BO EL PORVENIR PUER", municipio: "PUERTO CORTÉS", circuito: "TSZ224", lat: 15.85574475, lon: -87.9323907 },
-{ id: 121, clave: "5132320", cliente: "FUERZAS ARMADAS DE HONDURAS", tipo: "SEGURIDAD", direccion: "B-0 BO. EL PORVENIR BASE NAV", municipio: "PUERTO CORTÉS", circuito: "TSZ224", lat: 15.82732626, lon: -87.93214824 },
-{ id: 122, clave: "1365459", cliente: "HOSPITAL MILITAR", tipo: "SEGURIDAD", direccion: "PLANTA DE TRATAMIENTO 105 BR", municipio: "SAN PEDRO SULA", circuito: "BER282", lat: 15.52229401, lon: -88.02761617 },
-{ id: 123, clave: "1365460", cliente: "HOSPITAL MILITAR", tipo: "SEGURIDAD", direccion: "105 BRIGADA SAN PEDRO SULA", municipio: "SAN PEDRO SULA", circuito: "BER282", lat: 15.52168943, lon: -88.02876901 },
-{ id: 124, clave: "1880597", cliente: "HOPITAL MILITAR", tipo: "SEGURIDAD", direccion: "COL COLOMBIA CONT A LA 105", municipio: "SAN PEDRO SULA", circuito: "BER282", lat: 15.52155498, lon: -88.0289509 },
-{ id: 125, clave: "2014763", cliente: "HOSPITAL MILITAR", tipo: "SEGURIDAD", direccion: "EN 105 BRIGADA COL COLOMBIA N", municipio: "SAN PEDRO SULA", circuito: "BER282", lat: 15.52153696, lon: -88.02895045 },
-{ id: 126, clave: "639101", cliente: "VI JUEGOS CENTROAMERICANOS", tipo: "SEGURIDAD", direccion: "POLIDEPORTIVO NO 2 CHAMELECON", municipio: "SAN PEDRO SULA", circuito: "LPT250", lat: 15.42732869, lon: -88.00847032 },
-{ id: 127, clave: "1878519", cliente: "MINISTERIO DE DEFENSA Y SEG. P", tipo: "SEGURIDAD", direccion: "COL. LOSUSA 1-4 AVE. S.ECUARTE", municipio: "SAN PEDRO SULA", circuito: "LPT249", lat: 15.43707932, lon: -88.00590019 },
-{ id: 128, clave: "112163", cliente: "POLICIA PREVENTIVA DGPP", tipo: "SEGURIDAD", direccion: "7 CALLE 12 AVE S E CANT", municipio: "SAN PEDRO SULA", circuito: "CIR242", lat: 15.499069, lon: -88.013005 },
-{ id: 129, clave: "123946", cliente: "SECRETARIA DE SEGURIDAD", tipo: "SEGURIDAD", direccion: "BA.RIO PIEDRAS 24-25AVE 5CLL C", municipio: "SAN PEDRO SULA", circuito: "BVI270", lat: 15.50316183, lon: -88.04598386 },
-{ id: 130, clave: "135436", cliente: "CASTELLANOS CANDIDA", tipo: "SEGURIDAD", direccion: "COL.JUAN LINDO 8CLL 30-31AVE C", municipio: "SAN PEDRO SULA", circuito: "BVI268", lat: 15.5167317, lon: -88.04703261 },
-{ id: 131, clave: "147970", cliente: "POLICIA PREVENTIVA DGPP", tipo: "SEGURIDAD", direccion: "MEGA POSTA POLICIAL FTE.FERRET", municipio: "SAN PEDRO SULA", circuito: "LPT250", lat: 15.43031064, lon: -88.02096094 },
-{ id: 132, clave: "152758", cliente: "POLICIA PREVENTIVA DGPP", tipo: "SEGURIDAD", direccion: "PIMIENTA", municipio: "PIMIENTA", circuito: "VNU323", lat: 15.27571662, lon: -87.9738765 },
-{ id: 133, clave: "153425", cliente: "POLICIA PREVENTIVA DGPP", tipo: "SEGURIDAD", direccion: "CUERPO ESPECIAL DE SEG", municipio: "POTRERILLOS", circuito: "CAR390", lat: 15.22807589, lon: -87.96561284 },
-{ id: 134, clave: "157956", cliente: "POLICIA PREVENTIVA DGPP", tipo: "SEGURIDAD", direccion: "COFRADIA PTE-51", municipio: "SAN PEDRO SULA", circuito: "NCO365", lat: 15.40928198, lon: -88.15226177 },
-{ id: 135, clave: "159824", cliente: "POLICIA PREVENTIVA DGPP", tipo: "SEGURIDAD", direccion: "SUB DELEGACION DE LA POLICIA N", municipio: "CHOLOMA", circuito: "CHM215", lat: 15.61132311, lon: -87.95059685 },
-{ id: 136, clave: "169771", cliente: "TRANSITO", tipo: "SEGURIDAD", direccion: "BO.CAMPO ROJO PTO.CORTES", municipio: "PUERTO CORTÉS", circuito: "MAS353", lat: 15.823339, lon: -87.901331 },
-{ id: 137, clave: "197052", cliente: "POLICIA PREVENTIVA DGPP", tipo: "SEGURIDAD", direccion: "SUB DELEGACION PNP BARACO", municipio: "PUERTO CORTÉS", circuito: "RNA385", lat: 15.77464552, lon: -87.8528012 },
-{ id: 138, clave: "311789", cliente: "POLICIA PREVENTIVA DGPP", tipo: "SEGURIDAD", direccion: "ALDEA MONTERREY P-438 CHOLOM", municipio: "CHOLOMA", circuito: "CHM216", lat: 15.58911375, lon: -87.8754506 },
-{ id: 139, clave: "327403", cliente: "POLICIA PREVENTIVA DGPP", tipo: "SEGURIDAD", direccion: "SUB DELEGACION DE POLICIA NACI", municipio: "PUERTO CORTÉS", circuito: "RNA385", lat: 15.75753314, lon: -87.86885033 },
-{ id: 140, clave: "337705", cliente: "POLICIA PREVENTIVA DGPP", tipo: "SEGURIDAD", direccion: "EDIFICIO VIEJO DE ESCUELA NO 1", municipio: "PETOA", circuito: "NCO364", lat: 15.27273082, lon: -88.28307743 },
-{ id: 141, clave: "356467", cliente: "POLICIA PREVENTIVA DGPP", tipo: "SEGURIDAD", direccion: "POL NAC PREVENTIVA AZACUALPA", municipio: "AZACUALPA", circuito: "LEC362", lat: 15.343136, lon: -88.552055 },
-{ id: 142, clave: "357322", cliente: "POLICIA PREVENTIVA DGPP", tipo: "SEGURIDAD", direccion: "CUYAMEL", municipio: "OMOA", circuito: "MAS352", lat: 15.66043264, lon: -88.20080637 },
-{ id: 143, clave: "469354", cliente: "MINIST.SEG.POLICIA PREV.POSTA", tipo: "SEGURIDAD", direccion: "CIUDAD PLANETA POSTA EN CONSTR", municipio: "LA LIMA", circuito: "SMT284", lat: 15.45852798, lon: -87.94831743 },
-{ id: 144, clave: "481087", cliente: "POLICIA PREVENTIVA DGPP", tipo: "SEGURIDAD", direccion: "COL.STA FEDOS CAMINOS EST.PO", municipio: "VILLANUEVA", circuito: "VNU391", lat: 15.38369236, lon: -87.98325606 },
-{ id: 145, clave: "497784", cliente: "POLICIA PREVENTIVA DGPP", tipo: "SEGURIDAD", direccion: "COL LA PRADERA FTE PTE-404 POS", municipio: "SAN PEDRO SULA", circuito: "RET289", lat: 15.48132033, lon: -87.98231878 },
-{ id: 146, clave: "501559", cliente: "POLICIA PREVENTIVA DGPP", tipo: "SEGURIDAD", direccion: "POSTA POLICIAL TRASCERROS MACU", municipio: "NUEVA FRONTERA", circuito: "LEC362", lat: 15.30792438, lon: -88.66048612 },
-{ id: 147, clave: "595445", cliente: "MINIST.SEGPOSTA POLICIAL", tipo: "SEGURIDAD", direccion: "COL LOS CASTA¿OS 1 CLL PTE 81", municipio: "SAN PEDRO SULA", circuito: "BER280", lat: 15.54719781, lon: -88.00038331 },
-{ id: 148, clave: "604108", cliente: "POLICIA PREVENTIVA DGPP", tipo: "SEGURIDAD", direccion: "FUSEP 1 AVE.9 CLLE BO.LEMPIRA", municipio: "SAN PEDRO SULA", circuito: "BER208", lat: 15.49864486, lon: -88.02412978 },
-{ id: 149, clave: "604109", cliente: "POLICIA PREVENTIVA DGPP", tipo: "SEGURIDAD", direccion: "BO.LEMPIRA 9 10 CLLE.1 AVE.S.O", municipio: "SAN PEDRO SULA", circuito: "BER208", lat: 15.49843448, lon: -88.02408611 },
-{ id: 150, clave: "612056", cliente: "POLICIA PREVENTIVA DGPP", tipo: "SEGURIDAD", direccion: "3 AVE.9-10CLLE S.O.FUSEP1ERA E", municipio: "SAN PEDRO SULA", circuito: "BER208", lat: 15.49835584, lon: -88.02504837 },
-{ id: 151, clave: "625151", cliente: "POLICIA PREVENTIVA DGPP", tipo: "SEGURIDAD", direccion: "BO LEMPIRA M-196 PTE 74 C-2-70", municipio: "SAN PEDRO SULA", circuito: "BER208", lat: 15.49841889, lon: -88.02444486 },
-{ id: 152, clave: "665053", cliente: "POLICIA PREVENTIVA DGPP", tipo: "SEGURIDAD", direccion: "EL OCOTILLO BLOQUE 15", municipio: "SAN PEDRO SULA", circuito: "BER205", lat: 15.53905779, lon: -87.92904101 },
-{ id: 153, clave: "681031", cliente: "MINIST.SEGURIDDISTRITO POLICI", tipo: "SEGURIDAD", direccion: "BO.GUAMILITO L-05 8AVE LOCAL-1", municipio: "SAN PEDRO SULA", circuito: "BER208", lat: 15.50746449, lon: -88.02818458 },
-{ id: 154, clave: "686932", cliente: "POLICIA PREVENTIVA DGPP", tipo: "SEGURIDAD", direccion: "BO-LA GURDIA CONTIGUO A CENTRO", municipio: "SAN PEDRO SULA", circuito: "LPT230", lat: 15.48209992, lon: -88.02839159 },
-{ id: 155, clave: "686933", cliente: "POLICIA PREVENTIVA DGPP", tipo: "SEGURIDAD", direccion: "BO-LA GUARDIA COTGUO A CENTRO", municipio: "SAN PEDRO SULA", circuito: "LPT230", lat: 15.4817054, lon: -88.02807001 },
-{ id: 156, clave: "750483", cliente: "POLICIA PREVENTIVA DGPP", tipo: "SEGURIDAD", direccion: "BO.CAB¿AS 18CLL 14AVE CONTG.CA", municipio: "SAN PEDRO SULA", circuito: "LPT204", lat: 15.48708554, lon: -88.01277877 },
-{ id: 157, clave: "754261", cliente: "MINIST SEGUR.ANTENA POLICIA N", tipo: "SEGURIDAD", direccion: "ALDEA LA CUMBRE ANTENA DE LA P", municipio: "SAN PEDRO SULA", circuito: "LPT250", lat: 15.44829458, lon: -88.03975533 },
-{ id: 158, clave: "797792", cliente: "SALGADO PEREZ WALDINA LIZZETTE", tipo: "SEGURIDAD", direccion: "BRISAS DEL CARIBE 2CLL OMOA", municipio: "OMOA", circuito: "MAS352", lat: 15.78507283, lon: -88.02167805 },
-{ id: 159, clave: "817660", cliente: "POLICIA PREVENTIVA DGPP", tipo: "SEGURIDAD", direccion: "CENTRO SULA ATRAS DE TORTILLER", municipio: "LA LIMA", circuito: "SMT291", lat: 15.43632335, lon: -87.92642754 },
-{ id: 160, clave: "826669", cliente: "TRANSITO", tipo: "SEGURIDAD", direccion: "POSTA DE TRANSITO CONTG.A FENO", municipio: "PUERTO CORTÉS", circuito: "MAS353", lat: 15.82356401, lon: -87.90089772 },
-{ id: 161, clave: "842157", cliente: "RAPALO RUBENIO", tipo: "SEGURIDAD", direccion: "BO.EL CENTRO QUIMISTAN S.B.", municipio: "QUIMISTAN", circuito: "NCO364", lat: 15.34813289, lon: -88.40481441 },
-{ id: 162, clave: "871913", cliente: "TRANSITO", tipo: "SEGURIDAD", direccion: "COMPLEJO POLICIAL DE TRANSITO", municipio: "SAN PEDRO SULA", circuito: "LPT230", lat: 15.48140992, lon: -88.02859887 },
-{ id: 163, clave: "901397", cliente: "POLICIA PREVENTIVA DGPP", tipo: "SEGURIDAD", direccion: "COL.9 DE MAYO CLL.PRINC.2ARRIB", municipio: "SAN PEDRO SULA", circuito: "NCO365", lat: 15.4219149, lon: -88.16306466 },
-{ id: 164, clave: "939670", cliente: "TRANSITO", tipo: "SEGURIDAD", direccion: "DIRECCION GRAL.DE TRANSITO BOU", municipio: "SAN PEDRO SULA", circuito: "RET289", lat: 15.47414136, lon: -87.97132787 },
-{ id: 165, clave: "941312", cliente: "MINIST.SEGURIDADDNSEI", tipo: "SEGURIDAD", direccion: "COL. JARDINE DEL VALLE P33 35", municipio: "SAN PEDRO SULA", circuito: "BER282", lat: 15.53825134, lon: -88.02464225 },
-{ id: 166, clave: "954040", cliente: "MEGA POSTA POLICIAL", tipo: "SEGURIDAD", direccion: "FTE AL RANCHOCRUZE CEIBIT", municipio: "QUIMISTAN", circuito: "NCO364", lat: 15.31340186, lon: -88.25362453 },
-{ id: 167, clave: "969199", cliente: "POLICIA PREVENTIVA DGPP", tipo: "SEGURIDAD", direccion: "POSTA POLICIAL RIO BLANCO CTG", municipio: "SAN PEDRO SULA", circuito: "LVI227", lat: 15.54992833, lon: -88.00584176 },
-{ id: 168, clave: "1018317", cliente: "POLICIA PREVENTIVA DGPP", tipo: "SEGURIDAD", direccion: "COL KILOMETRO 71 CLL PCPL CTG", municipio: "VILLANUEVA", circuito: "VNU393", lat: 15.41680885, lon: -88.01456425 },
-{ id: 169, clave: "1073718", cliente: "SECRETARIA DE SEGURIDAD", tipo: "SEGURIDAD", direccion: "RES.VILLA REAL C125 BLQ.EDCP", municipio: "SAN PEDRO SULA", circuito: "BER290", lat: 15.55473744, lon: -88.03102382 },
-{ id: 170, clave: "1193675", cliente: "DIRECCION GRAL DE INVESTIG CRI", tipo: "SEGURIDAD", direccion: "BO CENTRO CTG A MUNICIPALIDAD", municipio: "QUIMISTAN", circuito: "NCO364", lat: 15.34765427, lon: -88.40474601 },
-{ id: 171, clave: "1212813", cliente: "PAZ RAPALO SALVADOR REINALDO", tipo: "SEGURIDAD", direccion: "COL.POTOSILOTE 34 BLO.13ERA E", municipio: "SAN PEDRO SULA", circuito: "BVI268", lat: 15.52010816, lon: -88.042558 },
-{ id: 172, clave: "1359313", cliente: "MINISTERIO DE SEGURIDAD PUBLIC", tipo: "SEGURIDAD", direccion: "BASE DEL COE COBRAS COL FESITR", municipio: "SAN PEDRO SULA", circuito: "LVI227", lat: 15.56245659, lon: -87.98604216 },
-{ id: 173, clave: "1371428", cliente: "MINSTERIO DE SEGURIDAD", tipo: "SEGURIDAD", direccion: "BO.EL OBELISCO OFICINA DE TRA", municipio: "VILLANUEVA", circuito: "VNU323", lat: 15.3173929, lon: -87.99383418 },
-{ id: 174, clave: "1448287", cliente: "MEDINA RAMIREZ YUNELI DISBETH", tipo: "SEGURIDAD", direccion: "COL.UNIVERSIDAD 22B.CLL 7-8AVE", municipio: "SAN PEDRO SULA", circuito: "BER282", lat: 15.52722507, lon: -88.02476172 },
-{ id: 175, clave: "1448868", cliente: "MINISTERIO DE SEGURIDAD PUBLIC", tipo: "SEGURIDAD", direccion: "BO COPEN POLICIA NACIONAL PREV", municipio: "PUERTO CORTÉS", circuito: "TSZ223", lat: 15.84281774, lon: -87.93920075 },
-{ id: 176, clave: "1454312", cliente: "MINISTERIO DE SEGURIDAD PUBLIC", tipo: "SEGURIDAD", direccion: "POL PREVENTIVA BO SUNCERY 7 CL", municipio: "SAN PEDRO SULA", circuito: "CIR242", lat: 15.49894181, lon: -88.01284787 },
-{ id: 177, clave: "1485258", cliente: "MINISTERIO DE SEGURIDAD PUBLIC", tipo: "SEGURIDAD", direccion: "BO LEMPIRA 9 CLL 1 AV S O POLI", municipio: "SAN PEDRO SULA", circuito: "BER208", lat: 15.4983777, lon: -88.02412069 },
-{ id: 178, clave: "1535415", cliente: "SECRETARIA DE SEGURIDAD", tipo: "SEGURIDAD", direccion: "DORMITORIOS POLICIA NACIONAL B", municipio: "SAN PEDRO SULA", circuito: "LPT230", lat: 15.4817261, lon: -88.02794361 },
-{ id: 179, clave: "1535416", cliente: "MINISTERIO DE SEGURIDAD PUBLIC", tipo: "SEGURIDAD", direccion: "BO LA GUARDIA CAFETERIA POLICI", municipio: "SAN PEDRO SULA", circuito: "LPT230", lat: 15.4809913, lon: -88.02853004 },
-{ id: 180, clave: "1593543", cliente: "MINISTERIO DE SEGURIDAD PUBLIC", tipo: "SEGURIDAD", direccion: "COL.ISLAS DEL PROGRESO 31CLL.", municipio: "SAN PEDRO SULA", circuito: "LPT204", lat: 15.47663361, lon: -88.02106548 },
-{ id: 181, clave: "1653293", cliente: "MINISTERIO DE SEGURIDAD PUBLIC", tipo: "SEGURIDAD", direccion: "BO LA CURVA 1 AV 8-9 CLL POL N", municipio: "PUERTO CORTÉS", circuito: "TAL258", lat: 15.84320011, lon: -87.93928106 },
-{ id: 182, clave: "1668097", cliente: "MINISTERIO DE SEGURIDAD", tipo: "SEGURIDAD", direccion: "ALDEA EL ZAPOTAL CLL PRINCIPAL", municipio: "SAN PEDRO SULA", circuito: "LVI227", lat: 15.58710894, lon: -88.02277085 },
-{ id: 183, clave: "1681799", cliente: "SECRETARIA DE EDUCACIÓN", tipo: "SEGURIDAD", direccion: "BO.EL CENTRO 1CLL. PTE.54 CON", municipio: "CHOLOMA", circuito: "CHM215", lat: 15.61150819, lon: -87.95079522 },
-{ id: 184, clave: "1740555", cliente: "MINIST.SEG.ESTACION DE POLICI", tipo: "SEGURIDAD", direccion: "RES.LOS CASTA#OS LKK 1-2 PAR", municipio: "CHOLOMA", circuito: "RNA386", lat: 15.6653226, lon: -87.94009642 },
-{ id: 185, clave: "1911628", cliente: "DIRECCION POLICIAL INVESTIGACI", tipo: "SEGURIDAD", direccion: "BLVD DEL ESTE SECTOR CALPULES", municipio: "SAN PEDRO SULA", circuito: "RET289", lat: 15.47077405, lon: -87.96852211 },
-{ id: 186, clave: "1957866", cliente: "SECRETRARIA DE SEGURIDAD", tipo: "SEGURIDAD", direccion: "POLICIA NACIONAL DEL AEROPUERT", municipio: "SAN PEDRO SULA", circuito: "SMT284", lat: 15.44634986, lon: -87.93320774 },
-{ id: 187, clave: "2022752", cliente: "SECRETARIA DE SEGURIDAD PUBLIC", tipo: "SEGURIDAD", direccion: "COL RIVERA HERNANDEZ N E SPS", municipio: "SAN PEDRO SULA", circuito: "RET287", lat: 15.47140574, lon: -87.9487668 },
-{ id: 188, clave: "2022753", cliente: "SECRETARIA DE SEGURIDAD PUBLIC", tipo: "SEGURIDAD", direccion: "COL RIVERA HERNANDEZ N E SPS", municipio: "SAN PEDRO SULA", circuito: "RET287", lat: 15.47140574, lon: -87.9487668 },
-{ id: 189, clave: "2022754", cliente: "SECRETARIA DE SEGURIDAD PUBLIC", tipo: "SEGURIDAD", direccion: "COL RIVERA HERNANDEZ N E SPS", municipio: "SAN PEDRO SULA", circuito: "RET287", lat: 15.47140574, lon: -87.9487668 },
-{ id: 190, clave: "2049874", cliente: "SECRETARIA DE SEGURIDAD PUBLIC", tipo: "SEGURIDAD", direccion: "COL MUNICIPAL CTG CASA 195 S E", municipio: "SAN PEDRO SULA", circuito: "EST221", lat: 15.46959263, lon: -87.9775333 },
-{ id: 191, clave: "5047110", cliente: "SECRETARIA DE SEGURIDAD", tipo: "SEGURIDAD", direccion: "NO. CASA-1 BLOQUE-0 PISO-1 REF", municipio: "SAN PEDRO SULA", circuito: "CIR242", lat: 15.49901392, lon: -88.012832 },
-{ id: 192, clave: "5047341", cliente: "SECRETARIA DE SEGURIDAD", tipo: "SEGURIDAD", direccion: "NO. CASA-1 REF-Bulevar del nor", municipio: "SAN PEDRO SULA", circuito: "BER282", lat: 15.52009993, lon: -88.0272 },
-{ id: 193, clave: "5053707", cliente: "SECRETARIA DE SEGURIDAD", tipo: "SEGURIDAD", direccion: "POSTA DE POLICIA COL MONTELIMA", municipio: "QUIMISTAN", circuito: "NCO364", lat: 15.35952493, lon: -88.192392 },
-{ id: 194, clave: "5056600", cliente: "SECRETARIA DE SEGURIDAD", tipo: "SEGURIDAD", direccion: "ESTACION DE POLICIA COL 9 DE D", municipio: "PUERTO CORTÉS", circuito: "MAS352", lat: 15.82364566, lon: -87.92076142 },
-{ id: 195, clave: "5089899", cliente: "SECRETARIA DE SEGURIDAD", tipo: "SEGURIDAD", direccion: "NO. CASA-1 BLOQUE-0 PISO-1 REF", municipio: "CHOLOMA", circuito: "CHM252", lat: 15.59565491, lon: -87.944069 },
-{ id: 196, clave: "5092886", cliente: "SECRETARIA DE SEGURIDAD", tipo: "SEGURIDAD", direccion: "NO. CASA-1 BLOQUE-0 PISO-1 REF", municipio: "PUERTO CORTÉS", circuito: "TSZ224", lat: 15.86237093, lon: -87.924891 },
-{ id: 197, clave: "5100520", cliente: "SECRETARIA DE SEGURIDAD", tipo: "SEGURIDAD", direccion: "C-1 REF-posta policial rio bij", municipio: "CHOLOMA", circuito: "RNA385", lat: 15.70925859, lon: -87.92873521 },
-{ id: 198, clave: "5111510", cliente: "SECRETARIA DE SEGURIDAD", tipo: "SEGURIDAD", direccion: "C-1 REF-posta policial ctg a h", municipio: "PUERTO CORTÉS", circuito: "TSZ224", lat: 15.83023988, lon: -87.92869201 },
-{ id: 199, clave: "5113253", cliente: "SECRETARIA DE SEGURIDAD", tipo: "SEGURIDAD", direccion: "C-0 B-0 REF-BO EL PARAISO SAN", municipio: "SAN MANUEL", circuito: "VNU324", lat: 15.32998589, lon: -87.92258601 },
-{ id: 200, clave: "5155618", cliente: "SECRETARIA DE SEGURIDAD", tipo: "SEGURIDAD", direccion: "C-1 resd los castaños choloma", municipio: "CHOLOMA", circuito: "RNA386", lat: 15.66586196, lon: -87.93806101 },
-{ id: 201, clave: "5177420", cliente: "SECRETARIA DE SEGURIDAD", tipo: "SEGURIDAD", direccion: "C-1 Clinica de Especialidades", municipio: "SAN PEDRO SULA", circuito: "LPT230", lat: 15.4817814, lon: -88.02852304 },
-{ id: 202, clave: "5178756", cliente: "SECRETARIA DE SEGURIDAD PUBLIC", tipo: "SEGURIDAD", direccion: "C-1 Estacion Fronteriza de la", municipio: "OMOA", circuito: "MAS352", lat: 15.58248495, lon: -88.37075302 },
-{ id: 203, clave: "5181983", cliente: "SECRETARIA DE SEGURIDAD", tipo: "SEGURIDAD", direccion: "C-1 --aldea corinto scanner", municipio: "OMOA", circuito: "MAS352", lat: 15.59437588, lon: -88.37041496 },
-{ id: 204, clave: "5193837", cliente: "SECRETARIA DE SEGURIDAD", tipo: "SEGURIDAD", direccion: "C-1 aduana corinto", municipio: "OMOA", circuito: "MAS352", lat: 15.59453798, lon: -88.37155404 },
-{ id: 205, clave: "5303794", cliente: "SECRETARIA DE SEGURIDAD", tipo: "SEGURIDAD", direccion: "C-1", municipio: "SAN PEDRO SULA", circuito: "BER290", lat: 15.56778993, lon: -88.034424 }
+function validarFormulario() {
+  let valido = true;
+  const campos = ['sector', 'placa', 'proceso', 'nombre', 'identidad', 'total', 'litros', 'motivo', 'fecha', 'km', 'nombre_comercio', 'factura', 'foto_tablero_antes', 'foto_bomba', 'foto_despues', 'foto_bomba_llenado', 'foto_frontal', 'foto_factura'];
 
-    ];
-
-    // Crear marcadores y agregarlos al mapa
-    var marcadores = {};
-    var puntoSeleccionado = null; // Variable global para almacenar el punto seleccionado
-
-    puntos.forEach(function(p) {
-      var icono;
-      if (p.tipo === "HOSPITALES") icono = iconHospital;
-      else if (p.tipo === "INSTITUCIONES") icono = iconInstitucion;
-      else if (p.tipo === "SEGURIDAD") icono = iconSeguridad;
-      else icono = iconInstitucion;
-
-      var marker = L.marker([p.lat, p.lon], { icon: icono })
-        .addTo(map)
-        .on('click', function() {
-          document.getElementById("info_id").textContent = p.id;
-          document.getElementById("info_clave").textContent = p.clave;
-          document.getElementById("info_cliente").textContent = p.cliente;
-          document.getElementById("info_tipo").textContent = p.tipo;
-          document.getElementById("info_direccion").textContent = p.direccion;
-          document.getElementById("info_municipio").textContent = p.municipio;
-          document.getElementById("info_circuito").textContent = p.circuito;
-          document.getElementById("info_lat").textContent = p.lat;
-          document.getElementById("info_lon").textContent = p.lon;
-          puntoSeleccionado = p;
-          document.getElementById("info_punto").style.display = "block";
-          document.getElementById("form_incidencia").style.display = "none";
-        });
-      marcadores[p.id] = marker;
-    });
-
-    // Mostrar formulario de incidencia al presionar el botón
-    document.getElementById("btn_incidencia").addEventListener("click", function() {
-      document.getElementById("form_incidencia").style.display = "block";
-    });
-
-    // Función para guardar la incidencia usando fetch con mode "no-cors"
-    function guardarIncidencia() {
-      // Mostrar mensaje de carga
-      document.getElementById("loadingPopup").style.display = "block";
-      
-      var datosIncidencia = {
-        idPunto: puntoSeleccionado ? puntoSeleccionado.id : "",
-        clave: puntoSeleccionado ? puntoSeleccionado.clave : "",
-        cliente: puntoSeleccionado ? puntoSeleccionado.cliente : "",
-        tipo: puntoSeleccionado ? puntoSeleccionado.tipo : "",
-        direccion: puntoSeleccionado ? puntoSeleccionado.direccion : "",
-        municipio: puntoSeleccionado ? puntoSeleccionado.municipio : "",
-        circuito: puntoSeleccionado ? puntoSeleccionado.circuito : "",
-        lat: puntoSeleccionado ? puntoSeleccionado.lat : "",
-        lon: puntoSeleccionado ? puntoSeleccionado.lon : "",
-        descripcion: document.getElementById("incidencia_descripcion").value,
-        prioridad: document.getElementById("incidencia_prioridad").value,
-        observaciones: document.getElementById("incidencia_observaciones").value
-      };
-
-      fetch(apiIncidenciaURL, {
-        method: "POST",
-        mode: "no-cors",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(datosIncidencia)
-      })
-      .then(function() {
-        document.getElementById("loadingPopup").style.display = "none";
-        alert("Incidencia guardada exitosamente.");
-        document.getElementById("incidencia_descripcion").value = "";
-        document.getElementById("incidencia_prioridad").value = "";
-        document.getElementById("incidencia_observaciones").value = "";
-        document.getElementById("form_incidencia").style.display = "none";
-      })
-      .catch(function(error) {
-        document.getElementById("loadingPopup").style.display = "none";
-        console.error("Error al guardar incidencia:", error);
-        alert("Error al guardar incidencia. Revisa la consola.");
-      });
+  campos.forEach(id => {
+    const campo = document.getElementById(id);
+    const error = document.getElementById("error_" + id);
+    if (campo && (!campo.value || campo.value.trim() === "")) {
+      if (error) error.style.display = "inline";
+      valido = false;
+    } else {
+      if (error) error.style.display = "none";
     }
-  </script>
+  });
+
+  if (!valido) {
+    const toast = document.getElementById("toast-alert");
+    toast.classList.add("show");
+    setTimeout(() => toast.classList.remove("show"), 3000);
+  }
+  return valido;
+}
+
+</script>
+<script>
+    
+  // Máscara para No. Identidad: formato ####-####-#####
+  function maskIdentidad(el) {
+    let v = el.value.replace(/\D/g, '');
+    v = v.slice(0, 13);
+    if (v.length > 8) {
+      v = v.replace(/(\d{4})(\d{4})(\d+)/, '$1-$2-$3');
+    } else if (v.length > 4) {
+      v = v.replace(/(\d{4})(\d+)/, '$1-$2');
+    }
+    el.value = v;
+  }
+
+  // Máscara para Número de Factura: formato ###-###-##-#####
+    function maskFactura(el) {
+      // Solo dígitos
+      let v = el.value.replace(/\D/g, '');
+      // 1er tramo (0–3 dígitos)
+      if (v.length <= 3) {
+        el.value = v;
+      }
+      // 2º tramo (4–6 dígitos)
+      else if (v.length <= 6) {
+        el.value = `${v.slice(0,3)}-${v.slice(3)}`;
+      }
+      // 3er tramo (7–8 dígitos)
+      else if (v.length <= 8) {
+        el.value = `${v.slice(0,3)}-${v.slice(3,6)}-${v.slice(6)}`;
+      }
+      // Resto (9+ dígitos)
+      else {
+        el.value = `${v.slice(0,3)}-${v.slice(3,6)}-${v.slice(6,8)}-${v.slice(8)}`;
+      }
+    }
+
+    /* URLs de servicios Google Apps Script */
+    const urlVehiculos = "https://script.google.com/macros/s/AKfycbxp2yVp4hF-t9f2LdU9NhZxVt6RwXyL3uKrKzXk4a_l4na2Rkd1LZMB02pEJeRQ_eCF/exec";
+    const urlProcesos  = "https://script.google.com/macros/s/AKfycbw4KLB3AiRM6N1sC39cn1-HANO6ccsBQs3AeL6S5y-bt1IEoV8eZOakwHU_OSbspJWG/exec";
+    const urlGuardarReporte = "/api/guardar";
+    let vehiculos = [], procesos = [];
+
+    /**
+     * Carga sectores y placas de la hoja "Vehiculos".
+     * Popula <select id="sector"> y muestra el formulario.
+     */
+    function cargarDatosVehiculos() {
+      fetch(urlVehiculos)
+        .then(res => res.json())
+        .then(data => {
+          vehiculos = data;
+          const sel = document.getElementById('sector');
+          // Eliminar duplicados usando Set
+          [...new Set(data.map(x => x.Sector))].forEach(s => sel.add(new Option(s, s)));
+          // Agregar sector CORPORATIVO manualmente
+          sel.add(new Option('CORPORATIVO', 'CORPORATIVO'));
+          document.getElementById('mensaje_cargando').style.display = 'none';
+          // Animar formulario al aparecer
+          const formEl = document.getElementById('formulario_contenido');
+          formEl.style.display = 'block';
+          formEl.classList.add('fade-in-up');
+            mostrarPaso(1);
+          document.getElementById('formulario_contenido').style.display = 'block';
+        })
+        .catch(err => {
+          console.error(err);
+          document.getElementById('mensaje_cargando').innerText = 'Error al cargar los datos.';
+        });
+    }
+
+    /**
+     * Carga procesos de la hoja "Procesos".
+     * Popula <select id="proceso">.
+     */
+    function cargarProcesos() {
+      fetch(urlProcesos)
+        .then(res => res.json())
+        .then(data => {
+          procesos = data.map(item => item.Proceso);
+          const sel = document.getElementById('proceso');
+          sel.innerHTML = '<option value="">Seleccione un proceso</option>';
+          procesos.forEach(p => sel.add(new Option(p, p)));
+        })
+        .catch(err => console.error('Error al cargar procesos:', err));
+    }
+
+    // Al cambiar sector, filtrar placas correspondientes
+    document.getElementById('sector').addEventListener('change', function() {
+      const dataList = document.getElementById('placas');
+      dataList.innerHTML = '';
+      // Si es CORPORATIVO, mostrar todas las placas
+      const lista = (this.value === 'CORPORATIVO') ? vehiculos : vehiculos.filter(v => v.Sector === this.value);
+      lista.forEach(v => {
+        const opt = document.createElement('option');
+        opt.value = v.PLACA;
+        dataList.appendChild(opt);
+      });
+      // Limpiar el input de placa al cambiar el sector
+      document.getElementById('placa').value = '';
+      // Limpiar proceso
+      document.getElementById('proceso').value = '';
+    });
+
+    
+    // Verificar duplicado antes de generar preview
+    async function verificarDuplicado(placa, fecha, factura) {
+      try {
+        const response = await fetch("/api/guardar", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            validarDuplicado: true,
+            Placa: placa,
+            Fecha: fecha,
+            NumeroFactura: factura
+          })
+        });
+        const result = await response.json();
+        return result.duplicado || false;
+      } catch (err) {
+        console.error("Error al verificar duplicado:", err);
+        return false;
+      }
+    }
+
+
+function imagenesCompletas() {
+  const campos = [
+    'foto_tablero_antes',
+    'foto_bomba',
+    'foto_despues',
+    'foto_bomba_llenado',
+    'foto_frontal',
+    'foto_factura'
+  ];
+  for (const id of campos) {
+    const input = document.getElementById(id);
+    if (!input || !input.files || input.files.length === 0) {
+      return false;
+    }
+  }
+  return true;
+}
+
+// Guardar reporte y generar vista previa
+    document.getElementById('guardar_reporte').onclick = async () => {
+
+  if (!validarFormulario()) return;
+  if (!imagenesCompletas()) {
+    alert("⚠️ Faltan fotografías por cargar. Por favor verifica antes de continuar.");
+    return;
+  }
+  const placa = document.getElementById('placa').value;
+  const fecha = document.getElementById('fecha').value;
+  const factura = document.getElementById('factura').value;// Continúa con la generación de PDF y carga previa
+  // ... el resto del código de recopilación de datos permanece intacto ...
+
+  // Recopilar datos del formulario
+      const data = {
+        Fecha:      document.getElementById('fecha').value,
+        Nombre:     document.getElementById('nombre').value,
+        Identidad:  document.getElementById('identidad').value,
+        Total:      document.getElementById('total').value + ' L',
+        Motivo:     document.getElementById('motivo').value,
+        Proceso:    document.getElementById('proceso').value,
+        Horas:      document.getElementById('horas').value,
+        Sector:     document.getElementById('sector').value,
+        Km:         document.getElementById('km').value,
+        FacturaNo:  document.getElementById('factura').value,
+        Placa:      document.getElementById('placa').value
+      
+};
+    // Capturar firma digital
+    data.Firma = window.colaboradorFirma || '';
+      // Buscar jefe inmediato por placa
+      const jefeObj = vehiculos.find(v => v.PLACA === data.Placa);
+      data.JefeInmediato = jefeObj
+        ? (jefeObj["Jefe inmediato"]
+           || jefeObj["Jefe Inmediato"]
+           || jefeObj.JefeInmediato
+           || "")
+        : "";
+          // Para sector CORPORATIVO no hay jefe inmediato
+          if (data.Sector === 'CORPORATIVO') {
+            data.JefeInmediato = '';
+          }
+      // Formatear encabezado con mes y año
+      const meses = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
+      const [year, month, day] = data.Fecha.split('-').map(Number);
+      const fDate = new Date(year, month - 1, day);
+      document.getElementById('format_header').textContent =
+        `FORMATO DE FACTURAS COMBUSTIBLE ${meses[fDate.getMonth()]} ${fDate.getFullYear()}`;
+
+      // Construir tabla resumen dinámicamente
+      const sb = document.getElementById('summary_box'); sb.innerHTML = '';
+      const tbl = document.createElement('table');
+      const rows = [
+        ['Nombre Completo', data.Nombre],
+        ['No. Identidad', data.Identidad],
+        ['Firma del Colaborador', data.Firma ? `<img src="${data.Firma}" style="max-width:150px;"/>` : ''],
+        ['Tipo de Gestión', `PLACA: ${data.Placa}`],
+        ['Total', data.Total],
+        ['Motivo del llenado de combustible',
+         `Compra de Combustible al Vehículo<br><br>Para Labores de: ${data.Motivo}<br><br>Proceso: ${data.Proceso}`],
+        ['Fecha', data.Fecha],
+        ['Horas de Viaje', data.Horas],
+        ['Observación',
+         `SECTOR: ${data.Sector}<br><br>KM: ${data.Km}<br><br>FACTURA: ${data.FacturaNo}`],
+        ['Autorizado por Jefe Inmediato', data.JefeInmediato],
+        ['Firma', '']
+      ];
+      rows.forEach(([k,v]) => {
+        const r = tbl.insertRow();
+        r.insertCell().textContent = k;
+        r.insertCell().innerHTML = v;
+      });
+      sb.appendChild(tbl);
+
+      // Construir galería de fotografías
+      const container = document.getElementById('photos_table_container');
+      const imgHTML = id => {
+        const f = document.getElementById(id).files[0];
+        if (!f) return '';
+        return `<img src="${URL.createObjectURL(f)}" class="photo-img">`;
+      };
+      container.innerHTML = `
+        <table class="photos-table">
+          <tr>
+            <td><div class="photo-title">TABLERO ANTES DE LLENADO</div>${imgHTML('foto_tablero_antes')}</td>
+            <td colspan="2"><div class="photo-title">BOMBA DE COMBUSTIBLE 0</div>${imgHTML('foto_bomba')}</td>
+          </tr>
+          <tr>
+            <td><div class="photo-title">TABLERO DESPUÉS DE LLENADO</div>${imgHTML('foto_despues')}</td>
+            <td colspan="2" rowspan="2"><div class="photo-title">BOMBA DE COMBUSTIBLE LLENA</div>${imgHTML('foto_bomba_llenado')}</td>
+          </tr>
+          <tr>
+            <td><div class="photo-title">VISTA FRONTAL DEL VEHÍCULO / VIN CON VEHICULO</div>${imgHTML('foto_frontal')}</td>
+          </tr>
+          <tr>
+            <td class="photo-footer">PLACA: ${data.Placa}</td>
+            <td class="photo-footer">FECHA: ${data.Fecha}</td>
+            <td class="photo-footer">FACTURA: ${data.FacturaNo}</td>
+          </tr>
+        </table>`;
+      // Cargar imagen de factura en la página 3
+      const factImg = document.getElementById('factura_only_img');
+      const fileF = document.getElementById('foto_factura').files[0];
+      if (fileF) {
+        const rdF = new FileReader();
+        rdF.onload = e => factImg.src = e.target.result;
+        rdF.readAsDataURL(fileF);
+      }
+
+      // Mostrar vista previa y ocultar formulario
+      // Ocultar formulario con animación
+      const formEl = document.getElementById('formulario_contenido');
+      formEl.classList.remove('fade-in-up');
+      formEl.style.display = 'none';
+      document.getElementById('preview_contenido').style.display = 'block';
+      // Animar vista previa al aparecer
+      const previewEl = document.getElementById('preview_contenido');
+      previewEl.classList.add('fade-in-up');
+      // Asegurar mostrar botones en la vista previa
+      document.getElementById('enviar_reporte').style.display = 'inline-block';
+      document.getElementById('modificar_reporte').style.display = 'inline-block';
+      // Ajustar scroll para centrar preview
+      setTimeout(() => previewEl.scrollIntoView({ behavior: 'smooth' }), 100);
+    };
+
+    // Volver al formulario desde la vista previa
+    document.getElementById('modificar_reporte').onclick = () => {
+      // Animar cierre de preview
+      const previewEl = document.getElementById('preview_contenido');
+      previewEl.classList.remove('fade-in-up');
+      previewEl.style.display = 'none';
+      // Mostrar formulario con animación
+      const formEl = document.getElementById('formulario_contenido');
+      formEl.style.display = 'block';
+      formEl.classList.add('fade-in-up');
+            mostrarPaso(1);
+      // Centramos el formulario en vista
+      setTimeout(() => formEl.scrollIntoView({ behavior: 'smooth' }), 100);
+    };
+
+    // Generar y descargar PDF de forma manual para controlar cada página
+    document.getElementById('enviar_reporte').onclick = async () => {
+  const modal = document.getElementById('generando_pdf_modal');
+  modal.style.visibility = 'visible';
+  modal.style.opacity = 1;
+  await new Promise(r => setTimeout(r, 100));
+  modal.style.visibility = 'visible';
+  modal.style.opacity = 1;
+  await new Promise(r => setTimeout(r, 100));
+      // Guardar datos en Google Sheets (no-cors)
+      const reportData = {
+        Sector: document.getElementById('sector').value,
+        Placa: document.getElementById('placa').value,
+        Proceso: document.getElementById('proceso').value,
+        Nombre: document.getElementById('nombre').value,
+        Identidad: document.getElementById('identidad').value,
+        TotalGastado: document.getElementById('total').value,
+        LitrosConsumidos: document.getElementById('litros').value,
+        MotivoDelLlenado: document.getElementById('motivo').value,
+        Fecha: document.getElementById('fecha').value,
+        HorasDelViaje: document.getElementById('horas').value,
+        KmActual: document.getElementById('km').value,
+        NombreComercio: document.getElementById('nombre_comercio').value,
+        NumeroFactura: document.getElementById('factura').value
+      };
+      // Prepara PDF
+      const btnEnviar = document.getElementById('enviar_reporte');
+      const btnMod = document.getElementById('modificar_reporte');
+      btnEnviar.style.display = 'none';
+      btnMod.style.display = 'none';
+      const pages = document.querySelectorAll('.page');
+      const margins = {top:12.7,left:12.7,bottom:12.7,right:12.7};
+      const pdf = new jspdf.jsPDF({unit:'mm',format:'letter',orientation:'portrait'});
+      // Generar secuencialmente
+      for (let i = 0; i < pages.length; i++) {
+        const pg = pages[i];
+        pg.style.boxShadow = 'none';
+        const canvas = await html2canvas(pg, {scale:1,useCORS:true,backgroundColor:'#ffffff'});
+        const imgData = canvas.toDataURL('image/png');
+        const pdfWidth = pdf.internal.pageSize.getWidth() - margins.left - margins.right;
+        const pdfHeight = pdf.internal.pageSize.getHeight() - margins.top - margins.bottom;
+        if (i > 0) pdf.addPage();
+        pdf.addImage(imgData, 'PNG', margins.left, margins.top, pdfWidth, pdfHeight);
+      }
+      // Generar nombre de archivo
+      const sector = document.getElementById('sector').value;
+      const fecha = document.getElementById('fecha').value;
+      const facturaNo = document.getElementById('factura').value;
+      const filename = `${sector}_${fecha}_${facturaNo}.pdf`;
+      // Envío del PDF a Drive/Sheet
+      const pdfDataUri = pdf.output('datauristring');
+      const pdfBase64 = pdfDataUri.split(',')[1];
+      const savePayload = {...reportData, pdf: pdfBase64, filename};
+      
+
+      // Primero, guarda los datos (espera confirmación)
+      try {
+        const saveResponse = await fetch(urlGuardarReporte, {
+          method: 'POST',
+          mode: 'cors',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(savePayload)
+        });
+
+        const saveResult = await saveResponse.json();
+        if (saveResult.status !== 'OK') {
+          alert('Error al guardar el reporte: ' + saveResult.message);
+          console.error('Respuesta del servidor:', saveResult);
+          return;
+        }
+
+        // Luego de guardar, generar PDF
+        const pages = document.querySelectorAll('.page');
+        const margins = {top:12.7,left:12.7,bottom:12.7,right:12.7};
+        const pdf = new jspdf.jsPDF({unit:'mm',format:'letter',orientation:'portrait'});
+
+        for (let i = 0; i < pages.length; i++) {
+          const pg = pages[i];
+          pg.style.boxShadow = 'none';
+          const canvas = await html2canvas(pg, {scale:1,useCORS:true,backgroundColor:'#ffffff'});
+          const imgData = canvas.toDataURL('image/png');
+          const pdfWidth = pdf.internal.pageSize.getWidth() - margins.left - margins.right;
+          const pdfHeight = pdf.internal.pageSize.getHeight() - margins.top - margins.bottom;
+          if (i > 0) pdf.addPage();
+          pdf.addImage(imgData, 'PNG', margins.left, margins.top, pdfWidth, pdfHeight);
+        }
+
+        
+        const pdfBlob = pdf.output('blob');
+        if (navigator.userAgent.includes("SamsungBrowser")) {
+  console.log("Samsung Internet detectado. Abriendo PDF en nueva pestaña.");
+  const blobUrl = URL.createObjectURL(pdfBlob);
+  window.open(blobUrl, '_blank');
+} else {
+  const blobUrl = URL.createObjectURL(pdfBlob);
+  const a = document.createElement('a');
+  a.href = blobUrl;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(blobUrl);
+}
+
+
+        modal.style.opacity = 0; setTimeout(() => { modal.style.visibility = 'hidden'; }, 300);
+        // Mostrar confirmación y limpiar
+        const notif = document.getElementById('notification');
+        notif.style.display = 'block';
+        setTimeout(() => notif.style.opacity = 1, 10);
+        setTimeout(() => {
+          notif.style.opacity = 0;
+          notif.addEventListener('transitionend', () => {
+            notif.style.display = 'none';
+            ['sector','placa','proceso','nombre','identidad','total','litros','motivo','fecha','horas','km','nombre_comercio','factura']
+              .forEach(id => document.getElementById(id).value = '');
+            ['foto_tablero_antes','foto_bomba','foto_frontal','foto_bomba_llenado','foto_despues','foto_factura']
+              .forEach(id => document.getElementById(id).value = null);
+
+// Limpiar previews de imágenes
+['foto_tablero_antes','foto_bomba','foto_frontal','foto_bomba_llenado','foto_despues','foto_factura']
+  .forEach(id => {
+    const preview = document.getElementById('preview_' + id);
+    if (preview) preview.innerHTML = '';
+  });
+            document.getElementById('preview_contenido').style.display = 'none';
+            const formEl = document.getElementById('formulario_contenido');
+            formEl.style.display = 'block';
+            formEl.classList.add('fade-in-up');
+            mostrarPaso(1);
+          }, {once:true});
+        }, 2000);
+      } catch (err) {
+        alert('Error al conectar con el servidor (Cloudflare Worker).');
+        console.error('Error de red o CORS:', err);
+      }
+
+      modal.style.opacity = 0; setTimeout(() => { modal.style.visibility = 'hidden'; }, 300);
+        // Mostrar confirmación y limpiar
+      const notif = document.getElementById('notification');
+      notif.style.display = 'block';
+      setTimeout(() => notif.style.opacity = 1, 10);
+      setTimeout(() => {
+        notif.style.opacity = 0;
+        notif.addEventListener('transitionend', () => {
+          notif.style.display = 'none';
+          // Limpiar inputs
+          ['sector','placa','proceso','nombre','identidad','total','litros','motivo','fecha','horas','km','nombre_comercio','factura']
+            .forEach(id => document.getElementById(id).value = '');
+          ['foto_tablero_antes','foto_bomba','foto_frontal','foto_bomba_llenado','foto_despues','foto_factura']
+            .forEach(id => document.getElementById(id).value = null);
+          document.getElementById('preview_contenido').style.display = 'none';
+          const formEl = document.getElementById('formulario_contenido');
+          formEl.style.display = 'block';
+          formEl.classList.add('fade-in-up');
+            mostrarPaso(1);
+        }, {once:true});
+      }, 2000);
+    };
+
+
+
+
+    // Inicializar carga al abrir página
+    window.onload = () => {
+      cargarDatosVehiculos();
+      cargarProcesos();
+    };
+  
+// Mostrar previews para cada campo de imagen
+['foto_tablero_antes','foto_bomba','foto_despues','foto_bomba_llenado','foto_frontal','foto_factura'].forEach(id => {
+  const input = document.getElementById(id);
+  if (input) {
+    input.addEventListener('change', () => {
+      if (input.files && input.files.length > 0) {
+        const archivo = input.files[0];
+        
+        // Validar antigüedad de la foto (no mayor a 48 horas)
+        const fileDate = new Date(archivo.lastModified);
+        if (Date.now() - fileDate.getTime() > 48 * 3600 * 1000) {
+          alert('La fotografía debe ser reciente (no mayor a 48 horas).');
+          input.value = '';
+          return;
+        }
+        const url = URL.createObjectURL(archivo);
+        const contenedor = document.getElementById('preview_' + id);
+        if (contenedor) {
+          contenedor.innerHTML = `<img src="${url}" style="max-width:100%; max-height:300px;">`;
+        }
+      }
+    });
+  }
+});
+
+
+function validarFormulario() {
+  let valido = true;
+  const campos = ['sector', 'placa', 'proceso', 'nombre', 'identidad', 'total', 'litros', 'motivo', 'fecha', 'km', 'nombre_comercio', 'factura', 'foto_tablero_antes', 'foto_bomba', 'foto_despues', 'foto_bomba_llenado', 'foto_frontal', 'foto_factura'];
+
+  campos.forEach(id => {
+    const campo = document.getElementById(id);
+    const error = document.getElementById("error_" + id);
+    if (campo && (!campo.value || campo.value.trim() === "")) {
+      if (error) error.style.display = "inline";
+      valido = false;
+    } else {
+      if (error) error.style.display = "none";
+    }
+  });
+
+  if (!valido) {
+    const toast = document.getElementById("toast-alert");
+    toast.classList.add("show");
+    setTimeout(() => toast.classList.remove("show"), 3000);
+  }
+  return valido;
+}
+
+</script>
+<!-- Incluir html2pdf.js desde CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+// Mostrar previews para cada campo de imagen
+['foto_tablero_antes','foto_bomba','foto_despues','foto_bomba_llenado','foto_frontal','foto_factura'].forEach(id => {
+  const input = document.getElementById(id);
+  if (input) {
+    input.addEventListener('change', () => {
+      if (input.files && input.files.length > 0) {
+        const archivo = input.files[0];
+        
+        // Validar antigüedad de la foto (no mayor a 48 horas)
+        const fileDate = new Date(archivo.lastModified);
+        if (Date.now() - fileDate.getTime() > 48 * 3600 * 1000) {
+          alert('La fotografía debe ser reciente (no mayor a 48 horas).');
+          input.value = '';
+          return;
+        }
+        const url = URL.createObjectURL(archivo);
+        const contenedor = document.getElementById('preview_' + id);
+        if (contenedor) {
+          contenedor.innerHTML = `<img src="${url}" style="max-width:100%; max-height:300px;">`;
+        }
+      }
+    });
+  }
+});
+
+
+function validarFormulario() {
+  let valido = true;
+  const campos = ['sector', 'placa', 'proceso', 'nombre', 'identidad', 'total', 'litros', 'motivo', 'fecha', 'km', 'nombre_comercio', 'factura', 'foto_tablero_antes', 'foto_bomba', 'foto_despues', 'foto_bomba_llenado', 'foto_frontal', 'foto_factura'];
+
+  campos.forEach(id => {
+    const campo = document.getElementById(id);
+    const error = document.getElementById("error_" + id);
+    if (campo && (!campo.value || campo.value.trim() === "")) {
+      if (error) error.style.display = "inline";
+      valido = false;
+    } else {
+      if (error) error.style.display = "none";
+    }
+  });
+
+  if (!valido) {
+    const toast = document.getElementById("toast-alert");
+    toast.classList.add("show");
+    setTimeout(() => toast.classList.remove("show"), 3000);
+  }
+  return valido;
+}
+
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.2/html2pdf.bundle.min.js"></script>
+<script>
+// Mostrar previews para cada campo de imagen
+['foto_tablero_antes','foto_bomba','foto_despues','foto_bomba_llenado','foto_frontal','foto_factura'].forEach(id => {
+  const input = document.getElementById(id);
+  if (input) {
+    input.addEventListener('change', () => {
+      if (input.files && input.files.length > 0) {
+        const archivo = input.files[0];
+        
+        // Validar antigüedad de la foto (no mayor a 48 horas)
+        const fileDate = new Date(archivo.lastModified);
+        if (Date.now() - fileDate.getTime() > 48 * 3600 * 1000) {
+          alert('La fotografía debe ser reciente (no mayor a 48 horas).');
+          input.value = '';
+          return;
+        }
+        const url = URL.createObjectURL(archivo);
+        const contenedor = document.getElementById('preview_' + id);
+        if (contenedor) {
+          contenedor.innerHTML = `<img src="${url}" style="max-width:100%; max-height:300px;">`;
+        }
+      }
+    });
+  }
+});
+
+
+function validarFormulario() {
+  let valido = true;
+  const campos = ['sector', 'placa', 'proceso', 'nombre', 'identidad', 'total', 'litros', 'motivo', 'fecha', 'km', 'nombre_comercio', 'factura', 'foto_tablero_antes', 'foto_bomba', 'foto_despues', 'foto_bomba_llenado', 'foto_frontal', 'foto_factura'];
+
+  campos.forEach(id => {
+    const campo = document.getElementById(id);
+    const error = document.getElementById("error_" + id);
+    if (campo && (!campo.value || campo.value.trim() === "")) {
+      if (error) error.style.display = "inline";
+      valido = false;
+    } else {
+      if (error) error.style.display = "none";
+    }
+  });
+
+  if (!valido) {
+    const toast = document.getElementById("toast-alert");
+    toast.classList.add("show");
+    setTimeout(() => toast.classList.remove("show"), 3000);
+  }
+  return valido;
+}
+
+</script>
+<div id="generando_pdf_modal" style="
+  visibility: hidden;
+  opacity: 0;
+  position:fixed;
+  top:0; left:0; right:0; bottom:0;
+  background:rgba(0,0,0,0.6);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  z-index:2000;
+  transition: opacity 0.3s ease;">
+<div class="spinner"></div>
+<div style="color:white; font-size:20px; font-weight:bold; margin-top:20px;">
+    Generando PDF, por favor espere...
+  </div>
+</div>
+<div id="verificando_duplicado_modal" style="
+  visibility: hidden;
+  opacity: 0;
+  position:fixed;
+  top:0; left:0; right:0; bottom:0;
+  background:rgba(0,0,0,0.6);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  z-index:2000;
+  transition: opacity 0.3s ease;">
+<div class="spinner"></div>
+<div style="color:white; font-size:20px; font-weight:bold; margin-top:20px;">
+    Verificando datos, por favor espere...
+  </div>
+</div>
+<script>
+function mostrarLoaderVerificacion() {
+  const modal = document.getElementById("verificando_duplicado_modal");
+  if (modal) modal.style.visibility = 'visible', modal.style.opacity = 1;
+}
+function ocultarLoaderVerificacion() {
+  const modal = document.getElementById("verificando_duplicado_modal");
+  if (modal) modal.style.opacity = 0;
+  setTimeout(() => { if (modal) modal.style.visibility = 'hidden'; }, 300);
+}
+</script>
+<script>
+
+function mostrarPaso(paso) {
+  document.querySelectorAll('.paso').forEach(p => p.style.display = 'none');
+  const pasoDiv = document.getElementById('paso' + paso);
+  if (pasoDiv) {
+    pasoDiv.style.display = 'block';
+    pasoDiv.setAttribute('tabindex', '-1');
+    pasoDiv.focus({ preventScroll: true });
+    pasoDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+
+
+async function siguientePaso(pasoActual) {
+  if (pasoActual === 2) {
+    if (!validarFormulario()) return;const placa = document.getElementById('placa').value;
+    const fecha = document.getElementById('fecha').value;
+    const factura = document.getElementById('factura').value;
+    const duplicado = await verificarDuplicado(placa, fecha, factura);
+    ocultarLoaderVerificacion();
+    if (duplicado) {
+      const continuar = confirm("⚠️ Ya existe un reporte con estos datos. ¿Deseas reemplazarlo?");
+      if (!continuar) return;
+    }
+  }
+  mostrarPaso(pasoActual);
+}
+</script><script>
+function validarFormulario() {
+  const paso1 = document.getElementById("paso1");
+  const campos = Array.from(paso1.querySelectorAll("input, select, textarea")).filter(c => c.id !== "horas")
+              .filter(campo => campo.id !== "horas");
+  let esValido = true;
+
+  campos.forEach(campo => {
+    const error = document.getElementById(`error_${campo.id}`);
+    if (!campo.value.trim()) {
+      esValido = false;
+      if (error) error.style.display = 'inline';
+      campo.classList.add("invalido");
+    } else {
+      if (error) error.style.display = 'none';
+      campo.classList.remove("invalido");
+    }
+  });
+
+  return esValido;
+}
+</script><script>
+function activarCamara(id) {
+  const input = document.getElementById(id);
+  input.setAttribute("capture", "environment");
+  input.click();
+}
+
+function abrirGaleria(id) {
+  const input = document.getElementById(id);
+  input.removeAttribute("capture");
+  input.click();
+}
+
+// Validar imagen cargada por paso antes de avanzar
+function validarImagenPaso(id) {
+  const input = document.getElementById(id);
+  if (!input || !input.files || input.files.length === 0) {
+    alert("Debe tomar o subir una fotografía antes de continuar.");
+    return false;
+  }
+  return true;
+}
+</script><script>
+document.addEventListener("DOMContentLoaded", () => {
+  const btn = document.getElementById("guardar_reporte");
+  if (btn && typeof generarPreviewPDF === "function") {
+  }
+});
+</script><script>
+document.addEventListener("DOMContentLoaded", () => {
+  const input = document.getElementById("foto_factura");
+  if (input) {
+    input.addEventListener("change", e => {
+      const preview = document.getElementById("preview_foto_factura");
+      if (preview && e.target.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(ev) {
+          preview.innerHTML = '<img src="' + ev.target.result + '" style="max-width: 100%; max-height: 200px;">';
+        };
+        reader.readAsDataURL(e.target.files[0]);
+      }
+    });
+  }
+});
+</script>
+<script>
+function mostrarLoaderVerificacion() {
+  const modal = document.getElementById("verificando_duplicado_modal");
+  if (modal) {
+    modal.style.visibility = 'visible';
+    modal.style.opacity = 1;
+  }
+}
+function ocultarLoaderVerificacion() {
+  const modal = document.getElementById("verificando_duplicado_modal");
+  if (modal) {
+    modal.style.opacity = 0;
+    setTimeout(() => {
+      modal.style.visibility = 'hidden';
+    }, 300);
+  }
+}
+</script>
+<script>
+function validarYVerificarDuplicado() {
+  if (!validarFormulario()) return;
+
+  mostrarLoaderVerificacion();
+
+  requestAnimationFrame(() => {
+    setTimeout(() => {
+      const duplicado = false;
+
+      if (duplicado) {
+        alert("Ya existe un reporte con esta información.");
+        ocultarLoaderVerificacion();
+      } else {
+        const paso2 = document.getElementById('paso2');
+
+        const observer = new MutationObserver(() => {
+          if (paso2.style.display === "block") {
+            ocultarLoaderVerificacion();
+            observer.disconnect();
+          }
+        });
+
+        observer.observe(paso2, { attributes: true, attributeFilter: ["style"] });
+        siguientePaso(2);
+      }
+    }, 100);
+  });
+}
+</script>
+<script>
+async function fileToBase64(inputId) {
+  return new Promise((resolve, reject) => {
+    const file = document.getElementById(inputId).files[0];
+    if (!file) return resolve(null);
+    // Use blueimp-load-image to correct orientation based on EXIF
+    loadImage(
+      file,
+      function (canvas) {
+        const orientedDataUrl = canvas.toDataURL('image/jpeg');
+        resolve(orientedDataUrl);
+      },
+      { canvas: true, orientation: true }
+    );
+  });
+};
+
+document.getElementById('enviar_reporte').onclick = async () => {
+  const fields = ['foto_tablero_antes','foto_bomba','foto_despues','foto_bomba_llenado','foto_frontal','foto_factura'];
+  const images = {};
+  for (const id of fields) {
+    images[id] = await fileToBase64(id);
+  }
+
+  const data = {
+    Sector: document.getElementById('sector').value,
+    Placa: document.getElementById('placa').value,
+    Proceso: document.getElementById('proceso').value,
+    Nombre: document.getElementById('nombre').value,
+    Identidad: document.getElementById('identidad').value,
+    TotalGastado: document.getElementById('total').value,
+    LitrosConsumidos: document.getElementById('litros').value,
+    MotivoDelLlenado: document.getElementById('motivo').value,
+    Fecha: document.getElementById('fecha').value,
+    HorasDelViaje: document.getElementById('horas').value,
+    KmActual: document.getElementById('km').value,
+    NumeroFactura: document.getElementById('factura').value,
+    NombreComercio: document.getElementById('nombre_comercio').value
+  };
+
+  const [year, month, day] = data.Fecha.split('-').map(Number);
+      const fDate = new Date(year, month - 1, day);
+  const meses = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
+  const headerText = `FORMATO DE FACTURAS COMBUSTIBLE ${meses[fDate.getMonth()]} ${fDate.getFullYear()}`;
+
+  document.getElementById('loader_pdf').style.display = 'flex';
+
+data.JefeInmediato = window._jefeInmediato || "";
+
+// Asignar Jefe Inmediato para PDF desde el resumen
+    const rows = Array.from(document.querySelector('#summary_box table').rows);
+    data.JefeInmediato = rows.find(r => r.cells[0].innerText.trim() === 'Autorizado por Jefe Inmediato')
+      ?.cells[1]?.innerText || '';
+const docDefinition = {
+    pageSize: 'letter',
+    pageMargins: [30, 30, 30, 30],
+    content: [
+      {
+      table: {
+        widths: ['*'],
+        body: [[
+          { text: headerText, style: 'header', alignment: 'center', bold: true, border: [true, true, true, true] }
+        ]]
+      },
+      layout: {
+        hLineWidth: () => 1,
+        vLineWidth: () => 1
+      },
+      margin: [0, 0, 0, 10]
+    },
+      {
+        columns: [
+          {
+            width: '48%',
+            table: {
+              widths: ['*'],
+              body: [[
+                { text: 'Pegar Factura Original en este Espacio', italics: true, alignment: 'center', margin: [0, 320] }
+              ]]
+            },
+            layout: {
+              hLineWidth: () => 1,
+              vLineWidth: () => 1,
+              hLineColor: () => '#aaa',
+              vLineColor: () => '#aaa',
+              hLineStyle: () => ({ dash: { length: 3, space: 3 } }),
+              vLineStyle: () => ({ dash: { length: 3, space: 3 } })
+            },
+            margin: [0, 10, 5, 0]
+          },
+          {
+            width: '52%',
+            table: {
+              widths: ['30%', '70%'],
+              heights: [40, 40, 40, 40, 40, 90, 40, 40, 90, 65, 65],
+              body: [
+                ['Nombre Completo', data.Nombre],
+                ['No. Identidad', data.Identidad],
+                ['Firma del Colaborador', window.colaboradorFirma ? { image: window.colaboradorFirma, width: 150 } : ''],
+                ['Tipo de Gestión', `PLACA: ${data.Placa}`],
+                ['Total', data.TotalGastado + ' L'],
+                ['Motivo del llenado de combustible', `Compra de Combustible al Vehículo
+
+Para Labores de: ${data.MotivoDelLlenado}
+
+Proceso: ${data.Proceso}`],
+                ['Fecha', data.Fecha],
+                ['Horas de Viaje', data.HorasDelViaje],
+                ['Observación', `SECTOR: ${data.Sector}\n\nKM: ${data.KmActual}\n\nFACTURA: ${data.NumeroFactura}`],
+                ['Autorizado por Jefe Inmediato', data.JefeInmediato || ''],
+                ['Firma', '']
+              ]
+            },
+            layout: 'grid',
+            margin: [5, 10, 0, 0]
+          }
+        ]
+      },
+      {
+      table: {
+        widths: ['*'],
+        body: [[
+          { text: 'FOTOGRAFÍAS', style: 'subheader', alignment: 'center', bold: true, border: [true, true, true, true] }
+        ]]
+      },
+      layout: {
+        hLineWidth: () => 1,
+        vLineWidth: () => 1
+      },
+      pageBreak: 'before',
+      margin: [0, 0, 0, 10]
+    },
+      {
+        table: {
+          widths: ['50%', '50%'],
+          heights: [200, 200, 200],
+          body: [
+            [
+              { stack: [{ text: 'TABLERO ANTES DE LLENADO', bold: true, margin: [0, 0, 0, 5] }, { image: images['foto_tablero_antes'], fit: [250, 180] }], alignment: 'center' },
+              { stack: [{ text: 'BOMBA DE COMBUSTIBLE 0', bold: true, margin: [0, 0, 0, 5] }, { image: images['foto_bomba'], fit: [250, 180] }], alignment: 'center' },
+            ],
+            [
+              { stack: [{ text: 'TABLERO DESPUÉS DE LLENADO', bold: true, margin: [0, 0, 0, 5] }, { image: images['foto_despues'], fit: [250, 180] }], alignment: 'center' },
+              {
+                stack: [{ text: 'VISTA FRONTAL DEL VEHÍCULO / VIN CON VEHICULO', bold: true, margin: [0, 0, 0, 5] }, { image: images['foto_frontal'], fit: [250, 200] }], alignment: 'center' , rowSpan: 2 },
+            ],
+            [
+              { stack: [{ text: 'BOMBA DE COMBUSTIBLE LLENA', bold: true, margin: [0, 0, 0, 5] }, { image: images['foto_bomba_llenado'], fit: [250, 180] }], alignment: 'center' },
+            ]
+          ]
+        },
+        layout: 'grid'
+      },
+      {
+        table: {
+          widths: ['33%', '33%', '34%'],
+          body: [[
+            { text: `PLACA: ${data.Placa}`, bold: true, margin: [0, 0, 0, 5] },
+            { text: `FECHA: ${data.Fecha}`, bold: true, alignment: 'center' },
+            { text: `FACTURA: ${data.NumeroFactura}`, bold: true, alignment: 'right' }
+          ]]
+        },
+        margin: [0, 10, 0, 0]
+      },
+      {
+      table: {
+        widths: ['*'],
+        body: [[
+          { text: 'FACTURA ORIGINAL', style: 'subheader', alignment: 'center', bold: true, border: [true, true, true, true], margin: [0, 0, 0, 10] }
+        ]]
+      },
+      layout: {
+        hLineWidth: () => 1,
+        vLineWidth: () => 1
+      },
+      pageBreak: 'before'
+    },
+      images['foto_factura'] ? { image: images['foto_factura'], fit: [400, 500], alignment: 'center', margin: [0, 30, 0, 0] } : ''
+    ],
+    styles: {
+      header: { fontSize: 16, bold: true, margin: [0, 10, 0, 10] },
+      subheader: { fontSize: 14, bold: true, margin: [0, 10, 0, 10] }
+    },
+    defaultStyle: {
+      fontSize: 10
+    }
+  };
+
+  const filename = `${data.Sector}_${data.Fecha}_${data.NumeroFactura}.pdf`;
+
+  pdfMake.createPdf(docDefinition).getBase64(function(base64) {
+    const savePayload = { ...data, pdf: base64, filename };
+
+    fetch('/api/guardar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(savePayload)
+    }).then(() => {
+      
+pdfMake.createPdf(docDefinition).download(filename, () => {
+    document.getElementById('loader_pdf').style.display = 'none';
+    mostrarSuccessYReset();
+});
+
+    });
+  });
+};
+</script>
+<div id="loader_pdf" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.8); z-index:9999; align-items:center; justify-content:center; flex-direction: column;">
+<div class="spinner" style="border: 6px solid #f3f3f3; border-top: 6px solid #3498db; border-radius: 50%; width: 60px; height: 60px; animation: spin 1s linear infinite;"></div>
+<div style="font-size:20px; font-weight:bold; margin-top:20px;">Generando PDF...</div>
+</div>
+<div id="success_alert" style="display:none; position:fixed; top:20px; right:20px; background-color:#4CAF50; color:white; padding:15px; border-radius:5px; z-index:10000;">
+  Información enviada con éxito
+</div>
+
+
+<script>
+function mostrarSuccessYReset() {
+  const alerta = document.getElementById('success_alert');
+  if (alerta) {
+    alerta.style.display = 'block';
+    setTimeout(() => {
+      alerta.style.display = 'none';
+      location.reload();
+    }, 2500);
+  } else {
+    location.reload();
+  }
+}
+</script>
+<script>
+function validarYVerificarDuplicado() {
+  if (!validarFormulario()) return;
+
+  const identidad = document.getElementById("identidad").value.replace(/\D/g, '');
+  const factura = document.getElementById("factura").value.replace(/\D/g, '');
+
+  if (identidad.length !== 13) {
+    alert("El número de identidad debe tener exactamente 13 dígitos.");
+    return;
+  }
+
+  if (factura.length < 16) {
+    alert("El número de factura debe tener al menos 16 dígitos.");
+    return;
+  }
+
+  // Validación de Monto Gastado (>5000)
+  const totalVal = parseFloat(document.getElementById('total').value) || 0;
+  if (totalVal > 5000) {
+    alert('El monto ingresado es muy elevado. El máximo permitido es 5000.');
+    return;
+  }
+
+  // Validación de Litros Consumidos (>250)
+  const litrosVal = parseFloat(document.getElementById('litros').value) || 0;
+  if (litrosVal > 250) {
+    alert('El valor de litros consumidos es muy elevado. El máximo permitido es 250.');
+    return;
+  }
+
+  mostrarLoaderVerificacion();
+
+  requestAnimationFrame(() => {
+    setTimeout(() => {
+      const duplicado = false; // Aquí normalmente iría la verificación real
+
+      if (duplicado) {
+        alert("Ya existe un reporte con esta información.");
+        ocultarLoaderVerificacion();
+      } else {
+        const paso2 = document.getElementById('paso2');
+        const observer = new MutationObserver(() => {
+          if (paso2.style.display === "block") {
+            ocultarLoaderVerificacion();
+            observer.disconnect();
+          }
+        });
+
+        observer.observe(paso2, { attributes: true, attributeFilter: ["style"] });
+        siguientePaso(2);
+      }
+    }, 100);
+  });
+}
+</script>
+
+
+<script>
+function validarFormulario() {
+  const paso1 = document.getElementById("paso1");
+  const campos = Array.from(paso1.querySelectorAll("input, select, textarea")).filter(c => c.id !== "horas");
+  let esValido = true;
+
+  campos.forEach(campo => {
+    const error = document.getElementById("error_" + campo.id);
+    if (!campo.value.trim()) {
+      esValido = false;
+      if (error) error.style.display = "inline";
+      campo.classList.add("invalido");
+    } else {
+      if (error) error.style.display = "none";
+      campo.classList.remove("invalido");
+    }
+  });
+
+  if (!esValido) {
+    const toast = document.getElementById("toast-alert");
+    if (toast) {
+      toast.classList.add("show");
+      setTimeout(() => toast.classList.remove("show"), 3000);
+    }
+  }
+
+  return esValido;
+}
+</script>
+
+
+<script>
+
+function mostrarPaso(paso) {
+  document.querySelectorAll('.paso').forEach(p => p.style.display = 'none');
+  const pasoDiv = document.getElementById('paso' + paso);
+  if (pasoDiv) {
+    pasoDiv.style.display = 'block';
+    pasoDiv.setAttribute('tabindex', '-1');
+    pasoDiv.focus({ preventScroll: true });
+    pasoDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+, 300);
+  } else {
+    siguiente.style.display = 'block';
+    siguiente.classList.add('fade-in-down');
+  }
+}
+</script>
+
+
+<!-- Modal Firma Digital -->
+<div id="modal-signature" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); align-items:center; justify-content:center; z-index:3000; ">
+  <div style="background:#fff; padding:20px; border-radius:8px; max-width:500px; width:90%;">
+    <h3>Firma de Aprobación</h3>
+    <canvas id="canvas-signature" width="460" height="180" style="border:1px solid #ccc; border-radius:4px;"></canvas>
+    <div style="margin-top:10px; text-align:right;">
+      <button type="button" id="clear-signature">Limpiar</button>
+      <button type="button" id="confirm-signature">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  // Inicializar Signature Pad
+  const canvas = document.getElementById('canvas-signature');
+  const signaturePad = new SignaturePad(canvas, { backgroundColor: 'rgba(255,255,255,0)', penColor: 'black' });
+
+  // Capturar handler original
+  const btnEnviar = document.getElementById('enviar_reporte');
+  const originalHandler = btnEnviar.onclick;
+
+  // Mostrar modal al enviar
+  btnEnviar.onclick = () => {
+    signaturePad.clear();
+    document.getElementById('modal-signature').style.display = 'flex';
+  };
+
+  // Limpiar firma
+  document.getElementById('clear-signature').onclick = () => {
+    signaturePad.clear();
+  };
+
+  // Confirmar firma
+  document.getElementById('confirm-signature').onclick = () => {
+    if (signaturePad.isEmpty()) {
+      alert('Por favor, firma antes de confirmar.');
+      return;
+    }
+    // Guardar firma
+    window.colaboradorFirma = signaturePad.toDataURL();
+    document.getElementById('modal-signature').style.display = 'none';
+    // Llamar flujo original
+    originalHandler();
+  };
+});
+</script>
+
 </body>
 </html>
+<div id="generando_pdf_modal" style="
+  visibility: hidden;
+  opacity: 0;
+  position:fixed;
+  top:0; left:0; right:0; bottom:0;
+  background:rgba(0,0,0,0.6);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  z-index:2000;
+  transition: opacity 0.3s ease;">
+<div class="spinner"></div>
+<div style="color:white; font-size:20px; font-weight:bold; margin-top:20px;">
+    Generando PDF, por favor espere...
+  </div>
+</div>
