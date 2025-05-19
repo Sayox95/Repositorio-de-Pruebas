@@ -230,43 +230,6 @@
 .fade-in-down {
   animation: fadeInDown 0.3s ease-out forwards;
 }
-  @keyframes fadeInUp {
-    from { opacity: 0; transform: translateY(-20px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
-  .fade-in-up {
-    animation: fadeInUp 0.3s ease-out forwards;
-  }
-  @keyframes fadeOutDown {
-    from { opacity: 1; transform: translateY(0); }
-    to   { opacity: 0; transform: translateY(20px); }
-  }
-  .fade-out-down {
-    animation: fadeOutDown 0.3s forwards;
-  }
-
-  @keyframes fadeInUp {
-    from { opacity: 0; transform: translateY(-20px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
-  .fade-in-up {
-    animation: fadeInUp 0.3s ease-out forwards;
-  }
-  @keyframes fadeOutDown {
-    from { opacity: 1; transform: translateY(0); }
-    to   { opacity: 0; transform: translateY(20px); }
-  }
-  .fade-out-down {
-    animation: fadeOutDown 0.3s forwards;
-  }
-  @keyframes fadeOutUp {
-    from { opacity: 1; transform: translateY(0); }
-    to   { opacity: 0; transform: translateY(-20px); }
-  }
-  .fade-out-up {
-    animation: fadeOutUp 0.3s forwards;
-  }
-
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
@@ -308,6 +271,38 @@
     padding: 10px;
     margin: 0;
   }
+}
+</style>
+
+
+<style>
+.fade-in-down {
+  animation: fadeInDown 0.3s ease-out forwards;
+}
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-in-up {
+  animation: fadeInUp 0.3s ease-out forwards;
+}
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(-20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-out-down {
+  animation: fadeOutDown 0.3s forwards;
+}
+@keyframes fadeOutDown {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(20px); }
+}
+.fade-out-up {
+  animation: fadeOutUp 0.3s forwards;
+}
+@keyframes fadeOutUp {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(-20px); }
 }
 </style>
 
@@ -1072,46 +1067,35 @@ function ocultarLoaderVerificacion() {
   setTimeout(() => { if (modal) modal.style.visibility = 'hidden'; }, 300);
 }
 </script>
-
 <script>
-let pasoActual = 1;
 
 function mostrarPaso(paso) {
-  const pasoActualDiv = document.getElementById('paso' + pasoActual);
-  const nuevoPasoDiv = document.getElementById('paso' + paso);
-
-  if (pasoActualDiv && nuevoPasoDiv) {
-    const esAdelante = paso > pasoActual;
-
-    // Animar salida del paso actual
-    pasoActualDiv.classList.add(esAdelante ? 'fade-out-up' : 'fade-out-down');
-    setTimeout(() => {
-      pasoActualDiv.style.display = 'none';
-      pasoActualDiv.classList.remove('fade-out-up', 'fade-out-down');
-
-      // Mostrar nuevo paso con animación de entrada
-      nuevoPasoDiv.style.display = 'block';
-      nuevoPasoDiv.setAttribute('tabindex', '-1');
-      nuevoPasoDiv.focus({ preventScroll: true });
-      nuevoPasoDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      nuevoPasoDiv.classList.add(esAdelante ? 'fade-in-down' : 'fade-in-up');
-      setTimeout(() => {
-        nuevoPasoDiv.classList.remove('fade-in-down', 'fade-in-up');
-      }, 300);
-
-      pasoActual = paso;
-    }, 300);
-  } else if (nuevoPasoDiv) {
-    // Primer paso o fallback sin animación
-    nuevoPasoDiv.style.display = 'block';
-    nuevoPasoDiv.setAttribute('tabindex', '-1');
-    nuevoPasoDiv.focus({ preventScroll: true });
-    nuevoPasoDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    pasoActual = paso;
+  document.querySelectorAll('.paso').forEach(p => p.style.display = 'none');
+  const pasoDiv = document.getElementById('paso' + paso);
+  if (pasoDiv) {
+    pasoDiv.style.display = 'block';
+    pasoDiv.setAttribute('tabindex', '-1');
+    pasoDiv.focus({ preventScroll: true });
+    pasoDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 }
-</script>
-<script>
+
+
+async function siguientePaso(pasoActual) {
+  if (pasoActual === 2) {
+    if (!validarFormulario()) return;const placa = document.getElementById('placa').value;
+    const fecha = document.getElementById('fecha').value;
+    const factura = document.getElementById('factura').value;
+    const duplicado = await verificarDuplicado(placa, fecha, factura);
+    ocultarLoaderVerificacion();
+    if (duplicado) {
+      const continuar = confirm("⚠️ Ya existe un reporte con estos datos. ¿Deseas reemplazarlo?");
+      if (!continuar) return;
+    }
+  }
+  mostrarPaso(pasoActual);
+}
+</script><script>
 function validarFormulario() {
   const paso1 = document.getElementById("paso1");
   const campos = Array.from(paso1.querySelectorAll("input, select, textarea")).filter(c => c.id !== "horas")
@@ -1545,6 +1529,19 @@ function validarFormulario() {
 </script>
 
 
+<script>
+
+function mostrarPaso(paso) {
+  document.querySelectorAll('.paso').forEach(p => p.style.display = 'none');
+  const pasoDiv = document.getElementById('paso' + paso);
+  if (pasoDiv) {
+    pasoDiv.style.display = 'block';
+    pasoDiv.setAttribute('tabindex', '-1');
+    pasoDiv.focus({ preventScroll: true });
+    pasoDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+</script>
 
 
 <!-- Modal Firma Digital -->
@@ -1593,6 +1590,51 @@ document.addEventListener('DOMContentLoaded', () => {
     // Llamar flujo original
     originalHandler();
   };
+});
+</script>
+
+
+<script>
+let pasoActual = 1;
+
+function mostrarPaso(paso) {
+  const actual = document.getElementById('paso' + pasoActual);
+  const siguiente = document.getElementById('paso' + paso);
+
+  if (actual && siguiente) {
+    const adelante = paso > pasoActual;
+    actual.classList.add(adelante ? 'fade-out-up' : 'fade-out-down');
+    setTimeout(() => {
+      actual.style.display = 'none';
+      actual.classList.remove('fade-out-up','fade-out-down');
+
+      siguiente.style.display = 'block';
+      siguiente.setAttribute('tabindex','-1');
+      siguiente.focus({preventScroll:true});
+      siguiente.scrollIntoView({behavior:'smooth', block:'start'});
+      siguiente.classList.add(adelante ? 'fade-in-down' : 'fade-in-up');
+      setTimeout(() => {
+        siguiente.classList.remove('fade-in-down','fade-in-up');
+      }, 300);
+      pasoActual = paso;
+    }, 300);
+  }
+}
+
+// Asociar botones con mostrarPaso
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('[data-siguiente]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const paso = parseInt(btn.getAttribute('data-siguiente'), 10);
+      mostrarPaso(paso);
+    });
+  });
+  document.querySelectorAll('[data-anterior]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const paso = parseInt(btn.getAttribute('data-anterior'), 10);
+      mostrarPaso(paso);
+    });
+  });
 });
 </script>
 
