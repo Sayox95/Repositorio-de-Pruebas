@@ -1508,11 +1508,12 @@ function mostrarPaso(paso) {
     pasoDiv.focus({ preventScroll: true });
     pasoDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
-}
-, 300);
-  } else {
-    siguiente.style.display = 'block';
-    siguiente.classList.add('fade-in-down');
+  const siguiente = document.querySelector('#btn-siguiente');
+  if (siguiente) {
+    setTimeout(() => {
+      siguiente.style.display = 'block';
+      siguiente.classList.add('fade-in-down');
+    }, 300);
   }
 }
 </script>
