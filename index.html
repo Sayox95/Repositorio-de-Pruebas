@@ -230,6 +230,20 @@
 .fade-in-down {
   animation: fadeInDown 0.3s ease-out forwards;
 }
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(-20px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .fade-in-up {
+    animation: fadeInUp 0.3s ease-out forwards;
+  }
+  @keyframes fadeOutDown {
+    from { opacity: 1; transform: translateY(0); }
+    to   { opacity: 0; transform: translateY(20px); }
+  }
+  .fade-out-down {
+    animation: fadeOutDown 0.3s forwards;
+  }
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
@@ -1497,26 +1511,6 @@ function validarFormulario() {
 </script>
 
 
-<script>
-
-function mostrarPaso(paso) {
-  document.querySelectorAll('.paso').forEach(p => p.style.display = 'none');
-  const pasoDiv = document.getElementById('paso' + paso);
-  if (pasoDiv) {
-    pasoDiv.style.display = 'block';
-    pasoDiv.setAttribute('tabindex', '-1');
-    pasoDiv.focus({ preventScroll: true });
-    pasoDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
-  const siguiente = document.querySelector('#btn-siguiente');
-  if (siguiente) {
-    setTimeout(() => {
-      siguiente.style.display = 'block';
-      siguiente.classList.add('fade-in-down');
-    }, 300);
-  }
-}
-</script>
 
 
 <!-- Modal Firma Digital -->
