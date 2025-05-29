@@ -2,6 +2,7 @@
 
 <html lang="es">
 <head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <title>Control de Combustible</title>
@@ -167,7 +168,37 @@
       margin: 0 auto;
       overflow: visible;
     }
-  </style>
+  
+@media screen and (max-width: 768px) {
+  .contenedor, .contenedor-formulario, .fila {
+    flex-direction: column !important;
+    padding: 10px;
+    gap: 10px;
+  }
+
+  input, select, textarea, .boton {
+    width: 100% !important;
+    box-sizing: border-box;
+    font-size: 1em;
+  }
+
+  .boton {
+    padding: 12px;
+  }
+
+  table {
+    display: block;
+    overflow-x: auto;
+    width: 100%;
+    font-size: 0.85em;
+  }
+
+  th, td {
+    white-space: nowrap;
+  }
+}
+
+</style>
 <style>
 .spinner {
   border: 6px solid #f3f3f3;
@@ -181,6 +212,36 @@
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
+
+@media screen and (max-width: 768px) {
+  .contenedor, .contenedor-formulario, .fila {
+    flex-direction: column !important;
+    padding: 10px;
+    gap: 10px;
+  }
+
+  input, select, textarea, .boton {
+    width: 100% !important;
+    box-sizing: border-box;
+    font-size: 1em;
+  }
+
+  .boton {
+    padding: 12px;
+  }
+
+  table {
+    display: block;
+    overflow-x: auto;
+    width: 100%;
+    font-size: 0.85em;
+  }
+
+  th, td {
+    white-space: nowrap;
+  }
+}
+
 </style>
 <style>
 #toast-alert {
@@ -210,10 +271,38 @@
   from { bottom: 30px; opacity: 1; }
   to   { bottom: 10px; opacity: 0; }
 }
+
+@media screen and (max-width: 768px) {
+  .contenedor, .contenedor-formulario, .fila {
+    flex-direction: column !important;
+    padding: 10px;
+    gap: 10px;
+  }
+
+  input, select, textarea, .boton {
+    width: 100% !important;
+    box-sizing: border-box;
+    font-size: 1em;
+  }
+
+  .boton {
+    padding: 12px;
+  }
+
+  table {
+    display: block;
+    overflow-x: auto;
+    width: 100%;
+    font-size: 0.85em;
+  }
+
+  th, td {
+    white-space: nowrap;
+  }
+}
+
 </style>
 <div id="toast-alert">⚠️ Hay campos obligatorios sin completar.</div>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
 
@@ -232,9 +321,156 @@
 .fade-in-down {
   animation: fadeInDown 0.3s ease-out forwards;
 }
+
+@media screen and (max-width: 768px) {
+  .contenedor, .contenedor-formulario, .fila {
+    flex-direction: column !important;
+    padding: 10px;
+    gap: 10px;
+  }
+
+  input, select, textarea, .boton {
+    width: 100% !important;
+    box-sizing: border-box;
+    font-size: 1em;
+  }
+
+  .boton {
+    padding: 12px;
+  }
+
+  table {
+    display: block;
+    overflow-x: auto;
+    width: 100%;
+    font-size: 0.85em;
+  }
+
+  th, td {
+    white-space: nowrap;
+  }
+}
+
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
+<script src="https://unpkg.com/blueimp-load-image/js/load-image.all.min.js"></script>
+
+    <!-- Custom Header Styles -->
+  <style>
+    .custom-header {
+      display: table;
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 10px;
+    }
+    .custom-header > div {
+      display: table-cell;
+      border: 1px solid #000;
+      vertical-align: middle;
+      padding: 8px;
+    }
+    .custom-header .header-left img {
+      max-height: 60px;
+      display: block;
+    }
+    .custom-header .header-center h1 {
+      font-size: 18px;
+      margin: 0;
+      text-align: center;
+    }
+      width: 100%;
+      border-collapse: collapse;
+    }
+      border: 1px solid #000;
+      padding: 4px 8px;
+      font-size: 12px;
+    }
+  
+@media screen and (max-width: 768px) {
+  .contenedor, .contenedor-formulario, .fila {
+    flex-direction: column !important;
+    padding: 10px;
+    gap: 10px;
+  }
+
+  input, select, textarea, .boton {
+    width: 100% !important;
+    box-sizing: border-box;
+    font-size: 1em;
+  }
+
+  .boton {
+    padding: 12px;
+  }
+
+  table {
+    display: block;
+    overflow-x: auto;
+    width: 100%;
+    font-size: 0.85em;
+  }
+
+  th, td {
+    white-space: nowrap;
+  }
+}
+
+</style>
+
+
+<style>
+  .header-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 10px;
+  }
+  .header-table td {
+    border: 1px solid #000;
+    padding: 4px;
+    vertical-align: middle;
+  }
+  .header-table img {
+    max-height: 60px;
+    display: block;
+  }
+  .header-table .title-cell {
+    text-align: center;
+    font-size: 18px;
+    font-weight: bold;
+  }
+
+@media screen and (max-width: 768px) {
+  .contenedor, .contenedor-formulario, .fila {
+    flex-direction: column !important;
+    padding: 10px;
+    gap: 10px;
+  }
+
+  input, select, textarea, .boton {
+    width: 100% !important;
+    box-sizing: border-box;
+    font-size: 1em;
+  }
+
+  .boton {
+    padding: 12px;
+  }
+
+  table {
+    display: block;
+    overflow-x: auto;
+    width: 100%;
+    font-size: 0.85em;
+  }
+
+  th, td {
+    white-space: nowrap;
+  }
+}
+
+</style>
+
 </head>
 <body>
 <div id="notification" style="display:none; position:fixed; top:20px; left:50%; transform:translateX(-50%); background:#28a745; color:white; padding:15px 30px; border-radius:5px; opacity:0; transition:opacity 0.5s ease-in-out; z-index:1000;">Información enviada correctamente</div>
@@ -267,7 +503,29 @@
 <div id="preview_contenido" style="display:none;">
 <!-- Página 1: resumen e inserción de factura -->
 <div class="page" id="preview_page1">
-<h3 class="format-header" id="format_header"></h3>
+
+<table class="header-table">
+  <tr>
+    <td rowspan="3" style="width:100px;">
+      <!-- Pega aquí la URL de tu logo en GitHub -->
+      <img src="https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/refs/heads/main/imagenes/Logo.png" alt="Logo UTCD">
+    </td>
+    <td rowspan="3" class="title-cell">
+      DETALLE DE LA FACTURA DE COMBUSTIBLE
+    </td>
+    <td>Código</td>
+    <td>CLS-PAU-F-19</td>
+  </tr>
+  <tr>
+    <td>Versión</td>
+    <td>1</td>
+  </tr>
+  <tr>
+    <td>Fecha</td>
+    <td>20/5/2025</td>
+  </tr>
+</table>
+
 <div class="preview-box">
 <div class="invoice-box">
 <div class="placeholder" id="placeholder_box">Pegar Factura Original en este Espacio</div>
@@ -291,7 +549,8 @@
 <button id="enviar_reporte">Enviar Reporte</button>
 <button id="modificar_reporte">Modificar Reporte</button>
 </div>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script>
 // Mostrar previews para cada campo de imagen
 ['foto_tablero_antes','foto_bomba','foto_despues','foto_bomba_llenado','foto_frontal','foto_factura'].forEach(id => {
   const input = document.getElementById(id);
@@ -528,12 +787,6 @@ function imagenesCompletas() {
           if (data.Sector === 'CORPORATIVO') {
             data.JefeInmediato = '';
           }
-      // Formatear encabezado con mes y año
-      const meses = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
-      const [year, month, day] = data.Fecha.split('-').map(Number);
-      const fDate = new Date(year, month - 1, day);
-      document.getElementById('format_header').textContent =
-        `FORMATO DE FACTURAS COMBUSTIBLE ${meses[fDate.getMonth()]} ${fDate.getFullYear()}`;
 
       // Construir tabla resumen dinámicamente
       const sb = document.getElementById('summary_box'); sb.innerHTML = '';
@@ -542,7 +795,7 @@ function imagenesCompletas() {
         ['Nombre Completo', data.Nombre],
         ['No. Identidad', data.Identidad],
         ['Firma del Colaborador', data.Firma ? `<img src="${data.Firma}" style="max-width:150px;"/>` : ''],
-        ['Tipo de Gestión', `PLACA: ${data.Placa}`],
+        ['Tipo de Gestión', 'Liquidación de gastos de combustible'],
         ['Total', data.Total],
         ['Motivo del llenado de combustible',
          `Compra de Combustible al Vehículo<br><br>Para Labores de: ${data.Motivo}<br><br>Proceso: ${data.Proceso}`],
@@ -846,7 +1099,8 @@ function validarFormulario() {
 
 </script>
 <!-- Incluir html2pdf.js desde CDN -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
 // Mostrar previews para cada campo de imagen
 ['foto_tablero_antes','foto_bomba','foto_despues','foto_bomba_llenado','foto_frontal','foto_factura'].forEach(id => {
   const input = document.getElementById(id);
@@ -897,7 +1151,8 @@ function validarFormulario() {
 }
 
 </script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.2/html2pdf.bundle.min.js">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.2/html2pdf.bundle.min.js"></script>
+<script>
 // Mostrar previews para cada campo de imagen
 ['foto_tablero_antes','foto_bomba','foto_despues','foto_bomba_llenado','foto_frontal','foto_factura'].forEach(id => {
   const input = document.getElementById(id);
@@ -1061,7 +1316,6 @@ function validarImagenPaso(id) {
 document.addEventListener("DOMContentLoaded", () => {
   const btn = document.getElementById("guardar_reporte");
   if (btn && typeof generarPreviewPDF === "function") {
-    btn.onclick = generarPreviewPDF;
   }
 });
 </script><script>
@@ -1101,6 +1355,18 @@ function ocultarLoaderVerificacion() {
 </script>
 <script>
 function validarYVerificarDuplicado() {
+
+    const opciones = document.querySelectorAll('#placas option');
+    const listaPlacas = Array.from(opciones).map(opt => opt.value.trim());
+    const inputPlaca = document.getElementById('placa');
+    const placaIngresada = inputPlaca.value.trim();
+    const placaMayus = placaIngresada.toUpperCase();
+    if (!listaPlacas.map(p => p.toUpperCase()).includes(placaMayus)) {
+        alert("La placa ingresada no está registrada. Por favor seleccione una válida.");
+        inputPlaca.focus();
+        return;
+    }
+
   if (!validarFormulario()) return;
 
   mostrarLoaderVerificacion();
@@ -1134,12 +1400,17 @@ async function fileToBase64(inputId) {
   return new Promise((resolve, reject) => {
     const file = document.getElementById(inputId).files[0];
     if (!file) return resolve(null);
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
+    // Use blueimp-load-image to correct orientation based on EXIF
+    loadImage(
+      file,
+      function (canvas) {
+        const orientedDataUrl = canvas.toDataURL('image/jpeg');
+        resolve(orientedDataUrl);
+      },
+      { canvas: true, orientation: true }
+    );
   });
-}
+};
 
 document.getElementById('enviar_reporte').onclick = async () => {
   const fields = ['foto_tablero_antes','foto_bomba','foto_despues','foto_bomba_llenado','foto_frontal','foto_factura'];
@@ -1177,23 +1448,46 @@ data.JefeInmediato = window._jefeInmediato || "";
     const rows = Array.from(document.querySelector('#summary_box table').rows);
     data.JefeInmediato = rows.find(r => r.cells[0].innerText.trim() === 'Autorizado por Jefe Inmediato')
       ?.cells[1]?.innerText || '';
+// Pega aquí la URL de tu logo en GitHub
+const logoUrl = 'https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/refs/heads/main/imagenes/Logo.png';
+  const logoBase64 = await urlToBase64(logoUrl);
+
 const docDefinition = {
     pageSize: 'letter',
     pageMargins: [30, 30, 30, 30],
     content: [
+
       {
-      table: {
-        widths: ['*'],
-        body: [[
-          { text: headerText, style: 'header', alignment: 'center', bold: true, border: [true, true, true, true] }
-        ]]
-      },
-      layout: {
-        hLineWidth: () => 1,
-        vLineWidth: () => 1
-      },
-      margin: [0, 0, 0, 10]
-    },
+  table: {
+    widths: [100, '*', 'auto', 'auto'],
+    body: [
+      [
+        { image: logoBase64, width: 90, rowSpan: 3, alignment: 'center', margin: [0, 10, 0, 0] },
+        { text: 'DETALLE DE LA FACTURA DE COMBUSTIBLE', style: 'header', fontSize: 14, alignment: 'center', bold: true, rowSpan: 3, margin: [0, 20, 0, 0] , verticalAlignment: 'middle' },
+        { text: 'Código', bold: true , verticalAlignment: 'middle', alignment: 'center', verticalAlignment: 'middle' },
+        { text: 'CLS-PAU-F-19' , verticalAlignment: 'middle', alignment: 'center', verticalAlignment: 'middle' }
+      ],
+      [
+        {}, {},
+        { text: 'Versión', bold: true , verticalAlignment: 'middle', alignment: 'center', verticalAlignment: 'middle' },
+        { text: '1' , verticalAlignment: 'middle', alignment: 'center', verticalAlignment: 'middle' }
+      ],
+      [
+        {}, {},
+        { text: 'Fecha', bold: true , verticalAlignment: 'middle', alignment: 'center', verticalAlignment: 'middle' },
+        { text: '20/5/2025' , verticalAlignment: 'middle', alignment: 'center', verticalAlignment: 'middle' }
+      ]
+    ]
+  },
+  layout: {
+    hLineWidth: function () { return 1; },
+    vLineWidth: function () { return 1; },
+    hLineColor: function () { return '#000'; },
+    vLineColor: function () { return '#000'; }
+  },
+  margin: [0, 0, 0, 10]
+},,
+
       {
         columns: [
           {
@@ -1201,7 +1495,7 @@ const docDefinition = {
             table: {
               widths: ['*'],
               body: [[
-                { text: 'Pegar Factura Original en este Espacio', italics: true, alignment: 'center', margin: [0, 320] }
+                { text: 'Pegar Factura Original en este Espacio', italics: true, alignment: 'center', margin: [0, 309] , verticalAlignment: 'middle' }
               ]]
             },
             layout: {
@@ -1218,12 +1512,12 @@ const docDefinition = {
             width: '52%',
             table: {
               widths: ['30%', '70%'],
-              heights: [40, 40, 40, 40, 40, 90, 40, 40, 90, 65, 65],
+              heights: [40, 40, 40, 40, 40, 80, 40, 40, 80, 60, 60],
               body: [
                 ['Nombre Completo', data.Nombre],
                 ['No. Identidad', data.Identidad],
                 ['Firma del Colaborador', window.colaboradorFirma ? { image: window.colaboradorFirma, width: 150 } : ''],
-                ['Tipo de Gestión', `PLACA: ${data.Placa}`],
+                ['Tipo de Gestión', 'Liquidación de gastos de combustible'],
                 ['Total', data.TotalGastado + ' L'],
                 ['Motivo del llenado de combustible', `Compra de Combustible al Vehículo
 
@@ -1231,8 +1525,12 @@ Para Labores de: ${data.MotivoDelLlenado}
 
 Proceso: ${data.Proceso}`],
                 ['Fecha', data.Fecha],
-                ['Horas de Viaje', data.HorasDelViaje],
-                ['Observación', `SECTOR: ${data.Sector}\n\nKM: ${data.KmActual}\n\nFACTURA: ${data.NumeroFactura}`],
+                ['Placa o VIN', data.Placa],
+                ['Observación', `SECTOR: ${data.Sector}
+
+KM: ${data.KmActual}
+
+FACTURA: ${data.NumeroFactura}`],
                 ['Autorizado por Jefe Inmediato', data.JefeInmediato || ''],
                 ['Firma', '']
               ]
@@ -1246,7 +1544,7 @@ Proceso: ${data.Proceso}`],
       table: {
         widths: ['*'],
         body: [[
-          { text: 'FOTOGRAFÍAS', style: 'subheader', alignment: 'center', bold: true, border: [true, true, true, true] }
+          { text: 'FOTOGRAFÍAS', style: 'subheader', alignment: 'center', bold: true, border: [true, true, true, true] , verticalAlignment: 'middle' }
         ]]
       },
       layout: {
@@ -1262,16 +1560,16 @@ Proceso: ${data.Proceso}`],
           heights: [200, 200, 200],
           body: [
             [
-              { stack: [{ text: 'TABLERO ANTES DE LLENADO', bold: true, margin: [0, 0, 0, 5] }, { image: images['foto_tablero_antes'], fit: [250, 180] }], alignment: 'center' },
-              { stack: [{ text: 'BOMBA DE COMBUSTIBLE 0', bold: true, margin: [0, 0, 0, 5] }, { image: images['foto_bomba'], fit: [250, 180] }], alignment: 'center' },
+              { stack: [{ text: 'TABLERO ANTES DE LLENADO', bold: true, margin: [0, 0, 0, 5] , verticalAlignment: 'middle', alignment: 'center', verticalAlignment: 'middle' }, { image: images['foto_tablero_antes'], fit: [250, 180] }], alignment: 'center' },
+              { stack: [{ text: 'BOMBA DE COMBUSTIBLE 0', bold: true, margin: [0, 0, 0, 5] , verticalAlignment: 'middle', alignment: 'center', verticalAlignment: 'middle' }, { image: images['foto_bomba'], fit: [250, 180] }], alignment: 'center' },
             ],
             [
-              { stack: [{ text: 'TABLERO DESPUÉS DE LLENADO', bold: true, margin: [0, 0, 0, 5] }, { image: images['foto_despues'], fit: [250, 180] }], alignment: 'center' },
+              { stack: [{ text: 'TABLERO DESPUÉS DE LLENADO', bold: true, margin: [0, 0, 0, 5] , verticalAlignment: 'middle', alignment: 'center', verticalAlignment: 'middle' }, { image: images['foto_despues'], fit: [250, 180] }], alignment: 'center' },
               {
-                stack: [{ text: 'VISTA FRONTAL DEL VEHÍCULO / VIN CON VEHICULO', bold: true, margin: [0, 0, 0, 5] }, { image: images['foto_frontal'], fit: [250, 200] }], alignment: 'center' , rowSpan: 2 },
+                stack: [{ text: 'VISTA FRONTAL DEL VEHÍCULO / VIN CON VEHICULO', bold: true, margin: [0, 0, 0, 5] , verticalAlignment: 'middle', alignment: 'center', verticalAlignment: 'middle' }, { image: images['foto_frontal'], fit: [250, 200] }], alignment: 'center' , rowSpan: 2 },
             ],
             [
-              { stack: [{ text: 'BOMBA DE COMBUSTIBLE LLENA', bold: true, margin: [0, 0, 0, 5] }, { image: images['foto_bomba_llenado'], fit: [250, 180] }], alignment: 'center' },
+              { stack: [{ text: 'BOMBA DE COMBUSTIBLE LLENA', bold: true, margin: [0, 0, 0, 5] , verticalAlignment: 'middle', alignment: 'center', verticalAlignment: 'middle' }, { image: images['foto_bomba_llenado'], fit: [250, 180] }], alignment: 'center' },
             ]
           ]
         },
@@ -1292,7 +1590,7 @@ Proceso: ${data.Proceso}`],
       table: {
         widths: ['*'],
         body: [[
-          { text: 'FACTURA ORIGINAL', style: 'subheader', alignment: 'center', bold: true, border: [true, true, true, true], margin: [0, 0, 0, 10] }
+          { text: 'FACTURA ORIGINAL', style: 'subheader', alignment: 'center', bold: true, border: [true, true, true, true], margin: [0, 0, 0, 10] , verticalAlignment: 'middle' }
         ]]
       },
       layout: {
@@ -1314,7 +1612,18 @@ Proceso: ${data.Proceso}`],
 
   const filename = `${data.Sector}_${data.Fecha}_${data.NumeroFactura}.pdf`;
 
-  pdfMake.createPdf(docDefinition).getBase64(function(base64) {
+  
+async function urlToBase64(url) {
+  const response = await fetch(url);
+  const blob = await response.blob();
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result);
+    reader.readAsDataURL(blob);
+  });
+}
+
+pdfMake.createPdf(docDefinition).getBase64(function(base64) {
     const savePayload = { ...data, pdf: base64, filename };
 
     fetch('/api/guardar', {
@@ -1357,6 +1666,18 @@ function mostrarSuccessYReset() {
 </script>
 <script>
 function validarYVerificarDuplicado() {
+
+    const opciones = document.querySelectorAll('#placas option');
+    const listaPlacas = Array.from(opciones).map(opt => opt.value.trim());
+    const inputPlaca = document.getElementById('placa');
+    const placaIngresada = inputPlaca.value.trim();
+    const placaMayus = placaIngresada.toUpperCase();
+    if (!listaPlacas.map(p => p.toUpperCase()).includes(placaMayus)) {
+        alert("La placa ingresada no está registrada. Por favor seleccione una válida.");
+        inputPlaca.focus();
+        return;
+    }
+
   if (!validarFormulario()) return;
 
   const identidad = document.getElementById("identidad").value.replace(/\D/g, '');
@@ -1520,58 +1841,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
 </body>
 </html>
-<!-- Incluir html2pdf.js desde CDN para generación de PDF -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.2/html2pdf.bundle.min.js">
-// Mostrar previews para cada campo de imagen
-['foto_tablero_antes','foto_bomba','foto_despues','foto_bomba_llenado','foto_frontal','foto_factura'].forEach(id => {
-  const input = document.getElementById(id);
-  if (input) {
-    input.addEventListener('change', () => {
-      if (input.files && input.files.length > 0) {
-        const archivo = input.files[0];
-        
-        // Validar antigüedad de la foto (no mayor a 48 horas)
-        const fileDate = new Date(archivo.lastModified);
-        if (Date.now() - fileDate.getTime() > 48 * 3600 * 1000) {
-          alert('La fotografía debe ser reciente (no mayor a 48 horas).');
-          input.value = '';
-          return;
-        }
-        const url = URL.createObjectURL(archivo);
-        const contenedor = document.getElementById('preview_' + id);
-        if (contenedor) {
-          contenedor.innerHTML = `<img src="${url}" style="max-width:100%; max-height:300px;">`;
-        }
-      }
-    });
-  }
-});
-
-
-function validarFormulario() {
-  let valido = true;
-  const campos = ['sector', 'placa', 'proceso', 'nombre', 'identidad', 'total', 'litros', 'motivo', 'fecha', 'km', 'nombre_comercio', 'factura', 'foto_tablero_antes', 'foto_bomba', 'foto_despues', 'foto_bomba_llenado', 'foto_frontal', 'foto_factura'];
-
-  campos.forEach(id => {
-    const campo = document.getElementById(id);
-    const error = document.getElementById("error_" + id);
-    if (campo && (!campo.value || campo.value.trim() === "")) {
-      if (error) error.style.display = "inline";
-      valido = false;
-    } else {
-      if (error) error.style.display = "none";
-    }
-  });
-
-  if (!valido) {
-    const toast = document.getElementById("toast-alert");
-    toast.classList.add("show");
-    setTimeout(() => toast.classList.remove("show"), 3000);
-  }
-  return valido;
-}
-
-</script>
 <div id="generando_pdf_modal" style="
   visibility: hidden;
   opacity: 0;
