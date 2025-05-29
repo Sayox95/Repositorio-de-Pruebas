@@ -3,7 +3,7 @@
 <html lang="es">
 <head>
 <meta charset="utf-8"/>
-<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>Control de Combustible</title>
 <!-- Roboto font for consistent typography -->
 <link href="https://fonts.googleapis.com/css2?family=Roboto&amp;display=swap" rel="stylesheet"/>
@@ -234,6 +234,78 @@
 
 <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
 <script src="https://unpkg.com/blueimp-load-image/js/load-image.all.min.js"></script>
+
+<style>
+@media screen and (max-width: 768px) {
+  .formulario {
+    padding: 15px;
+    margin: 0 10px;
+    box-shadow: none;
+    border-radius: 0;
+  }
+
+  input, select, textarea, button {
+    font-size: 16px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  label {
+    font-size: 14px;
+    margin-top: 15px;
+    display: block;
+  }
+
+  button {
+    padding: 12px;
+    font-weight: bold;
+    width: 100%;
+  }
+
+  .paso {
+    padding: 10px;
+    margin-bottom: 20px;
+  }
+
+  body {
+    padding: 10px;
+    margin: 0;
+  }
+}
+</style>
+
+
+<style>
+.fade-in-down {
+  animation: fadeInDown 0.3s ease-out forwards;
+}
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-in-up {
+  animation: fadeInUp 0.3s ease-out forwards;
+}
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(-20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-out-down {
+  animation: fadeOutDown 0.3s forwards;
+}
+@keyframes fadeOutDown {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(20px); }
+}
+.fade-out-up {
+  animation: fadeOutUp 0.3s forwards;
+}
+@keyframes fadeOutUp {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(-20px); }
+}
+</style>
+
 </head>
 <body>
 <div id="notification" style="display:none; position:fixed; top:20px; left:50%; transform:translateX(-50%); background:#28a745; color:white; padding:15px 30px; border-radius:5px; opacity:0; transition:opacity 0.5s ease-in-out; z-index:1000;">Información enviada correctamente</div>
@@ -996,11 +1068,18 @@ function ocultarLoaderVerificacion() {
 }
 </script>
 <script>
+
 function mostrarPaso(paso) {
   document.querySelectorAll('.paso').forEach(p => p.style.display = 'none');
-  const siguiente = document.getElementById('paso' + paso);
-  if (siguiente) siguiente.style.display = 'block';
+  const pasoDiv = document.getElementById('paso' + paso);
+  if (pasoDiv) {
+    pasoDiv.style.display = 'block';
+    pasoDiv.setAttribute('tabindex', '-1');
+    pasoDiv.focus({ preventScroll: true });
+    pasoDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
 }
+
 
 async function siguientePaso(pasoActual) {
   if (pasoActual === 2) {
@@ -1451,25 +1530,15 @@ function validarFormulario() {
 
 
 <script>
+
 function mostrarPaso(paso) {
-  const pasos = document.querySelectorAll('.paso');
-  const visible = Array.from(pasos).find(p => p.style.display !== "none");
-  const siguiente = document.getElementById('paso' + paso);
-
-  if (visible && visible !== siguiente) {
-    visible.classList.remove('fade-in-down');
-    visible.classList.add('fade-out-up');
-
-    setTimeout(() => {
-      visible.style.display = 'none';
-      visible.classList.remove('fade-out-up');
-
-      siguiente.style.display = 'block';
-      siguiente.classList.add('fade-in-down');
-    }, 300);
-  } else {
-    siguiente.style.display = 'block';
-    siguiente.classList.add('fade-in-down');
+  document.querySelectorAll('.paso').forEach(p => p.style.display = 'none');
+  const pasoDiv = document.getElementById('paso' + paso);
+  if (pasoDiv) {
+    pasoDiv.style.display = 'block';
+    pasoDiv.setAttribute('tabindex', '-1');
+    pasoDiv.focus({ preventScroll: true });
+    pasoDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 }
 </script>
@@ -1521,6 +1590,51 @@ document.addEventListener('DOMContentLoaded', () => {
     // Llamar flujo original
     originalHandler();
   };
+});
+</script>
+
+
+<script>
+let pasoActual = 1;
+
+function mostrarPaso(paso) {
+  const actual = document.getElementById('paso' + pasoActual);
+  const siguiente = document.getElementById('paso' + paso);
+
+  if (actual && siguiente) {
+    const adelante = paso > pasoActual;
+    actual.classList.add(adelante ? 'fade-out-up' : 'fade-out-down');
+    setTimeout(() => {
+      actual.style.display = 'none';
+      actual.classList.remove('fade-out-up','fade-out-down');
+
+      siguiente.style.display = 'block';
+      siguiente.setAttribute('tabindex','-1');
+      siguiente.focus({preventScroll:true});
+      siguiente.scrollIntoView({behavior:'smooth', block:'start'});
+      siguiente.classList.add(adelante ? 'fade-in-down' : 'fade-in-up');
+      setTimeout(() => {
+        siguiente.classList.remove('fade-in-down','fade-in-up');
+      }, 300);
+      pasoActual = paso;
+    }, 300);
+  }
+}
+
+// Asociar botones con mostrarPaso
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('[data-siguiente]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const paso = parseInt(btn.getAttribute('data-siguiente'), 10);
+      mostrarPaso(paso);
+    });
+  });
+  document.querySelectorAll('[data-anterior]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const paso = parseInt(btn.getAttribute('data-anterior'), 10);
+      mostrarPaso(paso);
+    });
+  });
 });
 </script>
 
