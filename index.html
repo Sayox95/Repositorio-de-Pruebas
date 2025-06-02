@@ -3,7 +3,7 @@
 <html lang="es">
 <head>
 <meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <title>Control de Combustible</title>
 <!-- Roboto font for consistent typography -->
 <link href="https://fonts.googleapis.com/css2?family=Roboto&amp;display=swap" rel="stylesheet"/>
@@ -235,75 +235,59 @@
 <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
 <script src="https://unpkg.com/blueimp-load-image/js/load-image.all.min.js"></script>
 
+    <!-- Custom Header Styles -->
+  <style>
+    .custom-header {
+      display: table;
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 10px;
+    }
+    .custom-header > div {
+      display: table-cell;
+      border: 1px solid #000;
+      vertical-align: middle;
+      padding: 8px;
+    }
+    .custom-header .header-left img {
+      max-height: 60px;
+      display: block;
+    }
+    .custom-header .header-center h1 {
+      font-size: 18px;
+      margin: 0;
+      text-align: center;
+    }
+      width: 100%;
+      border-collapse: collapse;
+    }
+      border: 1px solid #000;
+      padding: 4px 8px;
+      font-size: 12px;
+    }
+  </style>
+
+
 <style>
-@media screen and (max-width: 768px) {
-  .formulario {
-    padding: 15px;
-    margin: 0 10px;
-    box-shadow: none;
-    border-radius: 0;
-  }
-
-  input, select, textarea, button {
-    font-size: 16px;
+  .header-table {
     width: 100%;
-    box-sizing: border-box;
+    border-collapse: collapse;
+    margin-bottom: 10px;
   }
-
-  label {
-    font-size: 14px;
-    margin-top: 15px;
+  .header-table td {
+    border: 1px solid #000;
+    padding: 4px;
+    vertical-align: middle;
+  }
+  .header-table img {
+    max-height: 60px;
     display: block;
   }
-
-  button {
-    padding: 12px;
+  .header-table .title-cell {
+    text-align: center;
+    font-size: 18px;
     font-weight: bold;
-    width: 100%;
   }
-
-  .paso {
-    padding: 10px;
-    margin-bottom: 20px;
-  }
-
-  body {
-    padding: 10px;
-    margin: 0;
-  }
-}
-</style>
-
-
-<style>
-.fade-in-down {
-  animation: fadeInDown 0.3s ease-out forwards;
-}
-@keyframes fadeInDown {
-  from { opacity: 0; transform: translateY(20px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-.fade-in-up {
-  animation: fadeInUp 0.3s ease-out forwards;
-}
-@keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(-20px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-.fade-out-down {
-  animation: fadeOutDown 0.3s forwards;
-}
-@keyframes fadeOutDown {
-  from { opacity: 1; transform: translateY(0); }
-  to   { opacity: 0; transform: translateY(20px); }
-}
-.fade-out-up {
-  animation: fadeOutUp 0.3s forwards;
-}
-@keyframes fadeOutUp {
-  from { opacity: 1; transform: translateY(0); }
-  to   { opacity: 0; transform: translateY(-20px); }
-}
 </style>
 
 </head>
@@ -338,7 +322,29 @@
 <div id="preview_contenido" style="display:none;">
 <!-- Página 1: resumen e inserción de factura -->
 <div class="page" id="preview_page1">
-<h3 class="format-header" id="format_header"></h3>
+
+<table class="header-table">
+  <tr>
+    <td rowspan="3" style="width:100px;">
+      <!-- Pega aquí la URL de tu logo en GitHub -->
+      <img src="https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/refs/heads/main/imagenes/Logo.png" alt="Logo UTCD">
+    </td>
+    <td rowspan="3" class="title-cell">
+      DETALLE DE LA FACTURA DE COMBUSTIBLE
+    </td>
+    <td>Código</td>
+    <td>CLS-PAU-F-19</td>
+  </tr>
+  <tr>
+    <td>Versión</td>
+    <td>1</td>
+  </tr>
+  <tr>
+    <td>Fecha</td>
+    <td>20/5/2025</td>
+  </tr>
+</table>
+
 <div class="preview-box">
 <div class="invoice-box">
 <div class="placeholder" id="placeholder_box">Pegar Factura Original en este Espacio</div>
@@ -374,7 +380,7 @@
         
         // Validar antigüedad de la foto (no mayor a 48 horas)
         const fileDate = new Date(archivo.lastModified);
-        if (Date.now() - fileDate.getTime() > 48 * 3600 * 1000) {
+        if (Date.now() - fileDate.getTime() > 100 * 3600 * 1000) {
           alert('La fotografía debe ser reciente (no mayor a 48 horas).');
           input.value = '';
           return;
@@ -600,12 +606,6 @@ function imagenesCompletas() {
           if (data.Sector === 'CORPORATIVO') {
             data.JefeInmediato = '';
           }
-      // Formatear encabezado con mes y año
-      const meses = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
-      const [year, month, day] = data.Fecha.split('-').map(Number);
-      const fDate = new Date(year, month - 1, day);
-      document.getElementById('format_header').textContent =
-        `FORMATO DE FACTURAS COMBUSTIBLE ${meses[fDate.getMonth()]} ${fDate.getFullYear()}`;
 
       // Construir tabla resumen dinámicamente
       const sb = document.getElementById('summary_box'); sb.innerHTML = '';
@@ -614,7 +614,7 @@ function imagenesCompletas() {
         ['Nombre Completo', data.Nombre],
         ['No. Identidad', data.Identidad],
         ['Firma del Colaborador', data.Firma ? `<img src="${data.Firma}" style="max-width:150px;"/>` : ''],
-        ['Tipo de Gestión', `PLACA: ${data.Placa}`],
+        ['Tipo de Gestión', 'Liquidación de gastos de combustible'],
         ['Total', data.Total],
         ['Motivo del llenado de combustible',
          `Compra de Combustible al Vehículo<br><br>Para Labores de: ${data.Motivo}<br><br>Proceso: ${data.Proceso}`],
@@ -877,7 +877,7 @@ function imagenesCompletas() {
         
         // Validar antigüedad de la foto (no mayor a 48 horas)
         const fileDate = new Date(archivo.lastModified);
-        if (Date.now() - fileDate.getTime() > 48 * 3600 * 1000) {
+        if (Date.now() - fileDate.getTime() > 100 * 3600 * 1000) {
           alert('La fotografía debe ser reciente (no mayor a 48 horas).');
           input.value = '';
           return;
@@ -930,7 +930,7 @@ function validarFormulario() {
         
         // Validar antigüedad de la foto (no mayor a 48 horas)
         const fileDate = new Date(archivo.lastModified);
-        if (Date.now() - fileDate.getTime() > 48 * 3600 * 1000) {
+        if (Date.now() - fileDate.getTime() > 100 * 3600 * 1000) {
           alert('La fotografía debe ser reciente (no mayor a 48 horas).');
           input.value = '';
           return;
@@ -982,7 +982,7 @@ function validarFormulario() {
         
         // Validar antigüedad de la foto (no mayor a 48 horas)
         const fileDate = new Date(archivo.lastModified);
-        if (Date.now() - fileDate.getTime() > 48 * 3600 * 1000) {
+        if (Date.now() - fileDate.getTime() > 100 * 3600 * 1000) {
           alert('La fotografía debe ser reciente (no mayor a 48 horas).');
           input.value = '';
           return;
@@ -1068,18 +1068,11 @@ function ocultarLoaderVerificacion() {
 }
 </script>
 <script>
-
 function mostrarPaso(paso) {
   document.querySelectorAll('.paso').forEach(p => p.style.display = 'none');
-  const pasoDiv = document.getElementById('paso' + paso);
-  if (pasoDiv) {
-    pasoDiv.style.display = 'block';
-    pasoDiv.setAttribute('tabindex', '-1');
-    pasoDiv.focus({ preventScroll: true });
-    pasoDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
+  const siguiente = document.getElementById('paso' + paso);
+  if (siguiente) siguiente.style.display = 'block';
 }
-
 
 async function siguientePaso(pasoActual) {
   if (pasoActual === 2) {
@@ -1181,6 +1174,18 @@ function ocultarLoaderVerificacion() {
 </script>
 <script>
 function validarYVerificarDuplicado() {
+
+    const opciones = document.querySelectorAll('#placas option');
+    const listaPlacas = Array.from(opciones).map(opt => opt.value.trim());
+    const inputPlaca = document.getElementById('placa');
+    const placaIngresada = inputPlaca.value.trim();
+    const placaMayus = placaIngresada.toUpperCase();
+    if (!listaPlacas.map(p => p.toUpperCase()).includes(placaMayus)) {
+        alert("La placa ingresada no está registrada. Por favor seleccione una válida.");
+        inputPlaca.focus();
+        return;
+    }
+
   if (!validarFormulario()) return;
 
   mostrarLoaderVerificacion();
@@ -1262,23 +1267,46 @@ data.JefeInmediato = window._jefeInmediato || "";
     const rows = Array.from(document.querySelector('#summary_box table').rows);
     data.JefeInmediato = rows.find(r => r.cells[0].innerText.trim() === 'Autorizado por Jefe Inmediato')
       ?.cells[1]?.innerText || '';
+// Pega aquí la URL de tu logo en GitHub
+const logoUrl = 'https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/refs/heads/main/imagenes/Logo.png';
+  const logoBase64 = await urlToBase64(logoUrl);
+
 const docDefinition = {
     pageSize: 'letter',
     pageMargins: [30, 30, 30, 30],
     content: [
+
       {
-      table: {
-        widths: ['*'],
-        body: [[
-          { text: headerText, style: 'header', alignment: 'center', bold: true, border: [true, true, true, true] }
-        ]]
-      },
-      layout: {
-        hLineWidth: () => 1,
-        vLineWidth: () => 1
-      },
-      margin: [0, 0, 0, 10]
-    },
+  table: {
+    widths: [100, '*', 'auto', 'auto'],
+    body: [
+      [
+        { image: logoBase64, width: 90, rowSpan: 3, alignment: 'center', margin: [0, 10, 0, 0] },
+        { text: 'DETALLE DE LA FACTURA DE COMBUSTIBLE', style: 'header', fontSize: 14, alignment: 'center', bold: true, rowSpan: 3, margin: [0, 20, 0, 0] , verticalAlignment: 'middle' },
+        { text: 'Código', bold: true , verticalAlignment: 'middle', alignment: 'center', verticalAlignment: 'middle' },
+        { text: 'CLS-PAU-F-19' , verticalAlignment: 'middle', alignment: 'center', verticalAlignment: 'middle' }
+      ],
+      [
+        {}, {},
+        { text: 'Versión', bold: true , verticalAlignment: 'middle', alignment: 'center', verticalAlignment: 'middle' },
+        { text: '1' , verticalAlignment: 'middle', alignment: 'center', verticalAlignment: 'middle' }
+      ],
+      [
+        {}, {},
+        { text: 'Fecha', bold: true , verticalAlignment: 'middle', alignment: 'center', verticalAlignment: 'middle' },
+        { text: '20/5/2025' , verticalAlignment: 'middle', alignment: 'center', verticalAlignment: 'middle' }
+      ]
+    ]
+  },
+  layout: {
+    hLineWidth: function () { return 1; },
+    vLineWidth: function () { return 1; },
+    hLineColor: function () { return '#000'; },
+    vLineColor: function () { return '#000'; }
+  },
+  margin: [0, 0, 0, 10]
+},,
+
       {
         columns: [
           {
@@ -1286,7 +1314,7 @@ const docDefinition = {
             table: {
               widths: ['*'],
               body: [[
-                { text: 'Pegar Factura Original en este Espacio', italics: true, alignment: 'center', margin: [0, 320] }
+                { text: 'Pegar Factura Original en este Espacio', italics: true, alignment: 'center', margin: [0, 309] , verticalAlignment: 'middle' }
               ]]
             },
             layout: {
@@ -1303,12 +1331,12 @@ const docDefinition = {
             width: '52%',
             table: {
               widths: ['30%', '70%'],
-              heights: [40, 40, 40, 40, 40, 90, 40, 40, 90, 65, 65],
+              heights: [40, 40, 40, 40, 40, 80, 40, 40, 80, 60, 60],
               body: [
                 ['Nombre Completo', data.Nombre],
                 ['No. Identidad', data.Identidad],
                 ['Firma del Colaborador', window.colaboradorFirma ? { image: window.colaboradorFirma, width: 150 } : ''],
-                ['Tipo de Gestión', `PLACA: ${data.Placa}`],
+                ['Tipo de Gestión', 'Liquidación de gastos de combustible'],
                 ['Total', data.TotalGastado + ' L'],
                 ['Motivo del llenado de combustible', `Compra de Combustible al Vehículo
 
@@ -1316,8 +1344,12 @@ Para Labores de: ${data.MotivoDelLlenado}
 
 Proceso: ${data.Proceso}`],
                 ['Fecha', data.Fecha],
-                ['Horas de Viaje', data.HorasDelViaje],
-                ['Observación', `SECTOR: ${data.Sector}\n\nKM: ${data.KmActual}\n\nFACTURA: ${data.NumeroFactura}`],
+                ['Placa o VIN', data.Placa],
+                ['Observación', `SECTOR: ${data.Sector}
+
+KM: ${data.KmActual}
+
+FACTURA: ${data.NumeroFactura}`],
                 ['Autorizado por Jefe Inmediato', data.JefeInmediato || ''],
                 ['Firma', '']
               ]
@@ -1331,7 +1363,7 @@ Proceso: ${data.Proceso}`],
       table: {
         widths: ['*'],
         body: [[
-          { text: 'FOTOGRAFÍAS', style: 'subheader', alignment: 'center', bold: true, border: [true, true, true, true] }
+          { text: 'FOTOGRAFÍAS', style: 'subheader', alignment: 'center', bold: true, border: [true, true, true, true] , verticalAlignment: 'middle' }
         ]]
       },
       layout: {
@@ -1347,16 +1379,16 @@ Proceso: ${data.Proceso}`],
           heights: [200, 200, 200],
           body: [
             [
-              { stack: [{ text: 'TABLERO ANTES DE LLENADO', bold: true, margin: [0, 0, 0, 5] }, { image: images['foto_tablero_antes'], fit: [250, 180] }], alignment: 'center' },
-              { stack: [{ text: 'BOMBA DE COMBUSTIBLE 0', bold: true, margin: [0, 0, 0, 5] }, { image: images['foto_bomba'], fit: [250, 180] }], alignment: 'center' },
+              { stack: [{ text: 'TABLERO ANTES DE LLENADO', bold: true, margin: [0, 0, 0, 5] , verticalAlignment: 'middle', alignment: 'center', verticalAlignment: 'middle' }, { image: images['foto_tablero_antes'], fit: [250, 180] }], alignment: 'center' },
+              { stack: [{ text: 'BOMBA DE COMBUSTIBLE 0', bold: true, margin: [0, 0, 0, 5] , verticalAlignment: 'middle', alignment: 'center', verticalAlignment: 'middle' }, { image: images['foto_bomba'], fit: [250, 180] }], alignment: 'center' },
             ],
             [
-              { stack: [{ text: 'TABLERO DESPUÉS DE LLENADO', bold: true, margin: [0, 0, 0, 5] }, { image: images['foto_despues'], fit: [250, 180] }], alignment: 'center' },
+              { stack: [{ text: 'TABLERO DESPUÉS DE LLENADO', bold: true, margin: [0, 0, 0, 5] , verticalAlignment: 'middle', alignment: 'center', verticalAlignment: 'middle' }, { image: images['foto_despues'], fit: [250, 180] }], alignment: 'center' },
               {
-                stack: [{ text: 'VISTA FRONTAL DEL VEHÍCULO / VIN CON VEHICULO', bold: true, margin: [0, 0, 0, 5] }, { image: images['foto_frontal'], fit: [250, 200] }], alignment: 'center' , rowSpan: 2 },
+                stack: [{ text: 'VISTA FRONTAL DEL VEHÍCULO / VIN CON VEHICULO', bold: true, margin: [0, 0, 0, 5] , verticalAlignment: 'middle', alignment: 'center', verticalAlignment: 'middle' }, { image: images['foto_frontal'], fit: [250, 200] }], alignment: 'center' , rowSpan: 2 },
             ],
             [
-              { stack: [{ text: 'BOMBA DE COMBUSTIBLE LLENA', bold: true, margin: [0, 0, 0, 5] }, { image: images['foto_bomba_llenado'], fit: [250, 180] }], alignment: 'center' },
+              { stack: [{ text: 'BOMBA DE COMBUSTIBLE LLENA', bold: true, margin: [0, 0, 0, 5] , verticalAlignment: 'middle', alignment: 'center', verticalAlignment: 'middle' }, { image: images['foto_bomba_llenado'], fit: [250, 180] }], alignment: 'center' },
             ]
           ]
         },
@@ -1377,7 +1409,7 @@ Proceso: ${data.Proceso}`],
       table: {
         widths: ['*'],
         body: [[
-          { text: 'FACTURA ORIGINAL', style: 'subheader', alignment: 'center', bold: true, border: [true, true, true, true], margin: [0, 0, 0, 10] }
+          { text: 'FACTURA ORIGINAL', style: 'subheader', alignment: 'center', bold: true, border: [true, true, true, true], margin: [0, 0, 0, 10] , verticalAlignment: 'middle' }
         ]]
       },
       layout: {
@@ -1399,7 +1431,18 @@ Proceso: ${data.Proceso}`],
 
   const filename = `${data.Sector}_${data.Fecha}_${data.NumeroFactura}.pdf`;
 
-  pdfMake.createPdf(docDefinition).getBase64(function(base64) {
+  
+async function urlToBase64(url) {
+  const response = await fetch(url);
+  const blob = await response.blob();
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result);
+    reader.readAsDataURL(blob);
+  });
+}
+
+pdfMake.createPdf(docDefinition).getBase64(function(base64) {
     const savePayload = { ...data, pdf: base64, filename };
 
     fetch('/api/guardar', {
@@ -1442,6 +1485,18 @@ function mostrarSuccessYReset() {
 </script>
 <script>
 function validarYVerificarDuplicado() {
+
+    const opciones = document.querySelectorAll('#placas option');
+    const listaPlacas = Array.from(opciones).map(opt => opt.value.trim());
+    const inputPlaca = document.getElementById('placa');
+    const placaIngresada = inputPlaca.value.trim();
+    const placaMayus = placaIngresada.toUpperCase();
+    if (!listaPlacas.map(p => p.toUpperCase()).includes(placaMayus)) {
+        alert("La placa ingresada no está registrada. Por favor seleccione una válida.");
+        inputPlaca.focus();
+        return;
+    }
+
   if (!validarFormulario()) return;
 
   const identidad = document.getElementById("identidad").value.replace(/\D/g, '');
@@ -1530,15 +1585,25 @@ function validarFormulario() {
 
 
 <script>
-
 function mostrarPaso(paso) {
-  document.querySelectorAll('.paso').forEach(p => p.style.display = 'none');
-  const pasoDiv = document.getElementById('paso' + paso);
-  if (pasoDiv) {
-    pasoDiv.style.display = 'block';
-    pasoDiv.setAttribute('tabindex', '-1');
-    pasoDiv.focus({ preventScroll: true });
-    pasoDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const pasos = document.querySelectorAll('.paso');
+  const visible = Array.from(pasos).find(p => p.style.display !== "none");
+  const siguiente = document.getElementById('paso' + paso);
+
+  if (visible && visible !== siguiente) {
+    visible.classList.remove('fade-in-down');
+    visible.classList.add('fade-out-up');
+
+    setTimeout(() => {
+      visible.style.display = 'none';
+      visible.classList.remove('fade-out-up');
+
+      siguiente.style.display = 'block';
+      siguiente.classList.add('fade-in-down');
+    }, 300);
+  } else {
+    siguiente.style.display = 'block';
+    siguiente.classList.add('fade-in-down');
   }
 }
 </script>
@@ -1590,51 +1655,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // Llamar flujo original
     originalHandler();
   };
-});
-</script>
-
-
-<script>
-let pasoActual = 1;
-
-function mostrarPaso(paso) {
-  const actual = document.getElementById('paso' + pasoActual);
-  const siguiente = document.getElementById('paso' + paso);
-
-  if (actual && siguiente) {
-    const adelante = paso > pasoActual;
-    actual.classList.add(adelante ? 'fade-out-up' : 'fade-out-down');
-    setTimeout(() => {
-      actual.style.display = 'none';
-      actual.classList.remove('fade-out-up','fade-out-down');
-
-      siguiente.style.display = 'block';
-      siguiente.setAttribute('tabindex','-1');
-      siguiente.focus({preventScroll:true});
-      siguiente.scrollIntoView({behavior:'smooth', block:'start'});
-      siguiente.classList.add(adelante ? 'fade-in-down' : 'fade-in-up');
-      setTimeout(() => {
-        siguiente.classList.remove('fade-in-down','fade-in-up');
-      }, 300);
-      pasoActual = paso;
-    }, 300);
-  }
-}
-
-// Asociar botones con mostrarPaso
-document.addEventListener('DOMContentLoaded', () => {
-  document.querySelectorAll('[data-siguiente]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const paso = parseInt(btn.getAttribute('data-siguiente'), 10);
-      mostrarPaso(paso);
-    });
-  });
-  document.querySelectorAll('[data-anterior]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const paso = parseInt(btn.getAttribute('data-anterior'), 10);
-      mostrarPaso(paso);
-    });
-  });
 });
 </script>
 
