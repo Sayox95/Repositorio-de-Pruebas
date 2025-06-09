@@ -347,10 +347,6 @@
     <td>Fecha</td>
     <td>20/5/2025</td>
   </tr>
-  <tr>
-    <td>Placa / VIN</td>
-    <td>${data.Placa}</td>
-  </tr>
 </table>
 
 <div class="preview-box">
@@ -621,7 +617,6 @@ function imagenesCompletas() {
       const rows = [
         ['Nombre Completo', data.Nombre],
         ['No. Identidad', data.Identidad],
-        ['Placa / VIN', data.Placa],
         ['Firma del Colaborador', data.Firma ? `<img src="${data.Firma}" style="max-width:150px;"/>` : ''],
         ['Tipo de Gestión', 'Liquidación de gastos de combustible'],
         ['Total', data.Total],
@@ -629,6 +624,7 @@ function imagenesCompletas() {
          `Compra de Combustible al Vehículo<br><br>Para Labores de: ${data.Motivo}<br><br>Proceso: ${data.Proceso}`],
         ['Fecha', data.Fecha],
         ['Horas de Viaje', data.Horas],
+        ['Placa / VIN', data.Placa],
         ['Observación',
          `SECTOR: ${data.Sector}<br><br>KM: ${data.Km}<br><br>FACTURA: ${data.FacturaNo}`],
         ['Autorizado por Jefe Inmediato', data.JefeInmediato],
@@ -1255,7 +1251,6 @@ const docDefinition = {
               body: [
                 ['Nombre Completo', data.Nombre],
                 ['No. Identidad', data.Identidad],
-        ['Placa / VIN', data.Placa],
                 ['Firma del Colaborador', window.colaboradorFirma ? { image: window.colaboradorFirma, width: 150 } : ''],
                 ['Tipo de Gestión', 'Liquidación de gastos de combustible'],
                 ['Total', data.TotalGastado + ' L'],
