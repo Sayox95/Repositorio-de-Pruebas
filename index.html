@@ -741,15 +741,19 @@ function imagenesCompletas() {
       // Animar vista previa al aparecer
       const previewEl = document.getElementById('preview_contenido');
       previewEl.classList.add('fade-in-up');
-        // Ajustar scroll y zoom al mostrar preview
-  window.scrollTo(0, 0);
-  document.activeElement.blur();
-  // Reset zoom and ensure full preview displayconst viewportMeta = document.querySelector('meta[name="viewport"]');
-  if (viewportMeta) {}
-// Asegurar mostrar botones en la vista previa
-      document.getElementById('enviar_reporte').style.display = 'inline-block';
-      document.getElementById('modificar_reporte').style.display = 'inline-block';
-      // Ajustar scroll para centrar preview
+          // Ajustar scroll y auto zoom-out al mostrar preview
+          window.scrollTo(0, 0);
+          document.activeElement.blur();
+          const previewWidth = previewEl.getBoundingClientRect().width;
+          const viewportWidth = window.innerWidth;
+          const scale = viewportWidth / previewWidth;
+          if (scale < 1) {
+            previewEl.style.transform = `scale(${scale})`;
+            previewEl.style.transformOrigin = 'top left';
+          } else {
+            previewEl.style.transform = 'none';
+          }
+        // Ajustar scroll para centrar preview
       setTimeout(() => previewEl.scrollIntoView({ behavior: 'smooth' }), 100);
     };
 
