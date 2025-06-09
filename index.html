@@ -1595,18 +1595,20 @@ document.addEventListener('DOMContentLoaded', () => {
   margin: 0.5rem;
 }
 </style>
+
 <script>
-// Handlers for download modal buttons
+// Handler for download modal "Aceptar" button with cross-browser support
 document.getElementById('downloadAccept').addEventListener('click', () => {
-  if (generatedPDF) {
-    generatedPDF.download(generatedFilename);
-  }
-  window.location.reload();
-});
-document.getElementById('downloadCancel').addEventListener('click', () => {
-  window.location.reload();
+    if (generatedPDF) {
+        generatedPDF.download(generatedFilename);
+        // Retrasar la recarga para asegurar la descarga en Samsung Internet
+        setTimeout(() => { window.location.reload(); }, 1000);
+    } else {
+        window.location.reload();
+    }
 });
 </script>
+
 
 </body>
 </html>
