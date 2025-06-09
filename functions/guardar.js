@@ -2,7 +2,7 @@ export async function onRequestPost(context) {
   try {
     const bodyText = await context.request.text();
 
-    const response = await fetch("https://script.google.com/macros/s/AKfycbxRsOx8dKEpY6RuTNS2P1pdb4Tox0KYjOHIGUxvmQ0MZYJf5AishXDz0vBHqyYHmuDbug/exec", {
+    const response = await fetch("https://script.google.com/macros/s/AKfycby00iqwLQlqvholNPt44YHY58YQsqAD1B3nElWm2mLeBgyRChNd-_-Nx8mCGvquv9wHTw/exec", {
       method: "POST",
       headers: {
         "Content-Type": "text/plain"
