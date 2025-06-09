@@ -617,6 +617,7 @@ function imagenesCompletas() {
       const rows = [
         ['Nombre Completo', data.Nombre],
         ['No. Identidad', data.Identidad],
+        ['Placa / VIN', data.Placa],
         ['Firma del Colaborador', data.Firma ? `<img src="${data.Firma}" style="max-width:150px;"/>` : ''],
         ['Tipo de Gestión', 'Liquidación de gastos de combustible'],
         ['Total', data.Total],
@@ -1250,6 +1251,7 @@ const docDefinition = {
               body: [
                 ['Nombre Completo', data.Nombre],
                 ['No. Identidad', data.Identidad],
+        ['Placa / VIN', data.Placa],
                 ['Firma del Colaborador', window.colaboradorFirma ? { image: window.colaboradorFirma, width: 150 } : ''],
                 ['Tipo de Gestión', 'Liquidación de gastos de combustible'],
                 ['Total', data.TotalGastado + ' L'],
@@ -1602,7 +1604,7 @@ document.getElementById('downloadAccept').addEventListener('click', () => {
     if (generatedPDF) {
         generatedPDF.download(generatedFilename);
         // Retrasar la recarga para asegurar la descarga en Samsung Internet
-        setTimeout(() => { window.location.reload(); }, 1000);
+        setTimeout(() => { window.location.reload(); }, 1500);
     } else {
         window.location.reload();
     }
