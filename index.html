@@ -1658,44 +1658,6 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 
-
-<div id="pdfModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:1000; justify-content:center; align-items:center;">
-  <div style="background:white; padding:2rem; border-radius:8px; text-align:center; max-width:90%; font-size:1.25rem;">
-    <p>El PDF generado está listo. ¿Deseas descargarlo ahora?</p>
-    <button id="btnAceptar" style="margin-right:1rem; padding:0.5rem 1rem;">Aceptar</button>
-    <button id="btnCancelar" style="padding:0.5rem 1rem;">Cancelar</button>
-  </div>
-</div>
-
-
-<script>
-function mostrarModalPDF(imagesData) {
-  const modal = document.getElementById("pdfModal");
-  modal.style.display = "flex";
-
-  document.getElementById("btnAceptar").onclick = () => {
-    const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF();
-    if (Array.isArray(imagesData) && imagesData.length > 0) {
-      imagesData.forEach((imgData, i) => {
-        if (i > 0) pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 12.7, 12.7, 190.5, 247.6);
-      });
-    }
-    const dataUrl = pdf.output('dataurlstring');
-    const a = document.createElement('a');
-    a.href = dataUrl.replace('application/pdf', 'application/octet-stream');
-    a.download = 'reporte.pdf';
-    a.click();
-    setTimeout(() => location.reload(), 4000);
-  };
-
-  document.getElementById("btnCancelar").onclick = () => {
-    location.reload();
-  };
-}
-</script>
-
 </body>
 </html>
 <div id="generando_pdf_modal" style="
