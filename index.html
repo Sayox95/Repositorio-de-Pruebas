@@ -2,9 +2,57 @@
 
 <html lang="es">
 <head>
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <title>Control de Combustible</title>
+<style>
+  /* Responsive layout */
+  .form-steps {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+  }
+  @media (max-width: 640px) {
+    .form-steps {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  /* Tap targets and spacing */
+  input, select, textarea, button {
+    padding: 0.75rem 1rem;
+    margin-bottom: 1rem;
+    font-size: 1.1rem;
+    border-radius: 0.5rem;
+    box-sizing: border-box;
+  }
+
+  /* Full-screen camera preview */
+  .camera-preview {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: #000;
+    display: none; /* toggled on capture */
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+  }
+  .camera-preview.active {
+    display: flex;
+  }
+  .camera-preview .overlay-controls {
+    position: absolute;
+    bottom: 1rem;
+    width: 100%;
+    display: flex;
+    justify-content: space-around;
+  }
+</style>
+
 <!-- Roboto font for consistent typography -->
 <link href="https://fonts.googleapis.com/css2?family=Roboto&amp;display=swap" rel="stylesheet"/>
 <style>
@@ -461,8 +509,8 @@ function validarFormulario() {
     }
 
     /* URLs de servicios Google Apps Script */
-    const urlVehiculos = "https://script.google.com/macros/s/AKfycbxp2yVp4hF-t9f2LdU9NhZxVt6RwXyL3uKrKzXk4a_l4na2Rkd1LZMB02pEJeRQ_eCF/exec";
-    const urlProcesos  = "https://script.google.com/macros/s/AKfycbw4KLB3AiRM6N1sC39cn1-HANO6ccsBQs3AeL6S5y-bt1IEoV8eZOakwHU_OSbspJWG/exec";
+    const urlVehiculos = "https://script.google.com/macros/s/AKfycbwyUE5huHIdOR9SM3IapgIrwvHBCXYHOf9ptj47fXyW-0e1kIj-gK3SGV4czPNa2Wp-wg/exec";
+    const urlProcesos  = "https://script.google.com/macros/s/AKfycbxPtMWO-2meogbiHuw8FbbnY0u-rIq70gvtLNlHkr0YS0-JD3N23X6IcyhMld53zD66nw/exec";
     const urlGuardarReporte = "/api/guardar";
     let vehiculos = [], procesos = [];
 
@@ -1608,6 +1656,18 @@ document.getElementById('downloadAccept').addEventListener('click', () => {
 });
 </script>
 
+
+
+<script>
+  // Scroll input into view on focus (mobile)
+  document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('input, select, textarea').forEach(el => {
+      el.addEventListener('focus', event => {
+        event.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+    });
+  });
+</script>
 
 </body>
 </html>
