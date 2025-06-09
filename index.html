@@ -2,7 +2,7 @@
 
 <html lang="es">
 <head>
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no">
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <title>Control de Combustible</title>
@@ -71,6 +71,17 @@
 }
 
 </style>
+
+<style>
+  /* Force preview to fit viewport without zoom */
+  #preview_contenido, .page {
+    width: 100% !important;
+    max-width: 100% !important;
+    transform: none !important;
+    transform-origin: top left !important;
+  }
+</style>
+
 
 <!-- Roboto font for consistent typography -->
 <link href="https://fonts.googleapis.com/css2?family=Roboto&amp;display=swap" rel="stylesheet"/>
