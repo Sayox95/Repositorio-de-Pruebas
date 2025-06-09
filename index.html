@@ -55,6 +55,18 @@
   button { margin: 0 0 1rem !important; }
 </style>
 
+<style>
+.photo-buttons {
+  display: flex;
+  gap: 1rem;
+  padding: 0.75rem;
+}
+.photo-buttons button {
+  flex: 1;
+  margin: 0 !important;
+}
+</style>
+
 <!-- Roboto font for consistent typography -->
 <link href="https://fonts.googleapis.com/css2?family=Roboto&amp;display=swap" rel="stylesheet"/>
 <style>
@@ -732,6 +744,14 @@ function imagenesCompletas() {
         // Ajustar scroll y zoom al mostrar preview
   window.scrollTo(0, 0);
   document.activeElement.blur();
+  // Reset zoom and ensure full preview display
+  document.body.style.zoom = '1';
+  previewEl.style.transform = 'none';
+  previewEl.style.zoom = '1';
+  const viewportMeta = document.querySelector('meta[name="viewport"]');
+  if (viewportMeta) {
+    viewportMeta.setAttribute('content', 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no');
+  }
 // Asegurar mostrar botones en la vista previa
       document.getElementById('enviar_reporte').style.display = 'inline-block';
       document.getElementById('modificar_reporte').style.display = 'inline-block';
