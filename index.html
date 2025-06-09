@@ -1669,34 +1669,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 <script>
-  const { jsPDF } = window.jspdf;
+function mostrarModalPDF(imagesData) {
+  const modal = document.getElementById("pdfModal");
+  modal.style.display = "flex";
 
-  function mostrarModalPDF(imagesData) {
-    const modal = document.getElementById("pdfModal");
-    modal.style.display = "flex";
+  document.getElementById("btnAceptar").onclick = () => {
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF();
+    if (Array.isArray(imagesData) && imagesData.length > 0) {
+      imagesData.forEach((imgData, i) => {
+        if (i > 0) pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 12.7, 12.7, 190.5, 247.6);
+      });
+    }
+    const dataUrl = pdf.output('dataurlstring');
+    const a = document.createElement('a');
+    a.href = dataUrl.replace('application/pdf', 'application/octet-stream');
+    a.download = 'reporte.pdf';
+    a.click();
+    setTimeout(() => location.reload(), 4000);
+  };
 
-    document.getElementById("btnAceptar").onclick = () => {
-      const pdf = new jsPDF();
-      if (Array.isArray(imagesData) && imagesData.length > 0) {
-        imagesData.forEach((imgData, i) => {
-          if (i > 0) pdf.addPage();
-          pdf.addImage(imgData, 'PNG', 12.7, 12.7, 190.5, 247.6);
-        });
-      }
-
-      const dataUrl = pdf.output('dataurlstring');
-      const a = document.createElement('a');
-      a.href = dataUrl.replace('application/pdf', 'application/octet-stream');
-      a.download = 'reporte.pdf';
-      a.click();
-
-      setTimeout(() => location.reload(), 1500);
-    };
-
-    document.getElementById("btnCancelar").onclick = () => {
-      location.reload();
-    };
-  }
+  document.getElementById("btnCancelar").onclick = () => {
+    location.reload();
+  };
+}
 </script>
 
 </body>
