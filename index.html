@@ -741,19 +741,25 @@ function imagenesCompletas() {
       // Animar vista previa al aparecer
       const previewEl = document.getElementById('preview_contenido');
       previewEl.classList.add('fade-in-up');
-          // Ajustar scroll y auto zoom-out al mostrar preview
+        
+          // Scroll to top & blur active element
           window.scrollTo(0, 0);
           document.activeElement.blur();
-          const previewWidth = previewEl.getBoundingClientRect().width;
-          const viewportWidth = window.innerWidth;
-          const scale = viewportWidth / previewWidth;
-          if (scale < 1) {
-            previewEl.style.transform = `scale(${scale})`;
-            previewEl.style.transformOrigin = 'top left';
-          } else {
-            previewEl.style.transform = 'none';
-          }
-        // Ajustar scroll para centrar preview
+          // Apply auto zoom-out after animation ends
+          previewEl.addEventListener('animationend', () => {
+            const previewWidth = previewEl.getBoundingClientRect().width;
+            const viewportWidth = window.innerWidth;
+            const scale = viewportWidth / previewWidth;
+            if (scale < 1) {
+              previewEl.style.transform = `scale(${scale})`;
+              previewEl.style.transformOrigin = 'top left';
+            } else {
+              previewEl.style.transform = 'none';
+            }
+          }, { once: true });
+          document.getElementById('enviar_reporte').style.display = 'inline-block';
+      document.getElementById('modificar_reporte').style.display = 'inline-block';
+      // Ajustar scroll para centrar preview
       setTimeout(() => previewEl.scrollIntoView({ behavior: 'smooth' }), 100);
     };
 
