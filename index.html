@@ -1599,7 +1599,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // Handlers for download modal buttons
 document.getElementById('downloadAccept').addEventListener('click', () => {
   if (generatedPDF) {
-    generatedPDF.save(generatedFilename);
+    generatedPDF.download(generatedFilename);
   }
   window.location.reload();
 });
