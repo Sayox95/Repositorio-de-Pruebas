@@ -457,8 +457,8 @@ function validarFormulario() {
     }
 
     /* URLs de servicios Google Apps Script */
-    const urlVehiculos = "https://script.google.com/macros/s/AKfycbwyUE5huHIdOR9SM3IapgIrwvHBCXYHOf9ptj47fXyW-0e1kIj-gK3SGV4czPNa2Wp-wg/exec";
-    const urlProcesos  = "https://script.google.com/macros/s/AKfycbxPtMWO-2meogbiHuw8FbbnY0u-rIq70gvtLNlHkr0YS0-JD3N23X6IcyhMld53zD66nw/exec";
+    const urlVehiculos = "https://script.google.com/macros/s/AKfycbxp2yVp4hF-t9f2LdU9NhZxVt6RwXyL3uKrKzXk4a_l4na2Rkd1LZMB02pEJeRQ_eCF/exec";
+    const urlProcesos  = "https://script.google.com/macros/s/AKfycbw4KLB3AiRM6N1sC39cn1-HANO6ccsBQs3AeL6S5y-bt1IEoV8eZOakwHU_OSbspJWG/exec";
     const urlGuardarReporte = "/api/guardar";
     let vehiculos = [], procesos = [];
 
@@ -1656,6 +1656,47 @@ document.addEventListener('DOMContentLoaded', () => {
     originalHandler();
   };
 });
+</script>
+
+
+<div id="pdfModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:1000; justify-content:center; align-items:center;">
+  <div style="background:white; padding:2rem; border-radius:8px; text-align:center; max-width:90%; font-size:1.25rem;">
+    <p>El PDF generado está listo. ¿Deseas descargarlo ahora?</p>
+    <button id="btnAceptar" style="margin-right:1rem; padding:0.5rem 1rem;">Aceptar</button>
+    <button id="btnCancelar" style="padding:0.5rem 1rem;">Cancelar</button>
+  </div>
+</div>
+
+
+<script>
+  const { jsPDF } = window.jspdf;
+
+  function mostrarModalPDF(imagesData) {
+    const modal = document.getElementById("pdfModal");
+    modal.style.display = "flex";
+
+    document.getElementById("btnAceptar").onclick = () => {
+      const pdf = new jsPDF();
+      if (Array.isArray(imagesData) && imagesData.length > 0) {
+        imagesData.forEach((imgData, i) => {
+          if (i > 0) pdf.addPage();
+          pdf.addImage(imgData, 'PNG', 12.7, 12.7, 190.5, 247.6);
+        });
+      }
+
+      const dataUrl = pdf.output('dataurlstring');
+      const a = document.createElement('a');
+      a.href = dataUrl.replace('application/pdf', 'application/octet-stream');
+      a.download = 'reporte.pdf';
+      a.click();
+
+      setTimeout(() => location.reload(), 1500);
+    };
+
+    document.getElementById("btnCancelar").onclick = () => {
+      location.reload();
+    };
+  }
 </script>
 
 </body>
