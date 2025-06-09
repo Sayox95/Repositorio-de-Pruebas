@@ -212,10 +212,12 @@
 }
 </style>
 <div id="toast-alert">⚠️ Hay campos obligatorios sin completar.</div>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js">
-let generatedPDF = null;
-let generatedFilename = '';</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+<script>
+  var generatedPDF = null;
+  var generatedFilename = '';
+</script>
 
 <style>
 @keyframes fadeOutUp {
@@ -1363,13 +1365,13 @@ pdfMake.createPdf(docDefinition).getBase64(function(base64) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(savePayload)
     }).then(() => {
-      
-pdfMake.createPdf(docDefinition).download(filename, () => {
-    document.getElementById('loader_pdf').style.display = 'none';
-    mostrarSuccessYReset();
-});
-
+        // Guardar PDF para descarga posterior
+        generatedPDF = pdfMake.createPdf(docDefinition);
+        generatedFilename = filename;
+        document.getElementById('loader_pdf').style.display = 'none';
+        document.getElementById('downloadModal').style.display = 'flex';
     });
+
   });
 };
 </script>
