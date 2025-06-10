@@ -2,13 +2,6 @@
 
 <html lang="es">
 <head>
-
-<style>
-  /* Hide signature modal by default, show only when active */
-  #modal-signature { display: none !important; }
-  #modal-signature.active { display: flex !important; }
-</style>
-
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
@@ -61,55 +54,6 @@
 
   button { margin: 0 0 1rem !important; }
 </style>
-<style>
-/* Enhanced button styles for mobile */
-button, input[type="button"], input[type="submit"] {
-  padding: 1rem 1.5rem !important;
-  font-size: 1.2rem !important;
-  border-radius: 0.5rem !important;
-  margin-bottom: 1rem !important;
-}
-
-/* Signature modal adjustments */
-#modal-signature > div {
-  padding: 1.5rem !important;
-}
-#canvas-signature {
-  width: 100% !important;
-  height: auto !important;
-  max-height: 50vh !important;
-  border: 1px solid #ccc !important;
-}
-#clear-signature, #confirm-signature {
-  width: 48% !important;
-  padding: 1rem 0 !important;
-  font-size: 1.1rem !important;
-}
-
-/* Download confirmation modal adjustments */
-#downloadModal .modal-content {
-  padding: 1.5rem !important;
-}
-#downloadModal p {
-  font-size: 1.1rem !important;
-  margin-bottom: 1rem !important;
-}
-#downloadAccept, #downloadCancel {
-  padding: 1rem 1.5rem !important;
-  font-size: 1.1rem !important;
-  margin: 0.5rem !important;
-  flex: 1 !important;
-}
-
-/* Ensure modals are full-width on mobile */
-@media (max-width: 640px) {
-  #modal-signature > div, #downloadModal .modal-content {
-    width: 95% !important;
-    max-width: none !important;
-  }
-}
-</style>
-
 
 <style>
 .photo-buttons {
@@ -413,82 +357,9 @@ button, input[type="button"], input[type="submit"] {
 </style>
 
 
-<style>
-/* Signature modal buttons layout */
-#modal-signature > div > div {
-  display: flex !important;
-  gap: 1rem !important;
-  justify-content: center !important;
-  margin-top: 1rem !important;
-}
-#modal-signature button {
-  flex: 1 !important;
-}
-</style>
-
-<style>
-/* Signature Modal Styles */
-.modal-overlay {
-  display: none;
-  position: fixed;
-  top: 0; left: 0; width: 100%; height: 100%;
-  background: rgba(0,0,0,0.6);
-  align-items: center; justify-content: center;
-  z-index: 3000;
-}
-.modal-overlay.active {
-  display: flex !important;
-}
-.modal-content {
-  background: #fff;
-  padding: 1.5rem;
-  border-radius: 8px;
-  width: 90%;
-  max-width: 500px;
-  box-sizing: border-box;
-}
-#canvas-signature {
-  width: 100%;
-  height: auto;
-  max-height: 50vh;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-}
-.modal-content .modal-actions {
-  display: flex;
-  gap: 1rem;
-  margin-top: 1rem;
-}
-.modal-content .modal-actions button {
-  flex: 1;
-}
-</style>
-
-<style>
-  /* Force signature canvas visibility and size */
-  #modal-signature .modal-content #canvas-signature {
-    display: block !important;
-    width: 100% !important;
-    height: 180px !important;
-    border: 1px solid #ccc !important;
-    box-sizing: border-box !important;
-    margin-bottom: 1rem !important;
-  }
-</style>
-
 <!-- flatpickr CSS & JS -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css"/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-
-
-<style>
-.nav-buttons {
-  display: flex;
-  justify-content: center;
-  gap: 0.5rem;
-  margin: 1rem 0;
-}
-</style>
 
 </head>
 <body>
@@ -512,8 +383,8 @@ button, input[type="button"], input[type="submit"] {
 <!-- Datos del vehículo y factura -->
 <!-- Inputs de imágenes (galería o cámara) reordered -->
 <!-- Botón para generar vista previa -->
-<div class="paso" id="paso1" style="display:block;"><label for="sector">Seleccionar Sector:</label><span class="error-msg" id="error_sector" style="color:red; display:none;">(Campo obligatorio)</span><select id="sector"><option value="">Seleccione un sector</option></select><label for="placa">Seleccionar Placa del Vehículo:</label><span class="error-msg" id="error_placa" style="color:red; display:none;">(Campo obligatorio)</span><input autocomplete="off" id="placa" list="placas" placeholder="Escribe o selecciona una placa" type="text"/><label for="proceso">Proceso:</label><span class="error-msg" id="error_proceso" style="color:red; display:none;">(Campo obligatorio)</span><select id="proceso"><option value="">Seleccione un proceso</option></select><label for="nombre">Nombre Completo:</label><span class="error-msg" id="error_nombre" style="color:red; display:none;">(Campo obligatorio)</span><input id="nombre" required="" type="text"/><label for="identidad">No. Identidad:</label><span class="error-msg" id="error_identidad" style="color:red; display:none;">(Campo obligatorio)</span><input id="identidad" maxlength="15" oninput="maskIdentidad(this)" required="" type="text"/><label for="total">Total Gastado (L):</label><span class="error-msg" id="error_total" style="color:red; display:none;">(Campo obligatorio)</span><input id="total" step="0.01" type="number"/><label for="litros">Litros Consumidos:</label><span class="error-msg" id="error_litros" style="color:red; display:none;">(Campo obligatorio)</span><input id="litros" step="0.01" type="number"/><label for="motivo">Motivo del Llenado:</label><span class="error-msg" id="error_motivo" style="color:red; display:none;">(Campo obligatorio)</span><textarea id="motivo" rows="3"></textarea><label for="fecha">Fecha:</label><span class="error-msg" id="error_fecha" style="color:red; display:none;">(Campo obligatorio)</span><input type="text" id="fecha" name="fecha" placeholder="Selecciona fecha" readonly class="flatpickr"/><label for="horas">Horas de Viaje:</label><input id="horas" type="text"/><label for="km">Km Actual del Vehículo:</label><span class="error-msg" id="error_km" style="color:red; display:none;">(Campo obligatorio)</span><input id="km" type="number"/><label for="nombre_comercio">Nombre del comercio:</label><span class="error-msg" id="error_nombre_comercio" style="color:red; display:none;">(Campo obligatorio)</span><input id="nombre_comercio" placeholder="Nombre del comercio" type="text"/><label for="factura">Número de Factura:</label><span class="error-msg" id="error_factura" style="color:red; display:none;">(Campo obligatorio)</span><input id="factura" oninput="maskFactura(this)" type="text"/><div><button onclick="validarYVerificarDuplicado();" type="button">Siguiente</button></div></div><div class="paso" id="paso2" style="display:none;;text-align:center;"><label for="foto_tablero_antes">Fotografía Tablero Antes:</label><img alt="Ejemplo de fotografía" src="https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/main/imagenes/Tablero%20antes%20de%20llenado.png" style="display: block; margin: 10px auto; height: 200px; object-fit: contain; border-radius: 8px;"/><span class="error-msg" id="error_foto_tablero_antes" style="color:red; display:none;">(Campo obligatorio)</span><button onclick="activarCamara('foto_tablero_antes')" style=" margin: 5px" type="button">Tomar Fotografía</button><button onclick="abrirGaleria('foto_tablero_antes')" style=" margin: 5px" type="button">Subir desde Galería</button><div class="preview" id="preview_foto_tablero_antes"></div><div class="nav-buttons"><button onclick="mostrarPaso(1)" style=" margin: 5px" type="button">Anterior</button><button onclick="if(validarImagenPaso('foto_tablero_antes')){siguientePaso(3);}" style=" margin: 5px" type="button">Siguiente</button></div><input accept="image/*" hidden="True" id="foto_tablero_antes" type="file"/></div><div class="paso" id="paso3" style="display:none;;text-align:center;"><label for="foto_bomba">Fotografía Bomba en 0:</label><img alt="Ejemplo de fotografía" src="https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/main/imagenes/Bomba%20en%20cero.png" style="display: block; margin: 10px auto; height: 200px; object-fit: contain; border-radius: 8px;"/><span class="error-msg" id="error_foto_bomba" style="color:red; display:none;">(Campo obligatorio)</span><button onclick="activarCamara('foto_bomba')" style=" margin: 5px" type="button">Tomar Fotografía</button><button onclick="abrirGaleria('foto_bomba')" style=" margin: 5px" type="button">Subir desde Galería</button><div class="preview" id="preview_foto_bomba"></div><div class="nav-buttons"><button onclick="mostrarPaso(2)" style=" margin: 5px" type="button">Anterior</button><button onclick="if(validarImagenPaso('foto_bomba')){siguientePaso(4);}" style=" margin: 5px" type="button">Siguiente</button></div><input accept="image/*" hidden="True" id="foto_bomba" type="file"/></div><div class="paso" id="paso4" style="display:none;;text-align:center;"><label for="foto_frontal">Fotografía Frontal del Vehículo o VIN con Vehículo:</label><img alt="Ejemplo de fotografía" src="https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/main/imagenes/Vista%20Frontal.png" style="display: block; margin: 10px auto; height: 200px; object-fit: contain; border-radius: 8px;"/><span class="error-msg" id="error_foto_frontal" style="color:red; display:none;">(Campo obligatorio)</span><button onclick="activarCamara('foto_frontal')" style=" margin: 5px" type="button">Tomar Fotografía</button><button onclick="abrirGaleria('foto_frontal')" style=" margin: 5px" type="button">Subir desde Galería</button><div class="preview" id="preview_foto_frontal"></div><div class="nav-buttons"><button onclick="mostrarPaso(3)" style=" margin: 5px" type="button">Anterior</button><button onclick="if(validarImagenPaso('foto_frontal')){siguientePaso(5);}" style=" margin: 5px" type="button">Siguiente</button></div><input accept="image/*" hidden="True" id="foto_frontal" type="file"/></div><div class="paso" id="paso5" style="display:none;;text-align:center;"><label for="foto_bomba_llenado">Fotografía Bomba Llena:</label><img alt="Ejemplo de fotografía" src="https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/main/imagenes/Bomba%20llena.png" style="display: block; margin: 10px auto; height: 200px; object-fit: contain; border-radius: 8px;"/><span class="error-msg" id="error_foto_bomba_llenado" style="color:red; display:none;">(Campo obligatorio)</span><button onclick="activarCamara('foto_bomba_llenado')" style=" margin: 5px" type="button">Tomar Fotografía</button><button onclick="abrirGaleria('foto_bomba_llenado')" style=" margin: 5px" type="button">Subir desde Galería</button><div class="preview" id="preview_foto_bomba_llenado"></div><div class="nav-buttons"><button onclick="mostrarPaso(4)" style=" margin: 5px" type="button">Anterior</button><button onclick="if(validarImagenPaso('foto_bomba_llenado')){siguientePaso(6);}" style=" margin: 5px" type="button">Siguiente</button></div><input accept="image/*" hidden="True" id="foto_bomba_llenado" type="file"/></div><div class="paso" id="paso6" style="display:none;;text-align:center;"><input accept="image/*" hidden="True" id="foto_despues" type="file"/><label for="foto_despues">Fotografía Tablero Después de Llenado:</label><img alt="Ejemplo de fotografía" src="https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/main/imagenes/Tablero%20antes%20de%20llenado.png" style="display: block; margin: 10px auto; height: 200px; object-fit: contain; border-radius: 8px;"/><span class="error-msg" id="error_foto_despues" style="color:red; display:none;">(Campo obligatorio)</span><button onclick="activarCamara('foto_despues')" style=" margin: 5px" type="button">Tomar Fotografía</button><button onclick="abrirGaleria('foto_despues')" style=" margin: 5px" type="button">Subir desde Galería</button><div class="preview" id="preview_foto_despues"></div><div class="nav-buttons"><button onclick="mostrarPaso(5)" style=" margin: 5px" type="button">Anterior</button><button onclick="if(validarImagenPaso('foto_despues')){siguientePaso(7);}" style=" margin: 5px" type="button">Siguiente</button></div></div><div class="paso" id="paso7" style="display:none; text-align: center;"><h2>Fotografía de la Factura:</h2><img alt="Ejemplo factura" src="https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/main/imagenes/Factura.png" style="display: block; margin: 10px auto; height: 200px; object-fit: contain; border-radius: 8px;"/><input accept="image/*" hidden="True" id="foto_factura" type="file"/><button onclick="activarCamara('foto_factura')" style=" margin: 5px" type="button">Tomar Fotografía</button><button onclick="abrirGaleria('foto_factura')" style=" margin: 5px" type="button">Subir desde Galería</button><div class="preview" id="preview_foto_factura"></div>
-<div class="nav-buttons">
+<div class="paso" id="paso1" style="display:block;"><label for="sector">Seleccionar Sector:</label><span class="error-msg" id="error_sector" style="color:red; display:none;">(Campo obligatorio)</span><select id="sector"><option value="">Seleccione un sector</option></select><label for="placa">Seleccionar Placa del Vehículo:</label><span class="error-msg" id="error_placa" style="color:red; display:none;">(Campo obligatorio)</span><input autocomplete="off" id="placa" list="placas" placeholder="Escribe o selecciona una placa" type="text"/><label for="proceso">Proceso:</label><span class="error-msg" id="error_proceso" style="color:red; display:none;">(Campo obligatorio)</span><select id="proceso"><option value="">Seleccione un proceso</option></select><label for="nombre">Nombre Completo:</label><span class="error-msg" id="error_nombre" style="color:red; display:none;">(Campo obligatorio)</span><input id="nombre" required="" type="text"/><label for="identidad">No. Identidad:</label><span class="error-msg" id="error_identidad" style="color:red; display:none;">(Campo obligatorio)</span><input id="identidad" maxlength="15" oninput="maskIdentidad(this)" required="" type="text"/><label for="total">Total Gastado (L):</label><span class="error-msg" id="error_total" style="color:red; display:none;">(Campo obligatorio)</span><input id="total" step="0.01" type="number"/><label for="litros">Litros Consumidos:</label><span class="error-msg" id="error_litros" style="color:red; display:none;">(Campo obligatorio)</span><input id="litros" step="0.01" type="number"/><label for="motivo">Motivo del Llenado:</label><span class="error-msg" id="error_motivo" style="color:red; display:none;">(Campo obligatorio)</span><textarea id="motivo" rows="3"></textarea><label for="fecha">Fecha:</label><span class="error-msg" id="error_fecha" style="color:red; display:none;">(Campo obligatorio)</span><input type="text" id="fecha" name="fecha" placeholder="Selecciona fecha" readonly class="flatpickr-input"/><label for="horas">Horas de Viaje:</label><input id="horas" type="text"/><label for="km">Km Actual del Vehículo:</label><span class="error-msg" id="error_km" style="color:red; display:none;">(Campo obligatorio)</span><input id="km" type="number"/><label for="nombre_comercio">Nombre del comercio:</label><span class="error-msg" id="error_nombre_comercio" style="color:red; display:none;">(Campo obligatorio)</span><input id="nombre_comercio" placeholder="Nombre del comercio" type="text"/><label for="factura">Número de Factura:</label><span class="error-msg" id="error_factura" style="color:red; display:none;">(Campo obligatorio)</span><input id="factura" oninput="maskFactura(this)" type="text"/><div><button onclick="validarYVerificarDuplicado();" type="button">Siguiente</button></div></div><div class="paso" id="paso2" style="display:none;;text-align:center;"><label for="foto_tablero_antes">Fotografía Tablero Antes:</label><img alt="Ejemplo de fotografía" src="https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/main/imagenes/Tablero%20antes%20de%20llenado.png" style="display: block; margin: 10px auto; height: 200px; object-fit: contain; border-radius: 8px;"/><span class="error-msg" id="error_foto_tablero_antes" style="color:red; display:none;">(Campo obligatorio)</span><button onclick="activarCamara('foto_tablero_antes')" style=" margin: 5px" type="button">Tomar Fotografía</button><button onclick="abrirGaleria('foto_tablero_antes')" style=" margin: 5px" type="button">Subir desde Galería</button><div class="preview" id="preview_foto_tablero_antes"></div><div><button onclick="mostrarPaso(1)" style=" margin: 5px" type="button">Anterior</button><button onclick="if(validarImagenPaso('foto_tablero_antes')){siguientePaso(3);}" style=" margin: 5px" type="button">Siguiente</button></div><input accept="image/*" hidden="True" id="foto_tablero_antes" type="file"/></div><div class="paso" id="paso3" style="display:none;;text-align:center;"><label for="foto_bomba">Fotografía Bomba en 0:</label><img alt="Ejemplo de fotografía" src="https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/main/imagenes/Bomba%20en%20cero.png" style="display: block; margin: 10px auto; height: 200px; object-fit: contain; border-radius: 8px;"/><span class="error-msg" id="error_foto_bomba" style="color:red; display:none;">(Campo obligatorio)</span><button onclick="activarCamara('foto_bomba')" style=" margin: 5px" type="button">Tomar Fotografía</button><button onclick="abrirGaleria('foto_bomba')" style=" margin: 5px" type="button">Subir desde Galería</button><div class="preview" id="preview_foto_bomba"></div><div><button onclick="mostrarPaso(2)" style=" margin: 5px" type="button">Anterior</button><button onclick="if(validarImagenPaso('foto_bomba')){siguientePaso(4);}" style=" margin: 5px" type="button">Siguiente</button></div><input accept="image/*" hidden="True" id="foto_bomba" type="file"/></div><div class="paso" id="paso4" style="display:none;;text-align:center;"><label for="foto_frontal">Fotografía Frontal del Vehículo o VIN con Vehículo:</label><img alt="Ejemplo de fotografía" src="https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/main/imagenes/Vista%20Frontal.png" style="display: block; margin: 10px auto; height: 200px; object-fit: contain; border-radius: 8px;"/><span class="error-msg" id="error_foto_frontal" style="color:red; display:none;">(Campo obligatorio)</span><button onclick="activarCamara('foto_frontal')" style=" margin: 5px" type="button">Tomar Fotografía</button><button onclick="abrirGaleria('foto_frontal')" style=" margin: 5px" type="button">Subir desde Galería</button><div class="preview" id="preview_foto_frontal"></div><div><button onclick="mostrarPaso(3)" style=" margin: 5px" type="button">Anterior</button><button onclick="if(validarImagenPaso('foto_frontal')){siguientePaso(5);}" style=" margin: 5px" type="button">Siguiente</button></div><input accept="image/*" hidden="True" id="foto_frontal" type="file"/></div><div class="paso" id="paso5" style="display:none;;text-align:center;"><label for="foto_bomba_llenado">Fotografía Bomba Llena:</label><img alt="Ejemplo de fotografía" src="https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/main/imagenes/Bomba%20llena.png" style="display: block; margin: 10px auto; height: 200px; object-fit: contain; border-radius: 8px;"/><span class="error-msg" id="error_foto_bomba_llenado" style="color:red; display:none;">(Campo obligatorio)</span><button onclick="activarCamara('foto_bomba_llenado')" style=" margin: 5px" type="button">Tomar Fotografía</button><button onclick="abrirGaleria('foto_bomba_llenado')" style=" margin: 5px" type="button">Subir desde Galería</button><div class="preview" id="preview_foto_bomba_llenado"></div><div><button onclick="mostrarPaso(4)" style=" margin: 5px" type="button">Anterior</button><button onclick="if(validarImagenPaso('foto_bomba_llenado')){siguientePaso(6);}" style=" margin: 5px" type="button">Siguiente</button></div><input accept="image/*" hidden="True" id="foto_bomba_llenado" type="file"/></div><div class="paso" id="paso6" style="display:none;;text-align:center;"><input accept="image/*" hidden="True" id="foto_despues" type="file"/><label for="foto_despues">Fotografía Tablero Después de Llenado:</label><img alt="Ejemplo de fotografía" src="https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/main/imagenes/Tablero%20antes%20de%20llenado.png" style="display: block; margin: 10px auto; height: 200px; object-fit: contain; border-radius: 8px;"/><span class="error-msg" id="error_foto_despues" style="color:red; display:none;">(Campo obligatorio)</span><button onclick="activarCamara('foto_despues')" style=" margin: 5px" type="button">Tomar Fotografía</button><button onclick="abrirGaleria('foto_despues')" style=" margin: 5px" type="button">Subir desde Galería</button><div class="preview" id="preview_foto_despues"></div><div><button onclick="mostrarPaso(5)" style=" margin: 5px" type="button">Anterior</button><button onclick="if(validarImagenPaso('foto_despues')){siguientePaso(7);}" style=" margin: 5px" type="button">Siguiente</button></div></div><div class="paso" id="paso7" style="display:none; text-align: center;"><h2>Fotografía de la Factura:</h2><img alt="Ejemplo factura" src="https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/main/imagenes/Factura.png" style="display: block; margin: 10px auto; height: 200px; object-fit: contain; border-radius: 8px;"/><input accept="image/*" hidden="True" id="foto_factura" type="file"/><button onclick="activarCamara('foto_factura')" style=" margin: 5px" type="button">Tomar Fotografía</button><button onclick="abrirGaleria('foto_factura')" style=" margin: 5px" type="button">Subir desde Galería</button><div class="preview" id="preview_foto_factura"></div>
+<div style="display:flex; justify-content:center; gap:0.5rem;  margin-top: 20px;">
 <button onclick="mostrarPaso(6)" style="margin: 5px;" type="button">Anterior</button>
 <button id="guardar_reporte" style="margin: 5px;" type="button">Guardar Reporte</button>
 </div>
@@ -657,8 +528,8 @@ function validarFormulario() {
     }
 
     /* URLs de servicios Google Apps Script */
-    const urlVehiculos = "https://script.google.com/macros/s/AKfycbwyUE5huHIdOR9SM3IapgIrwvHBCXYHOf9ptj47fXyW-0e1kIj-gK3SGV4czPNa2Wp-wg/exec";
-    const urlProcesos  = "https://script.google.com/macros/s/AKfycbxPtMWO-2meogbiHuw8FbbnY0u-rIq70gvtLNlHkr0YS0-JD3N23X6IcyhMld53zD66nw/exec";
+    const urlVehiculos = "https://script.google.com/macros/s/AKfycbxp2yVp4hF-t9f2LdU9NhZxVt6RwXyL3uKrKzXk4a_l4na2Rkd1LZMB02pEJeRQ_eCF/exec";
+    const urlProcesos  = "https://script.google.com/macros/s/AKfycbw4KLB3AiRM6N1sC39cn1-HANO6ccsBQs3AeL6S5y-bt1IEoV8eZOakwHU_OSbspJWG/exec";
     const urlGuardarReporte = "/api/guardar";
     let vehiculos = [], procesos = [];
 
@@ -1731,11 +1602,11 @@ function mostrarPaso(paso) {
 
 
 <!-- Modal Firma Digital -->
-<div id="modal-signature" class="modal-overlay" style="display:none;">
-  <div class="modal-content">
+<div id="modal-signature" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); align-items:center; justify-content:center; z-index:3000; ">
+  <div style="background:#fff; padding:20px; border-radius:8px; max-width:500px; width:90%;">
     <h3>Firma de Aprobación</h3>
     <canvas id="canvas-signature" width="460" height="180" style="border:1px solid #ccc; border-radius:4px;"></canvas>
-    <div class="modal-actions">
+    <div style="margin-top:10px; text-align:right;">
       <button type="button" id="clear-signature">Limpiar</button>
       <button type="button" id="confirm-signature">Confirmar</button>
     </div>
@@ -1745,27 +1616,7 @@ function mostrarPaso(paso) {
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-  // Función para ajustar canvas de firma según DPI
-  function resizeSignatureCanvas() {
-    const canvas = document.getElementById('canvas-signature');
-    const ratio = Math.max(window.devicePixelRatio || 1, 1);
-    canvas.width = canvas.offsetWidth * ratio;
-    canvas.height = canvas.offsetHeight * ratio;
-    const ctx = canvas.getContext('2d');
-    ctx.scale(ratio, ratio);
-  }
-
-  
-  // Función para ajustar canvas de firma según DPI
-    function resizeSignatureCanvas() {
-    const canvas = document.getElementById('canvas-signature');
-    const ratio = Math.max(window.devicePixelRatio || 1, 1);
-    canvas.width = canvas.offsetWidth * ratio;
-    canvas.height = canvas.offsetHeight * ratio;
-    const ctx = canvas.getContext('2d');
-    ctx.scale(ratio, ratio);
-  }
-// Inicializar Signature Pad
+  // Inicializar Signature Pad
   const canvas = document.getElementById('canvas-signature');
   const signaturePad = new SignaturePad(canvas, { backgroundColor: 'rgba(255,255,255,0)', penColor: 'black' });
 
@@ -1775,14 +1626,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Mostrar modal al enviar
   btnEnviar.onclick = () => {
-    
-    // Mostrar modal
-    document.getElementById('modal-signature').classList.add('active');
-    // Ahora redimensionar canvas de firma
-    resizeSignatureCanvas();
-    // Limpiar lienzo
     signaturePad.clear();
-};
+    document.getElementById('modal-signature').style.display = 'flex';
+  };
 
   // Limpiar firma
   document.getElementById('clear-signature').onclick = () => {
@@ -1797,7 +1643,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     // Guardar firma
     window.colaboradorFirma = signaturePad.toDataURL();
-    document.getElementById('modal-signature').classList.remove('active');
+    document.getElementById('modal-signature').style.display = 'none';
     // Llamar flujo original
     originalHandler();
   };
@@ -1845,27 +1691,7 @@ document.getElementById('downloadAccept').addEventListener('click', () => {
 <script>
   // Scroll input into view on focus (mobile)
   document.addEventListener('DOMContentLoaded', () => {
-  // Función para ajustar canvas de firma según DPI
-  function resizeSignatureCanvas() {
-    const canvas = document.getElementById('canvas-signature');
-    const ratio = Math.max(window.devicePixelRatio || 1, 1);
-    canvas.width = canvas.offsetWidth * ratio;
-    canvas.height = canvas.offsetHeight * ratio;
-    const ctx = canvas.getContext('2d');
-    ctx.scale(ratio, ratio);
-  }
-
-    
-  // Función para ajustar canvas de firma según DPI
-    function resizeSignatureCanvas() {
-    const canvas = document.getElementById('canvas-signature');
-    const ratio = Math.max(window.devicePixelRatio || 1, 1);
-    canvas.width = canvas.offsetWidth * ratio;
-    canvas.height = canvas.offsetHeight * ratio;
-    const ctx = canvas.getContext('2d');
-    ctx.scale(ratio, ratio);
-  }
-document.querySelectorAll('input, select, textarea').forEach(el => {
+    document.querySelectorAll('input, select, textarea').forEach(el => {
       el.addEventListener('focus', event => {
         event.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
       });
@@ -1876,14 +1702,21 @@ document.querySelectorAll('input, select, textarea').forEach(el => {
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    flatpickr('#fecha', {
-        allowInput: false,
-        clickOpens: true,
-        dateFormat: 'Y-m-d',
-        locale: {
-            firstDayOfWeek: 1
-        }
-    });
+  flatpickr('#fecha', {
+    allowInput: false,
+    clickOpens: true,
+    dateFormat: 'Y-m-d',
+    locale: {
+      weekdays: {
+        shorthand: ['Do','Lu','Ma','Mi','Ju','Vi','Sa'],
+        longhand: ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado']
+      },
+      months: {
+        shorthand: ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'],
+        longhand: ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
+      }
+    }
+  });
 });
 </script>
 
