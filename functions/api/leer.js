@@ -7,7 +7,7 @@ export async function onRequestGet({ request }) {
   const origin = request.headers.get('Origin') || '*';
 
   try {
-    const resp = await fetch("https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec?leerFacturas=true");
+    const resp = await fetch("https://script.google.com/macros/s/AKfycbzApGWZBIr4v7KvtkUQnWGsEUPR8mz47tZ265yKf7LXeL5nvchNm2A9x4DSPl6i6v7aZQ/exec");
     const data = await resp.json();
 
     return new Response(JSON.stringify(data), {
