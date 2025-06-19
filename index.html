@@ -450,7 +450,7 @@
 
 <div id="notification" style="display:none; position:fixed; top:20px; left:50%; transform:translateX(-50%); background:#28a745; color:white; padding:15px 30px; border-radius:5px; opacity:0; transition:opacity 0.5s ease-in-out; z-index:1000;">Información enviada correctamente</div>
 <!-- Initial loading message displayed while fetching data -->
-<div id="mensaje_cargando">Cargando información, por favor espere...</div>
+<div id="mensaje_cargando" style="display:none;">Cargando información, por favor espere...</div>
 <!-- Formulario: oculto hasta cargar sectores y procesos -->
 <div class="formulario" id="formulario_contenido" style="display:none;">
 <h2>Reporte de Gasto de Combustible</h2>
@@ -928,10 +928,7 @@ function imagenesCompletas() {
 
 
     // Inicializar carga al abrir página
-    window.onload = () => {
-      cargarDatosVehiculos();
-      cargarProcesos();
-    };
+    
   
 // Mostrar previews para cada campo de imagen
 ['foto_tablero_antes','foto_bomba','foto_despues','foto_bomba_llenado','foto_frontal','foto_factura'].forEach(id => {
@@ -1814,10 +1811,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
       if (nombre === 'reportarFactura') {
         document.getElementById('seccionReportarFactura').style.display = 'block';
+      document.getElementById('mensaje_cargando').style.display = 'block';
+      document.getElementById('formulario_contenido').style.display = 'none';
+      cargarDatosVehiculos();
+      cargarProcesos();
+
       } else if (nombre === 'revisionFacturas') {
         document.getElementById('seccionRevisionFacturas').style.display = 'block';
-      document.getElementById('mensajeCarga').style.display = 'flex';
-      cargarFacturasDesdeSheet();
       document.getElementById('mensajeCarga').style.display = 'flex';
       cargarFacturasDesdeSheet();
       } else if (nombre === 'registrarAnticipo') {
@@ -1826,11 +1826,13 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function regresarMenu() {
-      document.getElementById('menuPrincipal').style.display = 'flex';
-      document.getElementById('seccionReportarFactura').style.display = 'none';
-      document.getElementById('seccionRevisionFacturas').style.display = 'none';
-      document.getElementById('seccionRegistrarAnticipo').style.display = 'none';
-    }
+  document.getElementById('menuPrincipal').style.display = 'flex';
+  document.getElementById('seccionReportarFactura').style.display = 'none';
+  document.getElementById('seccionRevisionFacturas').style.display = 'none';
+  document.getElementById('seccionRegistrarAnticipo').style.display = 'none';
+  const msg = document.getElementById('mensaje_cargando'); if(msg) msg.style.display='none';
+  const form = document.getElementById('formulario_contenido'); if(form) form.style.display='none';
+}
   </script>
 
 <!-- Revisión de Facturas ACTIVA -->
@@ -2134,12 +2136,17 @@ function aplicarFiltros() {
 
 <script>
 function regresarAlMenu() {
+  // Oculta ambas secciones y muestra menú principal
   document.getElementById('seccionRevisionFacturas').style.display = 'none';
+  document.getElementById('seccionReportarFactura').style.display = 'none';
   document.getElementById('menuPrincipal').style.display = 'flex';
+  // Limpia tablas y formularios
   const encabezado = document.getElementById('encabezadoTabla');
   const cuerpo = document.getElementById('cuerpoTabla');
   if (encabezado) encabezado.innerHTML = '';
   if (cuerpo) cuerpo.innerHTML = '';
+  const form = document.getElementById('formulario_contenido');
+  if (form) form.style.display = 'none';
 }
 </script>
 </body>
