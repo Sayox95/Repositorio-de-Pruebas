@@ -404,79 +404,8 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
-
-<style>
-@keyframes spinner {
-  to { transform: rotate(360deg); }
-}
-.circular-spinner {
-  width: 3rem;
-  height: 3rem;
-  border: 0.4rem solid #ddd;
-  border-top-color: #007bff;
-  border-radius: 50%;
-  animation: spinner .75s linear infinite;
-  margin: 0 auto;
-}
-
-#mensajeCarga {
-  display: none;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  margin: 1rem 0;
-}
-
-#mensajeCarga .loading-text {
-  font-weight: bold;
-  margin-top: 0.5rem;
-}
-</style>
-
-
-
-
-
-<style>
-@keyframes spinner {
-  to { transform: rotate(360deg); }
-}
-#overlayCambios {
-  display: none;
-  position: fixed;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-  background: rgba(0,0,0,0.5);
-  z-index: 10000;
-  
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-}
-#overlayCambios .spinner {
-  width: 4rem;
-  height: 4rem;
-  border: 0.5rem solid #ddd;
-  border-top-color: #007bff;
-  border-radius: 50%;
-  animation: spinner 0.75s linear infinite;
-  margin-bottom: 1rem;
-}
-#overlayCambios .text {
-  font-size: 1.25rem;
-  color: white;
-  font-weight: bold;
-}
-</style>
-
 </head>
 <body>
-
-<div id="overlayCambios">
-  <div class="spinner"></div>
-  <div class="text">Registrando Cambios...</div>
-</div>
-
   <div id="menuPrincipal" style="display: flex; flex-direction: column; align-items: center; margin-top: 50px;">
     <h2>Seleccione una opción</h2>
     <button style="width: 250px; margin: 10px; padding: 10px;" onclick="mostrarSeccion('reportarFactura')">📥 Reportar Factura</button>
@@ -489,7 +418,7 @@
 
 <div id="notification" style="display:none; position:fixed; top:20px; left:50%; transform:translateX(-50%); background:#28a745; color:white; padding:15px 30px; border-radius:5px; opacity:0; transition:opacity 0.5s ease-in-out; z-index:1000;">Información enviada correctamente</div>
 <!-- Initial loading message displayed while fetching data -->
-<div id="mensaje_cargando" style="display:none;">Cargando información, por favor espere...</div>
+<div id="mensaje_cargando">Cargando información, por favor espere...</div>
 <!-- Formulario: oculto hasta cargar sectores y procesos -->
 <div class="formulario" id="formulario_contenido" style="display:none;">
 <h2>Reporte de Gasto de Combustible</h2>
@@ -967,7 +896,10 @@ function imagenesCompletas() {
 
 
     // Inicializar carga al abrir página
-    
+    window.onload = () => {
+      cargarDatosVehiculos();
+      cargarProcesos();
+    };
   
 // Mostrar previews para cada campo de imagen
 ['foto_tablero_antes','foto_bomba','foto_despues','foto_bomba_llenado','foto_frontal','foto_factura'].forEach(id => {
@@ -1850,28 +1782,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
       if (nombre === 'reportarFactura') {
         document.getElementById('seccionReportarFactura').style.display = 'block';
-      document.getElementById('mensaje_cargando').style.display = 'block';
-      document.getElementById('formulario_contenido').style.display = 'none';
-      cargarDatosVehiculos();
-      cargarProcesos();
-
       } else if (nombre === 'revisionFacturas') {
         document.getElementById('seccionRevisionFacturas').style.display = 'block';
-      document.getElementById('mensajeCarga').style.display = 'flex';
-      cargarFacturasDesdeSheet();
       } else if (nombre === 'registrarAnticipo') {
         document.getElementById('seccionRegistrarAnticipo').style.display = 'block';
       }
     }
 
     function regresarMenu() {
-  document.getElementById('menuPrincipal').style.display = 'flex';
-  document.getElementById('seccionReportarFactura').style.display = 'none';
-  document.getElementById('seccionRevisionFacturas').style.display = 'none';
-  document.getElementById('seccionRegistrarAnticipo').style.display = 'none';
-  const msg = document.getElementById('mensaje_cargando'); if(msg) msg.style.display='none';
-  const form = document.getElementById('formulario_contenido'); if(form) form.style.display='none';
-}
+      document.getElementById('menuPrincipal').style.display = 'flex';
+      document.getElementById('seccionReportarFactura').style.display = 'none';
+      document.getElementById('seccionRevisionFacturas').style.display = 'none';
+      document.getElementById('seccionRegistrarAnticipo').style.display = 'none';
+    }
   </script>
 
 <!-- Revisión de Facturas ACTIVA -->
@@ -1901,10 +1824,6 @@ document.addEventListener('DOMContentLoaded', function() {
 </style>
 
 <div id="seccionRevisionFacturas" style="display: none; padding: 1rem;">
-  <button type="button" class="btn btn-secondary mb-3" onclick="regresarAlMenu()">
-    ← Volver al Menú Principal
-  </button>
-
   <h2 style="margin-bottom: 1rem;">📄 Revisión de Facturas</h2>
 
   <div style="margin-bottom: 1rem;">
@@ -1921,8 +1840,8 @@ document.addEventListener('DOMContentLoaded', function() {
       <option value="Anulada">Anulada</option>
     </select>
 
-    <label for="filtroNumeroFactura" style="margin-left: 1rem;">Filtrar Nº de Factura:</label>
-    <input type="text" id="filtroNumeroFactura" placeholder="Número de factura">
+    <label for="buscarFactura" style="margin-left: 1rem;">Buscar factura:</label>
+    <input type="text" id="buscarFactura" placeholder="Número de factura">
   </div>
 
   <div style="margin-bottom: 1rem;">
@@ -1934,14 +1853,8 @@ document.addEventListener('DOMContentLoaded', function() {
     <table id="tablaFacturas">
       <thead><tr id="encabezadoTabla"></tr></thead>
       <tbody id="cuerpoTabla"></tbody>
-    
-</table>
-</div> <!-- Fin de contenedor scroll de tabla -->
-<div id="mensajeCarga">
-  <div class="circular-spinner"></div>
-  <div class="loading-text">Cargando información...</div>
-</div>
-
+    </table>
+  </div>
 </div>
 
 <script>
@@ -1949,10 +1862,10 @@ const urlLeerFacturas = "https://repositorio-de-pruebas.pages.dev/api/leer";
 const urlGuardarReporte = "/api/guardar";
 
 document.addEventListener("DOMContentLoaded", () => {
-
+  cargarFacturasDesdeSheet();
   document.getElementById("filtroEstado").addEventListener("change", aplicarFiltros);
   document.getElementById("filtroSector").addEventListener("change", aplicarFiltros);
-  document.getElementById("filtroNumeroFactura").addEventListener("input", aplicarFiltros);
+  document.getElementById("buscarFactura").addEventListener("input", aplicarFiltros);
 });
 
 async function cargarFacturasDesdeSheet() {
@@ -1982,7 +1895,7 @@ function cargarFiltrosSector(data) {
 function aplicarFiltros() {
   const estado = document.getElementById("filtroEstado").value;
   const sector = document.getElementById("filtroSector").value;
-  const buscarFactura = document.getElementById("filtroNumeroFactura").value.toLowerCase();
+  const buscarFactura = document.getElementById("buscarFactura").value.toLowerCase();
   let data = window.facturasGlobal || [];
 
   if (estado !== "Todas") data = data.filter(f => f.Estado === estado);
@@ -2026,8 +1939,6 @@ function renderizarTablaFacturas(data) {
 }
 
 async function actualizarEstadoSeleccionados(nuevoEstado) {
-  // Mostrar overlay de carga
-  document.getElementById('overlayCambios').style.display = 'flex';
   const checks = document.querySelectorAll("#tablaFacturas input[type=checkbox]:checked");
   for (const chk of checks) {
     const fila = chk.dataset.fila;
@@ -2038,160 +1949,20 @@ async function actualizarEstadoSeleccionados(nuevoEstado) {
     });
   }
   alert("Estados actualizados.");
-
-// Ocultar overlay y recargar tabla después de actualizar el estado
-  document.getElementById("overlayCambios").style.display = "none";
   cargarFacturasDesdeSheet();
 }
 </script>
-
 <script>
-// On load, show loading message and set up filters
 document.addEventListener("DOMContentLoaded", () => {
-  const msg = document.getElementById("mensajeCarga");
-  msg.style.display = "block";
-
-  document.getElementById("filtroEstado").addEventListener("change", aplicarFiltros);
-  document.getElementById("filtroSector").addEventListener("change", aplicarFiltros);
-  document.getElementById("filtroNumeroFactura").addEventListener("input", aplicarFiltros);
-});
-
-// Override cargarFacturasDesdeSheet to hide loading when done and detect invoice key
-async function cargarFacturasDesdeSheet() {
-  const msg = document.getElementById("mensajeCarga");
-  try {
-    const res = await fetch(urlLeerFacturas);
-    const data = await res.json();
-    window.facturasGlobal = data;
-    // Determine the key for invoice number dynamically
-    if (data.length) {
-      const sample = data[0];
-      const numeroKey = Object.keys(sample).find(k => k.toLowerCase().includes('factura') && !k.toLowerCase().includes('enlace'));
-      window.numeroFacturaKey = numeroKey;
-    }
-    cargarFiltrosSector(data);
-    renderizarTablaFacturas(data);
-  } catch (err) {
-    console.error("Error cargando facturas:", err);
-  } finally {
-    msg.style.display = "none";
-  }
-}
-
-// Custom rendering of the invoices table
-function renderizarTablaFacturas(data) {
-  const encabezado = document.getElementById("encabezadoTabla");
-  const cuerpo = document.getElementById("cuerpoTabla");
-  encabezado.innerHTML = "";
-  cuerpo.innerHTML = "";
-
-  if (!data.length) return;
-
-  // Add checkbox and row number headers
-  const thChk = document.createElement("th"); thChk.textContent = ""; encabezado.appendChild(thChk);
-  const thNum = document.createElement("th"); thNum.textContent = "#"; encabezado.appendChild(thNum);
-
-  // Define fixed columns with user-friendly labels
-  const columnas = [
-    {key: "Sector", label: "Sector"},
-    {key: "Placa", label: "Placa"},
-    {key: "Proceso", label: "Proceso"},
-    {key: "Nombre", label: "Nombre"},
-    {key: "Identidad", label: "Identidad"},
-    {key: "Total Gastado", label: "Total Gastado"},
-    {key: "Fecha", label: "Fecha"},
-    {key: window.numeroFacturaKey || "Número de Factura", label: "Número de Factura"},
-    {key: "Enlace PDF", label: "Enlace PDF"},
-    {key: "Estado", label: "Estado"}
-  ];
-
-  // Render header columns
-  columnas.forEach(col => {
-    const th = document.createElement("th");
-    th.textContent = col.label;
-    encabezado.appendChild(th);
-  });
-
-  // Populate rows
-  data.forEach((fila, index) => {
-    const tr = document.createElement("tr");
-    // Checkbox cell
-    const tdChk = document.createElement("td");
-    const chk = document.createElement("input");
-    chk.type = "checkbox";
-    chk.dataset.index = index;
-    tdChk.appendChild(chk);
-    tr.appendChild(tdChk);
-    // Row number cell
-    const tdNum = document.createElement("td");
-    tdNum.textContent = index + 1;
-    tr.appendChild(tdNum);
-
-    columnas.forEach(col => {
-      const td = document.createElement("td");
-      let value = fila[col.key] || "";
-
-      // Formateo para Fecha (YYYY-MM-DD)
-      if (col.key === "Fecha" && value) {
-        value = value.toString().split("T")[0];
-        td.textContent = value;
-      }
-      // Formateo para Total Gastado (prefijo 'L ' y separadores de miles)
-      else if (col.key === "Total Gastado" && value) {
-        const num = parseFloat(value);
-        td.textContent = isNaN(num) ? "" : "L " + num.toLocaleString("en-US");
-      }
-      // Enlace PDF clickeable
-      else if (col.key === "Enlace PDF" && value) {
-        const a = document.createElement("a");
-        a.href = value;
-        a.textContent = "PDF";
-        a.target = "_blank";
-        td.appendChild(a);
-      }
-      else {
-        td.textContent = value;
-      }
-      tr.appendChild(td);
+  const btnRevision = document.getElementById("btnRevisionFacturas");
+  if (btnRevision) {
+    btnRevision.addEventListener("click", () => {
+      document.getElementById("seccionRevisionFacturas").style.display = "block";
+      document.getElementById("seccionMenuPrincipal").style.display = "none";
+      cargarFacturasDesdeSheet();
     });
-    cuerpo.appendChild(tr);
-  });
-}
-
-// Optimized filter function to use correct invoice key
-function aplicarFiltros() {
-  const estado = document.getElementById("filtroEstado").value;
-  const sector = document.getElementById("filtroSector").value;
-  const buscarFactura = document.getElementById("filtroNumeroFactura").value.toLowerCase();
-  let data = window.facturasGlobal || [];
-
-  if (estado !== "Todas") data = data.filter(f => f.Estado === estado);
-  if (sector !== "Todos") data = data.filter(f => f.Sector === sector);
-  if (buscarFactura && window.numeroFacturaKey) {
-    data = data.filter(f => (f[window.numeroFacturaKey] || "").toLowerCase().includes(buscarFactura));
   }
-
-  renderizarTablaFacturas(data);
-}
-</script>
-
-
-
-
-<script>
-function regresarAlMenu() {
-  // Oculta ambas secciones y muestra menú principal
-  document.getElementById('seccionRevisionFacturas').style.display = 'none';
-  document.getElementById('seccionReportarFactura').style.display = 'none';
-  document.getElementById('menuPrincipal').style.display = 'flex';
-  // Limpia tablas y formularios
-  const encabezado = document.getElementById('encabezadoTabla');
-  const cuerpo = document.getElementById('cuerpoTabla');
-  if (encabezado) encabezado.innerHTML = '';
-  if (cuerpo) cuerpo.innerHTML = '';
-  const form = document.getElementById('formulario_contenido');
-  if (form) form.style.display = 'none';
-}
+});
 </script>
 </body>
 
