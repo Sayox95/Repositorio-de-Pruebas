@@ -436,8 +436,47 @@
 
 
 
+
+<style>
+@keyframes spinner {
+  to { transform: rotate(360deg); }
+}
+#overlayCambios {
+  display: none;
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0,0,0,0.5);
+  z-index: 10000;
+  
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+#overlayCambios .spinner {
+  width: 4rem;
+  height: 4rem;
+  border: 0.5rem solid #ddd;
+  border-top-color: #007bff;
+  border-radius: 50%;
+  animation: spinner 0.75s linear infinite;
+  margin-bottom: 1rem;
+}
+#overlayCambios .text {
+  font-size: 1.25rem;
+  color: white;
+  font-weight: bold;
+}
+</style>
+
 </head>
 <body>
+
+<div id="overlayCambios">
+  <div class="spinner"></div>
+  <div class="text">Registrando Cambios...</div>
+</div>
+
   <div id="menuPrincipal" style="display: flex; flex-direction: column; align-items: center; margin-top: 50px;">
     <h2>Seleccione una opción</h2>
     <button style="width: 250px; margin: 10px; padding: 10px;" onclick="mostrarSeccion('reportarFactura')">📥 Reportar Factura</button>
@@ -1987,6 +2026,8 @@ function renderizarTablaFacturas(data) {
 }
 
 async function actualizarEstadoSeleccionados(nuevoEstado) {
+  // Mostrar overlay de carga
+  document.getElementById('overlayCambios').style.display = 'flex';
   const checks = document.querySelectorAll("#tablaFacturas input[type=checkbox]:checked");
   for (const chk of checks) {
     const fila = chk.dataset.fila;
