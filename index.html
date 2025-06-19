@@ -2,7 +2,6 @@
 
 <html lang="es">
 <head>
-
 <style>
   /* Global button styles for mobile friendliness */
   button {
@@ -44,9 +43,8 @@
     margin: 0.5rem !important;
   }
 </style>
-
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" name="viewport"/>
+<meta charset="utf-8">
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <title>Control de Combustible</title>
 <style>
@@ -97,7 +95,6 @@
 
   button { margin: 0 0 1rem !important; }
 </style>
-
 <style>
 .photo-buttons {
   display: flex;
@@ -109,7 +106,6 @@
   margin: 0 !important;
 }
 </style>
-
 <!-- Roboto font for consistent typography -->
 <link href="https://fonts.googleapis.com/css2?family=Roboto&amp;display=swap" rel="stylesheet"/>
 <style>
@@ -323,7 +319,6 @@
   var generatedPDF = null;
   var generatedFilename = '';
 </script>
-
 <style>
 @keyframes fadeOutUp {
   from { opacity: 1; transform: translateY(0); }
@@ -340,12 +335,10 @@
   animation: fadeInDown 0.3s ease-out forwards;
 }
 </style>
-
 <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
 <script src="https://unpkg.com/blueimp-load-image/js/load-image.all.min.js"></script>
-
-    <!-- Custom Header Styles -->
-  <style>
+<!-- Custom Header Styles -->
+<style>
     .custom-header {
       display: table;
       width: 100%;
@@ -375,8 +368,6 @@
       font-size: 12px;
     }
   </style>
-
-
 <style>
   .header-table {
     width: 100%;
@@ -398,59 +389,19 @@
     font-weight: bold;
   }
 </style>
-
-
 <!-- flatpickr CSS & JS -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<link href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-
-</head>
+</meta></head>
 <body>
-  
-<div id="seccionRevisionFacturas" style="display:none; padding: 20px;">
-  <button onclick="regresarMenu()">🔙 Regresar al Menú Principal</button>
-  <h2 style="text-align:center;">Revisión de Facturas</h2>
-
-  <div style="margin: 20px 0; display: flex; flex-wrap: wrap; gap: 10px;">
-    <select id="filtroSector"><option value="">Filtrar por Sector</option></select>
-    <select id="filtroEstado"><option value="">Filtrar por Estado</option></select>
-    <input id="filtroFactura" type="text" placeholder="Buscar Nº Factura..." />
-  </div>
-
-  <div id="mensaje_carga_facturas" style="text-align:center; color:#007BFF; font-weight:bold;">Cargando información...</div>
-
-  <div style="overflow-x: auto;">
-    <table id="tablaFacturas" style="width: 100%; border-collapse: collapse; min-width: 1200px; display:none;">
-      <thead>
-        <tr>
-          <th>#</th>
-          <th><input type="checkbox" onclick="toggleTodosCheckboxes(this)"/></th>
-          <th>Sector</th>
-          <th>Placa</th>
-          <th>Proceso</th>
-          <th>Nombre</th>
-          <th>Identidad</th>
-          <th>Total Gastado</th>
-          <th>Fecha</th>
-          <th>N° Factura</th>
-          <th>Estado</th>
-          <th>Enlace PDF</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-  </div>
-</div>
 <div id="menuPrincipal" style="display: flex; flex-direction: column; align-items: center; margin-top: 50px;">
-    <h2>Seleccione una opción</h2>
-    <button style="width: 250px; margin: 10px; padding: 10px;" onclick="mostrarSeccion('reportarFactura')">📥 Reportar Factura</button>
-    <button style="width: 250px; margin: 10px; padding: 10px;" onclick="mostrarSeccion('revisionFacturas')">🔍 Revisión de Facturas</button>
-    <button style="width: 250px; margin: 10px; padding: 10px;" onclick="mostrarSeccion('registrarAnticipo')">💵 Registrar Anticipo</button>
-  </div>
-
-  <div id="seccionReportarFactura" style="display: none;">
-    <button onclick="regresarMenu()">🔙 Regresar al Menú Principal</button>
-
+<h2>Seleccione una opción</h2>
+<button onclick="mostrarSeccion('reportarFactura')" style="width: 250px; margin: 10px; padding: 10px;">📥 Reportar Factura</button>
+<button onclick="mostrarSeccion('revisionFacturas')" style="width: 250px; margin: 10px; padding: 10px;">🔍 Revisión de Facturas</button>
+<button onclick="mostrarSeccion('registrarAnticipo')" style="width: 250px; margin: 10px; padding: 10px;">💵 Registrar Anticipo</button>
+</div>
+<div id="seccionReportarFactura" style="display: none;">
+<button onclick="regresarMenu()">🔙 Regresar al Menú Principal</button>
 <div id="notification" style="display:none; position:fixed; top:20px; left:50%; transform:translateX(-50%); background:#28a745; color:white; padding:15px 30px; border-radius:5px; opacity:0; transition:opacity 0.5s ease-in-out; z-index:1000;">Información enviada correctamente</div>
 <!-- Initial loading message displayed while fetching data -->
 <div id="mensaje_cargando">Cargando información, por favor espere...</div>
@@ -471,7 +422,7 @@
 <!-- Datos del vehículo y factura -->
 <!-- Inputs de imágenes (galería o cámara) reordered -->
 <!-- Botón para generar vista previa -->
-<div class="paso" id="paso1" style="display:block;"><label for="sector">Seleccionar Sector:</label><span class="error-msg" id="error_sector" style="color:red; display:none;">(Campo obligatorio)</span><select id="sector"><option value="">Seleccione un sector</option></select><label for="placa">Seleccionar Placa del Vehículo:</label><span class="error-msg" id="error_placa" style="color:red; display:none;">(Campo obligatorio)</span><input autocomplete="off" id="placa" list="placas" placeholder="Escribe o selecciona una placa" type="text"/><label for="proceso">Proceso:</label><span class="error-msg" id="error_proceso" style="color:red; display:none;">(Campo obligatorio)</span><select id="proceso"><option value="">Seleccione un proceso</option></select><label for="nombre">Nombre Completo:</label><span class="error-msg" id="error_nombre" style="color:red; display:none;">(Campo obligatorio)</span><input id="nombre" required="" type="text"/><label for="identidad">No. Identidad:</label><span class="error-msg" id="error_identidad" style="color:red; display:none;">(Campo obligatorio)</span><input id="identidad" maxlength="15" oninput="maskIdentidad(this)" required="" type="text"/><label for="total">Total Gastado (L):</label><span class="error-msg" id="error_total" style="color:red; display:none;">(Campo obligatorio)</span><input id="total" step="0.01" type="number"/><label for="litros">Litros Consumidos:</label><span class="error-msg" id="error_litros" style="color:red; display:none;">(Campo obligatorio)</span><input id="litros" step="0.01" type="number"/><label for="motivo">Motivo del Llenado:</label><span class="error-msg" id="error_motivo" style="color:red; display:none;">(Campo obligatorio)</span><textarea id="motivo" rows="3"></textarea><label for="fecha">Fecha:</label><span class="error-msg" id="error_fecha" style="color:red; display:none;">(Campo obligatorio)</span><input type="text" id="fecha" name="fecha" placeholder="Selecciona fecha" readonly class="flatpickr-input"/><label for="horas">Horas de Viaje:</label><input id="horas" type="text"/><label for="km">Km Actual del Vehículo:</label><span class="error-msg" id="error_km" style="color:red; display:none;">(Campo obligatorio)</span><input id="km" type="number"/><label for="nombre_comercio">Nombre del comercio:</label><span class="error-msg" id="error_nombre_comercio" style="color:red; display:none;">(Campo obligatorio)</span><input id="nombre_comercio" placeholder="Nombre del comercio" type="text"/><label for="factura">Número de Factura:</label><span class="error-msg" id="error_factura" style="color:red; display:none;">(Campo obligatorio)</span><input id="factura" oninput="maskFactura(this)" type="text"/><div><button onclick="validarYVerificarDuplicado();" type="button">Siguiente</button></div></div><div class="paso" id="paso2" style="display:none;;text-align:center;"><label for="foto_tablero_antes">Fotografía Tablero Antes:</label><img alt="Ejemplo de fotografía" src="https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/main/imagenes/Tablero%20antes%20de%20llenado.png" style="display: block; margin: 10px auto; height: 200px; object-fit: contain; border-radius: 8px;"/><span class="error-msg" id="error_foto_tablero_antes" style="color:red; display:none;">(Campo obligatorio)</span><button onclick="activarCamara('foto_tablero_antes')" style=" margin: 5px" type="button">Tomar Fotografía</button><button onclick="abrirGaleria('foto_tablero_antes')" style=" margin: 5px" type="button">Subir desde Galería</button><div class="preview" id="preview_foto_tablero_antes"></div><div><button onclick="mostrarPaso(1)" style=" margin: 5px" type="button">Anterior</button><button onclick="if(validarImagenPaso('foto_tablero_antes')){siguientePaso(3);}" style=" margin: 5px" type="button">Siguiente</button></div><input accept="image/*" hidden="True" id="foto_tablero_antes" type="file"/></div><div class="paso" id="paso3" style="display:none;;text-align:center;"><label for="foto_bomba">Fotografía Bomba en 0:</label><img alt="Ejemplo de fotografía" src="https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/main/imagenes/Bomba%20en%20cero.png" style="display: block; margin: 10px auto; height: 200px; object-fit: contain; border-radius: 8px;"/><span class="error-msg" id="error_foto_bomba" style="color:red; display:none;">(Campo obligatorio)</span><button onclick="activarCamara('foto_bomba')" style=" margin: 5px" type="button">Tomar Fotografía</button><button onclick="abrirGaleria('foto_bomba')" style=" margin: 5px" type="button">Subir desde Galería</button><div class="preview" id="preview_foto_bomba"></div><div><button onclick="mostrarPaso(2)" style=" margin: 5px" type="button">Anterior</button><button onclick="if(validarImagenPaso('foto_bomba')){siguientePaso(4);}" style=" margin: 5px" type="button">Siguiente</button></div><input accept="image/*" hidden="True" id="foto_bomba" type="file"/></div><div class="paso" id="paso4" style="display:none;;text-align:center;"><label for="foto_frontal">Fotografía Frontal del Vehículo o VIN con Vehículo:</label><img alt="Ejemplo de fotografía" src="https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/main/imagenes/Vista%20Frontal.png" style="display: block; margin: 10px auto; height: 200px; object-fit: contain; border-radius: 8px;"/><span class="error-msg" id="error_foto_frontal" style="color:red; display:none;">(Campo obligatorio)</span><button onclick="activarCamara('foto_frontal')" style=" margin: 5px" type="button">Tomar Fotografía</button><button onclick="abrirGaleria('foto_frontal')" style=" margin: 5px" type="button">Subir desde Galería</button><div class="preview" id="preview_foto_frontal"></div><div><button onclick="mostrarPaso(3)" style=" margin: 5px" type="button">Anterior</button><button onclick="if(validarImagenPaso('foto_frontal')){siguientePaso(5);}" style=" margin: 5px" type="button">Siguiente</button></div><input accept="image/*" hidden="True" id="foto_frontal" type="file"/></div><div class="paso" id="paso5" style="display:none;;text-align:center;"><label for="foto_bomba_llenado">Fotografía Bomba Llena:</label><img alt="Ejemplo de fotografía" src="https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/main/imagenes/Bomba%20llena.png" style="display: block; margin: 10px auto; height: 200px; object-fit: contain; border-radius: 8px;"/><span class="error-msg" id="error_foto_bomba_llenado" style="color:red; display:none;">(Campo obligatorio)</span><button onclick="activarCamara('foto_bomba_llenado')" style=" margin: 5px" type="button">Tomar Fotografía</button><button onclick="abrirGaleria('foto_bomba_llenado')" style=" margin: 5px" type="button">Subir desde Galería</button><div class="preview" id="preview_foto_bomba_llenado"></div><div><button onclick="mostrarPaso(4)" style=" margin: 5px" type="button">Anterior</button><button onclick="if(validarImagenPaso('foto_bomba_llenado')){siguientePaso(6);}" style=" margin: 5px" type="button">Siguiente</button></div><input accept="image/*" hidden="True" id="foto_bomba_llenado" type="file"/></div><div class="paso" id="paso6" style="display:none;;text-align:center;"><input accept="image/*" hidden="True" id="foto_despues" type="file"/><label for="foto_despues">Fotografía Tablero Después de Llenado:</label><img alt="Ejemplo de fotografía" src="https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/main/imagenes/Tablero%20antes%20de%20llenado.png" style="display: block; margin: 10px auto; height: 200px; object-fit: contain; border-radius: 8px;"/><span class="error-msg" id="error_foto_despues" style="color:red; display:none;">(Campo obligatorio)</span><button onclick="activarCamara('foto_despues')" style=" margin: 5px" type="button">Tomar Fotografía</button><button onclick="abrirGaleria('foto_despues')" style=" margin: 5px" type="button">Subir desde Galería</button><div class="preview" id="preview_foto_despues"></div><div><button onclick="mostrarPaso(5)" style=" margin: 5px" type="button">Anterior</button><button onclick="if(validarImagenPaso('foto_despues')){siguientePaso(7);}" style=" margin: 5px" type="button">Siguiente</button></div></div><div class="paso" id="paso7" style="display:none; text-align: center;"><h2>Fotografía de la Factura:</h2><img alt="Ejemplo factura" src="https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/main/imagenes/Factura.png" style="display: block; margin: 10px auto; height: 200px; object-fit: contain; border-radius: 8px;"/><input accept="image/*" hidden="True" id="foto_factura" type="file"/><button onclick="activarCamara('foto_factura')" style=" margin: 5px" type="button">Tomar Fotografía</button><button onclick="abrirGaleria('foto_factura')" style=" margin: 5px" type="button">Subir desde Galería</button><div class="preview" id="preview_foto_factura"></div>
+<div class="paso" id="paso1" style="display:block;"><label for="sector">Seleccionar Sector:</label><span class="error-msg" id="error_sector" style="color:red; display:none;">(Campo obligatorio)</span><select id="sector"><option value="">Seleccione un sector</option></select><label for="placa">Seleccionar Placa del Vehículo:</label><span class="error-msg" id="error_placa" style="color:red; display:none;">(Campo obligatorio)</span><input autocomplete="off" id="placa" list="placas" placeholder="Escribe o selecciona una placa" type="text"/><label for="proceso">Proceso:</label><span class="error-msg" id="error_proceso" style="color:red; display:none;">(Campo obligatorio)</span><select id="proceso"><option value="">Seleccione un proceso</option></select><label for="nombre">Nombre Completo:</label><span class="error-msg" id="error_nombre" style="color:red; display:none;">(Campo obligatorio)</span><input id="nombre" required="" type="text"/><label for="identidad">No. Identidad:</label><span class="error-msg" id="error_identidad" style="color:red; display:none;">(Campo obligatorio)</span><input id="identidad" maxlength="15" oninput="maskIdentidad(this)" required="" type="text"/><label for="total">Total Gastado (L):</label><span class="error-msg" id="error_total" style="color:red; display:none;">(Campo obligatorio)</span><input id="total" step="0.01" type="number"/><label for="litros">Litros Consumidos:</label><span class="error-msg" id="error_litros" style="color:red; display:none;">(Campo obligatorio)</span><input id="litros" step="0.01" type="number"/><label for="motivo">Motivo del Llenado:</label><span class="error-msg" id="error_motivo" style="color:red; display:none;">(Campo obligatorio)</span><textarea id="motivo" rows="3"></textarea><label for="fecha">Fecha:</label><span class="error-msg" id="error_fecha" style="color:red; display:none;">(Campo obligatorio)</span><input class="flatpickr-input" id="fecha" name="fecha" placeholder="Selecciona fecha" readonly="" type="text"/><label for="horas">Horas de Viaje:</label><input id="horas" type="text"/><label for="km">Km Actual del Vehículo:</label><span class="error-msg" id="error_km" style="color:red; display:none;">(Campo obligatorio)</span><input id="km" type="number"/><label for="nombre_comercio">Nombre del comercio:</label><span class="error-msg" id="error_nombre_comercio" style="color:red; display:none;">(Campo obligatorio)</span><input id="nombre_comercio" placeholder="Nombre del comercio" type="text"/><label for="factura">Número de Factura:</label><span class="error-msg" id="error_factura" style="color:red; display:none;">(Campo obligatorio)</span><input id="factura" oninput="maskFactura(this)" type="text"/><div><button onclick="validarYVerificarDuplicado();" type="button">Siguiente</button></div></div><div class="paso" id="paso2" style="display:none;;text-align:center;"><label for="foto_tablero_antes">Fotografía Tablero Antes:</label><img alt="Ejemplo de fotografía" src="https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/main/imagenes/Tablero%20antes%20de%20llenado.png" style="display: block; margin: 10px auto; height: 200px; object-fit: contain; border-radius: 8px;"/><span class="error-msg" id="error_foto_tablero_antes" style="color:red; display:none;">(Campo obligatorio)</span><button onclick="activarCamara('foto_tablero_antes')" style=" margin: 5px" type="button">Tomar Fotografía</button><button onclick="abrirGaleria('foto_tablero_antes')" style=" margin: 5px" type="button">Subir desde Galería</button><div class="preview" id="preview_foto_tablero_antes"></div><div><button onclick="mostrarPaso(1)" style=" margin: 5px" type="button">Anterior</button><button onclick="if(validarImagenPaso('foto_tablero_antes')){siguientePaso(3);}" style=" margin: 5px" type="button">Siguiente</button></div><input accept="image/*" hidden="True" id="foto_tablero_antes" type="file"/></div><div class="paso" id="paso3" style="display:none;;text-align:center;"><label for="foto_bomba">Fotografía Bomba en 0:</label><img alt="Ejemplo de fotografía" src="https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/main/imagenes/Bomba%20en%20cero.png" style="display: block; margin: 10px auto; height: 200px; object-fit: contain; border-radius: 8px;"/><span class="error-msg" id="error_foto_bomba" style="color:red; display:none;">(Campo obligatorio)</span><button onclick="activarCamara('foto_bomba')" style=" margin: 5px" type="button">Tomar Fotografía</button><button onclick="abrirGaleria('foto_bomba')" style=" margin: 5px" type="button">Subir desde Galería</button><div class="preview" id="preview_foto_bomba"></div><div><button onclick="mostrarPaso(2)" style=" margin: 5px" type="button">Anterior</button><button onclick="if(validarImagenPaso('foto_bomba')){siguientePaso(4);}" style=" margin: 5px" type="button">Siguiente</button></div><input accept="image/*" hidden="True" id="foto_bomba" type="file"/></div><div class="paso" id="paso4" style="display:none;;text-align:center;"><label for="foto_frontal">Fotografía Frontal del Vehículo o VIN con Vehículo:</label><img alt="Ejemplo de fotografía" src="https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/main/imagenes/Vista%20Frontal.png" style="display: block; margin: 10px auto; height: 200px; object-fit: contain; border-radius: 8px;"/><span class="error-msg" id="error_foto_frontal" style="color:red; display:none;">(Campo obligatorio)</span><button onclick="activarCamara('foto_frontal')" style=" margin: 5px" type="button">Tomar Fotografía</button><button onclick="abrirGaleria('foto_frontal')" style=" margin: 5px" type="button">Subir desde Galería</button><div class="preview" id="preview_foto_frontal"></div><div><button onclick="mostrarPaso(3)" style=" margin: 5px" type="button">Anterior</button><button onclick="if(validarImagenPaso('foto_frontal')){siguientePaso(5);}" style=" margin: 5px" type="button">Siguiente</button></div><input accept="image/*" hidden="True" id="foto_frontal" type="file"/></div><div class="paso" id="paso5" style="display:none;;text-align:center;"><label for="foto_bomba_llenado">Fotografía Bomba Llena:</label><img alt="Ejemplo de fotografía" src="https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/main/imagenes/Bomba%20llena.png" style="display: block; margin: 10px auto; height: 200px; object-fit: contain; border-radius: 8px;"/><span class="error-msg" id="error_foto_bomba_llenado" style="color:red; display:none;">(Campo obligatorio)</span><button onclick="activarCamara('foto_bomba_llenado')" style=" margin: 5px" type="button">Tomar Fotografía</button><button onclick="abrirGaleria('foto_bomba_llenado')" style=" margin: 5px" type="button">Subir desde Galería</button><div class="preview" id="preview_foto_bomba_llenado"></div><div><button onclick="mostrarPaso(4)" style=" margin: 5px" type="button">Anterior</button><button onclick="if(validarImagenPaso('foto_bomba_llenado')){siguientePaso(6);}" style=" margin: 5px" type="button">Siguiente</button></div><input accept="image/*" hidden="True" id="foto_bomba_llenado" type="file"/></div><div class="paso" id="paso6" style="display:none;;text-align:center;"><input accept="image/*" hidden="True" id="foto_despues" type="file"/><label for="foto_despues">Fotografía Tablero Después de Llenado:</label><img alt="Ejemplo de fotografía" src="https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/main/imagenes/Tablero%20antes%20de%20llenado.png" style="display: block; margin: 10px auto; height: 200px; object-fit: contain; border-radius: 8px;"/><span class="error-msg" id="error_foto_despues" style="color:red; display:none;">(Campo obligatorio)</span><button onclick="activarCamara('foto_despues')" style=" margin: 5px" type="button">Tomar Fotografía</button><button onclick="abrirGaleria('foto_despues')" style=" margin: 5px" type="button">Subir desde Galería</button><div class="preview" id="preview_foto_despues"></div><div><button onclick="mostrarPaso(5)" style=" margin: 5px" type="button">Anterior</button><button onclick="if(validarImagenPaso('foto_despues')){siguientePaso(7);}" style=" margin: 5px" type="button">Siguiente</button></div></div><div class="paso" id="paso7" style="display:none; text-align: center;"><h2>Fotografía de la Factura:</h2><img alt="Ejemplo factura" src="https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/main/imagenes/Factura.png" style="display: block; margin: 10px auto; height: 200px; object-fit: contain; border-radius: 8px;"/><input accept="image/*" hidden="True" id="foto_factura" type="file"/><button onclick="activarCamara('foto_factura')" style=" margin: 5px" type="button">Tomar Fotografía</button><button onclick="abrirGaleria('foto_factura')" style=" margin: 5px" type="button">Subir desde Galería</button><div class="preview" id="preview_foto_factura"></div>
 <div class="nav-buttons" style="display:flex; justify-content:center; gap:0.5rem;  margin-top: 20px;">
 <button onclick="mostrarPaso(6)" style="margin: 5px;" type="button">Anterior</button>
 <button id="guardar_reporte" style="margin: 5px;" type="button">Guardar Reporte</button>
@@ -481,29 +432,27 @@
 <div id="preview_contenido" style="display:none;">
 <!-- Página 1: resumen e inserción de factura -->
 <div class="page" id="preview_page1">
-
 <table class="header-table">
-  <tr>
-    <td rowspan="3" style="width:100px;">
-      <!-- Pega aquí la URL de tu logo en GitHub -->
-      <img src="https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/refs/heads/main/imagenes/Logo.png" alt="Logo UTCD">
-    </td>
-    <td rowspan="3" class="title-cell">
+<tr>
+<td rowspan="3" style="width:100px;">
+<!-- Pega aquí la URL de tu logo en GitHub -->
+<img alt="Logo UTCD" src="https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/refs/heads/main/imagenes/Logo.png"/>
+</td>
+<td class="title-cell" rowspan="3">
       DETALLE DE LA FACTURA DE COMBUSTIBLE
     </td>
-    <td>Código</td>
-    <td>CLS-PAU-F-19</td>
-  </tr>
-  <tr>
-    <td>Versión</td>
-    <td>1</td>
-  </tr>
-  <tr>
-    <td>Fecha</td>
-    <td>20/5/2025</td>
-  </tr>
+<td>Código</td>
+<td>CLS-PAU-F-19</td>
+</tr>
+<tr>
+<td>Versión</td>
+<td>1</td>
+</tr>
+<tr>
+<td>Fecha</td>
+<td>20/5/2025</td>
+</tr>
 </table>
-
 <div class="preview-box">
 <div class="invoice-box">
 <div class="placeholder" id="placeholder_box">Pegar Factura Original en este Espacio</div>
@@ -521,8 +470,8 @@
 <div class="page" id="preview_page3">
 <h3 class="format-header">FACTURA ORIGINAL</h3>
 <div class="invoice-box">
-<img id="factura_only_img" style="width:auto; height:800px; object-fit:contain; display:block; margin:0 auto;"/>
-</div>
+<img id="factura_only_img" style="width:auto; height:800px; object-fit:contain; display:block; margin:0 auto;">
+</img></div>
 </div>
 <button id="enviar_reporte">Enviar Reporte</button>
 <button id="modificar_reporte">Modificar Reporte</button>
@@ -1536,8 +1485,6 @@ pdfMake.createPdf(docDefinition).getBase64(function(base64) {
 <div id="success_alert" style="display:none; position:fixed; top:20px; right:20px; background-color:#4CAF50; color:white; padding:15px; border-radius:5px; z-index:10000;">
   Información enviada con éxito
 </div>
-
-
 <script>
 function mostrarSuccessYReset() {
   const alerta = document.getElementById('success_alert');
@@ -1620,8 +1567,6 @@ function validarYVerificarDuplicado() {
   });
 }
 </script>
-
-
 <script>
 function validarFormulario() {
   const paso1 = document.getElementById("paso1");
@@ -1651,8 +1596,6 @@ function validarFormulario() {
   return esValido;
 }
 </script>
-
-
 <script>
 function mostrarPaso(paso) {
   const pasos = document.querySelectorAll('.paso');
@@ -1676,21 +1619,17 @@ function mostrarPaso(paso) {
   }
 }
 </script>
-
-
 <!-- Modal Firma Digital -->
 <div id="modal-signature" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); align-items:center; justify-content:center; z-index:3000; ">
-  <div style="background:#fff; padding:20px; border-radius:8px; max-width:500px; width:90%;">
-    <h3>Firma de Aprobación</h3>
-    <canvas id="canvas-signature" width="460" height="180" style="border:1px solid #ccc; border-radius:4px;"></canvas>
-    <div style="margin-top:10px; text-align:right;">
-      <div class="signature-buttons"><button type="button" id="clear-signature">Limpiar</button>
-      <button type="button" id="confirm-signature">Confirmar</button></div>
-    </div>
-  </div>
+<div style="background:#fff; padding:20px; border-radius:8px; max-width:500px; width:90%;">
+<h3>Firma de Aprobación</h3>
+<canvas height="180" id="canvas-signature" style="border:1px solid #ccc; border-radius:4px;" width="460"></canvas>
+<div style="margin-top:10px; text-align:right;">
+<div class="signature-buttons"><button id="clear-signature" type="button">Limpiar</button>
+<button id="confirm-signature" type="button">Confirmar</button></div>
 </div>
-
-
+</div>
+</div>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
   // Inicializar Signature Pad
@@ -1726,15 +1665,13 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 });
 </script>
-
-
 <!-- Modal de Confirmación de Descarga -->
-<div id="downloadModal" class="modal-overlay" style="display:none;">
-  <div class="modal-content">
-    <p>El PDF generado está listo. ¿Deseas descargarlo?</p>
-    <button id="downloadAccept">Aceptar</button>
-    <button id="downloadCancel">Cancelar</button>
-  </div>
+<div class="modal-overlay" id="downloadModal" style="display:none;">
+<div class="modal-content">
+<p>El PDF generado está listo. ¿Deseas descargarlo?</p>
+<button id="downloadAccept">Aceptar</button>
+<button id="downloadCancel">Cancelar</button>
+</div>
 </div>
 <style>
 .modal-overlay {
@@ -1749,7 +1686,6 @@ document.addEventListener('DOMContentLoaded', () => {
   margin: 0.5rem;
 }
 </style>
-
 <script>
 // Handler for download modal "Aceptar" button with cross-browser support
 document.getElementById('downloadAccept').addEventListener('click', () => {
@@ -1762,9 +1698,6 @@ document.getElementById('downloadAccept').addEventListener('click', () => {
     }
 });
 </script>
-
-
-
 <script>
   // Scroll input into view on focus (mobile)
   document.addEventListener('DOMContentLoaded', () => {
@@ -1775,8 +1708,6 @@ document.getElementById('downloadAccept').addEventListener('click', () => {
     });
   });
 </script>
-
-
 <script>
 document.addEventListener('DOMContentLoaded', function() {
   flatpickr('#fecha', {
@@ -1796,19 +1727,13 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 });
 </script>
-
-
-  </div>
-
-  
-
-  <div id="seccionRegistrarAnticipo" style="display: none;">
-    <h2>💵 Registrar Anticipo</h2>
-    <p>Esta sección está en desarrollo.</p>
-    <button onclick="regresarMenu()">🔙 Regresar al Menú Principal</button>
-  </div>
-
-  <script>
+</div>
+<div id="seccionRegistrarAnticipo" style="display: none;">
+<h2>💵 Registrar Anticipo</h2>
+<p>Esta sección está en desarrollo.</p>
+<button onclick="regresarMenu()">🔙 Regresar al Menú Principal</button>
+</div>
+<script>
     function mostrarSeccion(nombre) {
       document.getElementById('menuPrincipal').style.display = 'none';
       document.getElementById('seccionReportarFactura').style.display = 'none';
@@ -1831,10 +1756,7 @@ document.addEventListener('DOMContentLoaded', function() {
       document.getElementById('seccionRegistrarAnticipo').style.display = 'none';
     }
   </script>
-
 <!-- Revisión de Facturas ACTIVA -->
-
-
 <style>
   .tabla-responsive {
     overflow-x: auto;
@@ -1857,43 +1779,36 @@ document.addEventListener('DOMContentLoaded', function() {
     white-space: nowrap;
   }
 </style>
-
 <div id="seccionRevisionFacturas" style="display: none; padding: 1rem;">
-  <h2 style="margin-bottom: 1rem;">📄 Revisión de Facturas</h2>
-
-  <div style="margin-bottom: 1rem;">
-    <label for="filtroSector">Filtrar por sector:</label>
-    <select id="filtroSector">
-      <option value="Todos">Todos</option>
-    </select>
-
-    <label for="filtroEstado" style="margin-left: 1rem;">Filtrar por estado:</label>
-    <select id="filtroEstado">
-      <option value="Todas">Todas</option>
-      <option value="Registrada">Registrada</option>
-      <option value="Revisada">Revisada</option>
-      <option value="Anulada">Anulada</option>
-    </select>
-
-    <label for="buscarFactura" style="margin-left: 1rem;">Buscar factura:</label>
-    <input type="text" id="buscarFactura" placeholder="Número de factura">
-  </div>
-
-  <div style="margin-bottom: 1rem;">
-    <button onclick="actualizarEstadoSeleccionados('Revisada')">✔ Marcar como Revisada</button>
-    <button onclick="actualizarEstadoSeleccionados('Anulada')">✖ Marcar como Anulada</button>
-  </div>
-
-  <div class="tabla-responsive" style="border: 1px solid #ccc; border-radius: 6px; overflow-x: auto; max-height: 60vh; padding: 1rem; background: #fafafa;">
-    <table id="tablaFacturas">
-      <thead><tr id="encabezadoTabla"></tr></thead>
-      <tbody id="cuerpoTabla"></tbody>
-    </table>
-  </div>
+<h2 style="margin-bottom: 1rem;">📄 Revisión de Facturas</h2>
+<div style="margin-bottom: 1rem;">
+<label for="filtroSector">Filtrar por sector:</label>
+<select id="filtroSector">
+<option value="Todos">Todos</option>
+</select>
+<label for="filtroEstado" style="margin-left: 1rem;">Filtrar por estado:</label>
+<select id="filtroEstado">
+<option value="Todas">Todas</option>
+<option value="Registrada">Registrada</option>
+<option value="Revisada">Revisada</option>
+<option value="Anulada">Anulada</option>
+</select>
+<label for="buscarFactura" style="margin-left: 1rem;">Buscar factura:</label>
+<input id="buscarFactura" placeholder="Número de factura" type="text"/>
 </div>
-
+<div style="margin-bottom: 1rem;">
+<button onclick="actualizarEstadoSeleccionados('Revisada')">✔ Marcar como Revisada</button>
+<button onclick="actualizarEstadoSeleccionados('Anulada')">✖ Marcar como Anulada</button>
+</div>
+<div class="tabla-responsive" style="overflow-x: auto;">
+<div id="mensaje_carga_facturas" style="text-align:center; color:#007BFF; font-weight:bold;">Cargando información...</div><table id="tablaFacturas">
+<thead><tr><th>#</th><th><input onclick="toggleTodosCheckboxes(this)" type="checkbox"/></th><th>Sector</th><th>Placa</th><th>Proceso</th><th>Nombre</th><th>Identidad</th><th>Total Gastado</th><th>Fecha</th><th>N° Factura</th><th>Enlace PDF</th><th>Estado</th></tr></thead>
+<tbody id="cuerpoTabla"></tbody>
+</table>
+</div>
+</div>
 <script>
-const urlLeerFacturas = "/api/leer";
+const urlLeerFacturas = "https://repositorio-de-pruebas.pages.dev/api/leer";
 const urlGuardarReporte = "/api/guardar";
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -2000,8 +1915,6 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 </script>
 </body>
-
-
 </html>
 <div id="generando_pdf_modal" style="
   visibility: hidden;
@@ -2020,77 +1933,3 @@ document.addEventListener("DOMContentLoaded", () => {
     Generando PDF, por favor espere...
   </div>
 </div>
-
-<script>
-function toggleTodosCheckboxes(master) {
-  const checkboxes = document.querySelectorAll("#tablaFacturas tbody input[type='checkbox']");
-  checkboxes.forEach(c => c.checked = master.checked);
-}
-
-async function cargarFacturas() {
-  try {
-    const response = await fetch('/api/leer'); // Reemplaza con tu endpoint real
-    const datos = await response.json();
-
-    const tbody = document.querySelector('#tablaFacturas tbody');
-    tbody.innerHTML = '';
-
-    const sectores = new Set();
-    const estados = new Set();
-
-    datos.forEach((factura, idx) => {
-      const fila = document.createElement('tr');
-      fila.innerHTML = `
-        <td>${idx + 1}</td>
-        <td><input type="checkbox"/></td>
-        <td>${factura.Sector}</td>
-        <td>${factura.Placa}</td>
-        <td>${factura.Proceso}</td>
-        <td>${factura.Nombre}</td>
-        <td>${factura.Identidad}</td>
-        <td>${factura.TotalGastado} L</td>
-        <td>${factura.Fecha}</td>
-        <td>${factura.NumeroFactura}</td>
-        <td>${factura.Estado}</td>
-        <td><a href="${factura.URL_PDF}" target="_blank">Ver PDF</a></td>
-      `;
-      tbody.appendChild(fila);
-      sectores.add(factura.Sector);
-      estados.add(factura.Estado);
-    });
-
-    const sSel = document.getElementById('filtroSector');
-    const eSel = document.getElementById('filtroEstado');
-    sSel.innerHTML = '<option value="">Filtrar por Sector</option>';
-    eSel.innerHTML = '<option value="">Filtrar por Estado</option>';
-    sectores.forEach(s => sSel.innerHTML += `<option value="${s}">${s}</option>`);
-    estados.forEach(e => eSel.innerHTML += `<option value="${e}">${e}</option>`);
-
-    document.getElementById("mensaje_carga_facturas").style.display = "none";
-    document.getElementById("tablaFacturas").style.display = "table";
-
-    aplicarFiltros();
-    sSel.onchange = aplicarFiltros;
-    eSel.onchange = aplicarFiltros;
-    document.getElementById('filtroFactura').oninput = aplicarFiltros;
-  } catch (err) {
-    console.error("Error al cargar facturas:", err);
-    document.getElementById("mensaje_carga_facturas").innerText = "Error al cargar datos.";
-  }
-}
-
-function aplicarFiltros() {
-  const sector = document.getElementById('filtroSector').value.toLowerCase();
-  const estado = document.getElementById('filtroEstado').value.toLowerCase();
-  const factura = document.getElementById('filtroFactura').value.toLowerCase();
-
-  const filas = document.querySelectorAll('#tablaFacturas tbody tr');
-  filas.forEach(f => {
-    const tds = f.querySelectorAll('td');
-    const matchesSector = !sector || tds[2].textContent.toLowerCase().includes(sector);
-    const matchesEstado = !estado || tds[10].textContent.toLowerCase().includes(estado);
-    const matchesFactura = !factura || tds[9].textContent.toLowerCase().includes(factura);
-    f.style.display = (matchesSector && matchesEstado && matchesFactura) ? '' : 'none';
-  });
-}
-</script>
