@@ -1800,9 +1800,9 @@ document.addEventListener('DOMContentLoaded', function() {
 <button onclick="actualizarEstadoSeleccionados('Revisada')">✔ Marcar como Revisada</button>
 <button onclick="actualizarEstadoSeleccionados('Anulada')">✖ Marcar como Anulada</button>
 </div>
-<div class="tabla-responsive" style="overflow-x: auto;">
-<div id="mensaje_carga_facturas" style="text-align:center; color:#007BFF; font-weight:bold;">Cargando información...</div><table id="tablaFacturas">
-<thead><tr><th>#</th><th><input onclick="toggleTodosCheckboxes(this)" type="checkbox"/></th><th>Sector</th><th>Placa</th><th>Proceso</th><th>Nombre</th><th>Identidad</th><th>Total Gastado</th><th>Fecha</th><th>N° Factura</th><th>Enlace PDF</th><th>Estado</th></tr></thead>
+<div class="tabla-responsive" style="border: 1px solid #ccc; border-radius: 6px; overflow-x: auto; max-height: 60vh; padding: 1rem; background: #fafafa;">
+<table id="tablaFacturas">
+<thead><tr><th>#</th><th><input onclick="toggleTodosCheckboxes(this)" type="checkbox"/></th><th>Sector</th><th>Placa</th><th>Proceso</th><th>Nombre</th><th>Identidad</th><th>Total Gastado</th><th>Fecha</th><th>Número de Factura</th><th>Enlace PDF</th><th>Estado</th></tr></thead>
 <tbody id="cuerpoTabla"></tbody>
 </table>
 </div>
