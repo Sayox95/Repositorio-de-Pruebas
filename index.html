@@ -406,7 +406,42 @@
 
 </head>
 <body>
-  <div id="menuPrincipal" style="display: flex; flex-direction: column; align-items: center; margin-top: 50px;">
+  
+<div id="seccionRevisionFacturas" style="display:none; padding: 20px;">
+  <button onclick="regresarMenu()">🔙 Regresar al Menú Principal</button>
+  <h2 style="text-align:center;">Revisión de Facturas</h2>
+
+  <div style="margin: 20px 0; display: flex; flex-wrap: wrap; gap: 10px;">
+    <select id="filtroSector"><option value="">Filtrar por Sector</option></select>
+    <select id="filtroEstado"><option value="">Filtrar por Estado</option></select>
+    <input id="filtroFactura" type="text" placeholder="Buscar Nº Factura..." />
+  </div>
+
+  <div id="mensaje_carga_facturas" style="text-align:center; color:#007BFF; font-weight:bold;">Cargando información...</div>
+
+  <div style="overflow-x: auto;">
+    <table id="tablaFacturas" style="width: 100%; border-collapse: collapse; min-width: 1200px; display:none;">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th><input type="checkbox" onclick="toggleTodosCheckboxes(this)"/></th>
+          <th>Sector</th>
+          <th>Placa</th>
+          <th>Proceso</th>
+          <th>Nombre</th>
+          <th>Identidad</th>
+          <th>Total Gastado</th>
+          <th>Fecha</th>
+          <th>N° Factura</th>
+          <th>Estado</th>
+          <th>Enlace PDF</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+<div id="menuPrincipal" style="display: flex; flex-direction: column; align-items: center; margin-top: 50px;">
     <h2>Seleccione una opción</h2>
     <button style="width: 250px; margin: 10px; padding: 10px;" onclick="mostrarSeccion('reportarFactura')">📥 Reportar Factura</button>
     <button style="width: 250px; margin: 10px; padding: 10px;" onclick="mostrarSeccion('revisionFacturas')">🔍 Revisión de Facturas</button>
@@ -1985,3 +2020,77 @@ document.addEventListener("DOMContentLoaded", () => {
     Generando PDF, por favor espere...
   </div>
 </div>
+
+<script>
+function toggleTodosCheckboxes(master) {
+  const checkboxes = document.querySelectorAll("#tablaFacturas tbody input[type='checkbox']");
+  checkboxes.forEach(c => c.checked = master.checked);
+}
+
+async function cargarFacturas() {
+  try {
+    const response = await fetch('/api/facturas'); // Reemplaza con tu endpoint real
+    const datos = await response.json();
+
+    const tbody = document.querySelector('#tablaFacturas tbody');
+    tbody.innerHTML = '';
+
+    const sectores = new Set();
+    const estados = new Set();
+
+    datos.forEach((factura, idx) => {
+      const fila = document.createElement('tr');
+      fila.innerHTML = `
+        <td>${idx + 1}</td>
+        <td><input type="checkbox"/></td>
+        <td>${factura.Sector}</td>
+        <td>${factura.Placa}</td>
+        <td>${factura.Proceso}</td>
+        <td>${factura.Nombre}</td>
+        <td>${factura.Identidad}</td>
+        <td>${factura.TotalGastado} L</td>
+        <td>${factura.Fecha}</td>
+        <td>${factura.NumeroFactura}</td>
+        <td>${factura.Estado}</td>
+        <td><a href="${factura.URL_PDF}" target="_blank">Ver PDF</a></td>
+      `;
+      tbody.appendChild(fila);
+      sectores.add(factura.Sector);
+      estados.add(factura.Estado);
+    });
+
+    const sSel = document.getElementById('filtroSector');
+    const eSel = document.getElementById('filtroEstado');
+    sSel.innerHTML = '<option value="">Filtrar por Sector</option>';
+    eSel.innerHTML = '<option value="">Filtrar por Estado</option>';
+    sectores.forEach(s => sSel.innerHTML += `<option value="${s}">${s}</option>`);
+    estados.forEach(e => eSel.innerHTML += `<option value="${e}">${e}</option>`);
+
+    document.getElementById("mensaje_carga_facturas").style.display = "none";
+    document.getElementById("tablaFacturas").style.display = "table";
+
+    aplicarFiltros();
+    sSel.onchange = aplicarFiltros;
+    eSel.onchange = aplicarFiltros;
+    document.getElementById('filtroFactura').oninput = aplicarFiltros;
+  } catch (err) {
+    console.error("Error al cargar facturas:", err);
+    document.getElementById("mensaje_carga_facturas").innerText = "Error al cargar datos.";
+  }
+}
+
+function aplicarFiltros() {
+  const sector = document.getElementById('filtroSector').value.toLowerCase();
+  const estado = document.getElementById('filtroEstado').value.toLowerCase();
+  const factura = document.getElementById('filtroFactura').value.toLowerCase();
+
+  const filas = document.querySelectorAll('#tablaFacturas tbody tr');
+  filas.forEach(f => {
+    const tds = f.querySelectorAll('td');
+    const matchesSector = !sector || tds[2].textContent.toLowerCase().includes(sector);
+    const matchesEstado = !estado || tds[10].textContent.toLowerCase().includes(estado);
+    const matchesFactura = !factura || tds[9].textContent.toLowerCase().includes(factura);
+    f.style.display = (matchesSector && matchesEstado && matchesFactura) ? '' : 'none';
+  });
+}
+</script>
