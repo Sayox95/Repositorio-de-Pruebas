@@ -1946,7 +1946,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <script>
 const urlLeerFacturas = "https://repositorio-de-pruebas.pages.dev/api/leer";
-const urlGuardarReporte = "/api/guardar";
+const urlGuardarReporte = "https://repositorio-de-pruebas.pages.dev/api/guardar";
 
 document.addEventListener("DOMContentLoaded", () => {
 
@@ -2038,9 +2038,6 @@ async function actualizarEstadoSeleccionados(nuevoEstado) {
     });
   }
   alert("Estados actualizados.");
-  // Ocultar overlay y recargar la tabla para reflejar cambios
-  document.getElementById('overlayCambios').style.display = 'none';
-  cargarFacturasDesdeSheet();
 
 // Ocultar overlay y recargar tabla después de actualizar el estado
   document.getElementById("overlayCambios").style.display = "none";
