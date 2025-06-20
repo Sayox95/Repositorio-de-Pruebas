@@ -1946,7 +1946,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <script>
 const urlLeerFacturas = "https://repositorio-de-pruebas.pages.dev/api/leer";
-const urlGuardarReporte = "https://repositorio-de-pruebas.pages.dev/api/guardar";
+const urlGuardarReporte = "/api/guardar";
 
 document.addEventListener("DOMContentLoaded", () => {
 
@@ -2119,6 +2119,7 @@ function renderizarTablaFacturas(data) {
     const tdChk = document.createElement("td");
     const chk = document.createElement("input");
     chk.type = "checkbox";
+    chk.dataset.fila = fila.fila;
     chk.dataset.index = index;
     tdChk.appendChild(chk);
     tr.appendChild(tdChk);
