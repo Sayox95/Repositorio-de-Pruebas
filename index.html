@@ -2084,8 +2084,14 @@ async function actualizarEstadoSeleccionados(nuevoEstado) {
   alert("Estados actualizados.");
   // Ocultar overlay
   document.getElementById("overlayCambios").style.display = "none";
-  // Reaplicar filtros tras actualización masiva
-  aplicarFiltros();
+  
+      // Actualizar estados en memoria para cada selección
+      document.querySelectorAll("#tablaFacturas input[type=checkbox]:checked").forEach(chk => {
+        const id = chk.dataset.fila;
+        const rec = window.facturasGlobal.find(f => f.fila == id);
+        if (rec) rec[esquema.estado] = nuevoEstado;
+      });
+      aplicarFiltros();
 }
 </script>
 
@@ -2276,6 +2282,10 @@ async function actualizarEstadoIndividual(fila, nuevoEstado) {
     // Ocultar overlay
     document.getElementById('overlayCambios').style.display = 'none';
     // Reaplicar filtros para reflejar el cambio
+    
+    // Actualizar estado en memoria
+    const rec = window.facturasGlobal.find(f => f.fila == fila);
+    if (rec) rec[esquema.estado] = nuevoEstado;
     aplicarFiltros();
   }
 }
