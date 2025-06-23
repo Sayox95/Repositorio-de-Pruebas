@@ -2010,11 +2010,29 @@ function renderizarTablaFacturas(data) {
 
   data.forEach(fila => {
     const tr = document.createElement("tr");
-    columnas.forEach(col => {
+    
+columnas.forEach(col => {
       const td = document.createElement("td");
-      td.textContent = fila[col];
+      if (col === "Estado") {
+        const select = document.createElement("select");
+        select.dataset.fila = fila.fila;
+        ["Pendiente", "Revisada", "Anulada"].forEach(opt => {
+          const option = document.createElement("option");
+          option.value = opt;
+          option.textContent = opt;
+          if (fila[col] === opt) option.selected = true;
+          select.appendChild(option);
+        });
+        select.addEventListener("change", () => {
+          actualizarEstadoIndividual(select.dataset.fila, select.value);
+        });
+        td.appendChild(select);
+      } else {
+        td.textContent = fila[col];
+      }
       tr.appendChild(td);
     });
+
     const chk = document.createElement("input");
     chk.type = "checkbox";
     chk.dataset.fila = fila.fila;
@@ -2150,6 +2168,19 @@ function renderizarTablaFacturas(data) {
         a.target = "_blank";
         td.appendChild(a);
       }
+      else if (col.key === "Estado") {
+        const select = document.createElement("select");
+        select.dataset.fila = fila.fila;
+        ["Pendiente","Revisada","Anulada"].forEach(opt => {
+          const option = document.createElement("option");
+          option.value = opt;
+          option.textContent = opt;
+          if (fila[col.key] === opt) option.selected = true;
+          select.appendChild(option);
+        });
+        select.addEventListener("change", () => actualizarEstadoIndividual(select.dataset.fila, select.value));
+        td.appendChild(select);
+      }
       else {
         td.textContent = value;
       }
@@ -2194,6 +2225,33 @@ function regresarAlMenu() {
   if (form) form.style.display = 'none';
 }
 </script>
+
+<script>
+async function actualizarEstadoIndividual(fila, nuevoEstado) {
+  // Mostrar overlay de carga
+  document.getElementById('overlayCambios').style.display = 'flex';
+  try {
+    const resp = await fetch(urlGuardarReporte, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ actualizarEstado: true, fila, nuevoEstado })
+    });
+    const result = await resp.json();
+    if (result.status !== 'OK') {
+      alert('Error al actualizar estado: ' + (result.message || JSON.stringify(result)));
+    } else {
+      alert('Estado actualizado.');
+    }
+  } catch (err) {
+    alert('Error de red al actualizar estado.');
+  } finally {
+    // Ocultar overlay y recargar tabla
+    document.getElementById("overlayCambios").style.display = "none";
+    cargarFacturasDesdeSheet();
+  }
+}
+</script>
+
 </body>
 
 
