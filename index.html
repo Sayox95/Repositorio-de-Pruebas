@@ -478,6 +478,86 @@ function actualizarVisibilidadBotonesMasivos() {
 }
 </script>
 
+
+<style>
+#countersContainer {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  justify-content: center;
+}
+.counter-box {
+  background: #f8f9fa;
+  border: 1px solid #ddd;
+  border-radius: 0.25rem;
+  padding: 0.5rem 1rem;
+  text-align: center;
+  min-width: 8rem;
+}
+.counter-box .label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+.counter-box .value {
+  font-size: 1.25rem;
+}
+</style>
+
+<style>
+#countersRow, #filtersRow {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+#filtersRow label {
+  white-space: nowrap;
+  margin-right: 0.5rem;
+}
+#filtersRow select,
+#filtersRow input[type="text"] {
+  width: 200px;
+  border-radius: 0.375rem;
+  border: 1px solid #cbd5e0;
+  padding: 0.5rem;
+  background: #f7fafc;
+}
+.counter-box {
+  background: #edf2f7;
+  padding: 0.5rem 1rem;
+  border-radius: 0.375rem;
+  text-align: center;
+}
+.counter-box .label {
+  display: block;
+  font-size: 0.875rem;
+  color: #4a5568;
+}
+.counter-box .value {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #2d3748;
+}
+</style>
+
+
+<style>
+  /* Botón volver más compacto verticalmente */
+  #seccionRevisionFacturas > button {
+    padding: 0.25rem 1rem !important;
+  }
+  /* Contadores: menos alto */
+  .counter-box {
+    padding: 0.25rem 1rem !important;
+  }
+  /* Tabla: celdas más compactas */
+  #tablaFacturas th,
+  #tablaFacturas td {
+    padding: 0.25rem 0.5rem !important;
+  }
+</style>
+
 </head>
 <body>
 
@@ -1882,6 +1962,7 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('seccionRevisionFacturas').style.display = 'block';
       document.getElementById('mensajeCarga').style.display = 'flex';
       cargarFacturasDesdeSheet();
+  updateCounters();
       } else if (nombre === 'registrarAnticipo') {
         document.getElementById('seccionRegistrarAnticipo').style.display = 'block';
       }
@@ -1929,26 +2010,37 @@ document.addEventListener('DOMContentLoaded', function() {
   </button>
 
   <h2 style="margin-bottom: 1rem;">📄 Revisión de Facturas</h2>
-
-  <div style="margin-bottom: 1rem;">
-    <label for="filtroSector">Filtrar por sector:</label>
-    <select id="filtroSector">
+<div id="countersRow">
+  <div class="counter-box">
+    <span class="label">Registradas</span><br>
+    <span id="counterRegistradas" class="value">0</span>
+  </div>
+  <div class="counter-box">
+    <span class="label">Revisadas</span><br>
+    <span id="counterRevisadas" class="value">0</span>
+  </div>
+  <div class="counter-box">
+    <span class="label">Anuladas</span><br>
+    <span id="counterAnuladas" class="value">0</span>
+  </div>
+</div>
+<div id="filtersRow">
+  <label for="filtroSector">Filtrar por sector:</label>
+  <select id="filtroSector" onchange="aplicarFiltros()">
       <option value="Todos">Todos</option>
     </select>
-
-    <label for="filtroEstado" style="margin-left: 1rem;">Filtrar por estado:</label>
-    <select id="filtroEstado">
+  <label for="filtroEstado">Filtrar por estado:</label>
+  <select id="filtroEstado" onchange="aplicarFiltros()">
       <option value="Todas">Todas</option>
       <option value="Registrada">Registrada</option>
       <option value="Revisada">Revisada</option>
       <option value="Anulada">Anulada</option>
     </select>
+  <label for="filtroNumeroFactura">Filtrar Nº de Factura:</label>
+  <input id="filtroNumeroFactura" type="text" placeholder="Número de factura" oninput="aplicarFiltros()" />
+</div>
 
-    <label for="filtroNumeroFactura" style="margin-left: 1rem;">Filtrar Nº de Factura:</label>
-    <input type="text" id="filtroNumeroFactura" placeholder="Número de factura">
-  </div>
-
-  <div style="margin-bottom: 1rem;">
+<div style="margin-bottom: 1rem;">
     <div id="accionesMasivas" style="margin-bottom:1rem; display:none;"><button onclick="actualizarEstadoSeleccionados('Revisada')">✔ Marcar como Revisada</button>
     <button onclick="actualizarEstadoSeleccionados('Anulada')">✖ Marcar como Anulada</button></div>
   </div>
@@ -2004,6 +2096,7 @@ function cargarFiltrosSector(data) {
 }
 
 function aplicarFiltros() {
+  updateCounters();
   const estado = document.getElementById("filtroEstado").value;
   const sector = document.getElementById("filtroSector").value;
   const buscarFactura = document.getElementById("filtroNumeroFactura").value.toLowerCase();
@@ -2306,6 +2399,48 @@ function actualizarVisibilidadBotonesMasivos() {
 }
 </script>
 
+
+<script>
+function updateCounters() {
+  const counts = { Registrada: 0, Revisada: 0, Anulada: 0 };
+  document.querySelectorAll('#tablaFacturas tbody tr').forEach(tr => {
+    const sel = tr.querySelector('select');
+    const state = sel ? sel.value : tr.querySelector('td:last-child').textContent.trim();
+    if (counts[state] !== undefined) counts[state]++;
+  });
+  document.getElementById('counterRegistradas').textContent = counts.Registrada;
+  document.getElementById('counterRevisadas').textContent = counts.Revisada;
+  document.getElementById('counterAnuladas').textContent = counts.Anulada;
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  // Hook applyFiltros
+  if (typeof aplicarFiltros === 'function') {
+    const oldApply = aplicarFiltros;
+    aplicarFiltros = function() {
+      oldApply();
+      updateCounters();
+    }
+  }
+  // Hook cargarFacturasDesdeSheet if returns promise
+  if (typeof cargarFacturasDesdeSheet === 'function') {
+    const oldLoad = cargarFacturasDesdeSheet;
+    cargarFacturasDesdeSheet = function() {
+      const result = oldLoad();
+      if (result && result.then) {
+        return result.then(() => {
+          updateCounters();
+          return result;
+        });
+      } else {
+        updateCounters();
+        return result;
+      }
+    }
+  }
+  updateCounters();
+});
+</script>
 </body>
 
 
