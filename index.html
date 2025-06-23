@@ -469,6 +469,15 @@
 }
 </style>
 
+
+<script>
+function actualizarVisibilidadBotonesMasivos() {
+  const checks = document.querySelectorAll("#tablaFacturas input[type=checkbox]:checked");
+  const cont = document.getElementById("accionesMasivas");
+  if (cont) cont.style.display = (checks.length >= 2) ? "block" : "none";
+}
+</script>
+
 </head>
 <body>
 
