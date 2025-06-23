@@ -2082,10 +2082,10 @@ async function actualizarEstadoSeleccionados(nuevoEstado) {
       actualizarVisibilidadBotonesMasivos();
   }
   alert("Estados actualizados.");
-
-// Ocultar overlay y recargar tabla después de actualizar el estado
+  // Ocultar overlay
   document.getElementById("overlayCambios").style.display = "none";
-  cargarFacturasDesdeSheet();
+  // Reaplicar filtros tras actualización masiva
+  aplicarFiltros();
 }
 </script>
 
@@ -2273,9 +2273,10 @@ async function actualizarEstadoIndividual(fila, nuevoEstado) {
   } catch (err) {
     alert('Error de red al actualizar estado.');
   } finally {
-    // Ocultar overlay y recargar tabla
-    document.getElementById("overlayCambios").style.display = "none";
-    cargarFacturasDesdeSheet();
+    // Ocultar overlay
+    document.getElementById('overlayCambios').style.display = 'none';
+    // Reaplicar filtros para reflejar el cambio
+    aplicarFiltros();
   }
 }
 </script>
