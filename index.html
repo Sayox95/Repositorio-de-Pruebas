@@ -2069,29 +2069,37 @@ columnas.forEach(col => {
 }
 
 async function actualizarEstadoSeleccionados(nuevoEstado) {
-  // Mostrar overlay de carga
-  document.getElementById('overlayCambios').style.display = 'flex';
+  const overlay = document.getElementById('overlayCambios');
+  overlay.style.display = 'flex';
   const checks = document.querySelectorAll("#tablaFacturas input[type=checkbox]:checked");
   for (const chk of checks) {
     const fila = chk.dataset.fila;
-    await fetch(urlGuardarReporte, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ actualizarEstado: true, fila, nuevoEstado })
-    });
-      actualizarVisibilidadBotonesMasivos();
-  }
-  alert("Estados actualizados.");
-  // Ocultar overlay
-  document.getElementById("overlayCambios").style.display = "none";
-  
-      // Actualizar estados en memoria para cada selección
-      document.querySelectorAll("#tablaFacturas input[type=checkbox]:checked").forEach(chk => {
-        const id = chk.dataset.fila;
-        const rec = window.facturasGlobal.find(f => f.fila == id);
-        if (rec) rec[esquema.estado] = nuevoEstado;
+    try {
+      const resp = await fetch(urlGuardarReporte, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ actualizarEstado: true, fila, nuevoEstado })
       });
-      aplicarFiltros();
+      const result = await resp.json();
+      if (result.status !== 'OK') {
+        showToast("Error al actualizar estado: " + (result.message || JSON.stringify(result)));
+        overlay.style.display = 'none';
+        return;
+      }
+    } catch (err) {
+      showToast("Error de red al actualizar estado.");
+      overlay.style.display = 'none';
+      return;
+    }
+  }
+  // Actualizar memoria
+  checks.forEach(chk => {
+    const rec = window.facturasGlobal.find(f => f.fila == chk.dataset.fila);
+    if (rec) rec.Estado = nuevoEstado;
+  });
+  showToast("Estados actualizados.");
+  aplicarFiltros();
+  overlay.style.display = 'none';
 }
 </script>
 
@@ -2262,8 +2270,8 @@ function regresarAlMenu() {
 
 <script>
 async function actualizarEstadoIndividual(fila, nuevoEstado) {
-  // Mostrar overlay de carga
-  document.getElementById('overlayCambios').style.display = 'flex';
+  const overlay = document.getElementById('overlayCambios');
+  overlay.style.display = 'flex';
   try {
     const resp = await fetch(urlGuardarReporte, {
       method: "POST",
@@ -2272,22 +2280,20 @@ async function actualizarEstadoIndividual(fila, nuevoEstado) {
     });
     const result = await resp.json();
     if (result.status !== 'OK') {
-      alert('Error al actualizar estado: ' + (result.message || JSON.stringify(result)));
-    } else {
-      alert('Estado actualizado.');
+      showToast("Error al actualizar estado: " + (result.message || JSON.stringify(result)));
+      return;
     }
-  } catch (err) {
-    alert('Error de red al actualizar estado.');
-  } finally {
-    // Ocultar overlay
-    document.getElementById('overlayCambios').style.display = 'none';
-    // Reaplicar filtros para reflejar el cambio
-    
-    // Actualizar estado en memoria
+    // Actualizar en memoria
     const rec = window.facturasGlobal.find(f => f.fila == fila);
-    if (rec) rec[esquema.estado] = nuevoEstado;
+    if (rec) rec.Estado = nuevoEstado;
+  } catch (err) {
+    showToast("Error de red al actualizar estado.");
+    return;
+  } finally {
+    overlay.style.display = 'none';
     aplicarFiltros();
   }
+  showToast("Estado actualizado.");
 }
 </script>
 
