@@ -2040,7 +2040,7 @@ columnas.forEach(col => {
       if (col === "Estado") {
         const select = document.createElement("select");
         select.dataset.fila = fila.fila;
-        ["Pendiente", "Revisada", "Anulada"].forEach(opt => {
+        ["Registrada", "Revisada", "Anulada"].forEach(opt => {
           const option = document.createElement("option");
           option.value = opt;
           option.textContent = opt;
@@ -2068,41 +2068,31 @@ columnas.forEach(col => {
       actualizarVisibilidadBotonesMasivos();
 }
 
-
 async function actualizarEstadoSeleccionados(nuevoEstado) {
-  const overlay = document.getElementById('overlayCambios');
-  overlay.style.display = 'flex';
+  // Mostrar overlay de carga
+  document.getElementById('overlayCambios').style.display = 'flex';
   const checks = document.querySelectorAll("#tablaFacturas input[type=checkbox]:checked");
   for (const chk of checks) {
     const fila = chk.dataset.fila;
-    try {
-      const resp = await fetch(urlGuardarReporte, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ actualizarEstado: true, fila, nuevoEstado })
-      });
-      const result = await resp.json();
-      if (result.status !== 'OK') {
-        showToast("Error al actualizar estado: " + (result.message || JSON.stringify(result)));
-        overlay.style.display = 'none';
-        return;
-      }
-    } catch (err) {
-      showToast("Error de red al actualizar estado.");
-      overlay.style.display = 'none';
-      return;
-    }
+    await fetch(urlGuardarReporte, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ actualizarEstado: true, fila, nuevoEstado })
+    });
+      actualizarVisibilidadBotonesMasivos();
   }
-  // Actualizar memoria
-  checks.forEach(chk => {
-    const rec = window.facturasGlobal.find(f => f.fila == chk.dataset.fila);
-    if (rec) rec.Estado = nuevoEstado;
-  });
-  showToast("Estados actualizados.");
-  aplicarFiltros();
-  overlay.style.display = 'none';
+  alert("Estados actualizados.");
+  // Ocultar overlay
+  document.getElementById("overlayCambios").style.display = "none";
+  
+      // Actualizar estados en memoria para cada selección
+      document.querySelectorAll("#tablaFacturas input[type=checkbox]:checked").forEach(chk => {
+        const id = chk.dataset.fila;
+        const rec = window.facturasGlobal.find(f => f.fila == id);
+        if (rec) rec[esquema.estado] = nuevoEstado;
+      });
+      aplicarFiltros();
 }
-
 </script>
 
 <script>
@@ -2214,7 +2204,7 @@ function renderizarTablaFacturas(data) {
       else if (col.key === "Estado") {
         const select = document.createElement("select");
         select.dataset.fila = fila.fila;
-        ["Pendiente","Revisada","Anulada"].forEach(opt => {
+        ["Registrada", "Revisada", "Anulada"].forEach(opt => {
           const option = document.createElement("option");
           option.value = opt;
           option.textContent = opt;
@@ -2271,10 +2261,9 @@ function regresarAlMenu() {
 </script>
 
 <script>
-
 async function actualizarEstadoIndividual(fila, nuevoEstado) {
-  const overlay = document.getElementById('overlayCambios');
-  overlay.style.display = 'flex';
+  // Mostrar overlay de carga
+  document.getElementById('overlayCambios').style.display = 'flex';
   try {
     const resp = await fetch(urlGuardarReporte, {
       method: "POST",
@@ -2283,22 +2272,23 @@ async function actualizarEstadoIndividual(fila, nuevoEstado) {
     });
     const result = await resp.json();
     if (result.status !== 'OK') {
-      showToast("Error al actualizar estado: " + (result.message || JSON.stringify(result)));
+      alert('Error al actualizar estado: ' + (result.message || JSON.stringify(result)));
     } else {
-      // Actualizar en memoria
-      const rec = window.facturasGlobal.find(f => f.fila == fila);
-      if (rec) rec.Estado = nuevoEstado;
-      // Reaplicar filtros
-      aplicarFiltros();
-      showToast("Estado actualizado.");
+      alert('Estado actualizado.');
     }
   } catch (err) {
-    showToast("Error de red al actualizar estado.");
+    alert('Error de red al actualizar estado.');
   } finally {
-    overlay.style.display = 'none';
+    // Ocultar overlay
+    document.getElementById('overlayCambios').style.display = 'none';
+    // Reaplicar filtros para reflejar el cambio
+    
+    // Actualizar estado en memoria
+    const rec = window.facturasGlobal.find(f => f.fila == fila);
+    if (rec) rec[esquema.estado] = nuevoEstado;
+    aplicarFiltros();
   }
 }
-
 </script>
 
 
