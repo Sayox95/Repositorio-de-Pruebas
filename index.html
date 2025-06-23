@@ -587,6 +587,7 @@
         }
       }
     });
+      actualizarVisibilidadBotonesMasivos();
   }
 });
 
@@ -682,6 +683,7 @@ function validarFormulario() {
           console.error(err);
           document.getElementById('mensaje_cargando').innerText = 'Error al cargar los datos.';
         });
+      actualizarVisibilidadBotonesMasivos();
     }
 
     /**
@@ -991,6 +993,7 @@ function imagenesCompletas() {
         }
       }
     });
+      actualizarVisibilidadBotonesMasivos();
   }
 });
 
@@ -1044,6 +1047,7 @@ function validarFormulario() {
         }
       }
     });
+      actualizarVisibilidadBotonesMasivos();
   }
 });
 
@@ -1096,6 +1100,7 @@ function validarFormulario() {
         }
       }
     });
+      actualizarVisibilidadBotonesMasivos();
   }
 });
 
@@ -1253,6 +1258,7 @@ document.addEventListener("DOMContentLoaded", () => {
         reader.readAsDataURL(e.target.files[0]);
       }
     });
+      actualizarVisibilidadBotonesMasivos();
   }
 });
 </script>
@@ -1314,6 +1320,7 @@ function validarYVerificarDuplicado() {
       }
     }, 100);
   });
+      actualizarVisibilidadBotonesMasivos();
 }
 </script>
 <script>
@@ -1331,6 +1338,7 @@ async function fileToBase64(inputId) {
       { canvas: true, orientation: true }
     );
   });
+      actualizarVisibilidadBotonesMasivos();
 };
 
 document.getElementById('enviar_reporte').onclick = async () => {
@@ -1542,6 +1550,7 @@ async function urlToBase64(url) {
     reader.onloadend = () => resolve(reader.result);
     reader.readAsDataURL(blob);
   });
+      actualizarVisibilidadBotonesMasivos();
 }
 
 pdfMake.createPdf(docDefinition).getBase64(function(base64) {
@@ -1559,6 +1568,7 @@ pdfMake.createPdf(docDefinition).getBase64(function(base64) {
         document.getElementById('downloadModal').style.display = 'flex';
     });
 
+      actualizarVisibilidadBotonesMasivos();
   });
 };
 </script>
@@ -1651,6 +1661,7 @@ function validarYVerificarDuplicado() {
       }
     }, 100);
   });
+      actualizarVisibilidadBotonesMasivos();
 }
 </script>
 
@@ -1804,8 +1815,10 @@ document.getElementById('downloadAccept').addEventListener('click', () => {
     document.querySelectorAll('input, select, textarea').forEach(el => {
       el.addEventListener('focus', event => {
         event.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      actualizarVisibilidadBotonesMasivos();
       });
     });
+      actualizarVisibilidadBotonesMasivos();
   });
 </script>
 
@@ -1827,6 +1840,7 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     }
   });
+      actualizarVisibilidadBotonesMasivos();
 });
 </script>
 
@@ -1926,8 +1940,8 @@ document.addEventListener('DOMContentLoaded', function() {
   </div>
 
   <div style="margin-bottom: 1rem;">
-    <button onclick="actualizarEstadoSeleccionados('Revisada')">✔ Marcar como Revisada</button>
-    <button onclick="actualizarEstadoSeleccionados('Anulada')">✖ Marcar como Anulada</button>
+    <div id="accionesMasivas" style="margin-bottom:1rem; display:none;"><button onclick="actualizarEstadoSeleccionados('Revisada')">✔ Marcar como Revisada</button>
+    <button onclick="actualizarEstadoSeleccionados('Anulada')">✖ Marcar como Anulada</button></div>
   </div>
 
   <div class="tabla-responsive" style="border: 1px solid #ccc; border-radius: 6px; overflow-x: auto; max-height: 60vh; padding: 1rem; background: #fafafa;">
@@ -1977,6 +1991,7 @@ function cargarFiltrosSector(data) {
     opt.textContent = sector;
     filtro.appendChild(opt);
   });
+      actualizarVisibilidadBotonesMasivos();
 }
 
 function aplicarFiltros() {
@@ -2041,6 +2056,7 @@ columnas.forEach(col => {
     tr.appendChild(tdChk);
     cuerpo.appendChild(tr);
   });
+      actualizarVisibilidadBotonesMasivos();
 }
 
 async function actualizarEstadoSeleccionados(nuevoEstado) {
@@ -2054,6 +2070,7 @@ async function actualizarEstadoSeleccionados(nuevoEstado) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ actualizarEstado: true, fila, nuevoEstado })
     });
+      actualizarVisibilidadBotonesMasivos();
   }
   alert("Estados actualizados.");
 
@@ -2139,6 +2156,7 @@ function renderizarTablaFacturas(data) {
     chk.type = "checkbox";
     chk.dataset.fila = fila.fila;
     chk.dataset.index = index;
+        chk.addEventListener("change", actualizarVisibilidadBotonesMasivos);
     tdChk.appendChild(chk);
     tr.appendChild(tdChk);
     // Row number cell
@@ -2188,6 +2206,7 @@ function renderizarTablaFacturas(data) {
     });
     cuerpo.appendChild(tr);
   });
+      actualizarVisibilidadBotonesMasivos();
 }
 
 // Optimized filter function to use correct invoice key
@@ -2249,6 +2268,15 @@ async function actualizarEstadoIndividual(fila, nuevoEstado) {
     document.getElementById("overlayCambios").style.display = "none";
     cargarFacturasDesdeSheet();
   }
+}
+</script>
+
+
+<script>
+function actualizarVisibilidadBotonesMasivos() {
+  const checks = document.querySelectorAll("#tablaFacturas input[type=checkbox]:checked");
+  const cont = document.getElementById("accionesMasivas");
+  cont.style.display = (checks.length >= 2) ? "block" : "none";
 }
 </script>
 
