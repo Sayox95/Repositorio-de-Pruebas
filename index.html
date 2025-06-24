@@ -558,7 +558,12 @@ function actualizarVisibilidadBotonesMasivos() {
   }
 </style>
 
+
+<!-- Flatpickr CDN -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 </head>
+
 <body>
 
 <div id="overlayCambios">
@@ -2441,6 +2446,26 @@ document.addEventListener('DOMContentLoaded', () => {
   updateCounters();
 });
 </script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  flatpickr("#dateRangeFilter", {
+    mode: "range",
+    dateFormat: "Y-m-d",
+    onChange: function(selectedDates, dateStr, instance) {
+      if (selectedDates.length === 2) {
+        const [start, end] = selectedDates;
+        const facturasFiltradas = window.facturasGlobal.filter(f => {
+          const fDate = new Date(f["Fecha"]);
+          return fDate >= start && fDate <= end;
+        });
+        aplicarFiltros(facturasFiltradas);
+      }
+    }
+  });
+});
+</script>
+
 </body>
 
 
