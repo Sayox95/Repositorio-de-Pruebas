@@ -2589,7 +2589,7 @@ filtradas.forEach((f, index) => {
           <td>${f["Numero de Factura"] || ""}</td>
           <td>${enlace}</td>
           <td>
-      <select class="estado-select" data-factura="${f['Numero de Factura']}">
+      <select class="estado-select" data-fila="${f.fila}" data-factura="${f['Numero de Factura']}">
         <option value="Revisada" ${f.Estado === 'Revisada' ? 'selected' : ''}>Revisada</option>
         <option value="Pagada"   ${f.Estado === 'Pagada'   ? 'selected' : ''}>Pagada</option>
       </select>
