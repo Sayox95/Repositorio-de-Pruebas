@@ -2407,6 +2407,16 @@ function regresarAlMenu() {
 }
 </script>
 <script>
+// Función para mostrar notificaciones usando el elemento #toast-alert
+function showToast(message) {
+  const toast = document.getElementById("toast-alert");
+  if (toast) {
+    toast.textContent = message;
+    toast.classList.add("show");
+    setTimeout(() => toast.classList.remove("show"), 3000);
+  }
+}
+
 async function actualizarEstadoIndividual(fila, nuevoEstado) {
   const overlay = document.getElementById('overlayCambios');
   overlay.style.display = 'flex';
