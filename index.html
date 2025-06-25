@@ -313,7 +313,45 @@
 }
 </style>
 <div id="toast-alert">⚠️ Hay campos obligatorios sin completar.</div>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js">
+function renderTablaFacturasPago() {
+  fetch("https://repositorio-de-pruebas.pages.dev/api/leer")
+    .then(res => res.json())
+    .then(data => {
+      const tbody = document.getElementById("tablaFacturasBody_pago");
+      tbody.innerHTML = "";
+      let contador = 1;
+      let pendientes = 0, pagadas = 0;
+
+      const filtradas = data.filter(f => f.Estado === "Revisada" || f.Estado === "Pagada");
+
+      filtradas.forEach(f => {
+        const fila = document.createElement("tr");
+        fila.innerHTML = `
+          <td>${contador++}</td>
+          <td>${f.Sector}</td>
+          <td>${f.Placa}</td>
+          <td>${f.Proceso}</td>
+          <td>${f.Nombre}</td>
+          <td>${f.Identidad}</td>
+          <td>${f.Total}</td>
+          <td>${f.Fecha}</td>
+          <td>${f.NumeroFactura}</td>
+          <td><a href="${f.EnlacePDF}" target="_blank">📄 Ver PDF</a></td>
+          <td>${f.Estado}</td>
+        `;
+        tbody.appendChild(fila);
+
+        if (f.Estado === "Revisada") pendientes++;
+        if (f.Estado === "Pagada") pagadas++;
+      });
+
+      document.getElementById("contadorPendientes_pago").innerText = pendientes;
+      document.getElementById("contadorPagadas_pago").innerText = pagadas;
+    });
+}
+
+</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
 <script>
   var generatedPDF = null;
@@ -542,6 +580,9 @@ function actualizarVisibilidadBotonesMasivos() {
 <h2>Seleccione una opción</h2>
 <button onclick="mostrarSeccion('reportarFactura')" style="width: 250px; margin: 10px; padding: 10px;">📥 Reportar Factura</button>
 <button onclick="mostrarSeccion('revisionFacturas')" style="width: 250px; margin: 10px; padding: 10px;">🔍 Revisión de Facturas</button>
+
+<button onclick="mostrarSeccion('pagoFacturas')" style="width: 250px;">🧾 Pago de Facturas</button>
+
 <button onclick="mostrarSeccion('registrarAnticipo')" style="width: 250px; margin: 10px; padding: 10px;">💵 Registrar Anticipo</button>
 </div>
 <div id="seccionReportarFactura" style="display: none;">
@@ -2417,6 +2458,90 @@ let fechaPicker = flatpickr("#rangoFechas", {
         aplicarFiltros();
     }
 });
+</script>
+
+
+<!-- Nueva sección: Pago de Facturas -->
+<div id="seccionPagoFacturas" style="display:none;">
+  <button onclick="regresarMenu()">🔙 Regresar al Menú</button>
+  <h2>🧾 Pago de Facturas</h2>
+
+  <div id="countersRow_pago" style="display:flex; gap:1rem; margin-bottom:1rem;">
+    <div class="counter-box">
+      <span class="label">Pendientes de Pagar</span>
+      <span class="value" id="contadorPendientes_pago">0</span>
+    </div>
+    <div class="counter-box">
+      <span class="label">Pagadas</span>
+      <span class="value" id="contadorPagadas_pago">0</span>
+    </div>
+  </div>
+
+  <table class="table" style="width:100%; border-collapse:collapse;" id="tablaFacturas_pago">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Sector</th>
+        <th>Placa</th>
+        <th>Proceso</th>
+        <th>Nombre</th>
+        <th>Identidad</th>
+        <th>Total Gastado</th>
+        <th>Fecha</th>
+        <th>Número de Factura</th>
+        <th>Enlace PDF</th>
+        <th>Estado</th>
+      </tr>
+    </thead>
+    <tbody id="tablaFacturasBody_pago"></tbody>
+  </table>
+</div>
+
+
+<script>
+function renderTablaFacturasPago() {
+  console.log("Cargando sección Pago de Facturas...");
+  fetch("https://repositorio-de-pruebas.pages.dev/api/leer")
+    .then(res => res.json())
+    .then(data => {
+      const tbody = document.getElementById("tablaFacturasBody_pago");
+      if (!tbody) {
+        console.error("No se encontró el cuerpo de la tabla Pago de Facturas");
+        return;
+      }
+      tbody.innerHTML = "";
+      let contador = 1;
+      let pendientes = 0, pagadas = 0;
+
+      const filtradas = data.filter(f => f.Estado === "Revisada" || f.Estado === "Pagada");
+
+      filtradas.forEach(f => {
+        const fila = document.createElement("tr");
+        fila.innerHTML = `
+          <td>${contador++}</td>
+          <td>${f.Sector}</td>
+          <td>${f.Placa}</td>
+          <td>${f.Proceso}</td>
+          <td>${f.Nombre}</td>
+          <td>${f.Identidad}</td>
+          <td>${f.Total}</td>
+          <td>${f.Fecha}</td>
+          <td>${f.NumeroFactura}</td>
+          <td><a href="${f.EnlacePDF}" target="_blank">📄 Ver PDF</a></td>
+          <td>${f.Estado}</td>
+        `;
+        tbody.appendChild(fila);
+
+        if (f.Estado === "Revisada") pendientes++;
+        if (f.Estado === "Pagada") pagadas++;
+      });
+
+      document.getElementById("contadorPendientes_pago").innerText = pendientes;
+      document.getElementById("contadorPagadas_pago").innerText = pagadas;
+    }).catch(err => {
+      console.error("Error al cargar las facturas para pago:", err);
+    });
+}
 </script>
 
 </body>
