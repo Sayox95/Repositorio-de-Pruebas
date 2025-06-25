@@ -314,6 +314,16 @@
 </style>
 <div id="toast-alert">⚠️ Hay campos obligatorios sin completar.</div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js">
+// Función para mostrar notificaciones usando el elemento #toast-alert
+function showToast(message) {
+  const toast = document.getElementById("toast-alert");
+  if (toast) {
+    toast.textContent = message;
+    toast.classList.add("show");
+    setTimeout(() => toast.classList.remove("show"), 3000);
+  }
+}
+
 // Lógica para actualizar el estado en la sheet al cambiar el select
 document.querySelectorAll('.estado-select').forEach(select => {
   select.addEventListener('change', (e) => {
@@ -2072,6 +2082,8 @@ else if (nombre === 'revisionFacturas') {
 </div>
 </div>
 <script>
+
+
 const urlLeerFacturas = "https://repositorio-de-pruebas.pages.dev/api/leer";
 const urlGuardarReporte = "/api/guardar";
 
