@@ -2197,7 +2197,7 @@ async function actualizarEstadoSeleccionados(nuevoEstado) {
   checks.forEach(chk => {
     const rec = window.facturasGlobal.find(f => f.fila == chk.dataset.fila);
     if (rec) rec.Estado = nuevoEstado;
-  });aplicarFiltros();
+  });cargarPagoFacturas();
   overlay.style.display = 'none';
 }
 </script>
@@ -2397,7 +2397,7 @@ async function actualizarEstadoIndividual(fila, nuevoEstado) {
   } catch (err) {return;
   } finally {
     overlay.style.display = 'none';
-    aplicarFiltros();
+    cargarPagoFacturas();
   }}
 </script>
 <script>
@@ -2454,7 +2454,7 @@ let fechaPicker = flatpickr("#rangoFechas", {
     dateFormat: "Y-m-d",
     locale: flatpickr.l10ns.es,
     onClose: function() {
-        aplicarFiltros();
+        cargarPagoFacturas();
     }
 });
 </script>
@@ -2564,7 +2564,7 @@ filtradas.forEach((f, index) => {
       // Asignar listener para actualizar estado en Pago de Facturas
       document.querySelectorAll('#tablaPagoFacturas .estado-select').forEach(sel => {
         sel.addEventListener('change', e => {
-          actualizarEstadoIndividual(e.target.dataset.fila, e.target.value);
+          actualizarEstadoIndividual(e.target.dataset.fila, e.target.value).then(() => cargarPagoFacturas());;
         });
       });
     })
