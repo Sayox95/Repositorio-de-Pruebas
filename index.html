@@ -543,7 +543,11 @@ function actualizarVisibilidadBotonesMasivos() {
 <button onclick="mostrarSeccion('reportarFactura')" style="width: 250px; margin: 10px; padding: 10px;">📥 Reportar Factura</button>
 <button onclick="mostrarSeccion('revisionFacturas')" style="width: 250px; margin: 10px; padding: 10px;">🔍 Revisión de Facturas</button>
 <button onclick="mostrarSeccion('registrarAnticipo')" style="width: 250px; margin: 10px; padding: 10px;">💵 Registrar Anticipo</button>
-<button onclick="cargarPagoFacturas()" style="width: 250px; margin: 10px; padding: 10px;">💳 Pago de Facturas</button></div><div id="seccionPagoFacturas" style="display:none;"><h2>Pago de Facturas</h2><button onclick="mostrarSeccion('menuPrincipal')">🔙 Regresar al Menú Principal</button>
+<button onclick="cargarPagoFacturas()" style="width: 250px; margin: 10px; padding: 10px;">💳 Pago de Facturas</button></div><div id="seccionPagoFacturas" style="display:none;"><h2>Pago de Facturas</h2>
+<div id="countersContainer">
+  <div class="counter-box"><span class="label">Facturas Pendientes</span><span id="contadorPendientes" class="value">0</span></div>
+  <div class="counter-box"><span class="label">Facturas Pagadas</span><span id="contadorPagadas" class="value">0</span></div>
+</div><button onclick="mostrarSeccion('menuPrincipal')">🔙 Regresar al Menú Principal</button>
 <style>
     @keyframes spin {
       0% { transform: rotate(0deg); }
@@ -2094,7 +2098,7 @@ function aplicarFiltros() {
 
   if (estado !== "Todas") data = data.filter(f => f.Estado === estado);
   if (sector !== "Todos") data = data.filter(f => f.Sector === sector);
-  if (buscarFactura) data = data.filter(f => (f.NumeroFactura || "").toLowerCase().includes(buscarFactura));
+  if (buscarFactura) data = data.filter(f => ((f['Numero de Factura'] || '').toString().toLowerCase()).includes(buscarFactura));
 
   // Filtro de rango de fechas
   if (typeof fechaPicker !== 'undefined' && fechaPicker.selectedDates.length === 2) {
@@ -2114,7 +2118,9 @@ function aplicarFiltros() {
 
 
 function renderizarTablaFacturas(data) {
-  const encabezado = document.getElementById("encabezadoTabla");
+  
+  // Excluir facturas en estado Pagada
+  data = data.filter(f => (f.Estado||"").toLowerCase().trim() !== "pagada");const encabezado = document.getElementById("encabezadoTabla");
   const cuerpo = document.getElementById("cuerpoTabla");
   encabezado.innerHTML = "";
   cuerpo.innerHTML = "";
@@ -2137,7 +2143,7 @@ columnas.forEach(col => {
       if (col === "Estado") {
         const select = document.createElement("select");
         select.dataset.fila = fila.fila;
-        ["Registrada", "Revisada", "Anulada"].forEach(opt => {
+        ["Registrada", "Revisada", "Anulada", "Pagada"].forEach(opt => {
           const option = document.createElement("option");
           option.value = opt;
           option.textContent = opt;
@@ -2183,9 +2189,7 @@ async function actualizarEstadoSeleccionados(nuevoEstado) {
         overlay.style.display = 'none';
         return;
       }
-    } catch (err) {
-      showToast("Error de red al actualizar estado.");
-      overlay.style.display = 'none';
+    } catch (err) {overlay.style.display = 'none';
       return;
     }
   }
@@ -2193,9 +2197,7 @@ async function actualizarEstadoSeleccionados(nuevoEstado) {
   checks.forEach(chk => {
     const rec = window.facturasGlobal.find(f => f.fila == chk.dataset.fila);
     if (rec) rec.Estado = nuevoEstado;
-  });
-  showToast("Estados actualizados.");
-  aplicarFiltros();
+  });aplicarFiltros();
   overlay.style.display = 'none';
 }
 </script>
@@ -2234,7 +2236,9 @@ async function cargarFacturasDesdeSheet() {
 
 // Custom rendering of the invoices table
 function renderizarTablaFacturas(data) {
-  const encabezado = document.getElementById("encabezadoTabla");
+  
+  // Excluir facturas en estado Pagada
+  data = data.filter(f => (f.Estado||"").toLowerCase().trim() !== "pagada");const encabezado = document.getElementById("encabezadoTabla");
   const cuerpo = document.getElementById("cuerpoTabla");
   encabezado.innerHTML = "";
   cuerpo.innerHTML = "";
@@ -2308,7 +2312,7 @@ function renderizarTablaFacturas(data) {
       else if (col.key === "Estado") {
         const select = document.createElement("select");
         select.dataset.fila = fila.fila;
-        ["Registrada", "Revisada", "Anulada"].forEach(opt => {
+        ["Registrada", "Revisada", "Anulada", "Pagada"].forEach(opt => {
           const option = document.createElement("option");
           option.value = opt;
           option.textContent = opt;
@@ -2338,7 +2342,7 @@ function aplicarFiltros() {
 
   if (estado !== "Todas") data = data.filter(f => f.Estado === estado);
   if (sector !== "Todos") data = data.filter(f => f.Sector === sector);
-  if (buscarFactura) data = data.filter(f => (f.NumeroFactura || "").toLowerCase().includes(buscarFactura));
+  if (buscarFactura) data = data.filter(f => ((f['Numero de Factura'] || '').toString().toLowerCase()).includes(buscarFactura));
 
   // Filtro de rango de fechas
   if (typeof fechaPicker !== 'undefined' && fechaPicker.selectedDates.length === 2) {
@@ -2390,15 +2394,11 @@ async function actualizarEstadoIndividual(fila, nuevoEstado) {
     // Actualizar en memoria
     const rec = window.facturasGlobal.find(f => f.fila == fila);
     if (rec) rec.Estado = nuevoEstado;
-  } catch (err) {
-    showToast("Error de red al actualizar estado.");
-    return;
+  } catch (err) {return;
   } finally {
     overlay.style.display = 'none';
     aplicarFiltros();
-  }
-  showToast("Estado actualizado.");
-}
+  }}
 </script>
 <script>
 function actualizarVisibilidadBotonesMasivos() {
@@ -2522,10 +2522,17 @@ function cargarPagoFacturas() {
         return;
       }
 
+      
       const filtradas = data.filter(factura => {
-    const estado = (factura["Estado"] || "").toString().trim().toLowerCase();
-    return estado === "revisada" || estado === "pagada";
-});
+        const estado = (factura["Estado"] || "").toString().trim().toLowerCase();
+        return estado === "revisada" || estado === "pagada";
+      });
+      // Actualizar contadores de Pago de Facturas
+      const pendientes = filtradas.filter(f => f.Estado === 'Revisada').length;
+      const pagadas = filtradas.filter(f => f.Estado === 'Pagada').length;
+      document.getElementById('contadorPendientes').textContent = pendientes;
+      document.getElementById('contadorPagadas').textContent = pagadas;
+
 filtradas.forEach((f, index) => {
         const fila = document.createElement("tr");
         const fecha = f.Fecha ? new Date(f.Fecha).toLocaleDateString("es-ES") : "";
@@ -2545,13 +2552,20 @@ filtradas.forEach((f, index) => {
           <td>${f["Numero de Factura"] || ""}</td>
           <td>${enlace}</td>
           <td>
-      <select class="estado-select" data-factura="${f['Numero de Factura']}">
+      <select class="estado-select" data-fila="${f.fila}">
         <option value="Revisada" ${f.Estado === 'Revisada' ? 'selected' : ''}>Revisada</option>
         <option value="Pagada"   ${f.Estado === 'Pagada'   ? 'selected' : ''}>Pagada</option>
       </select>
     </td>
         `;
         tbody.appendChild(fila);
+      });
+
+      // Asignar listener para actualizar estado en Pago de Facturas
+      document.querySelectorAll('#tablaPagoFacturas .estado-select').forEach(sel => {
+        sel.addEventListener('change', e => {
+          actualizarEstadoIndividual(e.target.dataset.fila, e.target.value);
+        });
       });
     })
     .catch(err => {
