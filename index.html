@@ -313,39 +313,7 @@
 }
 </style>
 <div id="toast-alert">⚠️ Hay campos obligatorios sin completar.</div>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js">
-// Función para mostrar notificaciones usando el elemento #toast-alert
-function showToast(message) {
-  const toast = document.getElementById("toast-alert");
-  if (toast) {
-    toast.textContent = message;
-    toast.classList.add("show");
-    setTimeout(() => toast.classList.remove("show"), 3000);
-  }
-}
-
-// Lógica para actualizar el estado en la sheet al cambiar el select
-document.querySelectorAll('.estado-select').forEach(select => {
-  select.addEventListener('change', (e) => {
-    const nuevoEstado = e.target.value;
-    const numeroFactura = e.target.dataset.factura;
-    fetch('/actualizarEstadoFactura', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ numeroFactura, estado: nuevoEstado })
-    })
-    .then(resp => {
-      if (!resp.ok) throw new Error('Error al actualizar el estado');
-      return resp.json();
-    })
-    .then(data => console.log('Estado actualizado', data))
-    .catch(err => {
-      console.error(err);
-      alert('No se pudo actualizar el estado en la sheet');
-    });
-  });
-});
-</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
 <script>
   var generatedPDF = null;
@@ -2082,8 +2050,6 @@ else if (nombre === 'revisionFacturas') {
 </div>
 </div>
 <script>
-
-
 const urlLeerFacturas = "https://repositorio-de-pruebas.pages.dev/api/leer";
 const urlGuardarReporte = "/api/guardar";
 
@@ -2407,16 +2373,6 @@ function regresarAlMenu() {
 }
 </script>
 <script>
-// Función para mostrar notificaciones usando el elemento #toast-alert
-function showToast(message) {
-  const toast = document.getElementById("toast-alert");
-  if (toast) {
-    toast.textContent = message;
-    toast.classList.add("show");
-    setTimeout(() => toast.classList.remove("show"), 3000);
-  }
-}
-
 async function actualizarEstadoIndividual(fila, nuevoEstado) {
   const overlay = document.getElementById('overlayCambios');
   overlay.style.display = 'flex';
@@ -2589,7 +2545,7 @@ filtradas.forEach((f, index) => {
           <td>${f["Numero de Factura"] || ""}</td>
           <td>${enlace}</td>
           <td>
-      <select class="estado-select" data-fila="${f.fila}" data-factura="${f['Numero de Factura']}">
+      <select class="estado-select" data-fila="${f.fila}">
         <option value="Revisada" ${f.Estado === 'Revisada' ? 'selected' : ''}>Revisada</option>
         <option value="Pagada"   ${f.Estado === 'Pagada'   ? 'selected' : ''}>Pagada</option>
       </select>
@@ -2598,15 +2554,12 @@ filtradas.forEach((f, index) => {
         tbody.appendChild(fila);
       });
 
-      // Agregar listener para actualizar estado en pagos, usando funcion global de revisión
-      document.querySelectorAll('#tablaPagoFacturas .estado-select').forEach(select => {
-        select.addEventListener('change', e => {
-          const numeroFactura = e.target.dataset.factura;
-          const nuevoEstado = e.target.value;
-          actualizarEstadoIndividual(numeroFactura, nuevoEstado);
+      // Asignar listener para actualizar estado en Pago de Facturas
+      document.querySelectorAll('#tablaPagoFacturas .estado-select').forEach(sel => {
+        sel.addEventListener('change', e => {
+          actualizarEstadoIndividual(e.target.dataset.fila, e.target.value);
         });
       });
-
     })
     .catch(err => {
       tbody.innerHTML = "<tr><td colspan='12'>❌ Error cargando datos: " + err.message + "</td></tr>";
