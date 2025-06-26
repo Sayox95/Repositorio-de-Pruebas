@@ -2064,9 +2064,13 @@ async function cargarFacturasDesdeSheet() {
   try {
     const res = await fetch(urlLeerFacturas);
     const data = await res.json();
-    window.facturasGlobal = data;
-    cargarFiltrosSector(data);
-    renderizarTablaFacturas(data);
+    
+      // Filtrar solo facturas en estado 'Revisada'
+      const revisadas = data.filter(f => (f.Estado||"").toLowerCase().trim() === 'revisada');
+      window.facturasGlobal = revisadas;
+      cargarFiltrosSector(revisadas);
+      renderizarTablaFacturas(revisadas);
+
   } catch (err) {
 
   }
@@ -2183,9 +2187,7 @@ async function actualizarEstadoSeleccionados(nuevoEstado) {
         overlay.style.display = 'none';
         return;
       }
-    } catch (err) {
-      showToast("Error de red al actualizar estado.");
-      overlay.style.display = 'none';
+    } catch (err) {overlay.style.display = 'none';
       return;
     }
   }
@@ -2193,9 +2195,7 @@ async function actualizarEstadoSeleccionados(nuevoEstado) {
   checks.forEach(chk => {
     const rec = window.facturasGlobal.find(f => f.fila == chk.dataset.fila);
     if (rec) rec.Estado = nuevoEstado;
-  });
-  showToast("Estados actualizados.");
-  aplicarFiltros();
+  });aplicarFiltros();
   overlay.style.display = 'none';
 }
 </script>
@@ -2390,15 +2390,11 @@ async function actualizarEstadoIndividual(fila, nuevoEstado) {
     // Actualizar en memoria
     const rec = window.facturasGlobal.find(f => f.fila == fila);
     if (rec) rec.Estado = nuevoEstado;
-  } catch (err) {
-    showToast("Error de red al actualizar estado.");
-    return;
+  } catch (err) {return;
   } finally {
     overlay.style.display = 'none';
     aplicarFiltros();
-  }
-  showToast("Estado actualizado.");
-}
+  }}
 </script>
 <script>
 function actualizarVisibilidadBotonesMasivos() {
@@ -2545,13 +2541,20 @@ filtradas.forEach((f, index) => {
           <td>${f["Numero de Factura"] || ""}</td>
           <td>${enlace}</td>
           <td>
-      <select class="estado-select" data-factura="${f['Numero de Factura']}">
+      <select class="estado-select" data-fila="${f.fila}">
         <option value="Revisada" ${f.Estado === 'Revisada' ? 'selected' : ''}>Revisada</option>
         <option value="Pagada"   ${f.Estado === 'Pagada'   ? 'selected' : ''}>Pagada</option>
       </select>
     </td>
         `;
         tbody.appendChild(fila);
+      });
+
+      // Asignar listener para actualizar estado en Pago de Facturas
+      document.querySelectorAll('#tablaPagoFacturas .estado-select').forEach(sel => {
+        sel.addEventListener('change', e => {
+          actualizarEstadoIndividual(e.target.dataset.fila, e.target.value);
+        });
       });
     })
     .catch(err => {
