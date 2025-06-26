@@ -2581,7 +2581,77 @@ filtradas.forEach((f, index) => {
       spinner.style.display = "none";
     });
 }
-</script></body>
+</script>
+<script>
+// Función para aplicar filtros en Pago de Facturas similar a Revisión
+function aplicarFiltrosPago() {
+  let data = window.facturasGlobal || [];
+  // Filtro de sector
+  const sector = document.getElementById('filtroSectorPago').value;
+  if (sector && sector !== 'Todos') data = data.filter(f => f.Sector === sector);
+  // Filtro de estado
+  const estado = document.getElementById('filtroEstadoPago').value;
+  if (estado && estado !== 'Todos') data = data.filter(f => f.Estado === estado);
+  // Filtro de número de factura
+  const numFact = document.getElementById('filtroNumeroPago').value.toLowerCase();
+  if (numFact) data = data.filter(f => (f['Numero de Factura']||'').toLowerCase().includes(numFact));
+  // Filtro de rango de fechas
+  const fechas = window.flatpickrInstancesPago.selectedDates || [];
+  if (fechas.length === 2) {
+    const [start, end] = fechas;
+    data = data.filter(f => {
+      const d = new Date(f.Fecha);
+      return d >= start && d <= end;
+    });
+  }
+  // Render de filas
+  const tbody = document.querySelector('#tablaPagoFacturas tbody');
+  tbody.innerHTML = '';
+  data.forEach((f, i) => {
+    const fecha = f.Fecha ? new Date(f.Fecha).toLocaleDateString('es-ES') : '';
+    const total = 'L ' + parseFloat(f['Total Gastado']||0).toFixed(2);
+    const enlace = f['Enlace PDF'] ? `<a href="${f['Enlace PDF']}" target="_blank">📄</a>` : '';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><input type="checkbox" class="check-factura-pago" data-fila="${f.fila}"></td>
+      <td>${i+1}</td>
+      <td>${f.Sector||''}</td>
+      <td>${f.Placa||''}</td>
+      <td>${f.Proceso||''}</td>
+      <td>${f.Nombre||''}</td>
+      <td>${f.Identidad||''}</td>
+      <td style="text-align:right;">${total}</td>
+      <td>${fecha}</td>
+      <td>${f['Numero de Factura']||''}</td>
+      <td>${enlace}</td>
+      <td>
+        <select class="estado-select" data-fila="${f.fila}">
+          <option value="Revisada" ${f.Estado==='Revisada'?'selected':''}>Revisada</option>
+          <option value="Pagada" ${f.Estado==='Pagada'?'selected':''}>Pagada</option>
+        </select>
+      </td>`;
+    tbody.appendChild(tr);
+  });
+  // Reasignar listeners
+  document.querySelectorAll('#tablaPagoFacturas .estado-select').forEach(sel => {
+    sel.removeEventListener('change', sel._listener);
+    const listener = e => {
+      actualizarEstadoIndividual(e.target.dataset.fila, e.target.value);
+      // Después de actualización, actualizar filtros UI
+      aplicarFiltrosPago();
+    };
+    sel.addEventListener('change', listener);
+    sel._listener = listener;
+  });
+  // Actualizar contadores
+  document.getElementById('contadorPendientes').textContent =
+    data.filter(f => f.Estado === 'Revisada').length;
+  document.getElementById('contadorPagadas').textContent =
+    data.filter(f => f.Estado === 'Pagada').length;
+}
+</script>
+
+</body>
 </html>
 <div id="generando_pdf_modal" style="
   visibility: hidden;
