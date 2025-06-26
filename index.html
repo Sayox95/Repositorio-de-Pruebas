@@ -2397,6 +2397,8 @@ async function actualizarEstadoIndividual(fila, nuevoEstado) {
   } catch (err) {return;
   } finally {
     overlay.style.display = 'none';
+      // Refrescar tabla y contadores como en revisión
+      aplicarFiltrosPago();
       // Actualizar contadores tras cambio rápido
       if (typeof updateCounters === 'function') { updateCounters(); }
 
