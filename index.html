@@ -544,6 +544,29 @@ function actualizarVisibilidadBotonesMasivos() {
 <button onclick="mostrarSeccion('revisionFacturas')" style="width: 250px; margin: 10px; padding: 10px;">🔍 Revisión de Facturas</button>
 <button onclick="mostrarSeccion('registrarAnticipo')" style="width: 250px; margin: 10px; padding: 10px;">💵 Registrar Anticipo</button>
 <button onclick="cargarPagoFacturas()" style="width: 250px; margin: 10px; padding: 10px;">💳 Pago de Facturas</button></div><div id="seccionPagoFacturas" style="display:none;"><h2>Pago de Facturas</h2>
+<div id="countersContainer" style="display:flex; gap:1rem; margin:1rem 0;">
+  <div class="counter-box"><span class="label">Facturas Pendientes</span>: <span id="contadorPendientes">0</span></div>
+  <div class="counter-box"><span class="label">Facturas Pagadas</span>: <span id="contadorPagadas">0</span></div>
+</div>
+<div id="filtrosPago" style="display:flex; gap:1rem; margin:1rem 0;">
+  <label>Sector:
+    <select id="filtroSectorPago"><option value="Todos">Todos</option></select>
+  </label>
+  <label>Estado:
+    <select id="filtroEstadoPago">
+      <option value="Todos">Todos</option>
+      <option value="Revisada">Revisada</option>
+      <option value="Pagada">Pagada</option>
+    </select>
+  </label>
+  <label>Nº Factura:
+    <input type="text" id="filtroNumeroPago" placeholder="Buscar factura…">
+  </label>
+  <label>Fecha:
+    <input type="text" id="filtroFechaPago" placeholder="Rango fechas…">
+  </label>
+</div>
+
 <div id="countersContainer">
   <div class="counter-box"><span class="label">Facturas Pendientes</span><span id="contadorPendientes" class="value">0</span></div>
   <div class="counter-box"><span class="label">Facturas Pagadas</span><span id="contadorPagadas" class="value">0</span></div>
@@ -1832,6 +1855,7 @@ function mostrarPaso(paso) {
 </div>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
+  window.flatpickrInstancesPago = flatpickr('#filtroFechaPago', { mode:'range' });
   // Inicializar Signature Pad
   const canvas = document.getElementById('canvas-signature');
   const signaturePad = new SignaturePad(canvas, { backgroundColor: 'rgba(255,255,255,0)', penColor: 'black' });
@@ -1901,6 +1925,7 @@ document.getElementById('downloadAccept').addEventListener('click', () => {
 <script>
   // Scroll input into view on focus (mobile)
   document.addEventListener('DOMContentLoaded', () => {
+  window.flatpickrInstancesPago = flatpickr('#filtroFechaPago', { mode:'range' });
     document.querySelectorAll('input, select, textarea').forEach(el => {
       el.addEventListener('focus', event => {
         event.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -2377,6 +2402,71 @@ function regresarAlMenu() {
 }
 </script>
 <script>
+
+// Función para aplicar filtros en Pago de Facturas y actualizar contadores
+function aplicarFiltrosPago() {
+  let data = window.facturasGlobal || [];
+  const sector = document.getElementById('filtroSectorPago').value;
+  if (sector !== 'Todos') data = data.filter(f => f.Sector === sector);
+  const estado = document.getElementById('filtroEstadoPago').value;
+  if (estado !== 'Todos') data = data.filter(f => f.Estado === estado);
+  const numFact = document.getElementById('filtroNumeroPago').value.toLowerCase();
+  if (numFact) data = data.filter(f => (f['Numero de Factura'] || '').toLowerCase().includes(numFact));
+  const fechas = window.flatpickrInstancesPago.selectedDates || [];
+  if (fechas.length === 2) {
+    const [start, end] = fechas;
+    data = data.filter(f => {
+      const d = new Date(f.Fecha);
+      return d >= start && d <= end;
+    });
+  }
+  // Render tabla
+  const tbody = document.querySelector('#tablaPagoFacturas tbody');
+  tbody.innerHTML = '';
+  data.forEach((f, i) => {
+    const fecha = f.Fecha ? new Date(f.Fecha).toLocaleDateString('es-ES') : '';
+    const total = 'L ' + parseFloat(f['Total Gastado']||0).toFixed(2);
+    const enlace = f['Enlace PDF'] ? `<a href="${f['Enlace PDF']}" target="_blank">📄</a>` : '';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><input type="checkbox" class="check-factura-pago" data-fila="${f.fila}"></td>
+      <td>${i+1}</td>
+      <td>${f.Sector||''}</td>
+      <td>${f.Placa||''}</td>
+      <td>${f.Proceso||''}</td>
+      <td>${f.Nombre||''}</td>
+      <td>${f.Identidad||''}</td>
+      <td style="text-align:right;">${total}</td>
+      <td>${fecha}</td>
+      <td>${f['Numero de Factura']||''}</td>
+      <td>${enlace}</td>
+      <td>
+        <select class="estado-select" data-fila="${f.fila}">
+          <option value="Revisada" ${f.Estado==='Revisada'?'selected':''}>Revisada</option>
+          <option value="Pagada" ${f.Estado==='Pagada'?'selected':''}>Pagada</option>
+        </select>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+  // Attach listeners
+  document.querySelectorAll('#tablaPagoFacturas .estado-select')
+    .forEach(sel => {
+      sel.removeEventListener('change', sel._listener);
+      const listener = e => {
+        actualizarEstadoIndividual(e.target.dataset.fila, e.target.value);
+        aplicarFiltrosPago();
+      };
+      sel.addEventListener('change', listener);
+      sel._listener = listener;
+    });
+  // Update counters
+  document.getElementById('contadorPendientes').textContent =
+    data.filter(f => f.Estado==='Revisada').length;
+  document.getElementById('contadorPagadas').textContent =
+    data.filter(f => f.Estado==='Pagada').length;
+}
+
 async function actualizarEstadoIndividual(fila, nuevoEstado) {
   const overlay = document.getElementById('overlayCambios');
   overlay.style.display = 'flex';
@@ -2426,6 +2516,7 @@ function updateCounters() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  window.flatpickrInstancesPago = flatpickr('#filtroFechaPago', { mode:'range' });
   // Hook applyFiltros
   if (typeof aplicarFiltros === 'function') {
     const oldApply = aplicarFiltros;
