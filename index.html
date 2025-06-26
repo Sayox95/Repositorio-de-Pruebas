@@ -544,16 +544,10 @@ function actualizarVisibilidadBotonesMasivos() {
 <button onclick="mostrarSeccion('revisionFacturas')" style="width: 250px; margin: 10px; padding: 10px;">🔍 Revisión de Facturas</button>
 <button onclick="mostrarSeccion('registrarAnticipo')" style="width: 250px; margin: 10px; padding: 10px;">💵 Registrar Anticipo</button>
 <button onclick="cargarPagoFacturas()" style="width: 250px; margin: 10px; padding: 10px;">💳 Pago de Facturas</button></div><div id="seccionPagoFacturas" style="display:none;"><h2>Pago de Facturas</h2>
-  <div id="countersContainer" style="display:flex; gap:1rem; margin-bottom:1em;">
-    <div class="counter-box" style="padding:0.5em; border:1px solid #ccc; border-radius:4px;">
-      <span class="label">Facturas Pendientes: </span>
-      <span id="contadorPendientes" class="value">0</span>
-    </div>
-    <div class="counter-box" style="padding:0.5em; border:1px solid #ccc; border-radius:4px;">
-      <span class="label">Facturas Pagadas: </span>
-      <span id="contadorPagadas" class="value">0</span>
-    </div>
-  </div><button onclick="mostrarSeccion('menuPrincipal')">🔙 Regresar al Menú Principal</button>
+<div id="countersContainer">
+  <div class="counter-box"><span class="label">Facturas Pendientes</span><span id="contadorPendientes" class="value">0</span></div>
+  <div class="counter-box"><span class="label">Facturas Pagadas</span><span id="contadorPagadas" class="value">0</span></div>
+</div><button onclick="mostrarSeccion('menuPrincipal')">🔙 Regresar al Menú Principal</button>
 <style>
     @keyframes spin {
       0% { transform: rotate(0deg); }
@@ -2528,13 +2522,17 @@ function cargarPagoFacturas() {
         return;
       }
 
+      
       const filtradas = data.filter(factura => {
-    const estado = (factura["Estado"] || "").toString().trim().toLowerCase();
-    return estado === "revisada" || estado === "pagada";
-});
-      // Actualizar contadores
-      document.getElementById('contadorPendientes').textContent = filtradas.filter(f => f.Estado === 'Revisada').length;
-      document.getElementById('contadorPagadas').textContent = filtradas.filter(f => f.Estado === 'Pagada').length;
+        const estado = (factura["Estado"] || "").toString().trim().toLowerCase();
+        return estado === "revisada" || estado === "pagada";
+      });
+      // Actualizar contadores de Pago de Facturas
+      const pendientes = filtradas.filter(f => f.Estado === 'Revisada').length;
+      const pagadas = filtradas.filter(f => f.Estado === 'Pagada').length;
+      document.getElementById('contadorPendientes').textContent = pendientes;
+      document.getElementById('contadorPagadas').textContent = pagadas;
+
 filtradas.forEach((f, index) => {
         const fila = document.createElement("tr");
         const fecha = f.Fecha ? new Date(f.Fecha).toLocaleDateString("es-ES") : "";
@@ -2566,7 +2564,8 @@ filtradas.forEach((f, index) => {
       // Asignar listener para actualizar estado en Pago de Facturas
       document.querySelectorAll('#tablaPagoFacturas .estado-select').forEach(sel => {
         sel.addEventListener('change', e => {
-          actualizarEstadoIndividual(e.target.dataset.fila, e.target.value);
+          actualizarEstadoIndividual(e.target.dataset.fila, e.target.value)
+            .then(() => cargarPagoFacturas());
         });
       });
     })
