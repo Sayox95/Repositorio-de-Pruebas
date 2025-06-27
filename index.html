@@ -548,6 +548,9 @@ function actualizarVisibilidadBotonesMasivos() {
 <div id="countersContainer">
   <div class="counter-box"><span class="label">Facturas Pendientes</span><span id="contadorPendientes" class="value">0</span></div>
   <div class="counter-box"><span class="label">Facturas Pagadas</span><span id="contadorPagadas" class="value">0</span></div>
+
+  <div class="counter-box"><span class="label">Total Pendiente de Pagar</span><span id="totalRevisada" class="value">L 0.00</span></div>
+  <div class="counter-box"><span class="label">Total Pagado</span><span id="totalPagada" class="value">L 0.00</span></div>
 </div>
 <div id="filtersRow" style="display:flex; gap:1rem; align-items:center; margin-bottom:1rem;">
   <label>Filtrar por sector:
@@ -2521,22 +2524,19 @@ function toggleAllPagoCheckboxes(source) {
 function cargarPagoFacturas() {
   
   
+  
   // Resetear filtros al entrar en Pago de Facturas
-  if (document.getElementById('filtroSectorPago')) {
-    document.getElementById('filtroSectorPago').value = 'Todos';
-  }
-  if (document.getElementById('filtroEstadoPago')) {
-    document.getElementById('filtroEstadoPago').value = 'Todos';
-  }
-  if (document.getElementById('filtroNumeroPago')) {
-    document.getElementById('filtroNumeroPago').value = '';
-  }
-  if (window.flatpickrPago) {
-    window.flatpickrPago.clear();
-  }
-// Resetear contadores al entrar
-  document.getElementById('contadorPendientes').textContent = 0;
-  document.getElementById('contadorPagadas').textContent = 0;
+  if (document.getElementById('filtroSectorPago')) document.getElementById('filtroSectorPago').value = 'Todos';
+  if (document.getElementById('filtroEstadoPago')) document.getElementById('filtroEstadoPago').value = 'Todos';
+  if (document.getElementById('filtroNumeroPago')) document.getElementById('filtroNumeroPago').value = '';
+  if (window.flatpickrPago) flatpickrPago.clear();
+  // Resetear contadores de cantidad
+  if (document.getElementById('contadorPendientes')) document.getElementById('contadorPendientes').textContent = '0';
+  if (document.getElementById('contadorPagadas')) document.getElementById('contadorPagadas').textContent = '0';
+  // Resetear contadores de sumas
+  if (document.getElementById('totalRevisada')) document.getElementById('totalRevisada').textContent = 'L 0.00';
+  if (document.getElementById('totalPagada'))  document.getElementById('totalPagada').textContent  = 'L 0.00';
+
 mostrarSeccion('seccionPagoFacturas');
   const seccion = document.getElementById("seccionPagoFacturas");
   if (seccion) seccion.style.display = "block";
@@ -2575,6 +2575,25 @@ mostrarSeccion('seccionPagoFacturas');
       const pagadas = filtradas.filter(f => f.Estado === 'Pagada').length;
       document.getElementById('contadorPendientes').textContent = pendientes;
       document.getElementById('contadorPagadas').textContent = pagadas;
+
+      
+  // Actualizar totales según filtros
+  let sumPend = 0, sumPag = 0;
+  document.querySelectorAll('#tablaPagoFacturas tbody tr').forEach(tr => {
+    if (tr.style.display === 'none') return;
+    const sel = tr.querySelector('select.estado-select');
+    const amount = parseFloat(tr.children[7].textContent.replace(/[^0-9.\-]/g, '')) || 0;
+    if (sel && sel.value === 'Revisada') sumPend += amount;
+    if (sel && sel.value === 'Pagada') sumPag += amount;
+  });
+  document.getElementById('totalRevisada').textContent = 'L ' + sumPend.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  document.getElementById('totalPagada').textContent   = 'L ' + sumPag.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+const totalRevisada = filtradas.filter(f => f.Estado === 'Revisada').reduce((s, f) => s + parseFloat(f['Total Gastado'] || 0), 0);
+      const totalPagada  = filtradas.filter(f => f.Estado === 'Pagada').reduce((s, f) => s + parseFloat(f['Total Gastado'] || 0), 0);
+      document.getElementById('totalRevisada').textContent = 'L ' + totalRevisada.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      document.getElementById('totalPagada').textContent = 'L ' + totalPagada.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 
 filtradas.forEach((f, index) => {
         const fila = document.createElement("tr");
@@ -2631,6 +2650,19 @@ function updateCountersPago() {
   });
   document.getElementById('contadorPendientes').textContent = pendientes;
   document.getElementById('contadorPagadas').textContent = pagadas;
+
+  // Actualizar totales según filtros
+  let sumPend = 0, sumPag = 0;
+  document.querySelectorAll('#tablaPagoFacturas tbody tr').forEach(tr => {
+    if (tr.style.display === 'none') return;
+    const sel = tr.querySelector('select.estado-select');
+    const amount = parseFloat(tr.children[7].textContent.replace(/[^0-9.\-]/g, '')) || 0;
+    if (sel && sel.value === 'Revisada') sumPend += amount;
+    if (sel && sel.value === 'Pagada') sumPag += amount;
+  });
+  document.getElementById('totalRevisada').textContent = 'L ' + sumPend.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  document.getElementById('totalPagada').textContent   = 'L ' + sumPag.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 }
 </script>
 
@@ -2665,6 +2697,19 @@ function aplicarFiltrosPago() {
   });
   document.getElementById('contadorPendientes').textContent = pendientes;
   document.getElementById('contadorPagadas').textContent = pagadas;
+
+  // Actualizar totales según filtros
+  let sumPend = 0, sumPag = 0;
+  document.querySelectorAll('#tablaPagoFacturas tbody tr').forEach(tr => {
+    if (tr.style.display === 'none') return;
+    const sel = tr.querySelector('select.estado-select');
+    const amount = parseFloat(tr.children[7].textContent.replace(/[^0-9.\-]/g, '')) || 0;
+    if (sel && sel.value === 'Revisada') sumPend += amount;
+    if (sel && sel.value === 'Pagada') sumPag += amount;
+  });
+  document.getElementById('totalRevisada').textContent = 'L ' + sumPend.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  document.getElementById('totalPagada').textContent   = 'L ' + sumPag.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 }
 // Inicializar filtros y flatpickr
 document.addEventListener('DOMContentLoaded', () => {
