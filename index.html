@@ -2568,6 +2568,8 @@ mostrarSeccion('seccionPagoFacturas');
         const estado = (factura["Estado"] || "").toString().trim().toLowerCase();
         return estado === "revisada" || estado === "pagada";
       });
+      // Cargar filtros de sector dinámicamente
+      cargarFiltrosSectorPago(filtradas);
       // Actualizar contadores de Pago de Facturas
       const pendientes = filtradas.filter(f => f.Estado === 'Revisada').length;
       const pagadas = filtradas.filter(f => f.Estado === 'Pagada').length;
@@ -2671,6 +2673,23 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('filtroEstadoPago').addEventListener('change', aplicarFiltrosPago);
   document.getElementById('filtroNumeroPago').addEventListener('input', aplicarFiltrosPago);
 });
+</script>
+
+
+<script>
+// Población de filtro de sector en Pago de Facturas
+function cargarFiltrosSectorPago(data) {
+  const filtro = document.getElementById("filtroSectorPago");
+  if (!filtro) return;
+  const sectores = Array.from(new Set(data.map(f => f.Sector))).sort();
+  filtro.innerHTML = '<option value="Todos">Todos</option>';
+  sectores.forEach(sector => {
+    const opt = document.createElement("option");
+    opt.value = sector;
+    opt.textContent = sector;
+    filtro.appendChild(opt);
+  });
+}
 </script>
 
 </body>
