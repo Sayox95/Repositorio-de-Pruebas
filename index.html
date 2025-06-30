@@ -544,7 +544,7 @@ function actualizarVisibilidadBotonesMasivos() {
 <button onclick="mostrarSeccion('revisionFacturas')" style="width: 250px; margin: 10px; padding: 10px;">🔍 Revisión de Facturas</button>
 <button onclick="mostrarSeccion('registrarAnticipo')" style="width: 250px; margin: 10px; padding: 10px;">💵 Registrar Anticipo</button>
 <button onclick="cargarPagoFacturas()" style="width: 250px; margin: 10px; padding: 10px;">💳 Pago de Facturas</button></div><div id="seccionPagoFacturas" style="display:none;">
-  <button onclick="mostrarSeccion('menuPrincipal')" style="width:auto; padding:0.5em 1em; margin-bottom:1em;">🔙 Regresar al Menú Principal</button><button id="btnAgruparColaborador" style="margin-left:1em;">Agrupar por colaborador</button><h2>Pago de Facturas</h2>
+  <button onclick="mostrarSeccion('menuPrincipal')" style="width:auto; padding:0.5em 1em; margin-bottom:1em;">🔙 Regresar al Menú Principal</button><h2>Pago de Facturas</h2>
 <div id="countersContainer">
   <div class="counter-box"><span class="label">Facturas Pendientes</span><span id="contadorPendientes" class="value">0</span></div>
   <div class="counter-box"><span class="label">Facturas Pagadas</span><span id="contadorPagadas" class="value">0</span></div>
@@ -576,6 +576,7 @@ function actualizarVisibilidadBotonesMasivos() {
       100% { transform: rotate(360deg); }
     }
     </style>
+<button id="btnAgruparColaborador" disabled style="margin-bottom: 10px;">Agrupar por colaborador</button>
 <div style="max-height: 500px; overflow: auto; border: 1px solid #ccc; padding: 10px; margin-top: 10px;"><table border="1" id="tablaPagoFacturas" style="width: 100%; border-collapse: collapse; margin-top: 10px;">
 <thead>
 <tr>
@@ -2739,138 +2740,120 @@ function cargarFiltrosSectorPago(data) {
 
 
 <script>
-// Agrupar por colaborador toggle
 let isGroupView = false;
-document.getElementById('btnAgruparColaborador').addEventListener('click', () => {
-  isGroupView = !isGroupView;
-  document.getElementById('btnAgruparColaborador').textContent = isGroupView ? 'Ver lista completa' : 'Agrupar por colaborador';
-  aplicarFiltrosPago();
+
+document.addEventListener("DOMContentLoaded", () => {
+  const btn = document.getElementById("btnAgruparColaborador");
+  if (btn) {
+    console.log("✅ Botón 'Agrupar por colaborador' detectado. Registrando listener...");
+    btn.addEventListener("click", () => {
+      isGroupView = !isGroupView;
+      console.log("🔁 Toggle isGroupView:", isGroupView);
+      aplicarFiltrosPago();
+    });
+  } else {
+    console.warn("❌ Botón 'Agrupar por colaborador' no encontrado en DOM.");
+  }
 });
 
-// Render function
-function renderPago(data) {
-  if (isGroupView) renderGroupedPago(data);
-  else renderTablaPago(data);
-}
+function aplicarFiltrosPago() {
+  if (!Array.isArray(window.facturasGlobal)) {
+    console.warn("⚠️ facturasGlobal aún no está disponible. Se omite render.");
+    return;
+  }
 
-// Original flat render moved to own function
-function renderTablaPago(data) {
-  const tbody = document.querySelector('#tablaPagoFacturas tbody');
-  tbody.innerHTML = '';
-  data.forEach((f, i) => {
-    const fecha = f.Fecha ? new Date(f.Fecha).toLocaleDateString('es-ES') : '';
-    const total = 'L ' + parseFloat(f['Total Gastado']||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
-    const enlace = f['Enlace PDF'] ? `<a href="${f['Enlace PDF']}" target="_blank">📄</a>` : '';
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td><input type="checkbox" class="check-factura-pago" data-fila="${f.fila}"></td>
-      <td>${i+1}</td>
-      <td>${f.Sector||''}</td>
-      <td>${f.Placa||''}</td>
-      <td>${f.Proceso||''}</td>
-      <td>${f.Nombre||''}</td>
-      <td>${f.Identidad||''}</td>
-      <td style="text-align:right;">${total}</td>
-      <td>${fecha}</td>
-      <td>${f['Numero de Factura']||''}</td>
-      <td>${enlace}</td>
-      <td>
-        <select class="estado-select" data-fila="${f.fila}">
-          <option value="Revisada" ${f.Estado==='Revisada'?'selected':''}>Revisada</option>
-          <option value="Pagada"   ${f.Estado==='Pagada'   ?'selected':''}>Pagada</option>
-        </select>
-      </td>`;
-    tbody.appendChild(tr);
+  const sector = document.getElementById("filtroSectorPago").value.toLowerCase();
+  const estado = document.getElementById("filtroEstadoPago").value.toLowerCase();
+  const numero = document.getElementById("filtroNumeroPago").value.toLowerCase();
+  const desde = document.getElementById("filtroDesdePago").value;
+  const hasta = document.getElementById("filtroHastaPago").value;
+
+  let data = window.facturasGlobal.filter(f => {
+    const fechaFactura = new Date(f.Fecha);
+    const desdeOk = !desde || new Date(desde) <= fechaFactura;
+    const hastaOk = !hasta || new Date(hasta) >= fechaFactura;
+
+    return (
+      (!sector || f.Sector.toLowerCase().includes(sector)) &&
+      (!estado || f.Estado.toLowerCase().includes(estado)) &&
+      (!numero || f.Numero.toLowerCase().includes(numero)) &&
+      desdeOk && hastaOk
+    );
   });
-  // reattach listeners
-  document.querySelectorAll('#tablaPagoFacturas .estado-select').forEach(sel => {
-    sel.addEventListener('change', e => {
-      actualizarEstadoIndividual(e.target.dataset.fila, e.target.value).then(() => aplicarFiltrosPago());
-    });
-  });
+
+  if (isGroupView) {
+    console.log("📊 Render agrupado activado");
+    renderGroupedPago(data);
+  } else {
+    console.log("📄 Render plano activado");
+    renderTablaPago(data);
+  }
+
   updateCountersPago();
 }
 
-// Grouped render
 function renderGroupedPago(data) {
-  const tbody = document.querySelector('#tablaPagoFacturas tbody');
-  tbody.innerHTML = '';
-  const groups = {};
+  console.log("🧱 Ejecutando renderGroupedPago con", data.length, "facturas");
+  const tabla = document.getElementById("tablaPagoFacturas").getElementsByTagName("tbody")[0];
+  tabla.innerHTML = "";
+
+  const grupos = {};
   data.forEach(f => {
-    (groups[f.Identidad] = groups[f.Identidad] || []).push(f);
+    if (!grupos[f.Identidad]) {
+      grupos[f.Identidad] = { facturas: [], nombre: f.Nombre };
+    }
+    grupos[f.Identidad].facturas.push(f);
   });
-  Object.keys(groups).forEach(ident => {
-    const facturas = groups[ident];
-    // name selection
-    const nameCounts = {};
-    facturas.forEach(f => {
-      nameCounts[f.Nombre] = (nameCounts[f.Nombre]||0) + 1;
+
+  Object.entries(grupos).forEach(([identidad, grupo]) => {
+    const trGrupo = document.createElement("tr");
+    trGrupo.className = "grupo-row";
+    const cantidad = grupo.facturas.length;
+    const suma = grupo.facturas.reduce((acc, f) => acc + parseFloat(f["Total Gastado"] || 0), 0).toFixed(2);
+
+    trGrupo.innerHTML = `
+      <td colspan="8">
+        <strong>${identidad}</strong> - ${grupo.nombre || ""} 
+        (${cantidad} factura${cantidad > 1 ? "s" : ""}, Total: $${suma})
+        <button class="toggle-btn">[+]</button>
+      </td>
+    `;
+    tabla.appendChild(trGrupo);
+
+    grupo.facturas.forEach(factura => {
+      const tr = document.createElement("tr");
+      tr.className = "detalle-row";
+      tr.style.display = "none";
+
+      tr.innerHTML = `
+        <td><input type="checkbox" class="check-factura-pago"></td>
+        <td>${factura.Numero}</td>
+        <td>${factura.Sector}</td>
+        <td>${factura.Placa}</td>
+        <td>$${factura["Total Gastado"]}</td>
+        <td>${factura.Fecha}</td>
+        <td><a href="${factura.PDF}" target="_blank">Ver PDF</a></td>
+        <td>
+          <select class="estado-selector">
+            <option value="Pendiente" ${factura.Estado === "Pendiente" ? "selected" : ""}>Pendiente</option>
+            <option value="Revisada" ${factura.Estado === "Revisada" ? "selected" : ""}>Revisada</option>
+            <option value="Pagada" ${factura.Estado === "Pagada" ? "selected" : ""}>Pagada</option>
+          </select>
+        </td>
+      `;
+      tabla.appendChild(tr);
     });
-    let chosen = Object.keys(nameCounts)[0];
-    Object.keys(nameCounts).forEach(name => {
-      if (nameCounts[name] > nameCounts[chosen] || 
-         (nameCounts[name] === nameCounts[chosen] && name.length > chosen.length)) {
-        chosen = name;
+
+    trGrupo.querySelector(".toggle-btn").addEventListener("click", (e) => {
+      const expanded = e.target.textContent === "[–]";
+      e.target.textContent = expanded ? "[+]" : "[–]";
+      let next = trGrupo.nextElementSibling;
+      while (next && next.classList.contains("detalle-row")) {
+        next.style.display = expanded ? "none" : "";
+        next = next.nextElementSibling;
       }
     });
-    const count = facturas.length;
-    const sumTotal = facturas.reduce((s,f) => s + (parseFloat(f['Total Gastado']||0)), 0);
-    const trGroup = document.createElement('tr');
-    trGroup.classList.add('group-row');
-    trGroup.innerHTML = `
-      <td colspan="6"><button class="toggle-group">+</button> ${ident} - ${chosen}</td>
-      <td>${count}</td>
-      <td style="text-align:right;">L ${sumTotal.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
-      <td colspan="4"></td>`;
-    tbody.appendChild(trGroup);
-    // details row
-    const trDetails = document.createElement('tr');
-    trDetails.classList.add('detail-rows');
-    const cell = document.createElement('td');
-    cell.colSpan = 12;
-    cell.style.padding = 0;
-    const innerTable = document.createElement('table');
-    innerTable.style.width = '100%';
-    const innerTbody = document.createElement('tbody');
-    facturas.forEach((f,i) => {
-      const fecha = f.Fecha ? new Date(f.Fecha).toLocaleDateString('es-ES') : '';
-      const total = 'L ' + parseFloat(f['Total Gastado']||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
-      const enlace = f['Enlace PDF'] ? `<a href="${f['Enlace PDF']}" target="_blank">📄</a>` : '';
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td><input type="checkbox" class="check-factura-pago" data-fila="${f.fila}"></td>
-        <td>${i+1}</td>
-        <td>${f.Sector||''}</td>
-        <td>${f.Placa||''}</td>
-        <td>${f.Proceso||''}</td>
-        <td>${f.Nombre||''}</td>
-        <td>${f.Identidad||''}</td>
-        <td style="text-align:right;">${total}</td>
-        <td>${fecha}</td>
-        <td>${f['Numero de Factura']||''}</td>
-        <td>${enlace}</td>
-        <td>
-          <select class="estado-select" data-fila="${f.fila}">
-            <option value="Revisada" ${f.Estado==='Revisada'?'selected':''}>Revisada</option>
-            <option value="Pagada"   ${f.Estado==='Pagada'   ?'selected':''}>Pagada</option>
-          </select>
-        </td>`;
-      innerTbody.appendChild(tr);
-    });
-    innerTable.appendChild(innerTbody);
-    cell.appendChild(innerTable);
-    trDetails.appendChild(cell);
-    tbody.appendChild(trDetails);
   });
-  document.querySelectorAll('.detail-rows').forEach(r=>r.style.display='none');
-  document.querySelectorAll('.toggle-group').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      const det=btn.closest('tr').nextElementSibling;
-      if(det.style.display==='table-row'){ det.style.display='none'; btn.textContent='+';}
-      else{ det.style.display='table-row'; btn.textContent='-';}
-    });
-  });
-  updateCountersPago();
 }
 </script>
 
