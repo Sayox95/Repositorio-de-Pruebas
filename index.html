@@ -545,6 +545,7 @@ function actualizarVisibilidadBotonesMasivos() {
 <button onclick="mostrarSeccion('registrarAnticipo')" style="width: 250px; margin: 10px; padding: 10px;">💵 Registrar Anticipo</button>
 <button onclick="cargarPagoFacturas()" style="width: 250px; margin: 10px; padding: 10px;">💳 Pago de Facturas</button></div><div id="seccionPagoFacturas" style="display:none;">
   <button onclick="mostrarSeccion('menuPrincipal')" style="width:auto; padding:0.5em 1em; margin-bottom:1em;">🔙 Regresar al Menú Principal</button><h2>Pago de Facturas</h2>
+  <button id="btnAgruparColaborador" style="margin-bottom:1rem;">Agrupar por colaborador</button>
 <div id="countersContainer">
   <div class="counter-box"><span class="label">Facturas Pendientes</span><span id="contadorPendientes" class="value">0</span></div>
   <div class="counter-box"><span class="label">Facturas Pagadas</span><span id="contadorPagadas" class="value">0</span></div>
@@ -576,7 +577,6 @@ function actualizarVisibilidadBotonesMasivos() {
       100% { transform: rotate(360deg); }
     }
     </style>
-<button id="btnAgruparColaborador" disabled style="margin-bottom: 10px;">Agrupar por colaborador</button>
 <div style="max-height: 500px; overflow: auto; border: 1px solid #ccc; padding: 10px; margin-top: 10px;"><table border="1" id="tablaPagoFacturas" style="width: 100%; border-collapse: collapse; margin-top: 10px;">
 <thead>
 <tr>
@@ -2740,121 +2740,127 @@ function cargarFiltrosSectorPago(data) {
 
 
 <script>
-let isGroupView = false;
+// === Agrupación por colaborador – DOM Puro ===
+document.addEventListener('DOMContentLoaded', function() {
+  const btn = document.getElementById('btnAgruparColaborador');
+  if (!btn) return;
+  let grouped = false;
+  const table = document.getElementById('tablaPagoFacturas');
+  const tbody = table.querySelector('tbody');
+  const theadRow = table.querySelector('thead tr');
+  const originalHeader = theadRow.innerHTML;
+  let originalRows = '';
 
-document.addEventListener("DOMContentLoaded", () => {
-  const btn = document.getElementById("btnAgruparColaborador");
-  if (btn) {
-    console.log("✅ Botón 'Agrupar por colaborador' detectado. Registrando listener...");
-    btn.addEventListener("click", () => {
-      isGroupView = !isGroupView;
-      console.log("🔁 Toggle isGroupView:", isGroupView);
-      aplicarFiltrosPago();
-    });
-  } else {
-    console.warn("❌ Botón 'Agrupar por colaborador' no encontrado en DOM.");
-  }
-});
-
-function aplicarFiltrosPago() {
-  if (!Array.isArray(window.facturasGlobal)) {
-    console.warn("⚠️ facturasGlobal aún no está disponible. Se omite render.");
-    return;
-  }
-
-  const sector = document.getElementById("filtroSectorPago").value.toLowerCase();
-  const estado = document.getElementById("filtroEstadoPago").value.toLowerCase();
-  const numero = document.getElementById("filtroNumeroPago").value.toLowerCase();
-  const desde = document.getElementById("filtroDesdePago").value;
-  const hasta = document.getElementById("filtroHastaPago").value;
-
-  let data = window.facturasGlobal.filter(f => {
-    const fechaFactura = new Date(f.Fecha);
-    const desdeOk = !desde || new Date(desde) <= fechaFactura;
-    const hastaOk = !hasta || new Date(hasta) >= fechaFactura;
-
-    return (
-      (!sector || f.Sector.toLowerCase().includes(sector)) &&
-      (!estado || f.Estado.toLowerCase().includes(estado)) &&
-      (!numero || f.Numero.toLowerCase().includes(numero)) &&
-      desdeOk && hastaOk
-    );
-  });
-
-  if (isGroupView) {
-    console.log("📊 Render agrupado activado");
-    renderGroupedPago(data);
-  } else {
-    console.log("📄 Render plano activado");
-    renderTablaPago(data);
-  }
-
-  updateCountersPago();
-}
-
-function renderGroupedPago(data) {
-  console.log("🧱 Ejecutando renderGroupedPago con", data.length, "facturas");
-  const tabla = document.getElementById("tablaPagoFacturas").getElementsByTagName("tbody")[0];
-  tabla.innerHTML = "";
-
-  const grupos = {};
-  data.forEach(f => {
-    if (!grupos[f.Identidad]) {
-      grupos[f.Identidad] = { facturas: [], nombre: f.Nombre };
+  btn.addEventListener('click', function() {
+    if (!grouped) {
+      // Guardar estado plano
+      originalRows = tbody.innerHTML;
+      // Cambiar encabezado
+      theadRow.innerHTML =
+        '<th></th><th></th>' +
+        '<th colspan="7">Colaborador</th>' +
+        '<th>Facturas</th>' +
+        '<th>Total Gastado</th>' +
+        '<th>Acción</th>';
+      // Construir datos desde DOM
+      const flatRows = Array.from(tbody.children);
+      const data = flatRows.map(r => {
+        const c = r.children;
+        return {
+          checkbox: c[0].innerHTML,
+          num: c[1].textContent,
+          sector: c[2].textContent,
+          placa: c[3].textContent,
+          proceso: c[4].textContent,
+          nombre: c[5].textContent,
+          identidad: c[6].textContent,
+          total: c[7].textContent,
+          fecha: c[8].textContent,
+          factura: c[9].textContent,
+          enlace: c[10].innerHTML,
+          estado: c[11].innerHTML
+        };
+      });
+      // Agrupar
+      const map = {};
+      data.forEach(item => {
+        if (!map[item.identidad]) {
+          map[item.identidad] = { identidad: item.identidad, nombre: item.nombre, items: [] };
+        }
+        map[item.identidad].items.push(item);
+      });
+      // Limpiar
+      tbody.innerHTML = '';
+      // Renderizar grupos
+      Object.values(map).forEach(gr => {
+        // Resumen de grupo
+        const sumVal = gr.items.reduce((acc,i) => 
+          acc + (parseFloat(i.total.replace(/[^0-9.\-]/g,''))||0), 0
+        ).toLocaleString('en-US',{minimumFractionDigits:2});
+        const tr = document.createElement('tr');
+        tr.className = 'fila-grupo';
+        tr.innerHTML =
+          '<td></td><td></td>' +
+          '<td colspan="7"><strong>' + gr.identidad + '</strong> – ' + gr.nombre + '</td>' +
+          '<td>' + gr.items.length + ' facturas</td>' +
+          '<td style="text-align:right;">' + (gr.items[0].total.charAt(0)||'') + ' ' + sumVal + '</td>' +
+          '<td><button class="expander">+</button></td>';
+        // Expander
+        tr.querySelector('.expander').addEventListener('click', function() {
+          const expand = this.textContent === '+';
+          this.textContent = expand ? '–' : '+';
+          if (expand) {
+            // Sub-encabezado para detalles
+            const subHeader = document.createElement('tr');
+            subHeader.className = 'fila-subheader';
+            subHeader.dataset.group = gr.identidad;
+            subHeader.innerHTML = originalHeader;
+            tbody.insertBefore(subHeader, tr.nextSibling);
+            // Filas de detalle
+            gr.items.forEach(item => {
+              const detail = document.createElement('tr');
+              detail.className = 'fila-hija';
+              detail.dataset.group = gr.identidad;
+              detail.innerHTML =
+                '<td>' + item.checkbox + '</td>' +
+                '<td>' + item.num + '</td>' +
+                '<td>' + item.sector + '</td>' +
+                '<td>' + item.placa + '</td>' +
+                '<td>' + item.proceso + '</td>' +
+                '<td>' + item.nombre + '</td>' +
+                '<td>' + item.identidad + '</td>' +
+                '<td style="text-align:right;">' + item.total + '</td>' +
+                '<td>' + item.fecha + '</td>' +
+                '<td>' + item.factura + '</td>' +
+                '<td>' + item.enlace + '</td>' +
+                '<td>' + item.estado + '</td>';
+              tbody.insertBefore(detail, subHeader.nextSibling);
+            });
+          } else {
+            // Quitar subheader y detalles
+            Array.from(tbody.querySelectorAll('[data-group="' + gr.identidad + '"]')).forEach(r => r.remove());
+          }
+        });
+        tbody.appendChild(tr);
+      });
+      grouped = true;
+      btn.textContent = 'Ver vista plana';
+    } else {
+      // Restaurar plano
+      tbody.innerHTML = originalRows;
+      theadRow.innerHTML = originalHeader;
+      // Reasignar listeners en selects
+      Array.from(tbody.querySelectorAll('select')).forEach(sel => {
+        sel.addEventListener('change', function(e) {
+          const num = this.closest('tr').children[1].textContent;
+          actualizarEstadoIndividual(num, e.target.value);
+        });
+      });
+      grouped = false;
+      btn.textContent = 'Agrupar por colaborador';
     }
-    grupos[f.Identidad].facturas.push(f);
   });
-
-  Object.entries(grupos).forEach(([identidad, grupo]) => {
-    const trGrupo = document.createElement("tr");
-    trGrupo.className = "grupo-row";
-    const cantidad = grupo.facturas.length;
-    const suma = grupo.facturas.reduce((acc, f) => acc + parseFloat(f["Total Gastado"] || 0), 0).toFixed(2);
-
-    trGrupo.innerHTML = `
-      <td colspan="8">
-        <strong>${identidad}</strong> - ${grupo.nombre || ""} 
-        (${cantidad} factura${cantidad > 1 ? "s" : ""}, Total: $${suma})
-        <button class="toggle-btn">[+]</button>
-      </td>
-    `;
-    tabla.appendChild(trGrupo);
-
-    grupo.facturas.forEach(factura => {
-      const tr = document.createElement("tr");
-      tr.className = "detalle-row";
-      tr.style.display = "none";
-
-      tr.innerHTML = `
-        <td><input type="checkbox" class="check-factura-pago"></td>
-        <td>${factura.Numero}</td>
-        <td>${factura.Sector}</td>
-        <td>${factura.Placa}</td>
-        <td>$${factura["Total Gastado"]}</td>
-        <td>${factura.Fecha}</td>
-        <td><a href="${factura.PDF}" target="_blank">Ver PDF</a></td>
-        <td>
-          <select class="estado-selector">
-            <option value="Pendiente" ${factura.Estado === "Pendiente" ? "selected" : ""}>Pendiente</option>
-            <option value="Revisada" ${factura.Estado === "Revisada" ? "selected" : ""}>Revisada</option>
-            <option value="Pagada" ${factura.Estado === "Pagada" ? "selected" : ""}>Pagada</option>
-          </select>
-        </td>
-      `;
-      tabla.appendChild(tr);
-    });
-
-    trGrupo.querySelector(".toggle-btn").addEventListener("click", (e) => {
-      const expanded = e.target.textContent === "[–]";
-      e.target.textContent = expanded ? "[+]" : "[–]";
-      let next = trGrupo.nextElementSibling;
-      while (next && next.classList.contains("detalle-row")) {
-        next.style.display = expanded ? "none" : "";
-        next = next.nextElementSibling;
-      }
-    });
-  });
-}
+});
 </script>
 
 </body>
