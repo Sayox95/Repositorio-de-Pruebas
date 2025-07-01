@@ -278,7 +278,8 @@
   height: 60px;
   animation: spin 1s linear infinite;
 }
-
+@keyframes spin {
+  0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
 </style>
@@ -531,12 +532,6 @@ function actualizarVisibilidadBotonesMasivos() {
     padding: 0.25rem 0.5rem !important;
   }
 </style>
-
-  <!-- Tabulator CSS -->
-  <link href="https://unpkg.com/tabulator-tables@5.5.0/dist/css/tabulator.min.css" rel="stylesheet">
-  <!-- Tabulator JS -->
-  <script src="https://unpkg.com/tabulator-tables@5.5.0/dist/js/tabulator.min.js"></script>
-
 </head>
 <body>
 <div id="overlayCambios">
@@ -550,6 +545,7 @@ function actualizarVisibilidadBotonesMasivos() {
 <button onclick="mostrarSeccion('registrarAnticipo')" style="width: 250px; margin: 10px; padding: 10px;">💵 Registrar Anticipo</button>
 <button onclick="cargarPagoFacturas()" style="width: 250px; margin: 10px; padding: 10px;">💳 Pago de Facturas</button></div><div id="seccionPagoFacturas" style="display:none;">
   <button onclick="mostrarSeccion('menuPrincipal')" style="width:auto; padding:0.5em 1em; margin-bottom:1em;">🔙 Regresar al Menú Principal</button><h2>Pago de Facturas</h2>
+  <button id="btnAgruparColaborador" style="margin-bottom:1rem;">Agrupar por colaborador</button>
 <div id="countersContainer">
   <div class="counter-box"><span class="label">Facturas Pendientes</span><span id="contadorPendientes" class="value">0</span></div>
   <div class="counter-box"><span class="label">Facturas Pagadas</span><span id="contadorPagadas" class="value">0</span></div>
@@ -576,12 +572,12 @@ function actualizarVisibilidadBotonesMasivos() {
   </label>
 </div>
 <style>
-    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
     }
     </style>
-<div style="max-height: 500px; overflow: auto; border: 1px solid #ccc; padding: 10px; margin-top: 10px;"><!-- Original Pago de Facturas table commented out for Tabulator integration:
-<table border="1" id="tablaPagoFacturas" style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+<div style="max-height: 500px; overflow: auto; border: 1px solid #ccc; padding: 10px; margin-top: 10px;"><table border="1" id="tablaPagoFacturas" style="width: 100%; border-collapse: collapse; margin-top: 10px;">
 <thead>
 <tr>
 <th><input id="checkAllPago" onclick="toggleAllPagoCheckboxes(this)" type="checkbox"/></th>
@@ -599,15 +595,22 @@ function actualizarVisibilidadBotonesMasivos() {
 </tr>
 </thead>
 <tbody></tbody>
-</table>
--->
-<div id="facturas-table" style="height:500px;"></div></div>
+</table></div>
 <div id="spinnerPago" style="text-align: center; margin-top: 20px;">
-
-
+<div style="
+        border: 6px solid #f3f3f3;
+        border-top: 6px solid #3498db;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        animation: spin 1s linear infinite;
+        margin: auto;
+    "></div>
+<div style="margin-top: 10px; font-weight: bold;">Cargando facturas...</div>
 </div>
 <style>
-
+@keyframes spin {
+  0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
 </style>
@@ -1698,7 +1701,7 @@ pdfMake.createPdf(docDefinition).getBase64(function(base64) {
 };
 </script>
 <div id="loader_pdf" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.8); z-index:9999; align-items:center; justify-content:center; flex-direction: column;">
-
+<div class="spinner" style="border: 6px solid #f3f3f3; border-top: 6px solid #3498db; border-radius: 50%; width: 60px; height: 60px; animation: spin 1s linear infinite;"></div>
 <div style="font-size:20px; font-weight:bold; margin-top:20px;">Generando PDF...</div>
 </div>
 <div id="success_alert" style="display:none; position:fixed; top:20px; right:20px; background-color:#4CAF50; color:white; padding:15px; border-radius:5px; z-index:10000;">
@@ -2736,132 +2739,131 @@ function cargarFiltrosSectorPago(data) {
 </script>
 
 
-  
+<script>
+// === Agrupación por colaborador – DOM Puro ===
+document.addEventListener('DOMContentLoaded', function() {
+  const btn = document.getElementById('btnAgruparColaborador');
+  if (!btn) return;
+  let grouped = false;
+  const table = document.getElementById('tablaPagoFacturas');
+  const tbody = table.querySelector('tbody');
+  const theadRow = table.querySelector('thead tr');
+  const originalHeader = theadRow.innerHTML;
+  let originalRows = '';
 
-  <!-- Tabulator Integration Script -->
-  <script>
-  document.addEventListener("DOMContentLoaded", function() {
-    // Hide original table and spinner if present
-    var origTable = document.getElementById('tablaPagoFacturas');
-    if (origTable) origTable.style.display = 'none';
-    var spinner = document.getElementById('spinnerPago');
-    if (spinner) spinner.style.display = 'none';
-
-    // Initialize Tabulator
-    var tabla = new Tabulator("#facturas-table", {
-      layout: "fitColumns",
-      height: "500px",
-      virtualDom: true,
-      placeholder: "Cargando datos...",
-      ajaxConfig: "GET",
-      ajaxURL: urlLeerFacturas,
-      ajaxResponse: function(url, params, response) {
-        // Filter only Revisada or Pagada
-        return response.filter(function(f) {
-          return f.Estado === "Revisada" || f.Estado === "Pagada";
-        });
-      },
-      columns: [
-        { title: "#", formatter: "rownum", width: 50 },
-        { title: "Sector", field: "Sector" },
-        { title: "Placa", field: "Placa" },
-        { title: "Proceso", field: "Proceso" },
-        { title: "Nombre", field: "Nombre" },
-        { title: "Identidad", field: "Identidad" },
-        { title: "Total Gastado", field: "Total Gastado", hozAlign: "right", formatter: "money" },
-        { title: "Fecha", field: "Fecha", sorter: "date" },
-        { title: "Número de Factura", field: "Numero de Factura" },
-        { title: "Enlace PDF", field: "Enlace PDF", formatter: function(cell) {
-            var url = cell.getValue();
-            return url ? "<a href='" + url + "' target='_blank'>📄</a>" : "";
-          }
-        },
-        { title: "Estado", field: "Estado", editor: "select", editorParams: { values: ["Revisada", "Pagada"] },
-          cellEdited: function(cell) {
-            var data = cell.getRow().getData();
-            actualizarEstadoIndividual(data.fila, cell.getValue());
-            applyFilters();
-          }
+  btn.addEventListener('click', function() {
+    if (!grouped) {
+      // Guardar estado plano
+      originalRows = tbody.innerHTML;
+      // Cambiar encabezado
+      theadRow.innerHTML =
+        '<th></th><th></th>' +
+        '<th colspan="7">Colaborador</th>' +
+        '<th>Facturas</th>' +
+        '<th>Total Gastado</th>' +
+        '<th>Acción</th>';
+      // Construir datos desde DOM
+      const flatRows = Array.from(tbody.children);
+      const data = flatRows.map(r => {
+        const c = r.children;
+        return {
+          checkbox: c[0].innerHTML,
+          num: c[1].textContent,
+          sector: c[2].textContent,
+          placa: c[3].textContent,
+          proceso: c[4].textContent,
+          nombre: c[5].textContent,
+          identidad: c[6].textContent,
+          total: c[7].textContent,
+          fecha: c[8].textContent,
+          factura: c[9].textContent,
+          enlace: c[10].innerHTML,
+          estado: c[11].innerHTML
+        };
+      });
+      // Agrupar
+      const map = {};
+      data.forEach(item => {
+        if (!map[item.identidad]) {
+          map[item.identidad] = { identidad: item.identidad, nombre: item.nombre, items: [] };
         }
-      ],
-    });
-    window.tablaFacturas = tabla;
-
-    // Populate filters
-    function populateFilters() {
-      // Sector
-      if (typeof cargarFiltrosSectorPago === "function") {
-        cargarFiltrosSectorPago(window.facturasGlobal || tabla.getData());
-      }
-    }
-
-    // Filter application
-    function applyFilters() {
-      var filters = [];
-      var fs = document.getElementById("filtroSectorPago");
-      if (fs && fs.value !== "Todos") filters.push({ field: "Sector", type: "=", value: fs.value });
-      var fe = document.getElementById("filtroEstadoPago");
-      if (fe && fe.value !== "Todos") filters.push({ field: "Estado", type: "=", value: fe.value });
-      var fn = document.getElementById("filtroNumeroPago");
-      if (fn && fn.value) filters.push({ field: "Número de Factura", type: "like", value: fn.value });
-      var fp = window.flatpickrPago;
-      if (fp && fp.selectedDates.length === 2) {
-        filters.push({ field: "Fecha", type: ">=", value: fp.selectedDates[0].toISOString() });
-        filters.push({ field: "Fecha", type: "<=", value: fp.selectedDates[1].toISOString() });
-      }
-      if (filters.length) {
-        tabla.setFilter(filters);
-      } else {
-        tabla.clearFilter(true);
-      }
-      updateCounters();
-    }
-
-    // Counters update
-    function updateCounters() {
-      var data = tabla.getData(true);
-      var pend = 0, pag = 0, sumPend = 0, sumPag = 0;
-      data.forEach(function(f) {
-        if (f.Estado === "Revisada") { pend++; sumPend += parseFloat(f["Total Gastado"] || 0); }
-        if (f.Estado === "Pagada") { pag++; sumPag += parseFloat(f["Total Gastado"] || 0); }
+        map[item.identidad].items.push(item);
       });
-      document.getElementById("contadorPendientes").textContent = pend;
-      document.getElementById("contadorPagadas").textContent = pag;
-      document.getElementById("totalRevisada").textContent = "L " + sumPend.toLocaleString("es-HN", { minimumFractionDigits: 2 });
-      document.getElementById("totalPagada").textContent = "L " + sumPag.toLocaleString("es-HN", { minimumFractionDigits: 2 });
-    }
-
-    // Hook filter controls
-    var fs = document.getElementById("filtroSectorPago");
-    var fe = document.getElementById("filtroEstadoPago");
-    var fn = document.getElementById("filtroNumeroPago");
-    if (fs) fs.addEventListener("change", applyFilters);
-    if (fe) fe.addEventListener("change", applyFilters);
-    if (fn) fn.addEventListener("input", applyFilters);
-
-    // Initialize flatpickr on date filter
-    if (window.flatpickr) {
-      window.flatpickrPago = flatpickr("#filtroFechaPago", {
-        mode: "range",
-        dateFormat: "d/m/Y",
-        locale: flatpickr.l10ns.es,
-        onClose: applyFilters
+      // Limpiar
+      tbody.innerHTML = '';
+      // Renderizar grupos
+      Object.values(map).forEach(gr => {
+        // Resumen de grupo
+        const sumVal = gr.items.reduce((acc,i) => 
+          acc + (parseFloat(i.total.replace(/[^0-9.\-]/g,''))||0), 0
+        ).toLocaleString('en-US',{minimumFractionDigits:2});
+        const tr = document.createElement('tr');
+        tr.className = 'fila-grupo';
+        tr.innerHTML =
+          '<td></td><td></td>' +
+          '<td colspan="7"><strong>' + gr.identidad + '</strong> – ' + gr.nombre + '</td>' +
+          '<td>' + gr.items.length + ' facturas</td>' +
+          '<td style="text-align:right;">' + (gr.items[0].total.charAt(0)||'') + ' ' + sumVal + '</td>' +
+          '<td><button class="expander">+</button></td>';
+        // Expander
+        tr.querySelector('.expander').addEventListener('click', function() {
+          const expand = this.textContent === '+';
+          this.textContent = expand ? '–' : '+';
+          if (expand) {
+            // Sub-encabezado para detalles
+            const subHeader = document.createElement('tr');
+            subHeader.className = 'fila-subheader';
+            subHeader.dataset.group = gr.identidad;
+            subHeader.innerHTML = originalHeader;
+            tbody.insertBefore(subHeader, tr.nextSibling);
+            // Filas de detalle
+            gr.items.forEach(item => {
+              const detail = document.createElement('tr');
+              detail.className = 'fila-hija';
+              detail.dataset.group = gr.identidad;
+              detail.innerHTML =
+                '<td>' + item.checkbox + '</td>' +
+                '<td>' + item.num + '</td>' +
+                '<td>' + item.sector + '</td>' +
+                '<td>' + item.placa + '</td>' +
+                '<td>' + item.proceso + '</td>' +
+                '<td>' + item.nombre + '</td>' +
+                '<td>' + item.identidad + '</td>' +
+                '<td style="text-align:right;">' + item.total + '</td>' +
+                '<td>' + item.fecha + '</td>' +
+                '<td>' + item.factura + '</td>' +
+                '<td>' + item.enlace + '</td>' +
+                '<td>' + item.estado + '</td>';
+              tbody.insertBefore(detail, subHeader.nextSibling);
+            });
+          } else {
+            // Quitar subheader y detalles
+            Array.from(tbody.querySelectorAll('[data-group="' + gr.identidad + '"]')).forEach(r => r.remove());
+          }
+        });
+        tbody.appendChild(tr);
       });
+      grouped = true;
+      btn.textContent = 'Ver vista plana';
+    } else {
+      // Restaurar plano
+      tbody.innerHTML = originalRows;
+      theadRow.innerHTML = originalHeader;
+      // Reasignar listeners en selects
+      Array.from(tbody.querySelectorAll('select')).forEach(sel => {
+        sel.addEventListener('change', function(e) {
+          const num = this.closest('tr').children[1].textContent;
+          actualizarEstadoIndividual(num, e.target.value);
+        });
+      });
+      grouped = false;
+      btn.textContent = 'Agrupar por colaborador';
     }
-
-    // When table data loaded, populate filters and update counters
-    tabla.on("dataLoaded", function() {
-      window.facturasGlobal = tabla.getData();
-      populateFilters();
-      updateCounters();
-    });
-
-    tabla.on("dataFiltered", updateCounters);
   });
-  </script>
+});
+</script>
+
 </body>
-
-
 </html>
 <div id="generando_pdf_modal" style="
   visibility: hidden;
