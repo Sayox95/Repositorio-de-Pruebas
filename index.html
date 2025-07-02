@@ -2078,7 +2078,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 async function cargarFacturasDesdeSheet() {
   try {
-    const res = await fetch(urlLeerFacturas);
+    const res = await fetch('https://repositorio-de-pruebas.pages.dev/api/leer');
     const data = await res.json();
     window.facturasGlobal = data;
     cargarFiltrosSector(data);
@@ -2228,7 +2228,7 @@ document.addEventListener("DOMContentLoaded", () => {
 async function cargarFacturasDesdeSheet() {
   const msg = document.getElementById("mensajeCarga");
   try {
-    const res = await fetch(urlLeerFacturas);
+    const res = await fetch('https://repositorio-de-pruebas.pages.dev/api/leer');
     const data = await res.json();
     window.facturasGlobal = data;
     // Determine the key for invoice number dynamically
@@ -2530,8 +2530,11 @@ function cargarPagoFacturas() {
 mostrarSeccion('seccionPagoFacturas');
   // Carga de datos al entrar en Pago de Facturas
   if (window.tabulatorTable) {
-    tabulatorTable.setData(urlLeerFacturas)
-      .then(updatePagoCounters)
+    tabulatorTable.setData('https://repositorio-de-pruebas.pages.dev/api/leer')
+      .then(function(){
+        var data = tabulatorTable.getData();
+        updatePagoCounters(data);
+      })
       .catch(function(err){ console.error('Error cargando Pago:', err); });
   }
 
@@ -2804,7 +2807,7 @@ groupHeader:function(value, count, data){
 
   // Load data function
   function loadData(){
-    fetch(urlLeerFacturas)
+    fetch('https://repositorio-de-pruebas.pages.dev/api/leer')
       .then(r=>r.json())
       .then(data=>{
         var rows = data.filter(f=>["Revisada","Pagada"].includes(f.Estado));
