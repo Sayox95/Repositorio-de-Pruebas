@@ -2872,16 +2872,6 @@ groupHeader:function(value, count, data){
 
 <script>
 // Actualiza contadores de Pago de Facturas
-function updatePagoCounters(data) {
-  var rev = data.filter(function(f){ return f.Estado==='Revisada'; });
-  var pag = data.filter(function(f){ return f.Estado==='Pagada'; });
-  document.getElementById('contadorPendientes').textContent = rev.length;
-  document.getElementById('contadorPagadas').textContent = pag.length;
-  var sumPend = rev.reduce(function(a,b){ return a + parseFloat(b.Monto); }, 0);
-  var sumPag = pag.reduce(function(a,b){ return a + parseFloat(b.Monto); }, 0);
-  document.getElementById('totalPendiente').textContent = 'L ' + sumPend.toFixed(2);
-  document.getElementById('totalPagado').textContent    = 'L ' + sumPag.toFixed(2);
-}
 </script>
 </body>
 
@@ -2903,3 +2893,30 @@ function updatePagoCounters(data) {
     Generando PDF, por favor espere...
   </div>
 </div>
+
+
+<script>
+function updatePagoCounters(data) {
+  const pendientesEl = document.getElementById("contadorPendientes");
+  const pagadasEl = document.getElementById("contadorPagadas");
+  const totalPendienteEl = document.getElementById("totalRevisada");
+  const totalPagadoEl = document.getElementById("totalPagada");
+
+  if (!pendientesEl || !pagadasEl || !totalPendienteEl || !totalPagadoEl) {
+    console.warn("Contadores de pago no están disponibles aún en el DOM.");
+    return;
+  }
+
+  const revisadas = data.filter(f => f.Estado === 'Revisada');
+  const pagadas = data.filter(f => f.Estado === 'Pagada');
+
+  pendientesEl.textContent = revisadas.length;
+  pagadasEl.textContent = pagadas.length;
+
+  const totalRevisada = revisadas.reduce((suma, f) => suma + parseFloat(f.Total || 0), 0);
+  const totalPagada = pagadas.reduce((suma, f) => suma + parseFloat(f.Total || 0), 0);
+
+  totalPendienteEl.textContent = `L ${totalRevisada.toFixed(2)}`;
+  totalPagadoEl.textContent = `L ${totalPagada.toFixed(2)}`;
+}
+</script>
