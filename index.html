@@ -2873,6 +2873,23 @@ groupHeader:function(value, count, data){
 <script>
 // Actualiza contadores de Pago de Facturas
 </script>
+
+<script>
+function poblarFiltroSector(data) {
+  const filtro = document.getElementById("filtroSector");
+  if (!filtro || !Array.isArray(data)) return;
+
+  const sectoresUnicos = [...new Set(data.map(f => f.Sector).filter(Boolean))];
+  filtro.innerHTML = '<option value="Todos">Todos</option>';
+  sectoresUnicos.forEach(sector => {
+    const option = document.createElement("option");
+    option.value = sector;
+    option.textContent = sector;
+    filtro.appendChild(option);
+  });
+}
+</script>
+
 </body>
 
 </html>
