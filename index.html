@@ -106,7 +106,6 @@
   margin: 0 !important;
 }
 </style>
-<!-- Roboto font for consistent typography -->
 <link href="https://fonts.googleapis.com/css2?family=Roboto&amp;display=swap" rel="stylesheet"/>
 <style>
     /* Animaciones para transiciones */
@@ -337,7 +336,6 @@
 </style>
 <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
 <script src="https://unpkg.com/blueimp-load-image/js/load-image.all.min.js"></script>
-<!-- Custom Header Styles -->
 <style>
     .custom-header {
       display: table;
@@ -389,10 +387,8 @@
     font-weight: bold;
   }
 </style>
-<!-- flatpickr CSS & JS -->
 <link href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-<!-- Tabulator CSS & JS -->
 <link href="https://unpkg.com/tabulator-tables@5.5.0/dist/css/tabulator.min.css" rel="stylesheet"/>
 <script src="https://unpkg.com/tabulator-tables@5.5.0/dist/js/tabulator.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/es.js"></script>
@@ -591,39 +587,21 @@ function actualizarVisibilidadBotonesMasivos() {
 </style>
 <div id="seccionReportarFactura" style="display: none;">
 <div id="notification" style="display:none; position:fixed; top:20px; left:50%; transform:translateX(-50%); background:#28a745; color:white; padding:15px 30px; border-radius:5px; opacity:0; transition:opacity 0.5s ease-in-out; z-index:1000;">Información enviada correctamente</div>
-<!-- Initial loading message displayed while fetching data -->
 <div id="mensaje_cargando" style="display:none;">Cargando información, por favor espere...</div>
-<!-- Formulario: oculto hasta cargar sectores y procesos -->
 <div class="formulario" id="formulario_contenido" style="display:none;">
 <h2>Reporte de Gasto de Combustible</h2>
-<!-- Sector selector populated dinámicamente -->
-<!-- Placa selector dependiente del sector -->
 <datalist id="placas"></datalist>
-<!-- Proceso seleccionado por usuario (movido) -->
-<!-- Datos del colaborador -->
-<!-- Kilometraje y gasto -->
-<!-- Nuevo campo: Litros Consumidos, no aparece en preview ni PDF -->
-<!-- Motivación del viaje -->
-<!-- Motivación del viaje -->
-<!-- Proceso seleccionado por usuario -->
-<!-- Fecha y duración -->
-<!-- Datos del vehículo y factura -->
-<!-- Inputs de imágenes (galería o cámara) reordered -->
-<!-- Botón para generar vista previa -->
 <div class="paso" id="paso1" style="display:block;"><label for="sector">Seleccionar Sector:</label><span class="error-msg" id="error_sector" style="color:red; display:none;">(Campo obligatorio)</span><select id="sector"><option value="">Seleccione un sector</option></select><label for="placa">Seleccionar Placa del Vehículo:</label><span class="error-msg" id="error_placa" style="color:red; display:none;">(Campo obligatorio)</span><input autocomplete="off" id="placa" list="placas" placeholder="Escribe o selecciona una placa" type="text"/><label for="proceso">Proceso:</label><span class="error-msg" id="error_proceso" style="color:red; display:none;">(Campo obligatorio)</span><select id="proceso"><option value="">Seleccione un proceso</option></select><label for="nombre">Nombre Completo:</label><span class="error-msg" id="error_nombre" style="color:red; display:none;">(Campo obligatorio)</span><input id="nombre" required="" type="text"/><label for="identidad">No. Identidad:</label><span class="error-msg" id="error_identidad" style="color:red; display:none;">(Campo obligatorio)</span><input id="identidad" maxlength="15" oninput="maskIdentidad(this)" required="" type="text"/><label for="total">Total Gastado (L):</label><span class="error-msg" id="error_total" style="color:red; display:none;">(Campo obligatorio)</span><input id="total" step="0.01" type="number"/><label for="litros">Litros Consumidos:</label><span class="error-msg" id="error_litros" style="color:red; display:none;">(Campo obligatorio)</span><input id="litros" step="0.01" type="number"/><label for="motivo">Motivo del Llenado:</label><span class="error-msg" id="error_motivo" style="color:red; display:none;">(Campo obligatorio)</span><textarea id="motivo" rows="3"></textarea><label for="fecha">Fecha:</label><span class="error-msg" id="error_fecha" style="color:red; display:none;">(Campo obligatorio)</span><input class="flatpickr-input" id="fecha" name="fecha" placeholder="Selecciona fecha" readonly="" type="text"/><label for="horas">Horas de Viaje:</label><input id="horas" type="text"/><label for="km">Km Actual del Vehículo:</label><span class="error-msg" id="error_km" style="color:red; display:none;">(Campo obligatorio)</span><input id="km" type="number"/><label for="nombre_comercio">Nombre del comercio:</label><span class="error-msg" id="error_nombre_comercio" style="color:red; display:none;">(Campo obligatorio)</span><input id="nombre_comercio" placeholder="Nombre del comercio" type="text"/><label for="factura">Número de Factura:</label><span class="error-msg" id="error_factura" style="color:red; display:none;">(Campo obligatorio)</span><input id="factura" oninput="maskFactura(this)" type="text"/><div><button onclick="validarYVerificarDuplicado();" type="button">Siguiente</button></div></div><div class="paso" id="paso2" style="display:none;;text-align:center;"><label for="foto_tablero_antes">Fotografía Tablero Antes:</label><img alt="Ejemplo de fotografía" src="https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/main/imagenes/Tablero%20antes%20de%20llenado.png" style="display: block; margin: 10px auto; height: 200px; object-fit: contain; border-radius: 8px;"/><span class="error-msg" id="error_foto_tablero_antes" style="color:red; display:none;">(Campo obligatorio)</span><button onclick="activarCamara('foto_tablero_antes')" style=" margin: 5px" type="button">Tomar Fotografía</button><button onclick="abrirGaleria('foto_tablero_antes')" style=" margin: 5px" type="button">Subir desde Galería</button><div class="preview" id="preview_foto_tablero_antes"></div><div><button onclick="mostrarPaso(1)" style=" margin: 5px" type="button">Anterior</button><button onclick="if(validarImagenPaso('foto_tablero_antes')){siguientePaso(3);}" style=" margin: 5px" type="button">Siguiente</button></div><input accept="image/*" hidden="True" id="foto_tablero_antes" type="file"/></div><div class="paso" id="paso3" style="display:none;;text-align:center;"><label for="foto_bomba">Fotografía Bomba en 0:</label><img alt="Ejemplo de fotografía" src="https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/main/imagenes/Bomba%20en%20cero.png" style="display: block; margin: 10px auto; height: 200px; object-fit: contain; border-radius: 8px;"/><span class="error-msg" id="error_foto_bomba" style="color:red; display:none;">(Campo obligatorio)</span><button onclick="activarCamara('foto_bomba')" style=" margin: 5px" type="button">Tomar Fotografía</button><button onclick="abrirGaleria('foto_bomba')" style=" margin: 5px" type="button">Subir desde Galería</button><div class="preview" id="preview_foto_bomba"></div><div><button onclick="mostrarPaso(2)" style=" margin: 5px" type="button">Anterior</button><button onclick="if(validarImagenPaso('foto_bomba')){siguientePaso(4);}" style=" margin: 5px" type="button">Siguiente</button></div><input accept="image/*" hidden="True" id="foto_bomba" type="file"/></div><div class="paso" id="paso4" style="display:none;;text-align:center;"><label for="foto_frontal">Fotografía Frontal del Vehículo o VIN con Vehículo:</label><img alt="Ejemplo de fotografía" src="https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/main/imagenes/Vista%20Frontal.png" style="display: block; margin: 10px auto; height: 200px; object-fit: contain; border-radius: 8px;"/><span class="error-msg" id="error_foto_frontal" style="color:red; display:none;">(Campo obligatorio)</span><button onclick="activarCamara('foto_frontal')" style=" margin: 5px" type="button">Tomar Fotografía</button><button onclick="abrirGaleria('foto_frontal')" style=" margin: 5px" type="button">Subir desde Galería</button><div class="preview" id="preview_foto_frontal"></div><div><button onclick="mostrarPaso(3)" style=" margin: 5px" type="button">Anterior</button><button onclick="if(validarImagenPaso('foto_frontal')){siguientePaso(5);}" style=" margin: 5px" type="button">Siguiente</button></div><input accept="image/*" hidden="True" id="foto_frontal" type="file"/></div><div class="paso" id="paso5" style="display:none;;text-align:center;"><label for="foto_bomba_llenado">Fotografía Bomba Llena:</label><img alt="Ejemplo de fotografía" src="https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/main/imagenes/Bomba%20llena.png" style="display: block; margin: 10px auto; height: 200px; object-fit: contain; border-radius: 8px;"/><span class="error-msg" id="error_foto_bomba_llenado" style="color:red; display:none;">(Campo obligatorio)</span><button onclick="activarCamara('foto_bomba_llenado')" style=" margin: 5px" type="button">Tomar Fotografía</button><button onclick="abrirGaleria('foto_bomba_llenado')" style=" margin: 5px" type="button">Subir desde Galería</button><div class="preview" id="preview_foto_bomba_llenado"></div><div><button onclick="mostrarPaso(4)" style=" margin: 5px" type="button">Anterior</button><button onclick="if(validarImagenPaso('foto_bomba_llenado')){siguientePaso(6);}" style=" margin: 5px" type="button">Siguiente</button></div><input accept="image/*" hidden="True" id="foto_bomba_llenado" type="file"/></div><div class="paso" id="paso6" style="display:none;;text-align:center;"><input accept="image/*" hidden="True" id="foto_despues" type="file"/><label for="foto_despues">Fotografía Tablero Después de Llenado:</label><img alt="Ejemplo de fotografía" src="https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/main/imagenes/Tablero%20antes%20de%20llenado.png" style="display: block; margin: 10px auto; height: 200px; object-fit: contain; border-radius: 8px;"/><span class="error-msg" id="error_foto_despues" style="color:red; display:none;">(Campo obligatorio)</span><button onclick="activarCamara('foto_despues')" style=" margin: 5px" type="button">Tomar Fotografía</button><button onclick="abrirGaleria('foto_despues')" style=" margin: 5px" type="button">Subir desde Galería</button><div class="preview" id="preview_foto_despues"></div><div><button onclick="mostrarPaso(5)" style=" margin: 5px" type="button">Anterior</button><button onclick="if(validarImagenPaso('foto_despues')){siguientePaso(7);}" style=" margin: 5px" type="button">Siguiente</button></div></div><div class="paso" id="paso7" style="display:none; text-align: center;"><h2>Fotografía de la Factura:</h2><img alt="Ejemplo factura" src="https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/main/imagenes/Factura.png" style="display: block; margin: 10px auto; height: 200px; object-fit: contain; border-radius: 8px;"/><input accept="image/*" hidden="True" id="foto_factura" type="file"/><button onclick="activarCamara('foto_factura')" style=" margin: 5px" type="button">Tomar Fotografía</button><button onclick="abrirGaleria('foto_factura')" style=" margin: 5px" type="button">Subir desde Galería</button><div class="preview" id="preview_foto_factura"></div>
 <div class="nav-buttons" style="display:flex; justify-content:center; gap:0.5rem;  margin-top: 20px;">
 <button onclick="mostrarPaso(6)" style="margin: 5px;" type="button">Anterior</button>
 <button id="guardar_reporte" style="margin: 5px;" type="button">Guardar Reporte</button>
 </div>
 </div></div>
-<!-- Contenedor de vista previa: dos páginas A4 simuladas -->
 <div id="preview_contenido" style="display:none;">
-<!-- Página 1: resumen e inserción de factura -->
 <div class="page" id="preview_page1">
 <table class="header-table">
 <tr>
 <td rowspan="3" style="width:100px;">
-<!-- Pega aquí la URL de tu logo en GitHub -->
 <img alt="Logo UTCD" src="https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/refs/heads/main/imagenes/Logo.png"/>
 </td>
 <td class="title-cell" rowspan="3">
@@ -648,13 +626,10 @@ function actualizarVisibilidadBotonesMasivos() {
 <div class="summary-box" id="summary_box"></div>
 </div>
 </div>
-<!-- Página 2: galería de fotografías con pie de página -->
 <div class="page" id="preview_page2">
 <h3 class="format-header">FOTOGRAFÍAS</h3>
 <div id="photos_table_container"></div>
 </div>
-<!-- Página 3: separador -->
-<!-- Página 3: solo fotografía de la factura -->
 <div class="page" id="preview_page3">
 <h3 class="format-header">FACTURA ORIGINAL</h3>
 <div class="invoice-box">
@@ -732,2107 +707,632 @@ function validarFormulario() {
   }
 
   // Máscara para Número de Factura: formato ###-###-##-#####
-    function maskFactura(el) {
-      // Solo dígitos
-      let v = el.value.replace(/\D/g, '');
-      // 1er tramo (0–3 dígitos)
-      if (v.length <= 3) {
-        el.value = v;
-      }
-      // 2º tramo (4–6 dígitos)
-      else if (v.length <= 6) {
-        el.value = `${v.slice(0,3)}-${v.slice(3)}`;
-      }
-      // 3er tramo (7–8 dígitos)
-      else if (v.length <= 8) {
-        el.value = `${v.slice(0,3)}-${v.slice(3,6)}-${v.slice(6)}`;
-      }
-      // Resto (9+ dígitos)
-      else {
-        el.value = `${v.slice(0,3)}-${v.slice(3,6)}-${v.slice(6,8)}-${v.slice(8)}`;
-      }
+  function maskFactura(el) {
+    // Solo dígitos
+    let v = el.value.replace(/\D/g, '');
+    // 1er tramo (0–3 dígitos)
+    if (v.length <= 3) {
+      el.value = v;
     }
-
-    /* URLs de servicios Google Apps Script */
-    const urlVehiculos = "https://script.google.com/macros/s/AKfycbwyUE5huHIdOR9SM3IapgIrwvHBCXYHOf9ptj47fXyW-0e1kIj-gK3SGV4czPNa2Wp-wg/exec";
-    const urlProcesos  = "https://script.google.com/macros/s/AKfycbxPtMWO-2meogbiHuw8FbbnY0u-rIq70gvtLNlHkr0YS0-JD3N23X6IcyhMld53zD66nw/exec";
-    let vehiculos = [], procesos = [];
-
-    /**
-     * Carga sectores y placas de la hoja "Vehiculos".
-     * Popula <select id="sector"> y muestra el formulario.
-     */
-    function cargarDatosVehiculos() {
-      fetch(urlVehiculos)
-        .then(res => res.json())
-        .then(data => {
-          vehiculos = data;
-          const sel = document.getElementById('sector');
-          // Eliminar duplicados usando Set
-          [...new Set(data.map(x => x.Sector))].forEach(s => sel.add(new Option(s, s)));
-          // Agregar sector CORPORATIVO manualmente
-          sel.add(new Option('CORPORATIVO', 'CORPORATIVO'));
-          document.getElementById('mensaje_cargando').style.display = 'none';
-          // Animar formulario al aparecer
-          const formEl = document.getElementById('formulario_contenido');
-          formEl.style.display = 'block';
-          formEl.classList.add('fade-in-up');
-            mostrarPaso(1);
-          document.getElementById('formulario_contenido').style.display = 'block';
-        })
-        .catch(err => {
-
-          document.getElementById('mensaje_cargando').innerText = 'Error al cargar los datos.';
-        });
-      actualizarVisibilidadBotonesMasivos();
+    // 2º tramo (4–6 dígitos)
+    else if (v.length <= 6) {
+      el.value = `${v.slice(0,3)}-${v.slice(3)}`;
     }
-
-    /**
-     * Carga procesos de la hoja "Procesos".
-     * Popula <select id="proceso">.
-     */
-    function cargarProcesos() {
-      fetch(urlProcesos)
-        .then(res => res.json())
-        .then(data => {
-          procesos = data.map(item => item.Proceso);
-          const sel = document.getElementById('proceso');
-          sel.innerHTML = '<option value="">Seleccione un proceso</option>';
-          procesos.forEach(p => sel.add(new Option(p, p)));
-        })
-        .catch(err => console.error('Error al cargar procesos:', err));
+    // 3er tramo (7–8 dígitos)
+    else if (v.length <= 8) {
+      el.value = `${v.slice(0,3)}-${v.slice(3,6)}-${v.slice(6)}`;
     }
+    // Resto (9+ dígitos)
+    else {
+      el.value = `${v.slice(0,3)}-${v.slice(3,6)}-${v.slice(6,8)}-${v.slice(8)}`;
+    }
+  }
 
-    // Al cambiar sector, filtrar placas correspondientes
-    document.getElementById('sector').addEventListener('change', function() {
-      const dataList = document.getElementById('placas');
-      dataList.innerHTML = '';
-      // Si es CORPORATIVO, mostrar todas las placas
-      const lista = (this.value === 'CORPORATIVO') ? vehiculos : vehiculos.filter(v => v.Sector === this.value);
-      lista.forEach(v => {
-        const opt = document.createElement('option');
-        opt.value = v.PLACA;
-        dataList.appendChild(opt);
+  /* URLs de servicios Google Apps Script */
+  const urlVehiculos = "https://script.google.com/macros/s/AKfycbwyUE5huHIdOR9SM3IapgIrwvHBCXYHOf9ptj47fXyW-0e1kIj-gK3SGV4czPNa2Wp-wg/exec";
+  const urlProcesos = "https://script.google.com/macros/s/AKfycbxPtMWO-2meogbiHuw8FbbnY0u-rIq70gvtLNlHkr0YS0-JD3N23X6IcyhMld53zD66nw/exec";
+
+  let vehiculos = [], procesos = [];
+
+  /**
+   * Carga sectores y placas de la hoja "Vehiculos".
+   * Popula <select id="sector"> y muestra el formulario.
+   */
+  function cargarDatosVehiculos() {
+    fetch(urlVehiculos)
+      .then(res => res.json())
+      .then(data => {
+        vehiculos = data;
+        const sel = document.getElementById('sector');
+        // Eliminar duplicados usando Set
+        [...new Set(data.map(x => x.Sector))].forEach(s => sel.add(new Option(s, s)));
+        // Agregar sector CORPORATIVO manualmente
+        sel.add(new Option('CORPORATIVO', 'CORPORATIVO'));
+        document.getElementById('mensaje_cargando').style.display = 'none';
+        // Animar formulario al aparecer
+        const formEl = document.getElementById('formulario_contenido');
+        formEl.style.display = 'block';
+        formEl.classList.add('fade-in-up');
+        mostrarPaso(1);
+        document.getElementById('formulario_contenido').style.display = 'block';
+      })
+      .catch(err => {
+        document.getElementById('mensaje_cargando').innerText = 'Error al cargar los datos.';
       });
-      // Limpiar el input de placa al cambiar el sector
-      document.getElementById('placa').value = '';
-      // Limpiar proceso
-      document.getElementById('proceso').value = '';
+      actualizarVisibilidadBotonesMasivos();
+  }
+
+  /**
+   * Carga procesos de la hoja "Procesos".
+   * Popula <select id="proceso">.
+   */
+  function cargarProcesos() {
+    fetch(urlProcesos)
+      .then(res => res.json())
+      .then(data => {
+        procesos = data.map(item => item.Proceso);
+        const sel = document.getElementById('proceso');
+        sel.innerHTML = '<option value="">Seleccione un proceso</option>';
+        procesos.forEach(p => sel.add(new Option(p, p)));
+      })
+      .catch(err => console.error('Error al cargar procesos:', err));
+  }
+
+  // Al cambiar sector, filtrar placas correspondientes
+  document.getElementById('sector').addEventListener('change', function() {
+    const dataList = document.getElementById('placas');
+    dataList.innerHTML = '';
+    // Si es CORPORATIVO, mostrar todas las placas
+    const lista = (this.value === 'CORPORATIVO') ? vehiculos : vehiculos.filter(v => v.Sector === this.value);
+    lista.forEach(v => {
+      const opt = document.createElement('option');
+      opt.value = v.PLACA;
+      dataList.appendChild(opt);
     });
+    // Limpiar el input de placa al cambiar el sector
+    document.getElementById('placa').value = '';
+    // Limpiar proceso
+    document.getElementById('proceso').value = '';
+  });
 
-    
-    // Verificar duplicado antes de generar preview
-    async function verificarDuplicado(placa, fecha, factura) {
-      try {
-        const response = await fetch("/api/guardar", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            validarDuplicado: true,
-            Placa: placa,
-            Fecha: fecha,
-            NumeroFactura: factura
-          })
-        });
-        const result = await response.json();
-        return result.duplicado || false;
-      } catch (err) {
-
-        return false;
-      }
-    }
-
-
-function imagenesCompletas() {
-  const campos = [
-    'foto_tablero_antes',
-    'foto_bomba',
-    'foto_despues',
-    'foto_bomba_llenado',
-    'foto_frontal',
-    'foto_factura'
-  ];
-  for (const id of campos) {
-    const input = document.getElementById(id);
-    if (!input || !input.files || input.files.length === 0) {
+  // Verificar duplicado antes de generar preview
+  async function verificarDuplicado(placa, fecha, factura) {
+    try {
+      const response = await fetch("/api/guardar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ validarDuplicado: true, Placa: placa, Fecha: fecha, NumeroFactura: factura })
+      });
+      const result = await response.json();
+      return result.duplicado || false;
+    } catch (err) {
       return false;
     }
   }
-  return true;
-}
 
-// Guardar reporte y generar vista previa
-    document.getElementById('guardar_reporte').onclick = async () => {
-
-  if (!validarFormulario()) return;
-  if (!imagenesCompletas()) {
-    alert("⚠️ Faltan fotografías por cargar. Por favor verifica antes de continuar.");
-    return;
+  function imagenesCompletas() {
+    const campos = [
+      'foto_tablero_antes',
+      'foto_bomba',
+      'foto_despues',
+      'foto_bomba_llenado',
+      'foto_frontal',
+      'foto_factura'
+    ];
+    for (const id of campos) {
+      const input = document.getElementById(id);
+      if (!input || !input.files || input.files.length === 0) {
+        return false; // Falta alguna imagen
+      }
+    }
+    return true; // Todas las imágenes están presentes
   }
-  const placa = document.getElementById('placa').value;
-  const fecha = document.getElementById('fecha').value;
-  const factura = document.getElementById('factura').value;// Continúa con la generación de PDF y carga previa
-  // ... el resto del código de recopilación de datos permanece intacto ...
-
-  // Recopilar datos del formulario
-      const data = {
-        Fecha:      document.getElementById('fecha').value,
-        Nombre:     document.getElementById('nombre').value,
-        Identidad:  document.getElementById('identidad').value,
-        Total:      document.getElementById('total').value + ' L',
-        Motivo:     document.getElementById('motivo').value,
-        Proceso:    document.getElementById('proceso').value,
-        Horas:      document.getElementById('horas').value,
-        Sector:     document.getElementById('sector').value,
-        Km:         document.getElementById('km').value,
-        FacturaNo:  document.getElementById('factura').value,
-        Placa:      document.getElementById('placa').value
-      
-};
-    // Capturar firma digital
-    data.Firma = window.colaboradorFirma || '';
-      // Buscar jefe inmediato por placa
-      const jefeObj = vehiculos.find(v => v.PLACA === data.Placa);
-      data.JefeInmediato = jefeObj
-        ? (jefeObj["Jefe inmediato"]
-           || jefeObj["Jefe Inmediato"]
-           || jefeObj.JefeInmediato
-           || "")
-        : "";
-          // Para sector CORPORATIVO no hay jefe inmediato
-          if (data.Sector === 'CORPORATIVO') {
-            data.JefeInmediato = '';
-          }
-
-      // Construir tabla resumen dinámicamente
-      const sb = document.getElementById('summary_box'); sb.innerHTML = '';
-      const tbl = document.createElement('table');
-      const rows = [
-        ['Nombre Completo', data.Nombre],
-        ['No. Identidad', data.Identidad],
-        ['Firma del Colaborador', data.Firma ? `<img src="${data.Firma}" style="max-width:150px;"/>` : ''],
-        ['Tipo de Gestión', 'Liquidación de gastos de combustible'],
-        ['Total', data.Total],
-        ['Motivo del llenado de combustible',
-         `Compra de Combustible al Vehículo<br><br>Para Labores de: ${data.Motivo}<br><br>Proceso: ${data.Proceso}`],
-        ['Fecha', data.Fecha],        ['Placa / VIN', data.Placa],
-        ['Observación',
-         `SECTOR: ${data.Sector}<br><br>KM: ${data.Km}<br><br>FACTURA: ${data.FacturaNo}`],
-        ['Autorizado por Jefe Inmediato', data.JefeInmediato],
-        ['Firma', '']
-      ];
-      rows.forEach(([k,v]) => {
-        const r = tbl.insertRow();
-        r.insertCell().textContent = k;
-        r.insertCell().innerHTML = v;
-      });
-      sb.appendChild(tbl);
-
-      // Construir galería de fotografías
-      const container = document.getElementById('photos_table_container');
-      const imgHTML = id => {
-        const f = document.getElementById(id).files[0];
-        if (!f) return '';
-        return `<img src="${URL.createObjectURL(f)}" class="photo-img">`;
-      };
-      container.innerHTML = `
-        <table class="photos-table">
-          <tr>
-            <td><div class="photo-title">TABLERO ANTES DE LLENADO</div>${imgHTML('foto_tablero_antes')}</td>
-            <td colspan="2"><div class="photo-title">BOMBA DE COMBUSTIBLE 0</div>${imgHTML('foto_bomba')}</td>
-          </tr>
-          <tr>
-            <td><div class="photo-title">TABLERO DESPUÉS DE LLENADO</div>${imgHTML('foto_despues')}</td>
-            <td colspan="2" rowspan="2"><div class="photo-title">BOMBA DE COMBUSTIBLE LLENA</div>${imgHTML('foto_bomba_llenado')}</td>
-          </tr>
-          <tr>
-            <td><div class="photo-title">VISTA FRONTAL DEL VEHÍCULO / VIN CON VEHICULO</div>${imgHTML('foto_frontal')}</td>
-          </tr>
-          <tr>
-            <td class="photo-footer">PLACA: ${data.Placa}</td>
-            <td class="photo-footer">FECHA: ${data.Fecha}</td>
-            <td class="photo-footer">FACTURA: ${data.FacturaNo}</td>
-          </tr>
-        </table>`;
-      // Cargar imagen de factura en la página 3
-      const factImg = document.getElementById('factura_only_img');
-      const fileF = document.getElementById('foto_factura').files[0];
-      if (fileF) {
-        const rdF = new FileReader();
-        rdF.onload = e => factImg.src = e.target.result;
-        rdF.readAsDataURL(fileF);
-      }
-
-      // Mostrar vista previa y ocultar formulario
-      // Ocultar formulario con animación
-      const formEl = document.getElementById('formulario_contenido');
-      formEl.classList.remove('fade-in-up');
-      formEl.style.display = 'none';
-      document.getElementById('preview_contenido').style.display = 'block';
-      // Animar vista previa al aparecer
-      const previewEl = document.getElementById('preview_contenido');
-      previewEl.classList.add('fade-in-up');
-
-// Asegurar mostrar botones en la vista previa
-      document.getElementById('enviar_reporte').style.display = 'inline-block';
-      document.getElementById('modificar_reporte').style.display = 'inline-block';
-      // Ajustar scroll para centrar preview
-      setTimeout(() => previewEl.scrollIntoView({ behavior: 'smooth' }), 100);
-    };
-
-    // Volver al formulario desde la vista previa
-    document.getElementById('modificar_reporte').onclick = () => {
-      // Animar cierre de preview
-      const previewEl = document.getElementById('preview_contenido');
-      previewEl.classList.remove('fade-in-up');
-      previewEl.style.display = 'none';
-      // Mostrar formulario con animación
-      const formEl = document.getElementById('formulario_contenido');
-      formEl.style.display = 'block';
-      formEl.classList.add('fade-in-up');
-            mostrarPaso(1);
-      // Centramos el formulario en vista
-      setTimeout(() => formEl.scrollIntoView({ behavior: 'smooth' }), 100);
-    };
-
-    // Generar y descargar PDF de forma manual para controlar cada página
-    document.getElementById('enviar_reporte').onclick = async () => {
-      const modalGen = document.getElementById('generando_pdf_modal');
-      modalGen.style.visibility = 'visible';
-      modalGen.style.opacity = 1;
-      await new Promise(r => setTimeout(r, 100));
-
-      // Recopilar datos del formulario
-      const reportData = {
-        Sector: document.getElementById('sector').value,
-        Placa: document.getElementById('placa').value,
-        Proceso: document.getElementById('proceso').value,
-        Nombre: document.getElementById('nombre').value,
-        Identidad: document.getElementById('identidad').value,
-        TotalGastado: document.getElementById('total').value,
-        LitrosConsumidos: document.getElementById('litros').value,
-        MotivoDelLlenado: document.getElementById('motivo').value,
-        Fecha: document.getElementById('fecha').value,
-        HorasDelViaje: document.getElementById('horas').value,
-        KmActual: document.getElementById('km').value,
-        NombreComercio: document.getElementById('nombre_comercio').value,
-        NumeroFactura: document.getElementById('factura').value
-      };
-
-      try {
-        const saveResponse = await fetch(urlGuardarReporte, {
-          method: 'POST',
-          mode: 'cors',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(reportData)
-        });
-        const saveResult = await saveResponse.json();
-        if (saveResult.status !== 'OK') {
-          alert('Error al guardar el reporte: ' + saveResult.message);
-
-          return;
-        }
-
-        // Generar PDF
-        const pages = document.querySelectorAll('.page');
-        const margins = { top: 12.7, left: 12.7, bottom: 12.7, right: 12.7 };
-        const pdf = new jspdf.jsPDF({ unit: 'mm', format: 'letter', orientation: 'portrait' });
-        for (let i = 0; i < pages.length; i++) {
-          const pg = pages[i];
-          pg.style.boxShadow = 'none';
-          const canvas = await html2canvas(pg, { scale: 1, useCORS: true, backgroundColor: '#ffffff' });
-          const imgData = canvas.toDataURL('image/png');
-          const pdfWidth = pdf.internal.pageSize.getWidth() - margins.left - margins.right;
-          const pdfHeight = pdf.internal.pageSize.getHeight() - margins.top - margins.bottom;
-          if (i > 0) pdf.addPage();
-          pdf.addImage(imgData, 'PNG', margins.left, margins.top, pdfWidth, pdfHeight);
-        }
-
-        // Guardar PDF para descargarlo cuando se confirme
-        window.generatedPDF = pdf;
-        window.generatedFilename = `${reportData.Sector}_${reportData.Fecha}_${reportData.NumeroFactura}.pdf`;
-
-        // Ocultar modal de generación
-        modalGen.style.opacity = 0;
-        setTimeout(() => { modalGen.style.visibility = 'hidden'; }, 300);
-
-        // Mostrar modal de confirmación de descarga
-        document.getElementById('downloadModal').style.display = 'flex';
-      } catch (err) {
-        modalGen.style.opacity = 0;
-        modalGen.style.visibility = 'hidden';
-        alert('Ocurrió un error al generar o subir el PDF.');
-
-      }
-    };
 
 
-
-
-    // Inicializar carga al abrir página
-    
-  
-// Mostrar previews para cada campo de imagen
-['foto_tablero_antes','foto_bomba','foto_despues','foto_bomba_llenado','foto_frontal','foto_factura'].forEach(id => {
-  const input = document.getElementById(id);
-  if (input) {
-    input.addEventListener('change', () => {
-      if (input.files && input.files.length > 0) {
-        const archivo = input.files[0];
-        
-        // Validar antigüedad de la foto (no mayor a 48 horas)
-        const fileDate = new Date(archivo.lastModified);
-        if (Date.now() - fileDate.getTime() > 48 * 3600 * 1000) {
-          alert('La fotografía debe ser reciente (no mayor a 48 horas).');
-          input.value = '';
-          return;
-        }
-        const url = URL.createObjectURL(archivo);
-        const contenedor = document.getElementById('preview_' + id);
-        if (contenedor) {
-          contenedor.innerHTML = `<img src="${url}" style="max-width:100%; max-height:300px;">`;
-        }
-      }
-    });
-      actualizarVisibilidadBotonesMasivos();
-  }
-});
-
-
-function validarFormulario() {
-  let valido = true;
-  const campos = ['sector', 'placa', 'proceso', 'nombre', 'identidad', 'total', 'litros', 'motivo', 'fecha', 'km', 'nombre_comercio', 'factura', 'foto_tablero_antes', 'foto_bomba', 'foto_despues', 'foto_bomba_llenado', 'foto_frontal', 'foto_factura'];
-
-  campos.forEach(id => {
-    const campo = document.getElementById(id);
+  function validarImagenPaso(id) {
+    const input = document.getElementById(id);
     const error = document.getElementById("error_" + id);
-    if (campo && (!campo.value || campo.value.trim() === "")) {
-      if (error) error.style.display = "inline";
-      valido = false;
-    } else {
-      if (error) error.style.display = "none";
-    }
-  });
 
-  if (!valido) {
-    const toast = document.getElementById("toast-alert");
-    toast.classList.add("show");
-    setTimeout(() => toast.classList.remove("show"), 3000);
-  }
-  return valido;
-}
-
-</script>
-<!-- Incluir html2pdf.js desde CDN -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script>
-// Mostrar previews para cada campo de imagen
-['foto_tablero_antes','foto_bomba','foto_despues','foto_bomba_llenado','foto_frontal','foto_factura'].forEach(id => {
-  const input = document.getElementById(id);
-  if (input) {
-    input.addEventListener('change', () => {
-      if (input.files && input.files.length > 0) {
-        const archivo = input.files[0];
-        
-        // Validar antigüedad de la foto (no mayor a 48 horas)
-        const fileDate = new Date(archivo.lastModified);
-        if (Date.now() - fileDate.getTime() > 48 * 3600 * 1000) {
-          alert('La fotografía debe ser reciente (no mayor a 48 horas).');
-          input.value = '';
-          return;
-        }
-        const url = URL.createObjectURL(archivo);
-        const contenedor = document.getElementById('preview_' + id);
-        if (contenedor) {
-          contenedor.innerHTML = `<img src="${url}" style="max-width:100%; max-height:300px;">`;
-        }
-      }
-    });
-      actualizarVisibilidadBotonesMasivos();
-  }
-});
-
-
-function validarFormulario() {
-  let valido = true;
-  const campos = ['sector', 'placa', 'proceso', 'nombre', 'identidad', 'total', 'litros', 'motivo', 'fecha', 'km', 'nombre_comercio', 'factura', 'foto_tablero_antes', 'foto_bomba', 'foto_despues', 'foto_bomba_llenado', 'foto_frontal', 'foto_factura'];
-
-  campos.forEach(id => {
-    const campo = document.getElementById(id);
-    const error = document.getElementById("error_" + id);
-    if (campo && (!campo.value || campo.value.trim() === "")) {
-      if (error) error.style.display = "inline";
-      valido = false;
-    } else {
-      if (error) error.style.display = "none";
-    }
-  });
-
-  if (!valido) {
-    const toast = document.getElementById("toast-alert");
-    toast.classList.add("show");
-    setTimeout(() => toast.classList.remove("show"), 3000);
-  }
-  return valido;
-}
-
-</script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.2/html2pdf.bundle.min.js"></script>
-<script>
-// Mostrar previews para cada campo de imagen
-['foto_tablero_antes','foto_bomba','foto_despues','foto_bomba_llenado','foto_frontal','foto_factura'].forEach(id => {
-  const input = document.getElementById(id);
-  if (input) {
-    input.addEventListener('change', () => {
-      if (input.files && input.files.length > 0) {
-        const archivo = input.files[0];
-        
-        // Validar antigüedad de la foto (no mayor a 48 horas)
-        const fileDate = new Date(archivo.lastModified);
-        if (Date.now() - fileDate.getTime() > 48 * 3600 * 1000) {
-          alert('La fotografía debe ser reciente (no mayor a 48 horas).');
-          input.value = '';
-          return;
-        }
-        const url = URL.createObjectURL(archivo);
-        const contenedor = document.getElementById('preview_' + id);
-        if (contenedor) {
-          contenedor.innerHTML = `<img src="${url}" style="max-width:100%; max-height:300px;">`;
-        }
-      }
-    });
-      actualizarVisibilidadBotonesMasivos();
-  }
-});
-
-
-function validarFormulario() {
-  let valido = true;
-  const campos = ['sector', 'placa', 'proceso', 'nombre', 'identidad', 'total', 'litros', 'motivo', 'fecha', 'km', 'nombre_comercio', 'factura', 'foto_tablero_antes', 'foto_bomba', 'foto_despues', 'foto_bomba_llenado', 'foto_frontal', 'foto_factura'];
-
-  campos.forEach(id => {
-    const campo = document.getElementById(id);
-    const error = document.getElementById("error_" + id);
-    if (campo && (!campo.value || campo.value.trim() === "")) {
-      if (error) error.style.display = "inline";
-      valido = false;
-    } else {
-      if (error) error.style.display = "none";
-    }
-  });
-
-  if (!valido) {
-    const toast = document.getElementById("toast-alert");
-    toast.classList.add("show");
-    setTimeout(() => toast.classList.remove("show"), 3000);
-  }
-  return valido;
-}
-
-</script>
-<div id="generando_pdf_modal" style="
-  visibility: hidden;
-  opacity: 0;
-  position:fixed;
-  top:0; left:0; right:0; bottom:0;
-  background:rgba(0,0,0,0.6);
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  justify-content:center;
-  z-index:2000;
-  transition: opacity 0.3s ease;">
-<div class="spinner"></div>
-<div style="color:white; font-size:20px; font-weight:bold; margin-top:20px;">
-    Generando PDF, por favor espere...
-  </div>
-</div>
-<div id="verificando_duplicado_modal" style="
-  visibility: hidden;
-  opacity: 0;
-  position:fixed;
-  top:0; left:0; right:0; bottom:0;
-  background:rgba(0,0,0,0.6);
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  justify-content:center;
-  z-index:2000;
-  transition: opacity 0.3s ease;">
-<div class="spinner"></div>
-<div style="color:white; font-size:20px; font-weight:bold; margin-top:20px;">
-    Verificando datos, por favor espere...
-  </div>
-</div>
-<script>
-function mostrarLoaderVerificacion() {
-  const modal = document.getElementById("verificando_duplicado_modal");
-  if (modal) modal.style.visibility = 'visible', modal.style.opacity = 1;
-}
-function ocultarLoaderVerificacion() {
-  const modal = document.getElementById("verificando_duplicado_modal");
-  if (modal) modal.style.opacity = 0;
-  setTimeout(() => { if (modal) modal.style.visibility = 'hidden'; }, 300);
-}
-</script>
-<script>
-function mostrarPaso(paso) {
-  document.querySelectorAll('.paso').forEach(p => p.style.display = 'none');
-  const siguiente = document.getElementById('paso' + paso);
-  if (siguiente) siguiente.style.display = 'block';
-}
-
-async function siguientePaso(pasoActual) {
-  if (pasoActual === 2) {
-    if (!validarFormulario()) return;const placa = document.getElementById('placa').value;
-    const fecha = document.getElementById('fecha').value;
-    const factura = document.getElementById('factura').value;
-    const duplicado = await verificarDuplicado(placa, fecha, factura);
-    ocultarLoaderVerificacion();
-    if (duplicado) {
-      const continuar = confirm("⚠️ Ya existe un reporte con estos datos. ¿Deseas reemplazarlo?");
-      if (!continuar) return;
-    }
-  }
-  mostrarPaso(pasoActual);
-}
-</script><script>
-function validarFormulario() {
-  const paso1 = document.getElementById("paso1");
-  const campos = Array.from(paso1.querySelectorAll("input, select, textarea")).filter(c => c.id !== "horas")
-              .filter(campo => campo.id !== "horas");
-  let esValido = true;
-
-  campos.forEach(campo => {
-    const error = document.getElementById(`error_${campo.id}`);
-    if (!campo.value.trim()) {
-      esValido = false;
-      if (error) error.style.display = 'inline';
-      campo.classList.add("invalido");
-    } else {
-      if (error) error.style.display = 'none';
-      campo.classList.remove("invalido");
-    }
-  });
-
-  return esValido;
-}
-</script><script>
-function activarCamara(id) {
-  const input = document.getElementById(id);
-  input.setAttribute("capture", "environment");
-  input.click();
-}
-
-function abrirGaleria(id) {
-  const input = document.getElementById(id);
-  input.removeAttribute("capture");
-  input.click();
-}
-
-// Validar imagen cargada por paso antes de avanzar
-function validarImagenPaso(id) {
-  const input = document.getElementById(id);
-  if (!input || !input.files || input.files.length === 0) {
-    alert("Debe tomar o subir una fotografía antes de continuar.");
-    return false;
-  }
-  return true;
-}
-</script><script>
-document.addEventListener("DOMContentLoaded", () => {
-  const btn = document.getElementById("guardar_reporte");
-  if (btn && typeof generarPreviewPDF === "function") {
-  }
-});
-</script><script>
-document.addEventListener("DOMContentLoaded", () => {
-  const input = document.getElementById("foto_factura");
-  if (input) {
-    input.addEventListener("change", e => {
-      const preview = document.getElementById("preview_foto_factura");
-      if (preview && e.target.files[0]) {
-        const reader = new FileReader();
-        reader.onload = function(ev) {
-          preview.innerHTML = '<img src="' + ev.target.result + '" style="max-width: 100%; max-height: 200px;">';
-        };
-        reader.readAsDataURL(e.target.files[0]);
-      }
-    });
-      actualizarVisibilidadBotonesMasivos();
-  }
-});
-</script>
-<script>
-function mostrarLoaderVerificacion() {
-  const modal = document.getElementById("verificando_duplicado_modal");
-  if (modal) {
-    modal.style.visibility = 'visible';
-    modal.style.opacity = 1;
-  }
-}
-function ocultarLoaderVerificacion() {
-  const modal = document.getElementById("verificando_duplicado_modal");
-  if (modal) {
-    modal.style.opacity = 0;
-    setTimeout(() => {
-      modal.style.visibility = 'hidden';
-    }, 300);
-  }
-}
-</script>
-<script>
-function validarYVerificarDuplicado() {
-
-    const opciones = document.querySelectorAll('#placas option');
-    const listaPlacas = Array.from(opciones).map(opt => opt.value.trim());
-    const inputPlaca = document.getElementById('placa');
-    const placaIngresada = inputPlaca.value.trim();
-    const placaMayus = placaIngresada.toUpperCase();
-    if (!listaPlacas.map(p => p.toUpperCase()).includes(placaMayus)) {
-        alert("La placa ingresada no está registrada. Por favor seleccione una válida.");
-        inputPlaca.focus();
-        return;
-    }
-
-  if (!validarFormulario()) return;
-
-  mostrarLoaderVerificacion();
-
-  requestAnimationFrame(() => {
-    setTimeout(() => {
-      const duplicado = false;
-
-      if (duplicado) {
-        alert("Ya existe un reporte con esta información.");
-        ocultarLoaderVerificacion();
-      } else {
-        const paso2 = document.getElementById('paso2');
-
-        const observer = new MutationObserver(() => {
-          if (paso2.style.display === "block") {
-            ocultarLoaderVerificacion();
-            observer.disconnect();
-          }
-        });
-
-        observer.observe(paso2, { attributes: true, attributeFilter: ["style"] });
-        siguientePaso(2);
-      }
-    }, 100);
-  });
-      actualizarVisibilidadBotonesMasivos();
-}
-</script>
-<script>
-async function fileToBase64(inputId) {
-  return new Promise((resolve, reject) => {
-    const file = document.getElementById(inputId).files[0];
-    if (!file) return resolve(null);
-    // Use blueimp-load-image to correct orientation based on EXIF
-    loadImage(
-      file,
-      function (canvas) {
-        const orientedDataUrl = canvas.toDataURL('image/jpeg');
-        resolve(orientedDataUrl);
-      },
-      { canvas: true, orientation: true }
-    );
-  });
-      actualizarVisibilidadBotonesMasivos();
-};
-
-document.getElementById('enviar_reporte').onclick = async () => {
-  const fields = ['foto_tablero_antes','foto_bomba','foto_despues','foto_bomba_llenado','foto_frontal','foto_factura'];
-  const images = {};
-  for (const id of fields) {
-    images[id] = await fileToBase64(id);
-  }
-
-  const data = {
-    Sector: document.getElementById('sector').value,
-    Placa: document.getElementById('placa').value,
-    Proceso: document.getElementById('proceso').value,
-    Nombre: document.getElementById('nombre').value,
-    Identidad: document.getElementById('identidad').value,
-    TotalGastado: document.getElementById('total').value,
-    LitrosConsumidos: document.getElementById('litros').value,
-    MotivoDelLlenado: document.getElementById('motivo').value,
-    Fecha: document.getElementById('fecha').value,
-    HorasDelViaje: document.getElementById('horas').value,
-    KmActual: document.getElementById('km').value,
-    NumeroFactura: document.getElementById('factura').value,
-    NombreComercio: document.getElementById('nombre_comercio').value
-  };
-
-  const [year, month, day] = data.Fecha.split('-').map(Number);
-      const fDate = new Date(year, month - 1, day);
-  const meses = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
-  const headerText = `FORMATO DE FACTURAS COMBUSTIBLE ${meses[fDate.getMonth()]} ${fDate.getFullYear()}`;
-
-  document.getElementById('loader_pdf').style.display = 'flex';
-
-data.JefeInmediato = window._jefeInmediato || "";
-
-// Asignar Jefe Inmediato para PDF desde el resumen
-    const rows = Array.from(document.querySelector('#summary_box table').rows);
-    data.JefeInmediato = rows.find(r => r.cells[0].innerText.trim() === 'Autorizado por Jefe Inmediato')
-      ?.cells[1]?.innerText || '';
-// Pega aquí la URL de tu logo en GitHub
-const logoUrl = 'https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/refs/heads/main/imagenes/Logo.png';
-  const logoBase64 = await urlToBase64(logoUrl);
-
-const docDefinition = {
-    pageSize: 'letter',
-    pageMargins: [30, 30, 30, 30],
-    content: [
-
-      {
-  table: {
-    widths: [100, '*', 'auto', 'auto'],
-    body: [
-      [
-        { image: logoBase64, width: 90, rowSpan: 3, alignment: 'center', margin: [0, 10, 0, 0] },
-        { text: 'DETALLE DE LA FACTURA DE COMBUSTIBLE', style: 'header', fontSize: 14, alignment: 'center', bold: true, rowSpan: 3, margin: [0, 20, 0, 0] , verticalAlignment: 'middle' },
-        { text: 'Código', bold: true , verticalAlignment: 'middle', alignment: 'center', verticalAlignment: 'middle' },
-        { text: 'CLS-PAU-F-19' , verticalAlignment: 'middle', alignment: 'center', verticalAlignment: 'middle' }
-      ],
-      [
-        {}, {},
-        { text: 'Versión', bold: true , verticalAlignment: 'middle', alignment: 'center', verticalAlignment: 'middle' },
-        { text: '1' , verticalAlignment: 'middle', alignment: 'center', verticalAlignment: 'middle' }
-      ],
-      [
-        {}, {},
-        { text: 'Fecha', bold: true , verticalAlignment: 'middle', alignment: 'center', verticalAlignment: 'middle' },
-        { text: '20/5/2025' , verticalAlignment: 'middle', alignment: 'center', verticalAlignment: 'middle' }
-      ]
-    ]
-  },
-  layout: {
-    hLineWidth: function () { return 1; },
-    vLineWidth: function () { return 1; },
-    hLineColor: function () { return '#000'; },
-    vLineColor: function () { return '#000'; }
-  },
-  margin: [0, 0, 0, 10]
-},,
-
-      {
-        
-groupHeader:function(value, count, data){
-    // Encontrar el primer nombre coincidente por identidad
-    let fullName = "";
-    for (let i = 0; i < data.length; i++) {
-        if (data[i].Identidad === value && data[i].Nombre) {
-            fullName = data[i].Nombre;
-            break;
-        }
-    }
-    // Calcular el total por grupo
-    let total = data.reduce((sum, row) => sum + (parseFloat(row["Total Gastado"]) || 0), 0);
-    return `${fullName} - ${value} - ${count} factura(s) - Total: L ${total.toFixed(2)}`;
-},
-
-    columns: [
-          {
-            width: '48%',
-            table: {
-              widths: ['*'],
-              body: [[
-                { text: 'Pegar Factura Original en este Espacio', italics: true, alignment: 'center', margin: [0, 309] , verticalAlignment: 'middle' }
-              ]]
-            },
-            layout: {
-              hLineWidth: () => 1,
-              vLineWidth: () => 1,
-              hLineColor: () => '#aaa',
-              vLineColor: () => '#aaa',
-              hLineStyle: () => ({ dash: { length: 3, space: 3 } }),
-              vLineStyle: () => ({ dash: { length: 3, space: 3 } })
-            },
-            margin: [0, 10, 5, 0]
-          },
-          {
-            width: '52%',
-            table: {
-              widths: ['30%', '70%'],
-              heights: [40, 40, 40, 40, 40, 80, 40, 40, 80, 60, 60],
-              body: [
-                ['Nombre Completo', data.Nombre],
-                ['No. Identidad', data.Identidad],
-                ['Firma del Colaborador', window.colaboradorFirma ? { image: window.colaboradorFirma, width: 150 } : ''],
-                ['Tipo de Gestión', 'Liquidación de gastos de combustible'],
-                ['Total', data.TotalGastado + ' L'],
-                ['Motivo del llenado de combustible', `Compra de Combustible al Vehículo
-
-Para Labores de: ${data.MotivoDelLlenado}
-
-Proceso: ${data.Proceso}`],
-                ['Fecha', data.Fecha],
-                ['Placa o VIN', data.Placa],
-                ['Observación', `SECTOR: ${data.Sector}
-
-KM: ${data.KmActual}
-
-FACTURA: ${data.NumeroFactura}`],
-                ['Autorizado por Jefe Inmediato', data.JefeInmediato || ''],
-                ['Firma', '']
-              ]
-            },
-            layout: 'grid',
-            margin: [5, 10, 0, 0]
-          }
-        ]
-      },
-      {
-      table: {
-        widths: ['*'],
-        body: [[
-          { text: 'FOTOGRAFÍAS', style: 'subheader', alignment: 'center', bold: true, border: [true, true, true, true] , verticalAlignment: 'middle' }
-        ]]
-      },
-      layout: {
-        hLineWidth: () => 1,
-        vLineWidth: () => 1
-      },
-      pageBreak: 'before',
-      margin: [0, 0, 0, 10]
-    },
-      {
-        table: {
-          widths: ['50%', '50%'],
-          heights: [200, 200, 200],
-          body: [
-            [
-              { stack: [{ text: 'TABLERO ANTES DE LLENADO', bold: true, margin: [0, 0, 0, 5] , verticalAlignment: 'middle', alignment: 'center', verticalAlignment: 'middle' }, { image: images['foto_tablero_antes'], fit: [250, 180] }], alignment: 'center' },
-              { stack: [{ text: 'BOMBA DE COMBUSTIBLE 0', bold: true, margin: [0, 0, 0, 5] , verticalAlignment: 'middle', alignment: 'center', verticalAlignment: 'middle' }, { image: images['foto_bomba'], fit: [250, 180] }], alignment: 'center' },
-            ],
-            [
-              { stack: [{ text: 'TABLERO DESPUÉS DE LLENADO', bold: true, margin: [0, 0, 0, 5] , verticalAlignment: 'middle', alignment: 'center', verticalAlignment: 'middle' }, { image: images['foto_despues'], fit: [250, 180] }], alignment: 'center' },
-              {
-                stack: [{ text: 'VISTA FRONTAL DEL VEHÍCULO / VIN CON VEHICULO', bold: true, margin: [0, 0, 0, 5] , verticalAlignment: 'middle', alignment: 'center', verticalAlignment: 'middle' }, { image: images['foto_frontal'], fit: [250, 200] }], alignment: 'center' , rowSpan: 2 },
-            ],
-            [
-              { stack: [{ text: 'BOMBA DE COMBUSTIBLE LLENA', bold: true, margin: [0, 0, 0, 5] , verticalAlignment: 'middle', alignment: 'center', verticalAlignment: 'middle' }, { image: images['foto_bomba_llenado'], fit: [250, 180] }], alignment: 'center' },
-            ]
-          ]
-        },
-        layout: 'grid'
-      },
-      {
-        table: {
-          widths: ['33%', '33%', '34%'],
-          body: [[
-            { text: `PLACA: ${data.Placa}`, bold: true, margin: [0, 0, 0, 5] },
-            { text: `FECHA: ${data.Fecha}`, bold: true, alignment: 'center' },
-            { text: `FACTURA: ${data.NumeroFactura}`, bold: true, alignment: 'right' }
-          ]]
-        },
-        margin: [0, 10, 0, 0]
-      },
-      {
-      table: {
-        widths: ['*'],
-        body: [[
-          { text: 'FACTURA ORIGINAL', style: 'subheader', alignment: 'center', bold: true, border: [true, true, true, true], margin: [0, 0, 0, 10] , verticalAlignment: 'middle' }
-        ]]
-      },
-      layout: {
-        hLineWidth: () => 1,
-        vLineWidth: () => 1
-      },
-      pageBreak: 'before'
-    },
-      images['foto_factura'] ? { image: images['foto_factura'], fit: [400, 500], alignment: 'center', margin: [0, 30, 0, 0] } : ''
-    ],
-    styles: {
-      header: { fontSize: 16, bold: true, margin: [0, 10, 0, 10] },
-      subheader: { fontSize: 14, bold: true, margin: [0, 10, 0, 10] }
-    },
-    defaultStyle: {
-      fontSize: 10
-    }
-  };
-
-  const filename = `${data.Sector}_${data.Fecha}_${data.NumeroFactura}.pdf`;
-
-  
-async function urlToBase64(url) {
-  const response = await fetch(url);
-  const blob = await response.blob();
-  return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onloadend = () => resolve(reader.result);
-    reader.readAsDataURL(blob);
-  });
-      actualizarVisibilidadBotonesMasivos();
-}
-
-pdfMake.createPdf(docDefinition).getBase64(function(base64) {
-    const savePayload = { ...data, pdf: base64, filename };
-
-    fetch('/api/guardar', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(savePayload)
-    }).then(() => {
-        // Guardar PDF para descarga posterior
-        generatedPDF = pdfMake.createPdf(docDefinition);
-        generatedFilename = filename;
-        document.getElementById('loader_pdf').style.display = 'none';
-        document.getElementById('downloadModal').style.display = 'flex';
-    });
-
-      actualizarVisibilidadBotonesMasivos();
-  });
-};
-</script>
-<div id="loader_pdf" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.8); z-index:9999; align-items:center; justify-content:center; flex-direction: column;">
-<div class="spinner" style="border: 6px solid #f3f3f3; border-top: 6px solid #3498db; border-radius: 50%; width: 60px; height: 60px; animation: spin 1s linear infinite;"></div>
-<div style="font-size:20px; font-weight:bold; margin-top:20px;">Generando PDF...</div>
-</div>
-<div id="success_alert" style="display:none; position:fixed; top:20px; right:20px; background-color:#4CAF50; color:white; padding:15px; border-radius:5px; z-index:10000;">
-  Información enviada con éxito
-</div>
-<script>
-function mostrarSuccessYReset() {
-  const alerta = document.getElementById('success_alert');
-  if (alerta) {
-    alerta.style.display = 'block';
-    setTimeout(() => {
-      alerta.style.display = 'none';
-      location.reload();
-    }, 2500);
-  } else {
-    location.reload();
-  }
-}
-</script>
-<script>
-function validarYVerificarDuplicado() {
-
-    const opciones = document.querySelectorAll('#placas option');
-    const listaPlacas = Array.from(opciones).map(opt => opt.value.trim());
-    const inputPlaca = document.getElementById('placa');
-    const placaIngresada = inputPlaca.value.trim();
-    const placaMayus = placaIngresada.toUpperCase();
-    if (!listaPlacas.map(p => p.toUpperCase()).includes(placaMayus)) {
-        alert("La placa ingresada no está registrada. Por favor seleccione una válida.");
-        inputPlaca.focus();
-        return;
-    }
-
-  if (!validarFormulario()) return;
-
-  const identidad = document.getElementById("identidad").value.replace(/\D/g, '');
-  const factura = document.getElementById("factura").value.replace(/\D/g, '');
-
-  if (identidad.length !== 13) {
-    alert("El número de identidad debe tener exactamente 13 dígitos.");
-    return;
-  }
-
-  if (factura.length < 16) {
-    alert("El número de factura debe tener al menos 16 dígitos.");
-    return;
-  }
-
-  // Validación de Monto Gastado (>5000)
-  const totalVal = parseFloat(document.getElementById('total').value) || 0;
-  if (totalVal > 5000) {
-    alert('El monto ingresado es muy elevado. El máximo permitido es 5000.');
-    return;
-  }
-
-  // Validación de Litros Consumidos (>250)
-  const litrosVal = parseFloat(document.getElementById('litros').value) || 0;
-  if (litrosVal > 250) {
-    alert('El valor de litros consumidos es muy elevado. El máximo permitido es 250.');
-    return;
-  }
-
-  mostrarLoaderVerificacion();
-
-  requestAnimationFrame(() => {
-    setTimeout(() => {
-      const duplicado = false; // Aquí normalmente iría la verificación real
-
-      if (duplicado) {
-        alert("Ya existe un reporte con esta información.");
-        ocultarLoaderVerificacion();
-      } else {
-        const paso2 = document.getElementById('paso2');
-        const observer = new MutationObserver(() => {
-          if (paso2.style.display === "block") {
-            ocultarLoaderVerificacion();
-            observer.disconnect();
-          }
-        });
-
-        observer.observe(paso2, { attributes: true, attributeFilter: ["style"] });
-        siguientePaso(2);
-      }
-    }, 100);
-  });
-      actualizarVisibilidadBotonesMasivos();
-}
-</script>
-<script>
-function validarFormulario() {
-  const paso1 = document.getElementById("paso1");
-  const campos = Array.from(paso1.querySelectorAll("input, select, textarea")).filter(c => c.id !== "horas");
-  let esValido = true;
-
-  campos.forEach(campo => {
-    const error = document.getElementById("error_" + campo.id);
-    if (!campo.value.trim()) {
-      esValido = false;
-      if (error) error.style.display = "inline";
-      campo.classList.add("invalido");
-    } else {
-      if (error) error.style.display = "none";
-      campo.classList.remove("invalido");
-    }
-  });
-
-  if (!esValido) {
-    const toast = document.getElementById("toast-alert");
-    if (toast) {
+    if (!input.files || input.files.length === 0) {
+      error.style.display = "inline";
+      const toast = document.getElementById("toast-alert");
       toast.classList.add("show");
       setTimeout(() => toast.classList.remove("show"), 3000);
-    }
-  }
-
-  return esValido;
-}
-</script>
-<script>
-function mostrarPaso(paso) {
-  const pasos = document.querySelectorAll('.paso');
-  const visible = Array.from(pasos).find(p => p.style.display !== "none");
-  const siguiente = document.getElementById('paso' + paso);
-
-  if (visible && visible !== siguiente) {
-    visible.classList.remove('fade-in-down');
-    visible.classList.add('fade-out-up');
-
-    setTimeout(() => {
-      visible.style.display = 'none';
-      visible.classList.remove('fade-out-up');
-
-      siguiente.style.display = 'block';
-      siguiente.classList.add('fade-in-down');
-    }, 300);
-  } else {
-    siguiente.style.display = 'block';
-    siguiente.classList.add('fade-in-down');
-  }
-}
-</script>
-<!-- Modal Firma Digital -->
-<div id="modal-signature" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); align-items:center; justify-content:center; z-index:3000; ">
-<div style="background:#fff; padding:20px; border-radius:8px; max-width:500px; width:90%;">
-<h3>Firma de Aprobación</h3>
-<canvas height="180" id="canvas-signature" style="border:1px solid #ccc; border-radius:4px;" width="460"></canvas>
-<div style="margin-top:10px; text-align:right;">
-<div class="signature-buttons"><button id="clear-signature" type="button">Limpiar</button>
-<button id="confirm-signature" type="button">Confirmar</button></div>
-</div>
-</div>
-</div>
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-  // Inicializar Signature Pad
-  const canvas = document.getElementById('canvas-signature');
-  const signaturePad = new SignaturePad(canvas, { backgroundColor: 'rgba(255,255,255,0)', penColor: 'black' });
-
-  // Capturar handler original
-  const btnEnviar = document.getElementById('enviar_reporte');
-  const originalHandler = btnEnviar.onclick;
-
-  // Mostrar modal al enviar
-  btnEnviar.onclick = () => {
-    signaturePad.clear();
-    document.getElementById('modal-signature').style.display = 'flex';
-  };
-
-  // Limpiar firma
-  document.getElementById('clear-signature').onclick = () => {
-    signaturePad.clear();
-  };
-
-  // Confirmar firma
-  document.getElementById('confirm-signature').onclick = () => {
-    if (signaturePad.isEmpty()) {
-      alert('Por favor, firma antes de confirmar.');
-      return;
-    }
-    // Guardar firma
-    window.colaboradorFirma = signaturePad.toDataURL();
-    document.getElementById('modal-signature').style.display = 'none';
-    // Llamar flujo original
-    originalHandler();
-  };
-});
-</script>
-<!-- Modal de Confirmación de Descarga -->
-<div class="modal-overlay" id="downloadModal" style="display:none;">
-<div class="modal-content">
-<p>El PDF generado está listo. ¿Deseas descargarlo?</p>
-<button id="downloadAccept">Aceptar</button>
-<button id="downloadCancel">Cancelar</button>
-</div>
-</div>
-<style>
-.modal-overlay {
-  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-  background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center;
-  z-index: 1000;
-}
-.modal-content {
-  background: #fff; padding: 1.5rem; border-radius: 8px; text-align: center;
-}
-.modal-content button {
-  margin: 0.5rem;
-}
-</style>
-<script>
-// Handler for download modal "Aceptar" button with cross-browser support
-document.getElementById('downloadAccept').addEventListener('click', () => {
-    if (generatedPDF) {
-        generatedPDF.download(generatedFilename);
-        // Retrasar la recarga para asegurar la descarga en Samsung Internet
-        setTimeout(() => { window.location.reload(); }, 1500);
+      return false;
     } else {
-        window.location.reload();
+      error.style.display = "none";
+      return true;
     }
-});
-</script>
-<script>
-  // Scroll input into view on focus (mobile)
-  document.addEventListener('DOMContentLoaded', () => {
-    document.querySelectorAll('input, select, textarea').forEach(el => {
-      el.addEventListener('focus', event => {
-        event.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      actualizarVisibilidadBotonesMasivos();
-      });
-    });
-      actualizarVisibilidadBotonesMasivos();
-  });
-</script>
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-  flatpickr('#fecha', {
-    allowInput: false,
-    clickOpens: true,
-    dateFormat: 'Y-m-d',
-    locale: {
-      weekdays: {
-        shorthand: ['Do','Lu','Ma','Mi','Ju','Vi','Sa'],
-        longhand: ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado']
-      },
-      months: {
-        shorthand: ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'],
-        longhand: ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
-      }
-    }
-  });
-      actualizarVisibilidadBotonesMasivos();
-});
-</script>
-</div>
-<div id="seccionRegistrarAnticipo" style="display: none;">
-<h2>💵 Registrar Anticipo</h2>
-<p>Esta sección está en desarrollo.</p>
-</div>
-<script>
-    function mostrarSeccion(nombre) {
-      // Ocultar todas las secciones
-      document.getElementById('menuPrincipal').style.display = 'none';
-      document.getElementById('seccionReportarFactura').style.display = 'none';
-      document.getElementById('seccionRevisionFacturas').style.display = 'none';
-      document.getElementById('seccionRegistrarAnticipo').style.display = 'none';
-      document.getElementById('seccionPagoFacturas').style.display = 'none';
-
-      // Mostrar la sección solicitada
-      if (nombre === 'menuPrincipal') {
-        document.getElementById('menuPrincipal').style.display = 'flex';
-      } else if (nombre === 'reportarFactura') {
-        document.getElementById('seccionReportarFactura').style.display = 'block';
-        document.getElementById('mensaje_cargando').style.display = 'block';
-        document.getElementById('formulario_contenido').style.display = 'none';
-        cargarDatosVehiculos();
-        cargarProcesos();
-      } else if (nombre === 'revisionFacturas') {
-        // Reset de filtros al entrar
-        const filtroSectorElem = document.getElementById("filtroSector");
-        if (filtroSectorElem) filtroSectorElem.value = "Todos";
-        const filtroEstadoElem = document.getElementById("filtroEstado");
-        if (filtroEstadoElem) filtroEstadoElem.value = "Todas";
-        const filtroNumeroElem = document.getElementById("filtroNumeroFactura");
-        if (filtroNumeroElem) filtroNumeroElem.value = "";
-        if (typeof fechaPicker !== 'undefined') fechaPicker.clear();
-
-        // Mostrar sección y recargar datos
-        document.getElementById('seccionRevisionFacturas').style.display = 'block';
-        document.getElementById('mensajeCarga').style.display = 'flex';
-        cargarFacturasDesdeSheet();
-        updateCounters();
-      } else if (nombre === 'registrarAnticipo') {
-        document.getElementById('seccionRegistrarAnticipo').style.display = 'block';
-      }
-    }
-
-    function regresarMenu() {
-  document.getElementById('menuPrincipal').style.display = 'flex';
-  document.getElementById('seccionReportarFactura').style.display = 'none';
-  document.getElementById('seccionRevisionFacturas').style.display = 'none';
-  document.getElementById('seccionRegistrarAnticipo').style.display = 'none';
-  const msg = document.getElementById('mensaje_cargando'); if(msg) msg.style.display='none';
-  const form = document.getElementById('formulario_contenido'); if(form) form.style.display='none';
-}
-  </script>
-<!-- Revisión de Facturas ACTIVA -->
-<style>
-  .tabla-responsive {
-    overflow-x: auto;
-    max-width: 100%;
-  }
-  table {
-    border-collapse: collapse;
-    width: 100%;
-    font-family: Arial, sans-serif;
-    font-size: 14px;
-  }
-  th {
-    background-color: #f0f0f0;
-    font-weight: bold;
-  }
-  th, td {
-    padding: 8px 12px;
-    border: 1px solid #ccc;
-    text-align: left;
-    white-space: nowrap;
-  }
-</style>
-<div id="seccionRevisionFacturas" style="display: none; padding: 1rem;">
-<button class="btn btn-secondary mb-3" onclick="regresarAlMenu()" type="button">
-    ← Volver al Menú Principal
-  </button>
-<h2 style="margin-bottom: 1rem;">📄 Revisión de Facturas</h2>
-<div id="countersRow">
-<div class="counter-box">
-<span class="label">Registradas</span><br/>
-<span class="value" id="counterRegistradas">0</span>
-</div>
-<div class="counter-box">
-<span class="label">Revisadas</span><br/>
-<span class="value" id="counterRevisadas">0</span>
-</div>
-<div class="counter-box">
-<span class="label">Anuladas</span><br/>
-<span class="value" id="counterAnuladas">0</span>
-</div>
-</div>
-<div id="filtersRow">
-<label for="filtroSector">Filtrar por sector:</label>
-<select id="filtroSector" onchange="aplicarFiltros()">
-<option value="Todos">Todos</option>
-</select>
-<label for="filtroEstado">Filtrar por estado:</label>
-<select id="filtroEstado" onchange="aplicarFiltros()">
-<option value="Todas">Todas</option>
-<option value="Registrada">Registrada</option>
-<option value="Revisada">Revisada</option>
-<option value="Anulada">Anulada</option>
-</select>
-<label for="filtroNumeroFactura">Filtrar Nº de Factura:</label>
-<input id="filtroNumeroFactura" oninput="aplicarFiltros()" placeholder="Número de factura" type="text"/>
-<label for="rangoFechas">Rango de Fechas:</label><input id="rangoFechas" placeholder="Selecciona rango" style="width:250px;" type="text"/></div>
-<div style="margin-bottom: 1rem;">
-<div id="accionesMasivas" style="margin-bottom:1rem; display:none;"><button onclick="actualizarEstadoSeleccionados('Revisada')">✔ Marcar como Revisada</button>
-<button onclick="actualizarEstadoSeleccionados('Anulada')">✖ Marcar como Anulada</button></div>
-</div>
-<div class="tabla-responsive" style="border: 1px solid #ccc; border-radius: 6px; overflow-x: auto; max-height: 60vh; padding: 1rem; background: #fafafa;">
-<table id="tablaFacturas">
-<thead><tr id="encabezadoTabla"></tr></thead>
-<tbody id="cuerpoTabla"></tbody>
-</table>
-</div> <!-- Fin de contenedor scroll de tabla -->
-<div id="mensajeCarga">
-<div class="circular-spinner"></div>
-<div class="loading-text">Cargando información...</div>
-</div>
-</div>
-<script>
-const urlLeerFacturas = "https://repositorio-de-pruebas.pages.dev/api/leer";
-const urlGuardarReporte = "/api/guardar";
-
-document.addEventListener("DOMContentLoaded", () => {
-
-  document.getElementById("filtroEstado").addEventListener("change", aplicarFiltros);
-  document.getElementById("filtroSector").addEventListener("change", aplicarFiltros);
-  document.getElementById("filtroNumeroFactura").addEventListener("input", aplicarFiltros);
-});
-
-async function cargarFacturasDesdeSheet() {
-  try {
-    const res = await fetch(urlLeerFacturas);
-    const data = await res.json();
-    window.facturasGlobal = data;
-    cargarFiltrosSector(data);
-    renderizarTablaFacturas(data);
-  } catch (err) {
-
-  }
-}
-
-function cargarFiltrosSector(data) {
-  const sectores = Array.from(new Set(data.map(f => f.Sector))).sort();
-  const filtro = document.getElementById("filtroSector");
-  filtro.innerHTML = '<option value="Todos">Todos</option>';
-  sectores.forEach(sector => {
-    const opt = document.createElement("option");
-    opt.value = sector;
-    opt.textContent = sector;
-    filtro.appendChild(opt);
-  });
-      actualizarVisibilidadBotonesMasivos();
-}
-
-
-function aplicarFiltros() {
-  const estado = document.getElementById("filtroEstado").value;
-  const sector = document.getElementById("filtroSector").value;
-  const buscarFactura = document.getElementById("filtroNumeroFactura").value.toLowerCase();
-  let data = window.facturasGlobal || [];
-
-  if (estado !== "Todas") data = data.filter(f => f.Estado === estado);
-  if (sector !== "Todos") data = data.filter(f => f.Sector === sector);
-  if (buscarFactura) data = data.filter(f => ((f['Numero de Factura'] || '').toString().toLowerCase()).includes(buscarFactura));
-
-  // Filtro de rango de fechas
-  if (typeof fechaPicker !== 'undefined' && fechaPicker.selectedDates.length === 2) {
-    const inicio = new Date(fechaPicker.selectedDates[0].getFullYear(), fechaPicker.selectedDates[0].getMonth(), fechaPicker.selectedDates[0].getDate());
-    const fin    = new Date(fechaPicker.selectedDates[1].getFullYear(), fechaPicker.selectedDates[1].getMonth(), fechaPicker.selectedDates[1].getDate());
-    data = data.filter(f => {
-      const partes = (f.Fecha || "").split("-");
-      if (partes.length !== 3) return false;
-      const fecha = new Date(parseInt(partes[0],10), parseInt(partes[1],10)-1, parseInt(partes[2],10));
-      const sola  = new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate());
-      return sola >= inicio && sola <= fin;
-    });
   }
 
-  renderizarTablaFacturas(data);
-}
+  // Funciones para manejar la cámara
+  let currentStream; // Para guardar el stream de la cámara
+  let currentPhotoFieldId; // Para saber qué campo de foto estamos llenando
 
+  function activarCamara(photoFieldId) {
+    currentPhotoFieldId = photoFieldId;
+    const cameraPreview = document.querySelector('.camera-preview');
+    const video = document.createElement('video');
+    video.autoplay = true;
+    video.style.width = '100%';
+    video.style.height = '100%';
+    video.style.objectFit = 'contain';
 
-function renderizarTablaFacturas(data) {
-  
-  // Excluir facturas en estado Pagada
-  data = data.filter(f => (f.Estado||"").toLowerCase().trim() !== "pagada");const encabezado = document.getElementById("encabezadoTabla");
-  const cuerpo = document.getElementById("cuerpoTabla");
-  encabezado.innerHTML = "";
-  cuerpo.innerHTML = "";
-
-  if (!data.length) return;
-
-  const columnas = Object.keys(data[0]);
-  columnas.forEach(col => {
-    const th = document.createElement("th");
-    th.textContent = col;
-    encabezado.appendChild(th);
-  });
-  encabezado.innerHTML += "<th>✔</th>";
-
-  data.forEach(fila => {
-    const tr = document.createElement("tr");
+    cameraPreview.innerHTML = ''; // Limpiar cualquier contenido previo
+    cameraPreview.appendChild(video);
     
-columnas.forEach(col => {
-      const td = document.createElement("td");
-      if (col === "Estado") {
-        const select = document.createElement("select");
-        select.dataset.fila = fila.fila;
-        ["Registrada", "Revisada", "Anulada", "Pagada"].forEach(opt => {
-          const option = document.createElement("option");
-          option.value = opt;
-          option.textContent = opt;
-          if (fila[col] === opt) option.selected = true;
-          select.appendChild(option);
-        });
-        select.addEventListener("change", () => {
-          actualizarEstadoIndividual(select.dataset.fila, select.value);
-        });
-        td.appendChild(select);
-      } else {
-        td.textContent = fila[col];
+    // Controles de la cámara
+    const controls = document.createElement('div');
+    controls.className = 'overlay-controls';
+    controls.innerHTML = `
+      <button onclick="tomarFoto()">Capturar</button>
+      <button onclick="cerrarCamara()">Cerrar</button>
+    `;
+    cameraPreview.appendChild(controls);
+
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }) // Usa la cámara trasera si está disponible
+      .then(stream => {
+        currentStream = stream;
+        video.srcObject = stream;
+        cameraPreview.classList.add('active');
+      })
+      .catch(err => {
+        alert('No se pudo acceder a la cámara. Asegúrate de dar permisos.');
+        console.error("Error al acceder a la cámara: ", err);
+      });
+  }
+
+  function tomarFoto() {
+    const video = document.querySelector('.camera-preview video');
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const context = canvas.getContext('2d');
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    // Convertir a Blob y luego a File
+    canvas.toBlob(blob => {
+      const file = new File([blob], `foto_${currentPhotoFieldId}_${Date.now()}.jpg`, { type: 'image/jpeg' });
+      const dataTransfer = new DataTransfer();
+      dataTransfer.items.add(file);
+      document.getElementById(currentPhotoFieldId).files = dataTransfer.files;
+
+      // Actualizar la vista previa
+      const url = URL.createObjectURL(file);
+      const contenedor = document.getElementById('preview_' + currentPhotoFieldId);
+      if (contenedor) {
+        contenedor.innerHTML = `<img src="${url}" style="max-width:100%; max-height:300px;">`;
       }
-      tr.appendChild(td);
+      cerrarCamara();
+    }, 'image/jpeg');
+  }
+
+  function cerrarCamara() {
+    const cameraPreview = document.querySelector('.camera-preview');
+    cameraPreview.classList.remove('active');
+    if (currentStream) {
+      currentStream.getTracks().forEach(track => track.stop());
+    }
+  }
+
+  function abrirGaleria(photoFieldId) {
+    currentPhotoFieldId = photoFieldId;
+    document.getElementById(photoFieldId).click(); // Simula el click en el input file oculto
+  }
+
+  const sections = {
+    menuPrincipal: 'menuPrincipal',
+    reportarFactura: 'seccionReportarFactura',
+    revisionFacturas: 'seccionRevisionFacturas', // Asumiendo que existe
+    registrarAnticipo: 'seccionRegistrarAnticipo', // Asumiendo que existe
+    pagoFacturas: 'seccionPagoFacturas'
+  };
+
+  function mostrarSeccion(sectionId) {
+    for (let key in sections) {
+      const section = document.getElementById(sections[key]);
+      if (section) {
+        section.style.display = 'none';
+        section.classList.remove('fade-in-down'); // Quita la clase para evitar animaciones dobles
+      }
+    }
+    const targetSection = document.getElementById(sections[sectionId]);
+    if (targetSection) {
+      targetSection.style.display = 'block';
+      targetSection.classList.add('fade-in-down');
+    }
+  }
+
+  // Funciones para navegación de pasos del formulario
+  let currentStep = 1;
+  const totalSteps = 7; // Ajusta esto si añades/quitas pasos
+
+  function mostrarPaso(step) {
+    // Oculta todos los pasos
+    for (let i = 1; i <= totalSteps; i++) {
+      const paso = document.getElementById('paso' + i);
+      if (paso) paso.style.display = 'none';
+    }
+    // Muestra el paso actual
+    const currentPaso = document.getElementById('paso' + step);
+    if (currentPaso) {
+      currentPaso.style.display = 'block';
+      currentPaso.classList.add('fade-in-up'); // Aplica animación al mostrar
+    }
+    currentStep = step;
+  }
+
+  function siguientePaso(step) {
+    mostrarPaso(step);
+  }
+
+  function anteriorPaso() {
+    if (currentStep > 1) {
+      mostrarPaso(currentStep - 1);
+    } else {
+      mostrarSeccion('menuPrincipal'); // Vuelve al menú si estás en el primer paso
+    }
+  }
+
+  // Asignar listeners para botones de navegación del formulario
+  document.getElementById('guardar_reporte').addEventListener('click', enviarDatos);
+  document.getElementById('enviar_reporte').addEventListener('click', enviarDatos);
+  document.getElementById('modificar_reporte').addEventListener('click', () => mostrarPaso(1));
+
+
+  async function validarYVerificarDuplicado() {
+    if (!validarFormulario()) {
+      return; // Detener si hay campos obligatorios vacíos
+    }
+
+    const placa = document.getElementById('placa').value;
+    const fecha = document.getElementById('fecha').value;
+    const factura = document.getElementById('factura').value;
+
+    mostrarOverlay("Verificando duplicados...");
+    const duplicado = await verificarDuplicado(placa, fecha, factura);
+    ocultarOverlay();
+
+    if (duplicado) {
+      alert("Error: Ya existe un registro con la misma Placa, Fecha y Número de Factura. Por favor, revise los datos.");
+      return;
+    }
+
+    generarVistaPrevia();
+    mostrarSeccion('preview_contenido');
+  }
+
+  function showToast(message, type = 'success') {
+    const toast = document.getElementById("toast-alert");
+    toast.textContent = message;
+    toast.style.backgroundColor = type === 'success' ? '#28a745' : '#c62828';
+    toast.classList.add("show");
+    setTimeout(() => toast.classList.remove("show"), 3000);
+  }
+
+  function mostrarOverlay(message) {
+    const overlay = document.getElementById('overlayCambios');
+    const textElement = overlay.querySelector('.text');
+    textElement.textContent = message;
+    overlay.style.display = 'flex';
+  }
+
+  function ocultarOverlay() {
+    document.getElementById('overlayCambios').style.display = 'none';
+  }
+
+  // Enviar datos al Google Apps Script
+  async function enviarDatos() {
+    mostrarOverlay("Guardando Reporte...");
+
+    const formData = new FormData();
+    formData.append('action', 'guardarReporte');
+    formData.append('Sector', document.getElementById('sector').value);
+    formData.append('Placa', document.getElementById('placa').value);
+    formData.append('Proceso', document.getElementById('proceso').value);
+    formData.append('NombreCompleto', document.getElementById('nombre').value);
+    formData.append('Identidad', document.getElementById('identidad').value);
+    formData.append('TotalGastado', document.getElementById('total').value);
+    formData.append('LitrosConsumidos', document.getElementById('litros').value);
+    formData.append('MotivoLlenado', document.getElementById('motivo').value);
+    formData.append('Fecha', document.getElementById('fecha').value);
+    formData.append('HorasViaje', document.getElementById('horas').value);
+    formData.append('KmActual', document.getElementById('km').value);
+    formData.append('NombreComercio', document.getElementById('nombre_comercio').value);
+    formData.append('NumeroFactura', document.getElementById('factura').value);
+
+    // Añadir las imágenes al formData
+    ['foto_tablero_antes', 'foto_bomba', 'foto_despues', 'foto_bomba_llenado', 'foto_frontal', 'foto_factura'].forEach(id => {
+      const input = document.getElementById(id);
+      if (input && input.files && input.files[0]) {
+        formData.append(id, input.files[0]);
+      }
     });
 
-    const chk = document.createElement("input");
-    chk.type = "checkbox";
-    chk.dataset.fila = fila.fila;
-    const tdChk = document.createElement("td");
-    tdChk.appendChild(chk);
-    tr.appendChild(tdChk);
-    cuerpo.appendChild(tr);
-  });
-      actualizarVisibilidadBotonesMasivos();
-}
-
-async function actualizarEstadoSeleccionados(nuevoEstado) {
-  const overlay = document.getElementById('overlayCambios');
-  overlay.style.display = 'flex';
-  const checks = document.querySelectorAll("#tablaFacturas input[type=checkbox]:checked");
-  for (const chk of checks) {
-    const fila = chk.dataset.fila;
     try {
-      const resp = await fetch(urlGuardarReporte, {
+      const response = await fetch("/api/guardar", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ actualizarEstado: true, fila, nuevoEstado })
+        body: formData
       });
-      const result = await resp.json();
-      if (result.status !== 'OK') {
-        showToast("Error al actualizar estado: " + (result.message || JSON.stringify(result)));
-        overlay.style.display = 'none';
-        return;
-      }
-    } catch (err) {overlay.style.display = 'none';
-      return;
-    }
-  }
-  // Actualizar memoria
-  checks.forEach(chk => {
-    const rec = window.facturasGlobal.find(f => f.fila == chk.dataset.fila);
-    if (rec) rec.Estado = nuevoEstado;
-  });aplicarFiltros();
-  overlay.style.display = 'none';
-}
-</script>
-<script>
-// On load, show loading message and set up filters
-document.addEventListener("DOMContentLoaded", () => {
-  const msg = document.getElementById("mensajeCarga");
-  msg.style.display = "block";
+      const result = await response.json();
 
-  document.getElementById("filtroEstado").addEventListener("change", aplicarFiltros);
-  document.getElementById("filtroSector").addEventListener("change", aplicarFiltros);
-  document.getElementById("filtroNumeroFactura").addEventListener("input", aplicarFiltros);
-});
+      ocultarOverlay();
 
-// Override cargarFacturasDesdeSheet to hide loading when done and detect invoice key
-async function cargarFacturasDesdeSheet() {
-  const msg = document.getElementById("mensajeCarga");
-  try {
-    const res = await fetch(urlLeerFacturas);
-    const data = await res.json();
-    window.facturasGlobal = data;
-    // Determine the key for invoice number dynamically
-    if (data.length) {
-      const sample = data[0];
-      const numeroKey = Object.keys(sample).find(k => k.toLowerCase().includes('factura') && !k.toLowerCase().includes('enlace'));
-      window.numeroFacturaKey = numeroKey;
-    }
-    cargarFiltrosSector(data);
-    renderizarTablaFacturas(data);
-  } catch (err) {
+      if (result.success) {
+        showToast("Reporte guardado correctamente", 'success');
+        // Limpiar formulario y volver al menú principal
+        setTimeout(() => {
+          document.getElementById('formulario_contenido').reset(); // Resetear el formulario
+          // Limpiar las previsualizaciones de imágenes
+          ['preview_foto_tablero_antes', 'preview_foto_bomba', 'preview_foto_despues', 'preview_foto_bomba_llenado', 'preview_foto_frontal', 'preview_foto_factura'].forEach(id => {
+            const previewEl = document.getElementById(id);
+            if(previewEl) previewEl.innerHTML = '';
+          });
+          // Limpiar los inputs de tipo file (requiere un poco más de manipulación)
+          ['foto_tablero_antes', 'foto_bomba', 'foto_despues', 'foto_bomba_llenado', 'foto_frontal', 'foto_factura'].forEach(id => {
+            const inputEl = document.getElementById(id);
+            if (inputEl) inputEl.value = ''; // Esto limpia la selección del archivo
+          });
 
-  } finally {
-    msg.style.display = "none";
-  }
-}
-
-// Custom rendering of the invoices table
-function renderizarTablaFacturas(data) {
-  
-  // Excluir facturas en estado Pagada
-  data = data.filter(f => (f.Estado||"").toLowerCase().trim() !== "pagada");const encabezado = document.getElementById("encabezadoTabla");
-  const cuerpo = document.getElementById("cuerpoTabla");
-  encabezado.innerHTML = "";
-  cuerpo.innerHTML = "";
-
-  if (!data.length) return;
-
-  // Add checkbox and row number headers
-  const thChk = document.createElement("th"); thChk.textContent = ""; encabezado.appendChild(thChk);
-  const thNum = document.createElement("th"); thNum.textContent = "#"; encabezado.appendChild(thNum);
-
-  // Define fixed columns with user-friendly labels
-  const columnas = [
-    {key: "Sector", label: "Sector"},
-    {key: "Placa", label: "Placa"},
-    {key: "Proceso", label: "Proceso"},
-    {key: "Nombre", label: "Nombre"},
-    {key: "Identidad", label: "Identidad"},
-    {key: "Total Gastado", label: "Total Gastado"},
-    {key: "Fecha", label: "Fecha"},
-    {key: window.numeroFacturaKey || "Número de Factura", label: "Número de Factura"},
-    {key: "Enlace PDF", label: "Enlace PDF"},
-    {key: "Estado", label: "Estado"}
-  ];
-
-  // Render header columns
-  columnas.forEach(col => {
-    const th = document.createElement("th");
-    th.textContent = col.label;
-    encabezado.appendChild(th);
-  });
-
-  // Populate rows
-  data.forEach((fila, index) => {
-    const tr = document.createElement("tr");
-    // Checkbox cell
-    const tdChk = document.createElement("td");
-    const chk = document.createElement("input");
-    chk.type = "checkbox";
-    chk.dataset.fila = fila.fila;
-    chk.dataset.index = index;
-        chk.addEventListener("change", actualizarVisibilidadBotonesMasivos);
-    tdChk.appendChild(chk);
-    tr.appendChild(tdChk);
-    // Row number cell
-    const tdNum = document.createElement("td");
-    tdNum.textContent = index + 1;
-    tr.appendChild(tdNum);
-
-    columnas.forEach(col => {
-      const td = document.createElement("td");
-      let value = fila[col.key] || "";
-
-      // Formateo para Fecha (YYYY-MM-DD)
-      if (col.key === "Fecha" && value) {
-        value = value.toString().split("T")[0];
-        td.textContent = value;
-      }
-      // Formateo para Total Gastado (prefijo 'L ' y separadores de miles)
-      else if (col.key === "Total Gastado" && value) {
-        const num = parseFloat(value);
-        td.textContent = isNaN(num) ? "" : "L " + num.toLocaleString("en-US");
-      }
-      // Enlace PDF clickeable
-      else if (col.key === "Enlace PDF" && value) {
-        const a = document.createElement("a");
-        a.href = value;
-        a.textContent = "PDF";
-        a.target = "_blank";
-        td.appendChild(a);
-      }
-      else if (col.key === "Estado") {
-        const select = document.createElement("select");
-        select.dataset.fila = fila.fila;
-        ["Registrada", "Revisada", "Anulada", "Pagada"].forEach(opt => {
-          const option = document.createElement("option");
-          option.value = opt;
-          option.textContent = opt;
-          if (fila[col.key] === opt) option.selected = true;
-          select.appendChild(option);
-        });
-        select.addEventListener("change", () => actualizarEstadoIndividual(select.dataset.fila, select.value));
-        td.appendChild(select);
-      }
-      else {
-        td.textContent = value;
-      }
-      tr.appendChild(td);
-    });
-    cuerpo.appendChild(tr);
-  });
-      actualizarVisibilidadBotonesMasivos();
-}
-
-// Optimized filter function to use correct invoice key
-
-function aplicarFiltros() {
-  const estado = document.getElementById("filtroEstado").value;
-  const sector = document.getElementById("filtroSector").value;
-  const buscarFactura = document.getElementById("filtroNumeroFactura").value.toLowerCase();
-  let data = window.facturasGlobal || [];
-
-  if (estado !== "Todas") data = data.filter(f => f.Estado === estado);
-  if (sector !== "Todos") data = data.filter(f => f.Sector === sector);
-  if (buscarFactura) data = data.filter(f => ((f['Numero de Factura'] || '').toString().toLowerCase()).includes(buscarFactura));
-
-  // Filtro de rango de fechas
-  if (typeof fechaPicker !== 'undefined' && fechaPicker.selectedDates.length === 2) {
-    const inicio = new Date(fechaPicker.selectedDates[0].getFullYear(), fechaPicker.selectedDates[0].getMonth(), fechaPicker.selectedDates[0].getDate());
-    const fin    = new Date(fechaPicker.selectedDates[1].getFullYear(), fechaPicker.selectedDates[1].getMonth(), fechaPicker.selectedDates[1].getDate());
-    data = data.filter(f => {
-      const partes = (f.Fecha || "").split("-");
-      if (partes.length !== 3) return false;
-      const fecha = new Date(parseInt(partes[0],10), parseInt(partes[1],10)-1, parseInt(partes[2],10));
-      const sola  = new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate());
-      return sola >= inicio && sola <= fin;
-    });
-  }
-
-  renderizarTablaFacturas(data);
-}
-
-</script>
-<script>
-function regresarAlMenu() {
-  // Oculta ambas secciones y muestra menú principal
-  document.getElementById('seccionRevisionFacturas').style.display = 'none';
-  document.getElementById('seccionReportarFactura').style.display = 'none';
-  document.getElementById('menuPrincipal').style.display = 'flex';
-  // Limpia tablas y formularios
-  const encabezado = document.getElementById('encabezadoTabla');
-  const cuerpo = document.getElementById('cuerpoTabla');
-  if (encabezado) encabezado.innerHTML = '';
-  if (cuerpo) cuerpo.innerHTML = '';
-  const form = document.getElementById('formulario_contenido');
-  if (form) form.style.display = 'none';
-}
-</script>
-<script>
-async function actualizarEstadoIndividual(fila, nuevoEstado) {
-  const overlay = document.getElementById('overlayCambios');
-  overlay.style.display = 'flex';
-  try {
-    const resp = await fetch(urlGuardarReporte, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ actualizarEstado: true, fila, nuevoEstado })
-    });
-    const result = await resp.json();
-    if (result.status !== 'OK') {
-      showToast("Error al actualizar estado: " + (result.message || JSON.stringify(result)));
-      return;
-    }
-    // Actualizar en memoria
-    const rec = window.facturasGlobal.find(f => f.fila == fila);
-    if (rec) rec.Estado = nuevoEstado;
-  } catch (err) {return;
-  } finally {
-    overlay.style.display = 'none';
-    // Recalcular contadores sin recargar la tabla
-    updateCountersPago();
-    
-      updateCountersPago();
-aplicarFiltros();
-  }}
-</script>
-<script>
-function actualizarVisibilidadBotonesMasivos() {
-  const checks = document.querySelectorAll("#tablaFacturas input[type=checkbox]:checked");
-  const cont = document.getElementById("accionesMasivas");
-  cont.style.display = (checks.length >= 2) ? "block" : "none";
-}
-</script>
-<script>
-function updateCounters() {
-  const counts = { Registrada: 0, Revisada: 0, Anulada: 0 };
-  document.querySelectorAll('#tablaFacturas tbody tr').forEach(tr => {
-    const sel = tr.querySelector('select');
-    const state = sel ? sel.value : tr.querySelector('td:last-child').textContent.trim();
-    if (counts[state] !== undefined) counts[state]++;
-  });
-  document.getElementById('counterRegistradas').textContent = counts.Registrada;
-  document.getElementById('counterRevisadas').textContent = counts.Revisada;
-  document.getElementById('counterAnuladas').textContent = counts.Anulada;
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-  // Hook applyFiltros
-  if (typeof aplicarFiltros === 'function') {
-    const oldApply = aplicarFiltros;
-    aplicarFiltros = function() {
-      oldApply();
-      updateCounters();
-    }
-  }
-  // Hook cargarFacturasDesdeSheet if returns promise
-  if (typeof cargarFacturasDesdeSheet === 'function') {
-    const oldLoad = cargarFacturasDesdeSheet;
-    cargarFacturasDesdeSheet = function() {
-      const result = oldLoad();
-      if (result && result.then) {
-        return result.then(() => {
-          updateCounters();
-          return result;
-        });
+          mostrarSeccion('menuPrincipal');
+        }, 1000);
       } else {
-        updateCounters();
-        return result;
+        showToast("Error al guardar el reporte: " + (result.error || "Desconocido"), 'error');
       }
+    } catch (error) {
+      ocultarOverlay();
+      showToast("Error de conexión al enviar el reporte.", 'error');
+      console.error('Error:', error);
     }
   }
-  updateCounters();
-});
-</script>
-<script>
-let fechaPicker = flatpickr("#rangoFechas", {
-    mode: "range",
-    dateFormat: "Y-m-d",
-    locale: flatpickr.l10ns.es,
-    onClose: function() {
-        aplicarFiltros();
-    }
-});
-</script>
-<script>
-document.addEventListener("DOMContentLoaded", () => {
-  const btnRegresarPago = document.querySelector("#seccionPagoFacturas button");
-  if (btnRegresarPago && btnRegresarPago.textContent.includes("Regresar al Menú Principal")) {
-    btnRegresarPago.addEventListener("click", () => {
-
-      // Ocultar la sección de pago si sigue visible
-      const pagoSection = document.getElementById("seccionPagoFacturas");
-      if (pagoSection) {
-        pagoSection.style.display = "none";
-      }
-
-      // Ocultar cualquier otra sección activa
-      document.querySelectorAll(".seccion").forEach(seccion => {
-        if (seccion !== pagoSection) {
-          seccion.style.display = "none";
-        }
-      });
-
-      // Mostrar el menú y restaurar su formato visual
-      const menu = document.getElementById("menuPrincipal");
-      if (menu) {
-        menu.style.display = "flex";
-        menu.style.flexDirection = "column";
-        menu.style.alignItems = "center";
-        menu.style.justifyContent = "center";
-        menu.style.gap = "20px";
-      }
-    });
-  }
-});
-</script><script>
-function toggleAllPagoCheckboxes(source) {
-  const checkboxes = document.querySelectorAll(".check-factura-pago");
-  checkboxes.forEach(cb => cb.checked = source.checked);
-}
-
-function cargarPagoFacturas() {
-  
-  
-  
-  // Resetear filtros al entrar en Pago de Facturas
-  if (document.getElementById('filtroSectorPago')) document.getElementById('filtroSectorPago').value = 'Todos';
-  if (document.getElementById('filtroEstadoPago')) document.getElementById('filtroEstadoPago').value = 'Todos';
-  if (document.getElementById('filtroNumeroPago')) document.getElementById('filtroNumeroPago').value = '';
-  if (window.flatpickrPago) flatpickrPago.clear();
-  // Resetear contadores de cantidad
-  if (document.getElementById('contadorPendientes')) document.getElementById('contadorPendientes').textContent = '0';
-  if (document.getElementById('contadorPagadas')) document.getElementById('contadorPagadas').textContent = '0';
-  // Resetear contadores de sumas
-  if (document.getElementById('totalRevisada')) document.getElementById('totalRevisada').textContent = 'L 0.00';
-  if (document.getElementById('totalPagada'))  document.getElementById('totalPagada').textContent  = 'L 0.00';
-
-mostrarSeccion('seccionPagoFacturas');
-  const seccion = document.getElementById("seccionPagoFacturas");
-  if (seccion) seccion.style.display = "block";
-
-  const spinner = document.getElementById("spinnerPago");
-  const tabla = document.getElementById("tablaPagoFacturas");
-  const tbody = tabla ? tabla.querySelector("tbody") : null;
-
-  if (!tabla || !tbody || !spinner) return;
-
-  spinner.style.display = "block";
-  tabla.style.display = "table";
-  tbody.innerHTML = "";
-
-  fetch("https://repositorio-de-pruebas.pages.dev/api/leer")
-    .then(response => {
-      if (!response.ok) throw new Error("HTTP " + response.status);
-      return response.json();
-    })
-    .then(data => {
-      if (!Array.isArray(data)) throw new Error("La respuesta no es un array válido");
-      if (data.length === 0) {
-        tbody.innerHTML = "<tr><td colspan='12'>⚠️ No hay facturas para mostrar</td></tr>";
-        return;
-      }
-
-      
-      const filtradas = data.filter(factura => {
-        const estado = (factura["Estado"] || "").toString().trim().toLowerCase();
-        return estado === "revisada" || estado === "pagada";
-      });
-      // Cargar filtros de sector dinámicamente
-      cargarFiltrosSectorPago(filtradas);
-      // Actualizar contadores de Pago de Facturas
-      const pendientes = filtradas.filter(f => f.Estado === 'Revisada').length;
-      const pagadas = filtradas.filter(f => f.Estado === 'Pagada').length;
-      document.getElementById('contadorPendientes').textContent = pendientes;
-      document.getElementById('contadorPagadas').textContent = pagadas;
-
-      
-  // Actualizar totales según filtros
-  let sumPend = 0, sumPag = 0;
-  document.querySelectorAll('#tablaPagoFacturas tbody tr').forEach(tr => {
-    if (tr.style.display === 'none') return;
-    const sel = tr.querySelector('select.estado-select');
-    const amount = parseFloat(tr.children[7].textContent.replace(/[^0-9.\-]/g, '')) || 0;
-    if (sel && sel.value === 'Revisada') sumPend += amount;
-    if (sel && sel.value === 'Pagada') sumPag += amount;
-  });
-  document.getElementById('totalRevisada').textContent = 'L ' + sumPend.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  document.getElementById('totalPagada').textContent   = 'L ' + sumPag.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-const totalRevisada = filtradas.filter(f => f.Estado === 'Revisada').reduce((s, f) => s + parseFloat(f['Total Gastado'] || 0), 0);
-      const totalPagada  = filtradas.filter(f => f.Estado === 'Pagada').reduce((s, f) => s + parseFloat(f['Total Gastado'] || 0), 0);
-      document.getElementById('totalRevisada').textContent = 'L ' + totalRevisada.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-      document.getElementById('totalPagada').textContent = 'L ' + totalPagada.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 
-filtradas.forEach((f, index) => {
-        const fila = document.createElement("tr");
-        const fecha = f.Fecha ? new Date(f.Fecha).toLocaleDateString("es-ES") : "";
-        const totalGastado = "L " + parseFloat(f["Total Gastado"] || 0).toFixed(2);
-        const enlace = f["Enlace PDF"] ? `<a href="${f["Enlace PDF"]}" target="_blank">📄 Ver PDF</a>` : "";
+  function generarVistaPrevia() {
+    const data = {
+      sector: document.getElementById('sector').value,
+      placa: document.getElementById('placa').value,
+      proceso: document.getElementById('proceso').value,
+      nombre: document.getElementById('nombre').value,
+      identidad: document.getElementById('identidad').value,
+      total: parseFloat(document.getElementById('total').value).toLocaleString('es-HN', {minimumFractionDigits: 2}),
+      litros: parseFloat(document.getElementById('litros').value).toLocaleString('es-HN', {minimumFractionDigits: 2}),
+      motivo: document.getElementById('motivo').value,
+      fecha: document.getElementById('fecha').value,
+      horas: document.getElementById('horas').value,
+      km: document.getElementById('km').value,
+      nombre_comercio: document.getElementById('nombre_comercio').value,
+      factura: document.getElementById('factura').value
+    };
 
-        fila.innerHTML = `
-          <td><input type="checkbox" class="check-factura-pago"></td>
-          <td>${index + 1}</td>
-          <td>${f.Sector || ""}</td>
-          <td>${f.Placa || ""}</td>
-          <td>${f.Proceso || ""}</td>
-          <td>${f.Nombre || ""}</td>
-          <td>${f.Identidad || ""}</td>
-          <td style="text-align:right;">${totalGastado}</td>
-          <td>${fecha}</td>
-          <td>${f["Numero de Factura"] || ""}</td>
-          <td>${enlace}</td>
+    // Populate summary box
+    const summaryBox = document.getElementById('summary_box');
+    summaryBox.innerHTML = `
+      <table>
+        <tr><td>SECTOR:</td><td>${data.sector}</td></tr>
+        <tr><td>PLACA:</td><td>${data.placa}</td></tr>
+        <tr><td>PROCESO:</td><td>${data.proceso}</td></tr>
+        <tr><td>COLABORADOR:</td><td>${data.nombre}</td></tr>
+        <tr><td>IDENTIDAD:</td><td>${data.identidad}</td></tr>
+        <tr><td>TOTAL GASTADO:</td><td>L ${data.total}</td></tr>
+        <tr><td>LITROS:</td><td>${data.litros}</td></tr>
+        <tr><td>MOTIVO:</td><td>${data.motivo}</td></tr>
+        <tr><td>FECHA:</td><td>${data.fecha}</td></tr>
+        <tr><td>HORAS VIAJE:</td><td>${data.horas}</td></tr>
+        <tr><td>KM ACTUAL:</td><td>${data.km}</td></tr>
+        <tr><td>NOMBRE COMERCIO:</td><td>${data.nombre_comercio}</td></tr>
+        <tr><td>No. FACTURA:</td><td>${data.factura}</td></tr>
+      </table>
+    `;
+
+    // Populate photos table
+    const photosTableContainer = document.getElementById('photos_table_container');
+    photosTableContainer.innerHTML = `
+      <table class="photos-table">
+        <tr>
+          <td colspan="2">
+            <div class="photo-title">Fotografía Tablero Antes de Llenado:</div>
+            <img src="${document.getElementById('preview_foto_tablero_antes').querySelector('img').src}"/>
+            <div class="photo-footer">PLACA: ${data.placa} - FECHA: ${data.fecha} - KM INICIAL: ${data.km}</div>
+          </td>
+        </tr>
+        <tr>
           <td>
-      <select class="estado-select" data-fila="${f.fila}">
-        <option value="Revisada" ${f.Estado === 'Revisada' ? 'selected' : ''}>Revisada</option>
-        <option value="Pagada"   ${f.Estado === 'Pagada'   ? 'selected' : ''}>Pagada</option>
-      </select>
-    </td>
-        `;
-        tbody.appendChild(fila);
-      });
+            <div class="photo-title">Fotografía Bomba en 0:</div>
+            <img src="${document.getElementById('preview_foto_bomba').querySelector('img').src}"/>
+            <div class="photo-footer">FECHA: ${data.fecha}</div>
+          </td>
+          <td rowspan="2">
+            <div class="photo-title">Fotografía Frontal del Vehículo o VIN con Vehículo:</div>
+            <img src="${document.getElementById('preview_foto_frontal').querySelector('img').src}"/>
+            <div class="photo-footer">PLACA: ${data.placa} - FECHA: ${data.fecha}</div>
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <div class="photo-title">Fotografía Bomba Llena:</div>
+            <img src="${document.getElementById('preview_foto_bomba_llenado').querySelector('img').src}"/>
+            <div class="photo-footer">FECHA: ${data.fecha} - LITROS: ${data.litros}</div>
+          </td>
+        </tr>
+        <tr>
+          <td colspan="2">
+            <div class="photo-title">Fotografía Tablero Después de Llenado:</div>
+            <img src="${document.getElementById('preview_foto_despues').querySelector('img').src}"/>
+            <div class="photo-footer">PLACA: ${data.placa} - FECHA: ${data.fecha} - KM FINAL: ${data.km}</div>
+          </td>
+        </tr>
+      </table>
+    `;
 
-      // Asignar listener para actualizar estado en Pago de Facturas
-      document.querySelectorAll('#tablaPagoFacturas .estado-select').forEach(sel => {
-        sel.addEventListener('change', e => {
-          actualizarEstadoIndividual(e.target.dataset.fila, e.target.value);
-        });
-      });
-    })
-    .catch(err => {
-      tbody.innerHTML = "<tr><td colspan='12'>❌ Error cargando datos: " + err.message + "</td></tr>";
-    })
-    .finally(() => {
-      spinner.style.display = "none";
-    });
-}
-</script>
-<script>
-// Contadores para Pago de Facturas
-function updateCountersPago() {
-  let pendientes = 0, pagadas = 0;
-  document.querySelectorAll('#tablaPagoFacturas tbody tr').forEach(tr => {
-    const sel = tr.querySelector('select.estado-select');
-    if(!sel) return;
-    if(sel.value === 'Revisada') pendientes++;
-    if(sel.value === 'Pagada')   pagadas++;
-  });
-  document.getElementById('contadorPendientes').textContent = pendientes;
-  document.getElementById('contadorPagadas').textContent = pagadas;
-
-  // Actualizar totales según filtros
-  let sumPend = 0, sumPag = 0;
-  document.querySelectorAll('#tablaPagoFacturas tbody tr').forEach(tr => {
-    if (tr.style.display === 'none') return;
-    const sel = tr.querySelector('select.estado-select');
-    const amount = parseFloat(tr.children[7].textContent.replace(/[^0-9.\-]/g, '')) || 0;
-    if (sel && sel.value === 'Revisada') sumPend += amount;
-    if (sel && sel.value === 'Pagada') sumPag += amount;
-  });
-  document.getElementById('totalRevisada').textContent = 'L ' + sumPend.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  document.getElementById('totalPagada').textContent   = 'L ' + sumPag.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-}
-</script>
-<script>
-// Aplica filtros sobre filas existentes de Pago de Facturas
-function aplicarFiltrosPago() {
-  const sector = document.getElementById('filtroSectorPago').value;
-  const estado = document.getElementById('filtroEstadoPago').value;
-  const numFact = document.getElementById('filtroNumeroPago').value.toLowerCase();
-  const fechas = window.flatpickrPago ? window.flatpickrPago.selectedDates : [];
-  let pendientes=0, pagadas=0;
-  document.querySelectorAll('#tablaPagoFacturas tbody tr').forEach(tr => {
-    const cols = tr.children;
-    const rowSector = cols[2].textContent.trim();
-    const rowEstado = cols[11].querySelector('select').value;
-    const rowFactura = cols[9].textContent.toLowerCase();
-    const rowFecha = new Date(cols[8].textContent.split('/').reverse().join('-'));
-    let visible = true;
-    if (sector !== 'Todos' && rowSector !== sector) visible = false;
-    if (estado !== 'Todos' && rowEstado !== estado) visible = false;
-    if (numFact && !rowFactura.includes(numFact)) visible = false;
-    if (fechas.length === 2) {
-      const [start, end] = fechas;
-      if (!(rowFecha >= start && rowFecha <= end)) visible = false;
-    }
-    tr.style.display = visible ? '' : 'none';
-    if (visible) {
-      if (rowEstado === 'Revisada') pendientes++;
-      if (rowEstado === 'Pagada') pagadas++;
-    }
-  });
-  document.getElementById('contadorPendientes').textContent = pendientes;
-  document.getElementById('contadorPagadas').textContent = pagadas;
-
-  // Actualizar totales según filtros
-  let sumPend = 0, sumPag = 0;
-  document.querySelectorAll('#tablaPagoFacturas tbody tr').forEach(tr => {
-    if (tr.style.display === 'none') return;
-    const sel = tr.querySelector('select.estado-select');
-    const amount = parseFloat(tr.children[7].textContent.replace(/[^0-9.\-]/g, '')) || 0;
-    if (sel && sel.value === 'Revisada') sumPend += amount;
-    if (sel && sel.value === 'Pagada') sumPag += amount;
-  });
-  document.getElementById('totalRevisada').textContent = 'L ' + sumPend.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  document.getElementById('totalPagada').textContent   = 'L ' + sumPag.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-}
-// Inicializar filtros y flatpickr
-document.addEventListener('DOMContentLoaded', () => {
-  window.flatpickrPago = flatpickr('#filtroFechaPago', { mode:'range', dateFormat:'d/m/Y', locale:flatpickr.l10ns.es, onChange: aplicarFiltrosPago });
-  document.getElementById('filtroSectorPago').addEventListener('change', aplicarFiltrosPago);
-  document.getElementById('filtroEstadoPago').addEventListener('change', aplicarFiltrosPago);
-  document.getElementById('filtroNumeroPago').addEventListener('input', aplicarFiltrosPago);
-});
-</script>
-<script>
-// Población de filtro de sector en Pago de Facturas
-function cargarFiltrosSectorPago(data) {
-  const filtro = document.getElementById("filtroSectorPago");
-  if (!filtro) return;
-  const sectores = Array.from(new Set(data.map(f => f.Sector))).sort();
-  filtro.innerHTML = '<option value="Todos">Todos</option>';
-  sectores.forEach(sector => {
-    const opt = document.createElement("option");
-    opt.value = sector;
-    opt.textContent = sector;
-    filtro.appendChild(opt);
-  });
-}
-</script>
-<script>
-// Tabulator setup for Pago de Facturas
-document.addEventListener("DOMContentLoaded", function(){
-  var isGroupView = false;
-  var btnGroup = document.getElementById("btnAgruparColaborador");
-  if(btnGroup){
-    btnGroup.addEventListener("click", function(){
-      isGroupView = !isGroupView;
-      if(isGroupView){
-        table.setGroupBy("Identidad");
-      } else {
-        table.setGroupBy(false);
-      }
-      updateCounters();
-    });
+    // Set factura_only_img source
+    document.getElementById('factura_only_img').src = document.getElementById('preview_foto_factura').querySelector('img').src;
   }
 
-  // Hide original elements
-  var tbl = document.getElementById("tablaPagoFacturas");
-  if(tbl) tbl.style.display = "none";
+  // Initial loads
+  document.addEventListener('DOMContentLoaded', function() {
+    cargarDatosVehiculos();
+    cargarProcesos();
 
-  // Init flatpickr
-  window.flatpickrPago = flatpickr("#filtroFechaPago", {
-    mode: "range", dateFormat: "Y-m-d", locale: flatpickr.l10ns.es,
-    onClose: function(){ window.applyFilters(); }
+    flatpickr("#fecha", {
+      dateFormat: "d/m/Y",
+      locale: "es",
+      maxDate: "today",
+      altInput: true,
+      altFormat: "d/m/Y"
+    });
+
+    flatpickr("#filtroFechaPago", {
+      mode: "range",
+      dateFormat: "d/m/Y",
+      locale: "es",
+      maxDate: "today",
+      altInput: true,
+      altFormat: "d/m/Y",
+      onChange: function(selectedDates, dateStr, instance) {
+        applyFilters();
+      }
+    });
   });
 
-  // Create Tabulator
-  var table = new Tabulator("#facturas-table", {
-    layout: "fitColumns", height: "500px", virtualDom: true, placeholder: "No hay datos.",
-    
-groupHeader:function(value, count, data){
-    // Encontrar el primer nombre coincidente por identidad
-    let fullName = "";
-    for (let i = 0; i < data.length; i++) {
-        if (data[i].Identidad === value && data[i].Nombre) {
-            fullName = data[i].Nombre;
-            break;
-        }
-    }
-    // Calcular el total por grupo
-    let total = data.reduce((sum, row) => sum + (parseFloat(row["Total Gastado"]) || 0), 0);
-    return `${fullName} - ${value} - ${count} factura(s) - Total: L ${total.toFixed(2)}`;
-},
 
-    columns: [
-      {title:"#", formatter:"rownum", width:50},
+  /* Tabulator Table for Pago de Facturas */
+  let table = new Tabulator("#facturas-table", {
+    height:"100%", // Establece una altura fija, ajusta según sea necesario
+    layout:"fitColumns",
+    data:[], // Se cargará dinámicamente
+    columns:[
+      {formatter:"rowSelection", titleFormatter:"rowSelection", hozAlign:"center", headerSort:false, cellClick:function(e, cell){
+        cell.getRow().toggleSelect();
+        actualizarVisibilidadBotonesMasivos();
+      }},
+      {title:"ID", field:"ID", hozAlign:"center", width:60},
       {title:"Sector", field:"Sector"},
       {title:"Placa", field:"Placa"},
-      {title:"Proceso", field:"Proceso"},
-      {title:"Nombre", field:"Nombre"},
+      {title:"Colaborador", field:"NombreCompleto"},
       {title:"Identidad", field:"Identidad"},
-      {title:"Total Gastado", field:"Total Gastado", formatter:"money", hozAlign:"right"},
-      {title:"Fecha", field:"Fecha", sorter:"date"},
-      {title:"Número de Factura", field:"Numero de Factura"},
-      {title:"Enlace PDF", field:"Enlace PDF", formatter: cell => {
-          var v = cell.getValue();
-          return v?`<a href="${v}" target="_blank">📄</a>`:"";
+      {title:"Total Gastado", field:"TotalGastado", formatter:"money", formatterParams:{
+        decimal:".", thousand:",", symbol:"L ", symbolAfter:"false", precision:2,
       }},
-      {title:"Estado", field:"Estado", editor:"select", editorParams:{values:["Revisada","Pagada"]},
-        cellEdited: cell => {
-          var d = cell.getRow().getData();
-          actualizarEstadoIndividual(d.fila, cell.getValue());
+      {title:"Litros", field:"LitrosConsumidos"},
+      {title:"Fecha", field:"Fecha"},
+      {title:"No. Factura", field:"NumeroFactura"},
+      {title:"Estado", field:"Estado", hozAlign:"center",
+        formatter:function(cell, formatterParams, onRendered){
+          const status = cell.getValue();
+          let color = '';
+          switch(status){
+            case "Revisada": color = 'orange'; break;
+            case "Pagada": color = 'green'; break;
+            default: color = 'gray';
+          }
+          return `<span style="color:${color};font-weight:bold;">${status}</span>`;
         }
-      }
+      },
+      {title:"Acciones", field:"acciones", hozAlign:"center", formatter:function(cell, formatterParams, onRendered){
+        const rowData = cell.getRow().getData();
+        const estado = rowData.Estado;
+        let buttons = '';
+        if (estado === "Revisada") {
+          buttons += `<button class='btn-pagar' onclick='marcarComoPagada(${rowData.ID})' style='background-color:#4CAF50; color:white; padding: 5px 10px; border:none; border-radius:3px; cursor:pointer; margin-right:5px;'>Pagar</button>`;
+        }
+        buttons += `<button class='btn-ver' onclick='verDetalleFactura(${rowData.ID})' style='background-color:#008CBA; color:white; padding: 5px 10px; border:none; border-radius:3px; cursor:pointer;'>Ver</button>`;
+        return buttons;
+      }}
     ],
   });
-  window.tabulatorTable = table;
 
-  var isGroupView = false;
-  
-
-
-  // Load data function
-  function loadData(){
-    fetch(urlLeerFacturas)
-      .then(r=>r.json())
-      .then(data=>{
-        var rows = data.filter(f=>["Revisada","Pagada"].includes(f.Estado));
-        window.facturasGlobal = rows;
-        populateSector(rows);
-        table.setData(rows).then(updateCounters);
+  // Funciones de la sección de pago
+  function loadData() {
+    mostrarOverlay("Cargando Facturas...");
+    fetch("/api/facturas") // Asumiendo que este endpoint existe para obtener facturas
+      .then(response => response.json())
+      .then(data => {
+        table.setData(data);
+        ocultarOverlay();
+        applyFilters(); // Aplicar filtros después de cargar los datos iniciales
+      })
+      .catch(error => {
+        console.error("Error al cargar datos de facturas:", error);
+        ocultarOverlay();
+        showToast("Error al cargar facturas.", 'error');
       });
   }
 
-  // Populate sector filter
-  function populateSector(data){
-    var sel = document.getElementById("filtroSectorPago");
-    if(!sel) return;
-    sel.innerHTML = '<option value="Todos">Todos</option>';
-    Array.from(new Set(data.map(r=>r.Sector))).sort().forEach(s=>{
-      sel.add(new Option(s,s));
+  function marcarComoPagada(id) {
+    mostrarOverlay("Marcando como Pagada...");
+    fetch("/api/facturas/pagar", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: id })
+    })
+    .then(response => response.json())
+    .then(result => {
+      ocultarOverlay();
+      if (result.success) {
+        showToast("Factura marcada como pagada.", 'success');
+        loadData(); // Recargar datos para actualizar la tabla
+      } else {
+        showToast("Error al marcar factura como pagada: " + (result.error || ""), 'error');
+      }
+    })
+    .catch(error => {
+      ocultarOverlay();
+      showToast("Error de conexión al marcar factura.", 'error');
+      console.error("Error:", error);
     });
   }
 
-  // Apply filters
-  window.applyFilters = function(){
-    var filters = [];
-    var s = document.getElementById("filtroSectorPago").value;
-    if(s!="Todos") filters.push({field:"Sector",type:"=",value:s});
-    var e = document.getElementById("filtroEstadoPago").value;
-    if(e!="Todos") filters.push({field:"Estado",type:"=",value:e});
-    var n = document.getElementById("filtroNumeroPago").value;
-    if(n) filters.push({field:"Numero de Factura",type:"like",value:n});
-    var d = flatpickrPago.selectedDates;
-    if(d.length==2){
-      filters.push({field:"Fecha",type:">=",value:d[0].toISOString().split("T")[0]});
-      filters.push({field:"Fecha",type:"<=",value:d[1].toISOString().split("T")[0]});
+  function verDetalleFactura(id) {
+    // Implementar lógica para mostrar detalles de una factura específica
+    alert("Ver detalles de factura ID: " + id);
+  }
+
+  // Hook filters
+  ["filtroSectorPago","filtroEstadoPago"].forEach(id=>{
+    document.getElementById(id).addEventListener("change",applyFilters);
+  });
+  document.getElementById("filtroNumeroPago").addEventListener("input",applyFilters);
+
+  // Función para agrupar por colaborador
+  document.getElementById("btnAgruparColaborador").addEventListener("click",function(){
+    if(table.getGrouped()){
+      table.clearData(); // Clear table data for ungrouped view
+      table.setGroupBy(false);
+      table.setSort([{field:"ID", dir:"asc"}]); // Restore default sort
+      loadData(); // Reload data for ungrouped view
+    } else {
+      table.setGroupBy("NombreCompleto");
     }
-    if(filters.length) table.setFilter(filters);
-    else table.clearFilter(true);
+  });
+
+  function applyFilters(){
+    const sector = document.getElementById("filtroSectorPago").value;
+    const estado = document.getElementById("filtroEstadoPago").value;
+    const numero = document.getElementById("filtroNumeroPago").value.toLowerCase();
+    const fechaRange = flatpickr.getInstance(document.getElementById("filtroFechaPago")).selectedDates;
+
+    table.setFilter(function(row){
+      const rowData = row.getData();
+      const rowSector = rowData.Sector;
+      const rowEstado = rowData.Estado;
+      const rowNumero = String(rowData.NumeroFactura).toLowerCase();
+      const rowFecha = flatpickr.parseDate(rowData.Fecha, "d/m/Y");
+
+      const sectorMatch = (sector === "Todos" || rowSector === sector);
+      const estadoMatch = (estado === "Todos" || rowEstado === estado);
+      const numeroMatch = (numero === "" || rowNumero.includes(numero));
+      
+      let dateMatch = true;
+      if (fechaRange.length === 2) {
+        const start = fechaRange[0];
+        const end = fechaRange[1];
+        dateMatch = (rowFecha >= start && rowFecha <= end);
+      } else if (fechaRange.length === 1) {
+        dateMatch = (rowFecha.toDateString() === fechaRange[0].toDateString());
+      }
+
+      return sectorMatch && estadoMatch && numeroMatch && dateMatch;
+    });
     updateCounters();
   };
 
@@ -2855,26 +1355,11 @@ groupHeader:function(value, count, data){
   });
   document.getElementById("filtroNumeroPago").addEventListener("input",applyFilters);
 
-  // Initial load
-  loadData();
-});
+  // Define cargarPagoFacturas to also load data when section is shown
+  function cargarPagoFacturas() {
+    mostrarSeccion('seccionPagoFacturas');
+    loadData(); // Call loadData here
+  }
 </script>
 </body>
 </html>
-<div id="generando_pdf_modal" style="
-  visibility: hidden;
-  opacity: 0;
-  position:fixed;
-  top:0; left:0; right:0; bottom:0;
-  background:rgba(0,0,0,0.6);
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  justify-content:center;
-  z-index:2000;
-  transition: opacity 0.3s ease;">
-<div class="spinner"></div>
-<div style="color:white; font-size:20px; font-weight:bold; margin-top:20px;">
-    Generando PDF, por favor espere...
-  </div>
-</div>
