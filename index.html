@@ -2881,7 +2881,7 @@ function cargarPagoFacturas() {
 
   // Reconstruir la tabla
   tabulatorTable = new Tabulator(tableEl, {
-    ajaxURL: "/api/facturas",
+    ajaxURL: urlLeerFacturas,
     ajaxConfig: "GET",
     layout: "fitColumns",
     height: "500px",
