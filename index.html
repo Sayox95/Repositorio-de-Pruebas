@@ -313,10 +313,11 @@
 }
 </style>
 <div id="toast-alert">⚠️ Hay campos obligatorios sin completar.</div>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js">window.isFirstLoadPagoFacturas = true;
-</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
 <script>
+window.isFirstLoadPagoFacturas = true;
+
   var generatedPDF = null;
   var generatedFilename = '';
 </script>
@@ -543,7 +544,6 @@ function actualizarVisibilidadBotonesMasivos() {
 #overlayPago { display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
   background: rgba(0,0,0,0.5); z-index: 1000; display: flex; align-items: center; justify-content: center;
   color: white; font-size: 1.2rem; font-weight: bold; }
-#overlayPago span { padding: 0.5rem 1rem; background: rgba(0,0,0,0.7); border-radius: 0.25rem; }
 </style>
 </head>
 <body>
@@ -2523,18 +2523,39 @@ function toggleAllPagoCheckboxes(source) {
   checkboxes.forEach(cb => cb.checked = source.checked);
 }
 
-function cargarPagoFacturas(){
-  // Mostrar overlay
+function cargarPagoFacturas() {
+  // Mostrar overlay con texto según carga
   const overlay = document.getElementById("overlayPago");
   const textEl = document.getElementById("overlayTextPago");
   textEl.textContent = window.isFirstLoadPagoFacturas ? "Cargando información" : "Actualizando información";
   overlay.style.display = "flex";
   window.isFirstLoadPagoFacturas = false;
-  // Invocar carga de datos
-  if(window.loadDataPagoFacturas){
-    window.loadDataPagoFacturas();
-  }
-} if(window.loadDataPagoFacturas) window.loadDataPagoFacturas();
+  // Cargar datos y ocultar overlay
+  if(window.loadDataPagoFacturas) {
+    window.loadDataPagoFacturas()
+      .then(() => { overlay.style.display = "none"; })
+      .catch(() => { overlay.style.display = "none"; });
+}
+
+  
+  
+  
+  // Resetear filtros al entrar en Pago de Facturas
+  if (document.getElementById('filtroSectorPago')) document.getElementById('filtroSectorPago').value = 'Todos';
+  if (document.getElementById('filtroEstadoPago')) document.getElementById('filtroEstadoPago').value = 'Todos';
+  if (document.getElementById('filtroNumeroPago')) document.getElementById('filtroNumeroPago').value = '';
+  if (window.flatpickrPago) flatpickrPago.clear();
+  // Resetear contadores de cantidad
+  if (document.getElementById('contadorPendientes')) document.getElementById('contadorPendientes').textContent = '0';
+  if (document.getElementById('contadorPagadas')) document.getElementById('contadorPagadas').textContent = '0';
+  // Resetear contadores de sumas
+  if (document.getElementById('totalRevisada')) document.getElementById('totalRevisada').textContent = 'L 0.00';
+  if (document.getElementById('totalPagada'))  document.getElementById('totalPagada').textContent  = 'L 0.00';
+
+mostrarSeccion('seccionPagoFacturas');
+  // Mostrar tabla y cargar datos
+  var ft = document.getElementById('facturas-table'); if(ft) ft.style.display = 'block';
+  if(window.tabulatorTable){ window.tabulatorTable.clearFilter(true); window.tabulatorTable.clearSort(); window.tabulatorTable.clearData(); } if(window.loadDataPagoFacturas) window.loadDataPagoFacturas();
   const seccion = document.getElementById("seccionPagoFacturas");
   if (seccion) seccion.style.display = "block";
 
@@ -2797,6 +2818,8 @@ groupHeader:function(value, count, data){
     ],
   });
   window.tabulatorTable = table;
+    // Ocultar overlay cuando la tabla termine de renderizar datos
+    table.on("dataRendered", function(){ document.getElementById("overlayPago").style.display = "none"; });
 
   var isGroupView = false;
   
@@ -2805,16 +2828,13 @@ groupHeader:function(value, count, data){
   // Load data function
   function loadDataPagoFacturas(){
   return fetch(urlLeerFacturas)
-    .then(res => res.json())
-    .then(data => {
-      const rows = data.filter(f => ["Revisada","Pagada"].includes(f.Estado));
-      return table.setData(rows);
-    })
-    .then(() => {
-      document.getElementById("overlayPago").style.display = "none";
-      updateCounters();
-    });
-});
+      .then(r=>r.json())
+      .then(data=>{
+        var rows = data.filter(f=>["Revisada","Pagada"].includes(f.Estado));
+        window.facturasGlobal = rows;
+        populateSector(rows);
+        table.setData(rows).then(updateCounters);
+      });
   window.loadDataPagoFacturas = loadDataPagoFacturas;
   }
 
