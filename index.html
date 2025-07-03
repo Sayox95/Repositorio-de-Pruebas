@@ -544,19 +544,23 @@ function actualizarVisibilidadBotonesMasivos() {
   background: rgba(0,0,0,0.5); z-index: 1000; display: flex; align-items: center; justify-content: center;
   color: white; font-size: 1.2rem; font-weight: bold; }
 </style>
-</head>
+<style id="excel-button-style">
+#exportExcelBtn {
+    margin-left: 0.5rem !important;
+}
+</style></head>
 <body>
 <div id="overlayCambios">
 <div class="spinner"></div>
 <div class="text">Registrando Cambios...</div>
 </div>
-<div id="menuPrincipal" style="display: flex; flex-direction: column; align-items: center; margin-top: 50px;">
+<div id="menuPrincipal" style="display: flex; flex-direction: column; align-items: center; margin-top: 50px; gap:20px;">
 <h2>Seleccione una opción</h2>
-<button onclick="mostrarSeccion('reportarFactura')" style="width: 250px; margin: 10px; padding: 10px;">📥 Reportar Factura</button>
-<button onclick="mostrarSeccion('revisionFacturas')" style="width: 250px; margin: 10px; padding: 10px;">🔍 Revisión de Facturas</button>
-<button onclick="mostrarSeccion('registrarAnticipo')" style="width: 250px; margin: 10px; padding: 10px;">💵 Registrar Anticipo</button>
-<button onclick="cargarPagoFacturas()" style="width: 250px; margin: 10px; padding: 10px;">💳 Pago de Facturas</button></div><div id="seccionPagoFacturas" style="display: none;">
-<button onclick="mostrarSeccion('menuPrincipal')" style="width:auto; padding:0.5em 1em; margin-bottom:1em;">🔙 Regresar al Menú Principal</button><h2>Pago de Facturas</h2>
+<button onclick="mostrarSeccion('reportarFactura')" style="width: 250px;  padding: 10px;">📥 Reportar Factura</button>
+<button onclick="mostrarSeccion('revisionFacturas')" style="width: 250px;  padding: 10px;">🔍 Revisión de Facturas</button>
+<button onclick="mostrarSeccion('registrarAnticipo')" style="width: 250px;  padding: 10px;">💵 Registrar Anticipo</button>
+<button onclick="cargarPagoFacturas()" style="width: 250px;  padding: 10px;">💳 Pago de Facturas</button></div><div id="seccionPagoFacturas" style="display: none;">
+<button onclick="mostrarSeccion('menuPrincipal')" style="height:24px; line-height:1; padding: 0.25rem 0.5rem; display: flex; align-items: center; justify-content: center;"><span style="margin-right: 0.5rem;">←</span>Regresar al Menú Principal</button><h2>Pago de Facturas</h2>
 <div id="countersContainer">
 <div class="counter-box"><span class="label">Facturas Pendientes</span><span class="value" id="contadorPendientes">0</span></div>
 <div class="counter-box"><span class="label">Facturas Pagadas</span><span class="value" id="contadorPagadas">0</span></div>
@@ -589,7 +593,7 @@ function actualizarVisibilidadBotonesMasivos() {
     </style>
 <div id="tablaPagoWrapper" style="max-height: 500px; overflow: auto; border: 1px solid #ccc; padding: 10px; margin-top: 10px;">
 <button id="btn-pagar-facturas" style="display:none; margin-bottom:10px; font-size:0.8rem !important; padding:2px 6px !important; height:24px !important; line-height:1 !important;">Pagar Facturas</button>
-<button class="boton" id="btnAgruparColaborador" style="display:inline-block; margin-left:10px; margin-bottom:10px; font-size:0.8rem !important; padding:2px 6px !important; height:24px !important; line-height:1 !important;">Agrupar por colaborador</button>
+<button class="boton" id="btnAgruparColaborador" style="display:inline-block; margin-left:10px; margin-bottom:10px; font-size:0.8rem !important; padding:2px 6px !important; height:24px !important; line-height:1 !important;">Agrupar por colaborador</button><button class="boton" id="exportExcelBtn" style="display:inline-block; margin-bottom:10px; font-size:0.8rem !important; padding:2px 6px !important; height:24px !important; line-height:1 !important; background-color: #217346; border-color: #1b5e33; color: white; margin-left: 1rem;">Exportar Excel</button>
 <div id="overlayPago"><span id="overlayTextPago">Cargando información</span></div>
 <div id="facturas-table" style="height:500px; display:none;"></div>
 </div>
@@ -2932,7 +2936,15 @@ groupHeader:function(value, count, data){
   // Initial load removed to defer loading until button click
 });
 </script>
-</body>
+<script>
+// Exportar datos filtrados de la tabla a Excel
+document.getElementById('exportExcelBtn').addEventListener('click', function() {
+  window.tabulatorTable.download("xlsx", "facturas.xlsx", {
+    sheetName: "Facturas",
+    data: window.tabulatorTable.getData(true),
+  });
+});
+</script></body>
 </html>
 <div id="generando_pdf_modal" style="
   visibility: hidden;
