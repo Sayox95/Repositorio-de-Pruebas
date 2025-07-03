@@ -591,6 +591,7 @@ function actualizarVisibilidadBotonesMasivos() {
     }
     </style>
 <div id="tablaPagoWrapper" style="max-height: 500px; overflow: auto; border: 1px solid #ccc; padding: 10px; margin-top: 10px;">
+  <button id="btn-pagar-facturas" style="display:none; margin-bottom:10px;">Pagar Facturas</button>
   <div id="overlayPago"><span id="overlayTextPago">Cargando información</span></div>
   <div id="facturas-table" style="height:500px; display:none;"></div>
 </div>
@@ -1547,6 +1548,7 @@ groupHeader:function(value, count, data){
 },
 
     columns: [
+        {formatter: 'rowSelection', titleFormatter: 'rowSelection', hozAlign: 'center', headerSort: false},
           {
             width: '48%',
             table: {
@@ -2427,6 +2429,35 @@ async function actualizarEstadoIndividual(fila, nuevoEstado) {
       updateCountersPago();
 aplicarFiltros();
   }}
+
+async function actualizarEstadoMultiple(filas, nuevoEstado) {
+  const overlay = document.getElementById('overlayCambios');
+  overlay.style.display = 'flex';
+  try {
+    for (const fila of filas) {
+      const resp = await fetch(urlGuardarReporte, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ actualizarEstado: true, fila, nuevoEstado })
+      });
+      const result = await resp.json();
+      if (result.status !== 'OK') {
+        showToast("Error al actualizar factura " + fila + ": " + (result.message || JSON.stringify(result)));
+      } else {
+        const rec = window.facturasGlobal.find(f => f.fila == fila);
+        if (rec) rec.Estado = nuevoEstado;
+      }
+    }
+  } catch (err) {
+    console.error(err);
+  } finally {
+    overlay.style.display = 'none';
+    updateCountersPago();
+    aplicarFiltrosPago();
+  }
+}
+
+
 </script>
 <script>
 function actualizarVisibilidadBotonesMasivos() {
@@ -2555,7 +2586,7 @@ function cargarPagoFacturas() {
 mostrarSeccion('seccionPagoFacturas');
   // Mostrar tabla y cargar datos
   var ft = document.getElementById('facturas-table'); if(ft) ft.style.display = 'block';
-  if(window.tabulatorTable){ window.tabulatorTable.clearFilter(true); window.tabulatorTable.clearSort(); window.tabulatorTable.clearData(); } if(window.loadDataPagoFacturas) window.loadDataPagoFacturas();
+  if(window.tabulatorTable){ window.tabulatorTable.clearFilter(true); window.tabulatorTable.clearSort(); window.tabulatorTable.clearData(); }
   const seccion = document.getElementById("seccionPagoFacturas");
   if (seccion) seccion.style.display = "block";
 
@@ -2779,7 +2810,7 @@ document.addEventListener("DOMContentLoaded", function(){
 
   // Create Tabulator
   var table = new Tabulator("#facturas-table", {
-    layout: "fitColumns", height: "500px", virtualDom: true, placeholder: "",
+    layout: "fitColumns", selectable: true, height: "500px", virtualDom: true, placeholder: "",
     
 groupHeader:function(value, count, data){
     // Encontrar el primer nombre coincidente por identidad
@@ -2796,6 +2827,7 @@ groupHeader:function(value, count, data){
 },
 
     columns: [
+      {formatter:"rowSelection", titleFormatter:"rowSelection", hozAlign:"center", headerSort:false},
       {title:"#", formatter:"rownum", width:50},
       {title:"Sector", field:"Sector"},
       {title:"Placa", field:"Placa"},
@@ -2820,6 +2852,23 @@ groupHeader:function(value, count, data){
   window.tabulatorTable = table;
     // Ocultar overlay cuando la tabla termine de renderizar datos
     table.on("dataRendered", function(){ document.getElementById("overlayPago").style.display = "none"; });
+  // Mostrar u ocultar botón 'Pagar Facturas' según selección
+  table.on("rowSelectionChanged", function(data){
+    var btn = document.getElementById("btn-pagar-facturas");
+    btn.style.display = data.length > 0 ? "inline-block" : "none";
+  });
+
+  // Acción del botón para marcar facturas como pagadas masivamente
+  document.getElementById("btn-pagar-facturas").addEventListener("click", async function(){
+    var selectedRows = table.getSelectedRows();
+    var filas = selectedRows.map(row => row.getData().fila);
+    this.style.display = "none";
+    await actualizarEstadoMultiple(filas, "Pagada");
+    selectedRows.forEach(function(row){
+      row.update({Estado: "Pagada"});
+    });
+  });
+
 
   var isGroupView = false;
   
