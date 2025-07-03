@@ -2511,125 +2511,68 @@ function toggleAllPagoCheckboxes(source) {
   checkboxes.forEach(cb => cb.checked = source.checked);
 }
 
+
 function cargarPagoFacturas() {
-  
-  
-  
-  // Resetear filtros al entrar en Pago de Facturas
-  if (document.getElementById('filtroSectorPago')) document.getElementById('filtroSectorPago').value = 'Todos';
-  if (document.getElementById('filtroEstadoPago')) document.getElementById('filtroEstadoPago').value = 'Todos';
-  if (document.getElementById('filtroNumeroPago')) document.getElementById('filtroNumeroPago').value = '';
-  if (window.flatpickrPago) flatpickrPago.clear();
-  // Resetear contadores de cantidad
-  if (document.getElementById('contadorPendientes')) document.getElementById('contadorPendientes').textContent = '0';
-  if (document.getElementById('contadorPagadas')) document.getElementById('contadorPagadas').textContent = '0';
-  // Resetear contadores de sumas
-  if (document.getElementById('totalRevisada')) document.getElementById('totalRevisada').textContent = 'L 0.00';
-  if (document.getElementById('totalPagada'))  document.getElementById('totalPagada').textContent  = 'L 0.00';
+  // 1) Mostrar la sección
+  mostrarSeccion('seccionPagoFacturas');
+  const tableEl = document.getElementById('facturas-table');
+  if (tableEl) tableEl.style.display = 'block';
 
-mostrarSeccion('seccionPagoFacturas');
-  // Mostrar tabla y cargar datos
-  var ft = document.getElementById('facturas-table'); if(ft) ft.style.display = 'block';
-  if(window.loadDataPagoFacturas) window.loadDataPagoFacturas();
-  const seccion = document.getElementById("seccionPagoFacturas");
-  if (seccion) seccion.style.display = "block";
+  // 2) Destruir tabla previa si existe
+  if (window.tabulatorTable) {
+    window.tabulatorTable.destroy(true);
+    tableEl.innerHTML = '';
+  }
 
-  const spinner = document.getElementById("spinnerPago");
-  const tabla = document.getElementById("tablaPagoFacturas");
-  const tbody = tabla ? tabla.querySelector("tbody") : null;
-
-  if (!tabla || !tbody || !spinner) return;
-
-  spinner.style.display = "block";
-  tabla.style.display = "table";
-  tbody.innerHTML = "";
-
-  fetch("https://repositorio-de-pruebas.pages.dev/api/leer")
-    .then(response => {
-      if (!response.ok) throw new Error("HTTP " + response.status);
-      return response.json();
-    })
-    .then(data => {
-      if (!Array.isArray(data)) throw new Error("La respuesta no es un array válido");
-      if (data.length === 0) {
-        tbody.innerHTML = "<tr><td colspan='12'>⚠️ No hay facturas para mostrar</td></tr>";
-        return;
+  // 3) Reconstruir instancia Tabulator desde cero
+  window.tabulatorTable = new Tabulator(tableEl, {
+    ajaxURL: urlLeerFacturas,    // endpoint para datos JSON
+    ajaxConfig: "GET",
+    layout: "fitColumns",
+    height: "500px",
+    pagination: "remote",
+    paginationSize: 20,
+    placeholder: "No hay datos.",
+    groupBy: "Identidad",
+    groupHeader: function(value, count, data) {
+      let nombre = (data.find(r => r.Identidad === value) || {}).Nombre || "";
+      const total = data.reduce((sum, row) => sum + parseFloat(row["Total Gastado"] || 0), 0);
+      return `${nombre} — ${value} — ${count} factura(s) — Total: L ${total.toFixed(2)}`;
+    },
+    columns: [
+      { title: "#", formatter: "rownum", width: 50 },
+      { title: "Sector", field: "Sector" },
+      { title: "Placa", field: "Placa" },
+      { title: "Proceso", field: "Proceso" },
+      { title: "Nombre", field: "Nombre" },
+      { title: "Identidad", field: "Identidad" },
+      { title: "Total Gastado", field: "Total Gastado", formatter: "money", hozAlign: "right" },
+      { title: "Fecha", field: "Fecha", sorter: "date" },
+      { title: "Número de Factura", field: "Numero de Factura" },
+      { title: "Enlace PDF", field: "Enlace PDF", formatter: cell => {
+          const v = cell.getValue();
+          return v ? `<a href="${v}" target="_blank">📄</a>` : "";
+      }},
+      { title: "Estado", field: "Estado", editor: "select",
+        editorParams: { values: ["Revisada", "Pagada"] },
+        cellEdited: cell => {
+          const row = cell.getRow().getData();
+          actualizarEstadoIndividual(row.fila, cell.getValue());
+        }
       }
-
-      
-      const filtradas = data.filter(factura => {
-        const estado = (factura["Estado"] || "").toString().trim().toLowerCase();
-        return estado === "revisada" || estado === "pagada";
-      });
-      // Cargar filtros de sector dinámicamente
-      cargarFiltrosSectorPago(filtradas);
-      // Actualizar contadores de Pago de Facturas
-      const pendientes = filtradas.filter(f => f.Estado === 'Revisada').length;
-      const pagadas = filtradas.filter(f => f.Estado === 'Pagada').length;
-      document.getElementById('contadorPendientes').textContent = pendientes;
-      document.getElementById('contadorPagadas').textContent = pagadas;
-
-      
-  // Actualizar totales según filtros
-  let sumPend = 0, sumPag = 0;
-  document.querySelectorAll('#tablaPagoFacturas tbody tr').forEach(tr => {
-    if (tr.style.display === 'none') return;
-    const sel = tr.querySelector('select.estado-select');
-    const amount = parseFloat(tr.children[7].textContent.replace(/[^0-9.\-]/g, '')) || 0;
-    if (sel && sel.value === 'Revisada') sumPend += amount;
-    if (sel && sel.value === 'Pagada') sumPag += amount;
+    ],
+    ajaxResponse: function(url, params, response) {
+      // Actualizar contadores después de cargar datos
+      actualizarContadores(response.data || response);
+      return response.data || response;
+    }
   });
-  document.getElementById('totalRevisada').textContent = 'L ' + sumPend.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  document.getElementById('totalPagada').textContent   = 'L ' + sumPag.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-const totalRevisada = filtradas.filter(f => f.Estado === 'Revisada').reduce((s, f) => s + parseFloat(f['Total Gastado'] || 0), 0);
-      const totalPagada  = filtradas.filter(f => f.Estado === 'Pagada').reduce((s, f) => s + parseFloat(f['Total Gastado'] || 0), 0);
-      document.getElementById('totalRevisada').textContent = 'L ' + totalRevisada.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-      document.getElementById('totalPagada').textContent = 'L ' + totalPagada.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-
-filtradas.forEach((f, index) => {
-        const fila = document.createElement("tr");
-        const fecha = f.Fecha ? new Date(f.Fecha).toLocaleDateString("es-ES") : "";
-        const totalGastado = "L " + parseFloat(f["Total Gastado"] || 0).toFixed(2);
-        const enlace = f["Enlace PDF"] ? `<a href="${f["Enlace PDF"]}" target="_blank">📄 Ver PDF</a>` : "";
-
-        fila.innerHTML = `
-          <td><input type="checkbox" class="check-factura-pago"></td>
-          <td>${index + 1}</td>
-          <td>${f.Sector || ""}</td>
-          <td>${f.Placa || ""}</td>
-          <td>${f.Proceso || ""}</td>
-          <td>${f.Nombre || ""}</td>
-          <td>${f.Identidad || ""}</td>
-          <td style="text-align:right;">${totalGastado}</td>
-          <td>${fecha}</td>
-          <td>${f["Numero de Factura"] || ""}</td>
-          <td>${enlace}</td>
-          <td>
-      <select class="estado-select" data-fila="${f.fila}">
-        <option value="Revisada" ${f.Estado === 'Revisada' ? 'selected' : ''}>Revisada</option>
-        <option value="Pagada"   ${f.Estado === 'Pagada'   ? 'selected' : ''}>Pagada</option>
-      </select>
-    </td>
-        `;
-        tbody.appendChild(fila);
-      });
-
-      // Asignar listener para actualizar estado en Pago de Facturas
-      document.querySelectorAll('#tablaPagoFacturas .estado-select').forEach(sel => {
-        sel.addEventListener('change', e => {
-          actualizarEstadoIndividual(e.target.dataset.fila, e.target.value);
-        });
-      });
-    })
-    .catch(err => {
-      tbody.innerHTML = "<tr><td colspan='12'>❌ Error cargando datos: " + err.message + "</td></tr>";
-    })
-    .finally(() => {
-      spinner.style.display = "none";
-    });
+  // Tabulator dispara automáticamente la carga AJAX al instanciar
+  // Si deseas forzar la recarga:
+  // window.tabulatorTable.replaceData();
 }
+
 </script>
 <script>
 // Contadores para Pago de Facturas
@@ -2862,80 +2805,6 @@ groupHeader:function(value, count, data){
   // Initial load removed to defer loading until button click
 });
 </script>
-
-<script>
-// NUEVA VERSIÓN DE cargarPagoFacturas: destruye y reconstruye la tabla cada vez
-let tabulatorTable = null;
-
-function cargarPagoFacturas() {
-  // Mostrar sección
-  mostrarSeccion('seccionPagoFacturas');
-  const tableEl = document.getElementById('facturas-table');
-  tableEl.style.display = 'block';
-
-  // Destruir instancia previa si existe
-  if (tabulatorTable) {
-    tabulatorTable.destroy(true);
-    tableEl.innerHTML = '';
-  }
-
-  // Reconstruir la tabla
-  tabulatorTable = new Tabulator(tableEl, {
-    ajaxURL: urlLeerFacturas,
-    ajaxConfig: "GET",
-    layout: "fitColumns",
-    height: "500px",
-    pagination: "remote",
-    paginationSize: 20,
-    placeholder: "No hay datos.",
-    groupBy: "Identidad",
-    groupHeader: function(value, count, data) {
-      let nombre = (data.find(r => r.Identidad === value) || {}).Nombre || "";
-      const total = data.reduce((sum, row) => sum + parseFloat(row["Total Gastado"]||0), 0);
-      return `${nombre} — ${value} — ${count} factura(s) — Total: L ${total.toFixed(2)}`;
-    },
-    columns: [
-      { title: "#", formatter: "rownum", width: 50 },
-      { title: "Sector", field: "Sector" },
-      { title: "Placa", field: "Placa" },
-      { title: "Proceso", field: "Proceso" },
-      { title: "Nombre", field: "Nombre" },
-      { title: "Identidad", field: "Identidad" },
-      { title: "Total Gastado", field: "Total Gastado", formatter: "money", hozAlign: "right" },
-      { title: "Fecha", field: "Fecha", sorter: "date" },
-      { title: "Número de Factura", field: "Numero de Factura" },
-      { title: "Enlace PDF", field: "Enlace PDF", formatter: cell => {
-          const v = cell.getValue();
-          return v ? `<a href="${v}" target="_blank">📄</a>` : "";
-      }},
-      { title: "Estado", field: "Estado", editor: "select",
-        editorParams: { values: ["Revisada", "Pagada"] },
-        cellEdited: cell => {
-          const row = cell.getRow().getData();
-          actualizarEstadoIndividual(row.fila, cell.getValue());
-        }
-      }
-    ],
-    ajaxResponse: function(url, params, response) {
-      actualizarContadores(response.data || response);
-      return response.data || response;
-    }
-  });
-}
-
-function actualizarContadores(dataRows) {
-  document.getElementById('contadorPendientes').textContent =
-    dataRows.filter(r => r.Estado === 'Revisada').length;
-  document.getElementById('contadorPagadas').textContent =
-    dataRows.filter(r => r.Estado === 'Pagada').length;
-  const totalPagado = dataRows
-    .filter(r => r.Estado === 'Pagada')
-    .reduce((sum, r) => sum + parseFloat(r["Total Gastado"]||0), 0);
-  document.getElementById('totalPagada').textContent =
-    `L ${totalPagado.toFixed(2)}`;
-}
-</script>
-
 </body>
 </html>
 <div id="generando_pdf_modal" style="
