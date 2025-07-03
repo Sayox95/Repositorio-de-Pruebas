@@ -538,7 +538,6 @@ function actualizarVisibilidadBotonesMasivos() {
     padding: 0.25rem 0.5rem !important;
   }
 </style>
-
 <style>
 #tablaPagoWrapper { position: relative; }
 #overlayPago { display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
@@ -589,10 +588,10 @@ function actualizarVisibilidadBotonesMasivos() {
     }
     </style>
 <div id="tablaPagoWrapper" style="max-height: 500px; overflow: auto; border: 1px solid #ccc; padding: 10px; margin-top: 10px;">
-  <button id="btn-pagar-facturas" style="display:none; margin-bottom:10px; font-size:0.8rem !important; padding:2px 6px !important; height:24px !important; line-height:1 !important;">Pagar Facturas</button>
-  <button class="boton" id="btnAgruparColaborador" style="display:inline-block; margin-left:10px; margin-bottom:10px; font-size:0.8rem !important; padding:2px 6px !important; height:24px !important; line-height:1 !important;">Agrupar por colaborador</button>
-  <div id="overlayPago"><span id="overlayTextPago">Cargando información</span></div>
-  <div id="facturas-table" style="height:500px; display:none;"></div>
+<button id="btn-pagar-facturas" style="display:none; margin-bottom:10px; font-size:0.8rem !important; padding:2px 6px !important; height:24px !important; line-height:1 !important;">Pagar Facturas</button>
+<button class="boton" id="btnAgruparColaborador" style="display:inline-block; margin-left:10px; margin-bottom:10px; font-size:0.8rem !important; padding:2px 6px !important; height:24px !important; line-height:1 !important;">Agrupar por colaborador</button>
+<div id="overlayPago"><span id="overlayTextPago">Cargando información</span></div>
+<div id="facturas-table" style="height:500px; display:none;"></div>
 </div>
 </div>
 <style>
@@ -2687,30 +2686,25 @@ filtradas.forEach((f, index) => {
 }
 </script>
 <script>
-// Contadores para Pago de Facturas
+// Update counters based on Tabulator's internal data
 function updateCountersPago() {
+  const data = window.tabulatorTable.getData();
   let pendientes = 0, pagadas = 0;
-  document.querySelectorAll('#tablaPagoFacturas tbody tr').forEach(tr => {
-    const sel = tr.querySelector('select.estado-select');
-    if(!sel) return;
-    if(sel.value === 'Revisada') pendientes++;
-    if(sel.value === 'Pagada')   pagadas++;
+  let sumPend = 0, sumPag = 0;
+  data.forEach(f => {
+    if (f.Estado === 'Revisada') {
+      pendientes++;
+      sumPend += parseFloat(f['Total Gastado'] || 0);
+    }
+    if (f.Estado === 'Pagada') {
+      pagadas++;
+      sumPag += parseFloat(f['Total Gastado'] || 0);
+    }
   });
   document.getElementById('contadorPendientes').textContent = pendientes;
   document.getElementById('contadorPagadas').textContent = pagadas;
-
-  // Actualizar totales según filtros
-  let sumPend = 0, sumPag = 0;
-  document.querySelectorAll('#tablaPagoFacturas tbody tr').forEach(tr => {
-    if (tr.style.display === 'none') return;
-    const sel = tr.querySelector('select.estado-select');
-    const amount = parseFloat(tr.children[7].textContent.replace(/[^0-9.\-]/g, '')) || 0;
-    if (sel && sel.value === 'Revisada') sumPend += amount;
-    if (sel && sel.value === 'Pagada') sumPag += amount;
-  });
   document.getElementById('totalRevisada').textContent = 'L ' + sumPend.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   document.getElementById('totalPagada').textContent   = 'L ' + sumPag.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
 }
 </script>
 <script>
@@ -2849,12 +2843,6 @@ groupHeader:function(value, count, data){
     ],
   });
   window.tabulatorTable = table;
-    // Actualizar contadores cuando cambie Estado en celda
-    table.on("cellEdited", function(cell) {
-        if (cell.getField() === "Estado") {
-            updateCountersPago();
-        }
-    });
     // Ocultar overlay cuando la tabla termine de renderizar datos
     table.on("dataRendered", function(){ document.getElementById("overlayPago").style.display = "none"; });
   // Mostrar u ocultar botón 'Pagar Facturas' según selección
