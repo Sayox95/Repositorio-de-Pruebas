@@ -547,7 +547,7 @@ function actualizarVisibilidadBotonesMasivos() {
 <button onclick="mostrarSeccion('reportarFactura')" style="width: 250px; margin: 10px; padding: 10px;">📥 Reportar Factura</button>
 <button onclick="mostrarSeccion('revisionFacturas')" style="width: 250px; margin: 10px; padding: 10px;">🔍 Revisión de Facturas</button>
 <button onclick="mostrarSeccion('registrarAnticipo')" style="width: 250px; margin: 10px; padding: 10px;">💵 Registrar Anticipo</button>
-<button id="btnPagoFacturas" onclick="cargarPagoFacturas()">💳 Pago de Facturas</button></div><div id="seccionPagoFacturas" style="display: none;">
+<button onclick="cargarPagoFacturas()" style="width: 250px; margin: 10px; padding: 10px;">💳 Pago de Facturas</button></div><div id="seccionPagoFacturas" style="display: none;">
 <div style="margin-bottom: 10px; text-align: right;">
 <button class="boton" id="btnAgruparColaborador" style="display:inline-block;">Agrupar por colaborador</button>
 </div><button onclick="mostrarSeccion('menuPrincipal')" style="width:auto; padding:0.5em 1em; margin-bottom:1em;">🔙 Regresar al Menú Principal</button><h2>Pago de Facturas</h2>
@@ -581,7 +581,7 @@ function actualizarVisibilidadBotonesMasivos() {
       100% { transform: rotate(360deg); }
     }
     </style>
-<div style="max-height: 500px; overflow: auto; border: 1px solid #ccc; padding: 10px; margin-top: 10px;"><div id="facturas-table" style="height:500px;"></div></div>
+<div style="max-height: 500px; overflow: auto; border: 1px solid #ccc; padding: 10px; margin-top: 10px;"><div id="facturas-table" style="height:500px; display:none;"></div></div>
 </div>
 <style>
 @keyframes spin {
@@ -2528,16 +2528,9 @@ function cargarPagoFacturas() {
   if (document.getElementById('totalPagada'))  document.getElementById('totalPagada').textContent  = 'L 0.00';
 
 mostrarSeccion('seccionPagoFacturas');
-  // Carga de datos al entrar en Pago de Facturas
-  if (window.tabulatorTable) {
-    tabulatorTable.setData(urlLeerFacturas)
-      .then(function(){
-        var data = tabulatorTable.getData();
-        updatePagoCounters(data);
-      })
-      .catch(function(err){ console.error('Error cargando Pago:', err); });
-  }
-
+  // Mostrar tabla y cargar datos
+  var ft = document.getElementById('facturas-table'); if(ft) ft.style.display = 'block';
+  if(window.loadDataPagoFacturas) window.loadDataPagoFacturas();
   const seccion = document.getElementById("seccionPagoFacturas");
   if (seccion) seccion.style.display = "block";
 
@@ -2864,34 +2857,86 @@ groupHeader:function(value, count, data){
     document.getElementById(id).addEventListener("change",applyFilters);
   });
   document.getElementById("filtroNumeroPago").addEventListener("input",applyFilters);
-
-  // Initial load
-  // loadData removed
+  // Expose loadData for manual trigger
+  window.loadDataPagoFacturas = loadData;
+  // Initial load removed to defer loading until button click
 });
 </script>
 
 <script>
-// Actualiza contadores de Pago de Facturas
-</script>
+// NUEVA VERSIÓN DE cargarPagoFacturas: destruye y reconstruye la tabla cada vez
+let tabulatorTable = null;
 
-<script>
-function poblarFiltroSector(data) {
-  const filtro = document.getElementById("filtroSector");
-  if (!filtro || !Array.isArray(data)) return;
+function cargarPagoFacturas() {
+  // Mostrar sección
+  mostrarSeccion('seccionPagoFacturas');
+  const tableEl = document.getElementById('facturas-table');
+  tableEl.style.display = 'block';
 
-  const sectoresUnicos = [...new Set(data.map(f => f.Sector).filter(Boolean))];
-  filtro.innerHTML = '<option value="Todos">Todos</option>';
-  sectoresUnicos.forEach(sector => {
-    const option = document.createElement("option");
-    option.value = sector;
-    option.textContent = sector;
-    filtro.appendChild(option);
+  // Destruir instancia previa si existe
+  if (tabulatorTable) {
+    tabulatorTable.destroy(true);
+    tableEl.innerHTML = '';
+  }
+
+  // Reconstruir la tabla
+  tabulatorTable = new Tabulator(tableEl, {
+    ajaxURL: "/api/facturas",
+    ajaxConfig: "GET",
+    layout: "fitColumns",
+    height: "500px",
+    pagination: "remote",
+    paginationSize: 20,
+    placeholder: "No hay datos.",
+    groupBy: "Identidad",
+    groupHeader: function(value, count, data) {
+      let nombre = (data.find(r => r.Identidad === value) || {}).Nombre || "";
+      const total = data.reduce((sum, row) => sum + parseFloat(row["Total Gastado"]||0), 0);
+      return `${nombre} — ${value} — ${count} factura(s) — Total: L ${total.toFixed(2)}`;
+    },
+    columns: [
+      { title: "#", formatter: "rownum", width: 50 },
+      { title: "Sector", field: "Sector" },
+      { title: "Placa", field: "Placa" },
+      { title: "Proceso", field: "Proceso" },
+      { title: "Nombre", field: "Nombre" },
+      { title: "Identidad", field: "Identidad" },
+      { title: "Total Gastado", field: "Total Gastado", formatter: "money", hozAlign: "right" },
+      { title: "Fecha", field: "Fecha", sorter: "date" },
+      { title: "Número de Factura", field: "Numero de Factura" },
+      { title: "Enlace PDF", field: "Enlace PDF", formatter: cell => {
+          const v = cell.getValue();
+          return v ? `<a href="${v}" target="_blank">📄</a>` : "";
+      }},
+      { title: "Estado", field: "Estado", editor: "select",
+        editorParams: { values: ["Revisada", "Pagada"] },
+        cellEdited: cell => {
+          const row = cell.getRow().getData();
+          actualizarEstadoIndividual(row.fila, cell.getValue());
+        }
+      }
+    ],
+    ajaxResponse: function(url, params, response) {
+      actualizarContadores(response.data || response);
+      return response.data || response;
+    }
   });
+}
+
+function actualizarContadores(dataRows) {
+  document.getElementById('contadorPendientes').textContent =
+    dataRows.filter(r => r.Estado === 'Revisada').length;
+  document.getElementById('contadorPagadas').textContent =
+    dataRows.filter(r => r.Estado === 'Pagada').length;
+  const totalPagado = dataRows
+    .filter(r => r.Estado === 'Pagada')
+    .reduce((sum, r) => sum + parseFloat(r["Total Gastado"]||0), 0);
+  document.getElementById('totalPagada').textContent =
+    `L ${totalPagado.toFixed(2)}`;
 }
 </script>
 
 </body>
-
 </html>
 <div id="generando_pdf_modal" style="
   visibility: hidden;
@@ -2910,30 +2955,3 @@ function poblarFiltroSector(data) {
     Generando PDF, por favor espere...
   </div>
 </div>
-
-
-<script>
-function updatePagoCounters(data) {
-  const pendientesEl = document.getElementById("contadorPendientes");
-  const pagadasEl = document.getElementById("contadorPagadas");
-  const totalPendienteEl = document.getElementById("totalRevisada");
-  const totalPagadoEl = document.getElementById("totalPagada");
-
-  if (!pendientesEl || !pagadasEl || !totalPendienteEl || !totalPagadoEl) {
-    console.warn("Contadores de pago no están disponibles aún en el DOM.");
-    return;
-  }
-
-  const revisadas = data.filter(f => f.Estado === 'Revisada');
-  const pagadas = data.filter(f => f.Estado === 'Pagada');
-
-  pendientesEl.textContent = revisadas.length;
-  pagadasEl.textContent = pagadas.length;
-
-  const totalRevisada = revisadas.reduce((suma, f) => suma + parseFloat(f.Total || 0), 0);
-  const totalPagada = pagadas.reduce((suma, f) => suma + parseFloat(f.Total || 0), 0);
-
-  totalPendienteEl.textContent = `L ${totalRevisada.toFixed(2)}`;
-  totalPagadoEl.textContent = `L ${totalPagada.toFixed(2)}`;
-}
-</script>
