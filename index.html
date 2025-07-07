@@ -2964,6 +2964,20 @@ document.addEventListener("DOMContentLoaded", function(){
     }
   }
 
+  
+  // Aseguramos compatibilidad con código antiguo que llama a actualizarEstadoIndividual
+  if(typeof window.actualizarEstadoIndividual === "undefined"){
+      window.actualizarEstadoIndividual = function(fila, estado){
+          enviarEstado(fila, estado);
+      };
+  }else{
+      const prev = window.actualizarEstadoIndividual;
+      window.actualizarEstadoIndividual = function(fila, estado){
+          enviarEstado(fila, estado);
+          try{ prev(fila, estado); }catch(e){}
+      };
+  }
+
   // Esperar a Tabulator
   document.addEventListener("DOMContentLoaded", ()=>{
     function hook(){
