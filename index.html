@@ -398,33 +398,7 @@ window.isFirstLoadPagoFacturas = true;
 <link href="https://unpkg.com/tabulator-tables@5.5.0/dist/css/tabulator.min.css" rel="stylesheet"/>
 <script src="https://unpkg.com/tabulator-tables@5.5.0/dist/js/tabulator.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/es.js"></script>
-<style>
-@keyframes spinner {
-  to { transform: rotate(360deg); }
-}
-.circular-spinner {
-  width: 3rem;
-  height: 3rem;
-  border: 0.4rem solid #ddd;
-  border-top-color: #007bff;
-  border-radius: 50%;
-  animation: spinner .75s linear infinite;
-  margin: 0 auto;
-}
 
-#mensajeCarga {
-  display: none;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  margin: 1rem 0;
-}
-
-#mensajeCarga .loading-text {
-  font-weight: bold;
-  margin-top: 0.5rem;
-}
-</style>
 <style>
 @keyframes spinner {
   to { transform: rotate(360deg); }
@@ -604,7 +578,7 @@ function actualizarVisibilidadBotonesMasivos() {
   100% { transform: rotate(360deg); }
 }
 </style>
-<div id="seccionReportarFactura" style="display: none;">
+<div id="seccionReportarFactura" style="display: none;"><button id="btnBackMain" onclick="mostrarSeccion('menuPrincipal');" style="height:24px; line-height:1; padding:0.25rem 0.5rem; margin-bottom:0.5rem; margin-right:0.5rem; display:flex; align-items:center; justify-content:center; text-align:center;">Regresar al Menú Principal</button>
 <div id="notification" style="display:none; position:fixed; top:20px; left:50%; transform:translateX(-50%); background:#28a745; color:white; padding:15px 30px; border-radius:5px; opacity:0; transition:opacity 0.5s ease-in-out; z-index:1000;">Información enviada correctamente</div>
 <!-- Initial loading message displayed while fetching data -->
 <div id="mensaje_cargando" style="display:none;">Cargando información, por favor espere...</div>
@@ -1986,15 +1960,10 @@ document.addEventListener('DOMContentLoaded', function() {
         if (filtroSectorElem) filtroSectorElem.value = "Todos";
         const filtroEstadoElem = document.getElementById("filtroEstado");
         if (filtroEstadoElem) filtroEstadoElem.value = "Todas";
-        const filtroNumeroElem = document.getElementById("filtroNumeroFactura");
-        if (filtroNumeroElem) filtroNumeroElem.value = "";
-        if (typeof fechaPicker !== 'undefined') fechaPicker.clear();
 
         // Mostrar sección y recargar datos
         document.getElementById('seccionRevisionFacturas').style.display = 'block';
-        document.getElementById('mensajeCarga').style.display = 'flex';
-        cargarFacturasDesdeSheet();
-        updateCounters();
+        
       } else if (nombre === 'registrarAnticipo') {
         document.getElementById('seccionRegistrarAnticipo').style.display = 'block';
       }
@@ -2052,343 +2021,28 @@ document.addEventListener('DOMContentLoaded', function() {
 </div>
 </div>
 <div id="filtersRow">
-<label for="filtroSector">Filtrar por sector:</label>
-<select id="filtroSector" onchange="aplicarFiltros()">
-<option value="Todos">Todos</option>
-</select>
-<label for="filtroEstado">Filtrar por estado:</label>
-<select id="filtroEstado" onchange="aplicarFiltros()">
-<option value="Todas">Todas</option>
-<option value="Registrada">Registrada</option>
-<option value="Revisada">Revisada</option>
-<option value="Anulada">Anulada</option>
-</select>
-<label for="filtroNumeroFactura">Filtrar Nº de Factura:</label>
-<input id="filtroNumeroFactura" oninput="aplicarFiltros()" placeholder="Número de factura" type="text"/>
-<label for="rangoFechas">Rango de Fechas:</label><input id="rangoFechas" placeholder="Selecciona rango" style="width:250px;" type="text"/></div>
+  <label for="filtroSector">Filtrar por sector:</label>
+  <select id="filtroSector" style="padding:0.5rem;">
+    <option value="">Todos</option>
+  </select>
+  <label for="filtroEstado">Filtrar por estado:</label>
+  <select id="filtroEstado" style="padding:0.5rem;">
+    <option value="">Todos</option>
+  </select>
+  <label for="filtroNumeroFactura">Filtrar Nº de Factura:</label>
+  <input id="filtroNumeroFactura" type="text" placeholder="Buscar factura…" style="padding:0.5rem;" />
+  <label for="rangoFechas">Filtrar por rango de fechas:</label>
+  <input id="rangoFechas" type="text" placeholder="Desde - Hasta" style="padding:0.5rem;" readonly />
+  </div>
 <div style="margin-bottom: 1rem;">
 <div id="accionesMasivas" style="margin-bottom:1rem; display:none;"><button onclick="actualizarEstadoSeleccionados('Revisada')">✔ Marcar como Revisada</button>
 <button onclick="actualizarEstadoSeleccionados('Anulada')">✖ Marcar como Anulada</button></div>
 </div>
-<div class="tabla-responsive" style="border: 1px solid #ccc; border-radius: 6px; overflow-x: auto; max-height: 60vh; padding: 1rem; background: #fafafa;">
-<table id="tablaFacturas">
-<thead><tr id="encabezadoTabla"></tr></thead>
-<tbody id="cuerpoTabla"></tbody>
-</table>
+<div class="tabla-responsive" style="border: 1px solid #ccc; border-radius: 8px; overflow-x: auto; max-height: 60vh; padding: 1rem;">
+  <div id="tablaRevisionFacturas"></div>
 </div> <!-- Fin de contenedor scroll de tabla -->
-<div id="mensajeCarga">
-<div class="circular-spinner"></div>
-<div class="loading-text">Cargando información...</div>
 </div>
 </div>
-<script>
-const urlLeerFacturas = "https://repositorio-de-pruebas.pages.dev/api/leer";
-const urlGuardarReporte = "/api/guardar";
-
-document.addEventListener("DOMContentLoaded", () => {
-
-  document.getElementById("filtroEstado").addEventListener("change", aplicarFiltros);
-  document.getElementById("filtroSector").addEventListener("change", aplicarFiltros);
-  document.getElementById("filtroNumeroFactura").addEventListener("input", aplicarFiltros);
-});
-
-async function cargarFacturasDesdeSheet() {
-  try {
-    const res = await fetch(urlLeerFacturas);
-    const data = await res.json();
-    window.facturasGlobal = data;
-    cargarFiltrosSector(data);
-    renderizarTablaFacturas(data);
-  } catch (err) {
-
-  }
-}
-
-function cargarFiltrosSector(data) {
-  const sectores = Array.from(new Set(data.map(f => f.Sector))).sort();
-  const filtro = document.getElementById("filtroSector");
-  filtro.innerHTML = '<option value="Todos">Todos</option>';
-  sectores.forEach(sector => {
-    const opt = document.createElement("option");
-    opt.value = sector;
-    opt.textContent = sector;
-    filtro.appendChild(opt);
-  });
-      actualizarVisibilidadBotonesMasivos();
-}
-
-
-function aplicarFiltros() {
-  const estado = document.getElementById("filtroEstado").value;
-  const sector = document.getElementById("filtroSector").value;
-  const buscarFactura = document.getElementById("filtroNumeroFactura").value.toLowerCase();
-  let data = window.facturasGlobal || [];
-
-  if (estado !== "Todas") data = data.filter(f => f.Estado === estado);
-  if (sector !== "Todos") data = data.filter(f => f.Sector === sector);
-  if (buscarFactura) data = data.filter(f => ((f['Numero de Factura'] || '').toString().toLowerCase()).includes(buscarFactura));
-
-  // Filtro de rango de fechas
-  if (typeof fechaPicker !== 'undefined' && fechaPicker.selectedDates.length === 2) {
-    const inicio = new Date(fechaPicker.selectedDates[0].getFullYear(), fechaPicker.selectedDates[0].getMonth(), fechaPicker.selectedDates[0].getDate());
-    const fin    = new Date(fechaPicker.selectedDates[1].getFullYear(), fechaPicker.selectedDates[1].getMonth(), fechaPicker.selectedDates[1].getDate());
-    data = data.filter(f => {
-      const partes = (f.Fecha || "").split("-");
-      if (partes.length !== 3) return false;
-      const fecha = new Date(parseInt(partes[0],10), parseInt(partes[1],10)-1, parseInt(partes[2],10));
-      const sola  = new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate());
-      return sola >= inicio && sola <= fin;
-    });
-  }
-
-  renderizarTablaFacturas(data);
-}
-
-
-function renderizarTablaFacturas(data) {
-  
-  // Excluir facturas en estado Pagada
-  data = data.filter(f => (f.Estado||"").toLowerCase().trim() !== "pagada");const encabezado = document.getElementById("encabezadoTabla");
-  const cuerpo = document.getElementById("cuerpoTabla");
-  encabezado.innerHTML = "";
-  cuerpo.innerHTML = "";
-
-  if (!data.length) return;
-
-  const columnas = Object.keys(data[0]);
-  columnas.forEach(col => {
-    const th = document.createElement("th");
-    th.textContent = col;
-    encabezado.appendChild(th);
-  });
-  encabezado.innerHTML += "<th>✔</th>";
-
-  data.forEach(fila => {
-    const tr = document.createElement("tr");
-    
-columnas.forEach(col => {
-      const td = document.createElement("td");
-      if (col === "Estado") {
-        const select = document.createElement("select");
-        select.dataset.fila = fila.fila;
-        ["Registrada", "Revisada", "Anulada", "Pagada"].forEach(opt => {
-          const option = document.createElement("option");
-          option.value = opt;
-          option.textContent = opt;
-          if (fila[col] === opt) option.selected = true;
-          select.appendChild(option);
-        });
-        select.addEventListener("change", () => {
-          actualizarEstadoIndividual(select.dataset.fila, select.value);
-        });
-        td.appendChild(select);
-      } else {
-        td.textContent = fila[col];
-      }
-      tr.appendChild(td);
-    });
-
-    const chk = document.createElement("input");
-    chk.type = "checkbox";
-    chk.dataset.fila = fila.fila;
-    const tdChk = document.createElement("td");
-    tdChk.appendChild(chk);
-    tr.appendChild(tdChk);
-    cuerpo.appendChild(tr);
-  });
-      actualizarVisibilidadBotonesMasivos();
-}
-
-async function actualizarEstadoSeleccionados(nuevoEstado) {
-  const overlay = document.getElementById('overlayCambios');
-  overlay.style.display = 'flex';
-  const checks = document.querySelectorAll("#tablaFacturas input[type=checkbox]:checked");
-  for (const chk of checks) {
-    const fila = chk.dataset.fila;
-    try {
-      const resp = await fetch(urlGuardarReporte, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ actualizarEstado: true, fila, nuevoEstado })
-      });
-      const result = await resp.json();
-      if (result.status !== 'OK') {
-        showToast("Error al actualizar estado: " + (result.message || JSON.stringify(result)));
-        overlay.style.display = 'none';
-        return;
-      }
-    } catch (err) {overlay.style.display = 'none';
-      return;
-    }
-  }
-  // Actualizar memoria
-  checks.forEach(chk => {
-    const rec = window.facturasGlobal.find(f => f.fila == chk.dataset.fila);
-    if (rec) rec.Estado = nuevoEstado;
-  });aplicarFiltros();
-  overlay.style.display = 'none';
-}
-</script>
-<script>
-// On load, show loading message and set up filters
-document.addEventListener("DOMContentLoaded", () => {
-  const msg = document.getElementById("mensajeCarga");
-  msg.style.display = "block";
-
-  document.getElementById("filtroEstado").addEventListener("change", aplicarFiltros);
-  document.getElementById("filtroSector").addEventListener("change", aplicarFiltros);
-  document.getElementById("filtroNumeroFactura").addEventListener("input", aplicarFiltros);
-});
-
-// Override cargarFacturasDesdeSheet to hide loading when done and detect invoice key
-async function cargarFacturasDesdeSheet() {
-  const msg = document.getElementById("mensajeCarga");
-  try {
-    const res = await fetch(urlLeerFacturas);
-    const data = await res.json();
-    window.facturasGlobal = data;
-    // Determine the key for invoice number dynamically
-    if (data.length) {
-      const sample = data[0];
-      const numeroKey = Object.keys(sample).find(k => k.toLowerCase().includes('factura') && !k.toLowerCase().includes('enlace'));
-      window.numeroFacturaKey = numeroKey;
-    }
-    cargarFiltrosSector(data);
-    renderizarTablaFacturas(data);
-  } catch (err) {
-
-  } finally {
-    msg.style.display = "none";
-  }
-}
-
-// Custom rendering of the invoices table
-function renderizarTablaFacturas(data) {
-  
-  // Excluir facturas en estado Pagada
-  data = data.filter(f => (f.Estado||"").toLowerCase().trim() !== "pagada");const encabezado = document.getElementById("encabezadoTabla");
-  const cuerpo = document.getElementById("cuerpoTabla");
-  encabezado.innerHTML = "";
-  cuerpo.innerHTML = "";
-
-  if (!data.length) return;
-
-  // Add checkbox and row number headers
-  const thChk = document.createElement("th"); thChk.textContent = ""; encabezado.appendChild(thChk);
-  const thNum = document.createElement("th"); thNum.textContent = "#"; encabezado.appendChild(thNum);
-
-  // Define fixed columns with user-friendly labels
-  const columnas = [
-    {key: "Sector", label: "Sector"},
-    {key: "Placa", label: "Placa"},
-    {key: "Proceso", label: "Proceso"},
-    {key: "Nombre", label: "Nombre"},
-    {key: "Identidad", label: "Identidad"},
-    {key: "Total Gastado", label: "Total Gastado"},
-    {key: "Fecha", label: "Fecha"},
-    {key: window.numeroFacturaKey || "Número de Factura", label: "Número de Factura"},
-    {key: "Enlace PDF", label: "Enlace PDF"},
-    {key: "Estado", label: "Estado"}
-  ];
-
-  // Render header columns
-  columnas.forEach(col => {
-    const th = document.createElement("th");
-    th.textContent = col.label;
-    encabezado.appendChild(th);
-  });
-
-  // Populate rows
-  data.forEach((fila, index) => {
-    const tr = document.createElement("tr");
-    // Checkbox cell
-    const tdChk = document.createElement("td");
-    const chk = document.createElement("input");
-    chk.type = "checkbox";
-    chk.dataset.fila = fila.fila;
-    chk.dataset.index = index;
-        chk.addEventListener("change", actualizarVisibilidadBotonesMasivos);
-    tdChk.appendChild(chk);
-    tr.appendChild(tdChk);
-    // Row number cell
-    const tdNum = document.createElement("td");
-    tdNum.textContent = index + 1;
-    tr.appendChild(tdNum);
-
-    columnas.forEach(col => {
-      const td = document.createElement("td");
-      let value = fila[col.key] || "";
-
-      // Formateo para Fecha (YYYY-MM-DD)
-      if (col.key === "Fecha" && value) {
-        value = value.toString().split("T")[0];
-        td.textContent = value;
-      }
-      // Formateo para Total Gastado (prefijo 'L ' y separadores de miles)
-      else if (col.key === "Total Gastado" && value) {
-        const num = parseFloat(value);
-        td.textContent = isNaN(num) ? "" : "L " + num.toLocaleString("en-US");
-      }
-      // Enlace PDF clickeable
-      else if (col.key === "Enlace PDF" && value) {
-        const a = document.createElement("a");
-        a.href = value;
-        a.textContent = "PDF";
-        a.target = "_blank";
-        td.appendChild(a);
-      }
-      else if (col.key === "Estado") {
-        const select = document.createElement("select");
-        select.dataset.fila = fila.fila;
-        ["Registrada", "Revisada", "Anulada", "Pagada"].forEach(opt => {
-          const option = document.createElement("option");
-          option.value = opt;
-          option.textContent = opt;
-          if (fila[col.key] === opt) option.selected = true;
-          select.appendChild(option);
-        });
-        select.addEventListener("change", () => actualizarEstadoIndividual(select.dataset.fila, select.value));
-        td.appendChild(select);
-      }
-      else {
-        td.textContent = value;
-      }
-      tr.appendChild(td);
-    });
-    cuerpo.appendChild(tr);
-  });
-      actualizarVisibilidadBotonesMasivos();
-}
-
-// Optimized filter function to use correct invoice key
-
-function aplicarFiltros() {
-  const estado = document.getElementById("filtroEstado").value;
-  const sector = document.getElementById("filtroSector").value;
-  const buscarFactura = document.getElementById("filtroNumeroFactura").value.toLowerCase();
-  let data = window.facturasGlobal || [];
-
-  if (estado !== "Todas") data = data.filter(f => f.Estado === estado);
-  if (sector !== "Todos") data = data.filter(f => f.Sector === sector);
-  if (buscarFactura) data = data.filter(f => ((f['Numero de Factura'] || '').toString().toLowerCase()).includes(buscarFactura));
-
-  // Filtro de rango de fechas
-  if (typeof fechaPicker !== 'undefined' && fechaPicker.selectedDates.length === 2) {
-    const inicio = new Date(fechaPicker.selectedDates[0].getFullYear(), fechaPicker.selectedDates[0].getMonth(), fechaPicker.selectedDates[0].getDate());
-    const fin    = new Date(fechaPicker.selectedDates[1].getFullYear(), fechaPicker.selectedDates[1].getMonth(), fechaPicker.selectedDates[1].getDate());
-    data = data.filter(f => {
-      const partes = (f.Fecha || "").split("-");
-      if (partes.length !== 3) return false;
-      const fecha = new Date(parseInt(partes[0],10), parseInt(partes[1],10)-1, parseInt(partes[2],10));
-      const sola  = new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate());
-      return sola >= inicio && sola <= fin;
-    });
-  }
-
-  renderizarTablaFacturas(data);
-}
-
-</script>
 <script>
 function regresarAlMenu() {
   // Oculta ambas secciones y muestra menú principal
@@ -2403,63 +2057,6 @@ function regresarAlMenu() {
   const form = document.getElementById('formulario_contenido');
   if (form) form.style.display = 'none';
 }
-</script>
-<script>
-async function actualizarEstadoIndividual(fila, nuevoEstado) {
-  const overlay = document.getElementById('overlayCambios');
-  overlay.style.display = 'flex';
-  try {
-    const resp = await fetch(urlGuardarReporte, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ actualizarEstado: true, fila, nuevoEstado })
-    });
-    const result = await resp.json();
-    if (result.status !== 'OK') {
-      showToast("Error al actualizar estado: " + (result.message || JSON.stringify(result)));
-      return;
-    }
-    // Actualizar en memoria
-    const rec = window.facturasGlobal.find(f => f.fila == fila);
-    if (rec) rec.Estado = nuevoEstado;
-  } catch (err) {return;
-  } finally {
-    overlay.style.display = 'none';
-    // Recalcular contadores sin recargar la tabla
-    updateCountersPago();
-    
-      updateCountersPago();
-aplicarFiltros();
-  }}
-
-async function actualizarEstadoMultiple(filas, nuevoEstado) {
-  const overlay = document.getElementById('overlayCambios');
-  overlay.style.display = 'flex';
-  try {
-    for (const fila of filas) {
-      const resp = await fetch(urlGuardarReporte, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ actualizarEstado: true, fila, nuevoEstado })
-      });
-      const result = await resp.json();
-      if (result.status !== 'OK') {
-        showToast("Error al actualizar factura " + fila + ": " + (result.message || JSON.stringify(result)));
-      } else {
-        const rec = window.facturasGlobal.find(f => f.fila == fila);
-        if (rec) rec.Estado = nuevoEstado;
-      }
-    }
-  } catch (err) {
-    console.error(err);
-  } finally {
-    overlay.style.display = 'none';
-    updateCountersPago();
-    aplicarFiltrosPago();
-  }
-}
-
-
 </script>
 <script>
 function actualizarVisibilidadBotonesMasivos() {
@@ -2507,16 +2104,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
   updateCounters();
-});
-</script>
-<script>
-let fechaPicker = flatpickr("#rangoFechas", {
-    mode: "range",
-    dateFormat: "Y-m-d",
-    locale: flatpickr.l10ns.es,
-    onClose: function() {
-        aplicarFiltros();
-    }
 });
 </script>
 <script>
@@ -2810,17 +2397,12 @@ document.addEventListener("DOMContentLoaded", function(){
     layout: "fitColumns", selectable: true, height: "500px", virtualDom: true, placeholder: "",
     
 groupHeader:function(value, count, data){
-    // Encontrar el primer nombre coincidente por identidad
-    let fullName = "";
-    for (let i = 0; i < data.length; i++) {
-        if (data[i].Identidad === value && data[i].Nombre) {
-            fullName = data[i].Nombre;
-            break;
-        }
-    }
-    // Calcular el total por grupo
-    let total = data.reduce((sum, row) => sum + (parseFloat(row["Total Gastado"]) || 0), 0);
-    return `${fullName} - ${value} - ${count} factura(s) - Total: L ${total.toFixed(2)}`;
+    // Obtener nombre completo
+    var fullName = data.find(r => r.Identidad === value && r.Nombre).Nombre;
+    // Calcular total y formatear con separadores de miles
+    var total = data.reduce((sum, row) => sum + (parseFloat(row["Total Gastado"])||0), 0);
+    var formattedTotal = total.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+    return `${fullName} - ${value} - ${count} factura(s) - Total: L ${formattedTotal}`;
 },
 
     columns: [
@@ -2831,8 +2413,27 @@ groupHeader:function(value, count, data){
       {title:"Proceso", field:"Proceso"},
       {title:"Nombre", field:"Nombre"},
       {title:"Identidad", field:"Identidad"},
-      {title:"Total Gastado", field:"Total Gastado", formatter:"money", hozAlign:"right"},
-      {title:"Fecha", field:"Fecha", sorter:"date"},
+      {
+    title: "Total Gastado",
+    field: "Total Gastado",
+    sorter: "number",
+    formatter: "money",
+    formatterParams: {
+        symbol: "L ",
+        symbolAfter: false,
+        thousand: ",",
+        decimal: ".",
+        precision: 2
+    }
+},
+      {
+    title: "Fecha",
+    field: "Fecha", sorter:"string",
+    formatter: function(cell) {
+        var v = cell.getValue();
+        return v ? v.split("T")[0] : "";
+    }
+},
       {title:"Número de Factura", field:"Numero de Factura"},
       {title:"Enlace PDF", field:"Enlace PDF", formatter: cell => {
           var v = cell.getValue();
@@ -2944,7 +2545,362 @@ document.getElementById('exportExcelBtn').addEventListener('click', function() {
     data: window.tabulatorTable.getData(true),
   });
 });
-</script></body>
+</script>
+<script>
+  // Endpoint definitions moved here
+  const urlLeerFacturas = "https://repositorio-de-pruebas.pages.dev/api/leer";
+  const urlGuardarReporte = "/api/guardar";
+// Tabulator setup for Revisión de Facturas
+document.addEventListener("DOMContentLoaded", function(){
+  var tableRevision = new Tabulator("#tablaRevisionFacturas", {
+    layout: "fitColumns",
+    height: "60vh",
+    ajaxURL: urlLeerFacturas,
+    // Use fetch directly to avoid CORS preflight by removing custom headers
+    ajaxRequestFunc: function(url, config, params) {
+      return fetch(url)
+        .then(function(response){ return response.json(); });
+    },
+    ajaxResponse: function(url, params, data){
+      // Exclude already paid invoices
+      return data.filter(function(f){
+        return (f.Estado||"").toLowerCase().trim() !== "pagada";
+      });
+    },
+    selectable: true,
+    columns: [
+      {formatter: "rowSelection", titleFormatter: "rowSelection", hozAlign: "center", headerSort: false},
+      {formatter: "rownum", title: "#", hozAlign: "center", width: 40},
+      {title: "Sector", field: "Sector"},
+      {title: "Placa", field: "Placa"},
+      {title: "Proceso", field: "Proceso"},
+      {title: "Nombre", field: "Nombre"},
+      {title: "Identidad", field: "Identidad"},
+      {title: "Total Gastado", field: "Total Gastado", formatter: "money", formatterParams: {symbol: "L", symbolAfter: false, thousand: ",", decimal: ".", precision: 2}},
+      {title: "Fecha", field: "Fecha", formatter: function(cell){ var v = cell.getValue(); return v?v.split("T")[0]:""; }},
+      {title:"Número de Factura", field:"Numero de Factura"},
+      {title: "Enlace PDF", field: "Enlace PDF", formatter: function(cell){ var v = cell.getValue(); return v?'<a href="'+v+'" target="_blank">📄</a>':""; }},
+      {title: "Estado", field: "Estado", editor: "list", editorParams: {values: ["Registrada","Revisada","Anulada"], autocomplete: true}, cellEdited: function(cell){ var d = cell.getRow().getData(); actualizarEstadoIndividual(d.fila, cell.getValue()); }}
+    ],
+  });
+
+  // Hide any loading overlay after data render
+  tableRevision.on("dataRendered", function(){ 
+    var overlay = document.getElementById("overlayCambios");
+    if(overlay) overlay.style.display = "none";
+  });
+
+  // Hook filter inputs to Tabulator filters
+  var filtroEstado = document.getElementById("filtroEstado");
+  if(filtroEstado) {
+    filtroEstado.addEventListener("change", function(){
+      if(this.value === "Todas"){
+        tableRevision.clearFilter(true);
+      } else {
+        tableRevision.setFilter("Estado", "=", this.value);
+      }
+    });
+  }
+  // Hook change listener for sector filter
+  var sectorSelect = document.getElementById("filtroSector");
+  if (sectorSelect) {
+    sectorSelect.addEventListener("change", function(){
+      if (this.value === "") {
+        tableRevision.clearFilter(true);
+      } else {
+        tableRevision.setFilter("Sector", "=", this.value);
+      }
+    });
+  }
+  // Populate sector filter options when data loads
+  tableRevision.on("dataLoaded", function(data){
+    var sectorSelect = document.getElementById("filtroSector");
+    if (!sectorSelect) return;
+    // Reset options except default
+    var length = sectorSelect.options.length;
+    for(var i=length-1; i>0; i--){
+      sectorSelect.remove(i);
+    }
+    var sectors = data.map(function(r){ return r.Sector; })
+      .filter(function(v, i, a){ return v && a.indexOf(v)===i; })
+      .sort();
+    sectors.forEach(function(s){
+      var opt = document.createElement("option");
+      opt.value = s;
+      opt.text = s;
+      sectorSelect.add(opt);
+    });
+  });
+  // Hook change listener for estado filter
+  var estadoSelect = document.getElementById("filtroEstado");
+  if (estadoSelect) {
+    estadoSelect.addEventListener("change", function(){
+      if (this.value === "") {
+        tableRevision.clearFilter(true);
+      } else {
+        tableRevision.setFilter("Estado", "=", this.value);
+      }
+    });
+  }
+  // Populate estado filter options when data loads
+  tableRevision.on("dataLoaded", function(data){
+    var estadoSelect = document.getElementById("filtroEstado");
+    if (!estadoSelect) return;
+    // Reset options except default
+    for (var i = estadoSelect.options.length - 1; i > 0; i--) {
+      estadoSelect.remove(i);
+    }
+    var estados = data.map(function(r){ return r.Estado; })
+      .filter(function(v, i, a){ return v && a.indexOf(v)===i; })
+      .sort();
+    estados.forEach(function(e){
+      var opt = document.createElement("option");
+      opt.value = e;
+      opt.text = e;
+      estadoSelect.add(opt);
+    });
+  // Reconstructed filter for Número de Factura (Revisión)
+  var filtroNum = document.getElementById("filtroNumeroFactura");
+  if (filtroNum) {
+    filtroNum.addEventListener("input", function() {
+      var val = this.value;
+      tableRevision.clearFilter(true);
+      if (val) {
+        tableRevision.setFilter("Numero de Factura", "like", val);
+      }
+    });
+  }
+  // Clear number filter input on data load
+  tableRevision.on("dataLoaded", function() {
+    var filtroNum = document.getElementById("filtroNumeroFactura");
+    if (filtroNum) filtroNum.value = "";
+  });
+  });
+  var filtroNumero = document.getElementById("filtroNumeroFactura");
+  if(filtroNumero) {
+    filtroNumero.addEventListener("input", function(){
+      tableRevision.setFilter("Número de Factura", "like", this.value);
+    });
+  }
+  // Date range filter initialization
+  var rangoInput = document.getElementById("rangoFechas");
+  if (rangoInput) {
+    flatpickr("#rangoFechas", {
+      mode: "range",
+      dateFormat: "Y-m-d",
+      locale: flatpickr.l10ns.es,
+      onClose: function(selectedDates, dateStr) {
+        // Clear previous filters
+        tableRevision.clearFilter(true);
+        if (selectedDates.length === 2) {
+          var start = selectedDates[0].toISOString().split("T")[0];
+          var end = selectedDates[1].toISOString().split("T")[0];
+          tableRevision.addFilter("Fecha", ">=", start);
+          tableRevision.addFilter("Fecha", "<=", end);
+        }
+      }
+    });
+  }
+
+});
+</script>
+
+
+<!-- ===== Patch v19: Cumulative filters with ISO date support ===== -->
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  // Attempt to locate Tabulator instance
+  let tableRevision = window.tableRevision;
+  if(!tableRevision){
+    const tables = Tabulator.findTable("#tablaRevision");
+    if(tables.length) tableRevision = tables[0];
+  }
+  if(!tableRevision) return;  // abort if not found
+
+  // Setup/ensure flatpickr instance
+  const dateInput = document.getElementById("rangoFechas");
+  if(dateInput && !window.flatpickrRevision){
+    window.flatpickrRevision = flatpickr(dateInput, {
+      mode:"range",
+      dateFormat:"Y-m-d",
+      locale: flatpickr.l10ns.es,
+      onClose: () => setTimeout(applyFiltersRevision, 0)
+    });
+  }else if(window.flatpickrRevision){
+    window.flatpickrRevision.set("onClose", () => setTimeout(applyFiltersRevision, 0));
+  }
+
+  // Helper to attach listeners and block original ones
+  function hook(id, evt){
+    const el = document.getElementById(id);
+    if(!el) return;
+    el.addEventListener(evt, (e)=>{
+      e.stopImmediatePropagation();          // bloquea listener anterior
+      applyFiltersRevision();
+    }, true); // capture
+  }
+  hook("filtroSector","change");
+  hook("filtroEstado","change");
+  hook("filtroNumeroFactura","input");
+
+  // Core filter function
+  
+
+  // Expose for manual use if needed
+  window.applyFiltersRevision = applyFiltersRevision;
+});
+</script>
+<!-- ===== End Patch v19 ===== -->
+
+
+<!-- ==== Patch v20: cumulative filters + single-day fix === -->
+<script>
+document.addEventListener("DOMContentLoaded", function(){
+
+  // Locate Tabulator instance for #tablaRevisionFacturas
+  var tableElem = document.querySelector("#tablaRevisionFacturas");
+  if(!tableElem){
+    console.warn("Patch v20: table element #tablaRevisionFacturas not found");
+    return;
+  }
+  var tableArray = Tabulator.findTable(tableElem);
+  if(!tableArray.length){
+    console.warn("Patch v20: Tabulator instance not yet available");
+    return;
+  }
+  var table = tableArray[0];
+
+  // Flatpickr setup (range mode)
+  var dateInput = document.getElementById("rangoFechas");
+  if(dateInput){
+    if(!window.flatpickrRevision){
+        window.flatpickrRevision = flatpickr(dateInput,{
+          mode:"range",
+          dateFormat:"Y-m-d",
+          locale: flatpickr.l10ns.es,
+          onClose: function(){ applyFiltersRevision(); }
+        });
+    }else{
+        dateInput._flatpickr.set("onClose", [function(){ applyFiltersRevision(); }]);
+    }
+  }
+
+  // Core function
+  function applyFiltersRevision(){
+      var filters = [];
+
+      // Sector
+      var sector = (document.getElementById("filtroSector")||{}).value || "";
+      if(sector && sector !== "Todos") filters.push({field:"Sector", type:"=", value:sector});
+
+      // Estado
+      var estado = (document.getElementById("filtroEstado")||{}).value || "";
+      if(estado && estado !== "Todos") filters.push({field:"Estado", type:"=", value:estado});
+
+      // Numero Factura
+      var num = (document.getElementById("filtroNumeroFactura")||{}).value || "";
+      if(num) filters.push({field:"Numero de Factura", type:"like", value:num.trim()});
+
+      // Fecha
+      var dr = window.flatpickrRevision ? window.flatpickrRevision.selectedDates : [];
+      if(dr && dr.length){
+         var start = flatpickr.formatDate(dr[0],"Y-m-d");
+         var end   = (dr.length === 2) ? flatpickr.formatDate(dr[1],"Y-m-d") : start;
+
+         if(start === end){
+           // Un solo día: usar LIKE para evitar problemas con hora
+           filters.push({field:"Fecha", type:"like", value:start});
+         }else{
+           // Rango: usar >= y <= con tiempo definido
+           filters.push({field:"Fecha", type:">=", value:start + "T00:00:00"});
+           filters.push({field:"Fecha", type:"<=", value:end   + "T23:59:59"});
+         }
+      }
+
+      // Aplicar o limpiar
+      if(filters.length){
+        table.setFilter(filters);
+      }else{
+        table.clearFilter(true);
+      }
+  }
+
+  // Attach listeners (en fase capture para anular previos)
+  ["filtroSector","filtroEstado"].forEach(id=>{
+     var el = document.getElementById(id);
+     if(el){
+        el.addEventListener("change", function(e){
+          e.stopImmediatePropagation();
+          applyFiltersRevision();
+        }, true);
+     }
+  });
+  var numEl = document.getElementById("filtroNumeroFactura");
+  if(numEl){
+     numEl.addEventListener("input", function(e){
+       e.stopImmediatePropagation();
+       applyFiltersRevision();
+     }, true);
+  }
+
+  // Expose for debugging
+  window.applyFiltersRevision = applyFiltersRevision;
+});
+</script>
+<!-- ==== End Patch v20 === -->
+
+
+<!-- ==== Clean Counters Rebuild v25 ==== -->
+<script>
+(function(){
+  const COUNTER_IDS = {
+    "registrada":"counterRegistradas",
+    "revisada":"counterRevisadas",
+    "anulada":"counterAnuladas"
+  };
+
+  function recalc(tab){
+    const data = tab.getData("active");
+    const counts = {registrada:0,revisada:0,anulada:0};
+    data.forEach(function(row){
+      const est = String(row.Estado||"").trim().toLowerCase();
+      if(counts.hasOwnProperty(est)) counts[est]++;
+    });
+    Object.keys(COUNTER_IDS).forEach(function(key){
+      const el = document.getElementById(COUNTER_IDS[key]);
+      if(el) el.textContent = counts[key];
+    });
+  }
+
+  function init(){
+    const tab = Tabulator.findTable("#tablaRevisionFacturas")[0];
+    if(!tab){
+      setTimeout(init, 300);
+      return;
+    }
+
+    // Wait until data is present at least once
+    (function waitData(){
+      if(tab.getData().length === 0){
+        setTimeout(waitData, 300);
+      }else{
+        recalc(tab);
+      }
+    })();
+
+    // Hook events
+    tab.on("dataFiltered", () => recalc(tab));
+    tab.on("renderComplete", () => recalc(tab));
+    tab.on("dataLoaded", () => recalc(tab));
+    tab.on("cellEdited", () => recalc(tab));
+  }
+
+  document.addEventListener("DOMContentLoaded", init);
+})();
+</script>
+<!-- ==== End Clean Counters Rebuild v25 ==== -->
+
+</body>
 </html>
 <div id="generando_pdf_modal" style="
   visibility: hidden;
