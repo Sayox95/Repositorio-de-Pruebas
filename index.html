@@ -2930,80 +2930,55 @@ document.addEventListener("DOMContentLoaded", function(){
 <!-- ==== End Clean Counters Rebuild v25 ==== -->
 
 
-<!-- ===== Patch v28: State change -> sheet sync WITH overlay safe hide ===== -->
+<!-- ==== Patch v34: actualizar estado en Revisión de Facturas ==== -->
 <script>
 (function(){
-  // Config
+  // Si ya existe actualizarEstadoIndividual, reutilizarlo
+  if(typeof window.actualizarEstadoIndividual === "function") return;
+
   const ENDPOINT = typeof urlGuardarReporte !== "undefined" ? urlGuardarReporte : "/api/guardar";
-  const HOJA = "revision_facturas";
 
-  function showOverlay(){ const o=document.getElementById("overlayCambios"); if(o) o.style.display="flex"; }
-  function hideOverlay(){ const o=document.getElementById("overlayCambios"); if(o) o.style.display="none"; }
-
-  async function enviarEstado(fila, nuevoEstado, placa, rowData){
-    showOverlay();
+  async function actualizarEstadoIndividual(fila, nuevoEstado){
+    const overlay = document.getElementById("overlayCambios");
+    if(overlay) overlay.style.display = "flex";
     try{
-      const res = await fetch(ENDPOINT, {
-        method:"POST",
-        headers:{ "Content-Type":"application/json" },
-        body: JSON.stringify({
-          accion:"actualizarEstado",
-          fila: fila,
-          estado: nuevoEstado,
-          placa: placa,
-          filaDatos: rowData,
-          hoja: HOJA
-        })
+      const resp = await fetch(ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ actualizarEstado: true, fila: fila, nuevoEstado: nuevoEstado })
       });
-      if(!res.ok) throw new Error("HTTP "+res.status);
-      const data = await res.json().catch(()=>({ok:true}));
-      console.log("Estado actualizado", data);
-    }catch(err){
-      console.error("Error al actualizar estado:", err);
-      alert("No se pudo guardar el cambio. Verifica tu conexión e inténtalo de nuevo.");
-    }finally{
-      hideOverlay();
-    }
-  }
-
-  
-  // Aseguramos compatibilidad con código antiguo que llama a actualizarEstadoIndividual
-  if(typeof window.actualizarEstadoIndividual === "undefined"){
-      window.actualizarEstadoIndividual = function(fila, estado){
-          enviarEstado(fila, estado);
-      };
-  }else{
-      const prev = window.actualizarEstadoIndividual;
-      window.actualizarEstadoIndividual = function(fila, estado){
-          enviarEstado(fila, estado);
-          try{ prev(fila, estado); }catch(e){}
-      };
-  }
-
-  // Esperar a Tabulator
-  document.addEventListener("DOMContentLoaded", ()=>{
-    function hook(){
-      const tab = Tabulator.findTable("#tablaRevisionFacturas")[0];
-      if(!tab){ setTimeout(hook,300); return; }
-
-      tab.on("cellEdited", function(cell){
-        if(cell.getField() === "Estado"){
-          const fila = cell.getRow().getData()._fila || cell.getRow().getPosition(true);
-          const nuevoEstado = cell.getValue();
-          
-          const rowData = cell.getRow().getData();
-          // Determinar placa posible
-          const placa = rowData.placa || rowData.Placa || rowData.placaVehiculo || undefined;
-          enviarEstado(fila, nuevoEstado, placa, rowData);
-
+      const result = await resp.json().catch(()=>({status:"ERROR"}));
+      console.log("Respuesta actualización", result);
+      if(result.status !== "OK"){
+        alert("Error al actualizar estado: " + (result.message || JSON.stringify(result)));
+        return;
+      }
+      // Sincronizar tabla Revisión si existe
+      try{
+        const tab = Tabulator.findTable("#tablaRevisionFacturas")[0];
+        if(tab){
+          // Buscar por campo fila
+          const row = tab.getRows().find(r=>{
+            const d = r.getData();
+            return String(d.fila) === String(fila) || String(d._fila) === String(fila);
+          });
+          if(row) row.update({Estado: nuevoEstado});
         }
-      });
+      }catch(e){}
+    }catch(err){
+      console.error("Falló la actualización de estado", err);
+      alert("No se pudo guardar el cambio. Intenta nuevamente.");
+    }finally{
+      if(overlay) overlay.style.display = "none";
+      if(typeof updateCountersRevision === "function") updateCountersRevision();
     }
-    hook();
-  });
+  }
+
+  // Exponer global
+  window.actualizarEstadoIndividual = actualizarEstadoIndividual;
 })();
 </script>
-<!-- ===== End Patch v28 ===== -->
+<!-- ==== Fin Patch v34 ==== -->
 
 </body>
 </html>
