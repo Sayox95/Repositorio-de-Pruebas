@@ -2930,43 +2930,59 @@ document.addEventListener("DOMContentLoaded", function(){
 <!-- ==== End Clean Counters Rebuild v25 ==== -->
 
 
-<!-- ==== Estado Revision Sync Patch v27 ==== -->
+<!-- ===== Patch v28: State change -> sheet sync WITH overlay safe hide ===== -->
 <script>
 (function(){
-  // Endpoint ya existente para guardado; se definió antes como urlGuardarReporte.
-  const endpoint = typeof urlGuardarReporte !== "undefined" ? urlGuardarReporte : "/api/guardar";
+  // Config
+  const ENDPOINT = typeof urlGuardarReporte !== "undefined" ? urlGuardarReporte : "/api/guardar";
+  const HOJA = "revision_facturas";
 
-  // Preserve any existing implementation
-  const _prev = window.actualizarEstadoIndividual || function(){};
+  function showOverlay(){ const o=document.getElementById("overlayCambios"); if(o) o.style.display="flex"; }
+  function hideOverlay(){ const o=document.getElementById("overlayCambios"); if(o) o.style.display="none"; }
 
-  window.actualizarEstadoIndividual = async function(fila, nuevoEstado){
-      // Mostrar overlay
-      const overlay = document.getElementById("overlayCambios");
-      if(overlay){ overlay.style.display = "flex"; }
-      try{
-          await fetch(endpoint, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                  accion: "actualizarEstado",
-                  fila: fila,
-                  estado: nuevoEstado,
-                  hoja: "revision_facturas"
-              })
-          });
-      }catch(err){
-          console.error("Error enviando actualización:", err);
-          alert("⚠ No se pudo actualizar el estado. Ver consola.");
-      }finally{
-          if(overlay){ overlay.style.display = "none"; }
-      }
+  async function enviarEstado(fila, nuevoEstado){
+    showOverlay();
+    try{
+      const res = await fetch(ENDPOINT, {
+        method:"POST",
+        headers:{ "Content-Type":"application/json" },
+        body: JSON.stringify({
+          accion:"actualizarEstado",
+          fila: fila,
+          estado: nuevoEstado,
+          hoja: HOJA
+        })
+      });
+      if(!res.ok) throw new Error("HTTP "+res.status);
+      const data = await res.json().catch(()=>({ok:true}));
+      console.log("Estado actualizado", data);
+    }catch(err){
+      console.error("Error al actualizar estado:", err);
+      alert("No se pudo guardar el cambio. Verifica tu conexión e inténtalo de nuevo.");
+    }finally{
+      hideOverlay();
+    }
+  }
 
-      // Llamar a la lógica anterior (si la hubiera) para mantener compatibilidad
-      try{ _prev(fila, nuevoEstado); }catch(e){}
-  };
+  // Esperar a Tabulator
+  document.addEventListener("DOMContentLoaded", ()=>{
+    function hook(){
+      const tab = Tabulator.findTable("#tablaRevisionFacturas")[0];
+      if(!tab){ setTimeout(hook,300); return; }
+
+      tab.on("cellEdited", function(cell){
+        if(cell.getField() === "Estado"){
+          const fila = cell.getRow().getData()._fila || cell.getRow().getPosition(true);
+          const nuevoEstado = cell.getValue();
+          enviarEstado(fila, nuevoEstado);
+        }
+      });
+    }
+    hook();
+  });
 })();
 </script>
-<!-- ==== End Estado Revision Sync Patch v27 ==== -->
+<!-- ===== End Patch v28 ===== -->
 
 </body>
 </html>
