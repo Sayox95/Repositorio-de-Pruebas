@@ -2940,7 +2940,7 @@ document.addEventListener("DOMContentLoaded", function(){
   function showOverlay(){ const o=document.getElementById("overlayCambios"); if(o) o.style.display="flex"; }
   function hideOverlay(){ const o=document.getElementById("overlayCambios"); if(o) o.style.display="none"; }
 
-  async function enviarEstado(fila, nuevoEstado){
+  async function enviarEstado(fila, nuevoEstado, placa, rowData){
     showOverlay();
     try{
       const res = await fetch(ENDPOINT, {
@@ -2950,6 +2950,8 @@ document.addEventListener("DOMContentLoaded", function(){
           accion:"actualizarEstado",
           fila: fila,
           estado: nuevoEstado,
+          placa: placa,
+          filaDatos: rowData,
           hoja: HOJA
         })
       });
@@ -2988,7 +2990,12 @@ document.addEventListener("DOMContentLoaded", function(){
         if(cell.getField() === "Estado"){
           const fila = cell.getRow().getData()._fila || cell.getRow().getPosition(true);
           const nuevoEstado = cell.getValue();
-          enviarEstado(fila, nuevoEstado);
+          
+          const rowData = cell.getRow().getData();
+          // Determinar placa posible
+          const placa = rowData.placa || rowData.Placa || rowData.placaVehiculo || undefined;
+          enviarEstado(fila, nuevoEstado, placa, rowData);
+
         }
       });
     }
