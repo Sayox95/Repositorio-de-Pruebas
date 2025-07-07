@@ -1,7 +1,36 @@
 <!DOCTYPE html>
 
 <html lang="es">
-<head><script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<head>
+
+<!-- ==== unload listener interception Patch v26 ==== -->
+<script>
+// Intercept addEventListener to redirect 'unload' to 'pagehide' to avoid deprecation
+(function(){
+  const origAdd = EventTarget.prototype.addEventListener;
+  EventTarget.prototype.addEventListener = function(type, listener, options){
+    if(type === 'unload'){
+      // Redirect to pagehide; duplicate prevention
+      return origAdd.call(this, 'pagehide', listener, options);
+    }
+    return origAdd.call(this, type, listener, options);
+  };
+
+  // Handle direct property assignment window.onunload = fn;
+  Object.defineProperty(window, 'onunload', {
+    set: function(fn){
+      if(typeof fn === 'function'){
+        window.addEventListener('pagehide', fn);
+      }
+    },
+    get: function(){ return null; },
+    configurable: true
+  });
+})();
+</script>
+<!-- ==== end unload interception Patch v26 ==== -->
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   /* Global button styles for mobile friendliness */
   button {
@@ -2899,6 +2928,45 @@ document.addEventListener("DOMContentLoaded", function(){
 })();
 </script>
 <!-- ==== End Clean Counters Rebuild v25 ==== -->
+
+
+<!-- ==== Estado Revision Sync Patch v27 ==== -->
+<script>
+(function(){
+  // Endpoint ya existente para guardado; se definió antes como urlGuardarReporte.
+  const endpoint = typeof urlGuardarReporte !== "undefined" ? urlGuardarReporte : "/api/guardar";
+
+  // Preserve any existing implementation
+  const _prev = window.actualizarEstadoIndividual || function(){};
+
+  window.actualizarEstadoIndividual = async function(fila, nuevoEstado){
+      // Mostrar overlay
+      const overlay = document.getElementById("overlayCambios");
+      if(overlay){ overlay.style.display = "flex"; }
+      try{
+          await fetch(endpoint, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                  accion: "actualizarEstado",
+                  fila: fila,
+                  estado: nuevoEstado,
+                  hoja: "revision_facturas"
+              })
+          });
+      }catch(err){
+          console.error("Error enviando actualización:", err);
+          alert("⚠ No se pudo actualizar el estado. Ver consola.");
+      }finally{
+          if(overlay){ overlay.style.display = "none"; }
+      }
+
+      // Llamar a la lógica anterior (si la hubiera) para mantener compatibilidad
+      try{ _prev(fila, nuevoEstado); }catch(e){}
+  };
+})();
+</script>
+<!-- ==== End Estado Revision Sync Patch v27 ==== -->
 
 </body>
 </html>
