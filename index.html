@@ -2980,6 +2980,32 @@ document.addEventListener("DOMContentLoaded", function(){
 </script>
 <!-- ==== Fin Patch v34 ==== -->
 
+
+<!-- ==== Patch v35c: Sync Pago counters on state edits ==== -->
+<script>
+document.addEventListener("DOMContentLoaded", function(){
+  function attachPagoCounterHooks(){
+    if(!window.tabulatorTable){ setTimeout(attachPagoCounterHooks, 300); return; }
+    if(window.tabulatorTable._counterHookAttached) return;
+    window.tabulatorTable._counterHookAttached = true;
+
+    // Recompute counters whenever a cell in Estado column is edited
+    window.tabulatorTable.on("cellEdited", function(cell){
+      if(cell.getField() === "Estado"){
+        if(typeof updateCounters === "function") updateCounters();
+      }
+    });
+
+    // Also recompute after dataLoaded or group toggle
+    ["dataLoaded","dataProcessed","rowDeleted"].forEach(ev=>{
+      window.tabulatorTable.on(ev, function(){ if(typeof updateCounters==="function") updateCounters(); });
+    });
+  }
+  attachPagoCounterHooks();
+});
+</script>
+<!-- ==== End Patch v35c ==== -->
+
 </body>
 </html>
 <div id="generando_pdf_modal" style="
