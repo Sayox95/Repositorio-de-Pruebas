@@ -2,12 +2,26 @@
 
 <html lang="es">
 <head>
+    <!-- Custom CSS for Anticipos Overlay -->
+    <style>
+      #tablaAnticiposWrapper { position: relative; }
+      #tablaAnticiposWrapper #overlayAnt {
+        position: absolute !important;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        display: none;
+        justify-content: center;
+        align-items: center;
+        background: rgba(255,255,255,0.8);
+        z-index: 1000;
+      }
+    </style>
+    
 <script>
   const urlGuardarAnticipo = "/api/GuardarAnti";
   const urlLeerAnticipos = "/api/Anticipos";
-
-
-
 </script>
 <!-- ==== unload listener interception Patch v26 ==== -->
 <script>
@@ -377,12 +391,11 @@
 <span>Total anticipos: <span id="antTotal">L 0.00</span></span>
 <span>Saldo disponible: <span id="antSaldo">L 0.00</span></span>
 </div>
-<div style="border:1px solid #ccc;border-radius:6px;overflow:hidden;width:100%;max-width:1200px;">
-<div id="tablaAnticipos"></div>
-</div>
-<div id="overlayAnt" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1000;flex-direction:column;justify-content:center;align-items:center;">
-<div style="width:3rem;height:3rem;border:.4rem solid #eee;border-top-color:#007bff;border-radius:50%;animation:spin .8s linear infinite;"></div>
-<span style="color:#fff;font-weight:bold;margin-top:.5rem;">Procesando…</span>
+<div id="tablaAnticiposWrapper"  style="position:relative;position:relative;border:1px solid #ccc;border-radius:6px;overflow:hidden;width:100%;max-width:1200px;">
+  <div id="tablaAnticipos"></div>
+  <div id="overlayAnt" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1000;flex-direction:column;justify-content:center;align-items:center;"  style="position:absolute;top:0;left:0;right:0;bottom:0;display:none;justify-content:center;align-items:center;background:rgba(255,255,255,0.8);z-index:1000;">
+    <div class="spinner"></div>
+    <span class="text">Cargando información</span>
 </div>
 <style>@keyframes spin{to{transform:rotate(360deg);}}</style>
 </section>
@@ -390,8 +403,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
 <script>
 window.isFirstLoadPagoFacturas = true;
-  // Flag para control de carga en sección de anticipos
-  window.isFirstLoadAnticipo = true;
+// Flag para carga inicial de sección Anticipos
+window.isFirstLoadAnticipo = true;
 
   var generatedPDF = null;
   var generatedFilename = '';
@@ -2999,23 +3012,21 @@ document.addEventListener('DOMContentLoaded',()=>{
   const $=id=>document.getElementById(id);
   const money=v=>'L '+Number(v||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
   let tab;
-  function overlay(s, text){
-    const ov = document.getElementById('overlayAnt');
-    if(text){
-      const span = ov.querySelector('span');
-      if(span) span.textContent = text;
-    }
-    ov.style.display = s ? 'flex' : 'none';
-  }
+  function overlay(s){$('overlayAnt').style.display=s?'flex':'none';}
   function cargar(){
     // Mostrar overlay de carga o actualización
-    overlay(true, window.isFirstLoadAnticipo ? 'Cargando información' : 'Actualizando información');
+    const ov = document.getElementById('overlayAnt');
+    const txt = ov.querySelector('.text');
+    txt.textContent = window.isFirstLoadAnticipo ? 'Cargando información' : 'Actualizando información';
+    ov.style.display = 'flex';
     window.isFirstLoadAnticipo = false;
-    // Limpiar datos previos en tabla de anticipos
     if(tab) tab.clearData();
-
     fetch(urlLeerAnticipos).then(r=>r.json()).then(d=>{
-      if(tab){tab.replaceData(d);}else{
+      if(tab){
+        tab.replaceData(d)
+          .then(()=>{ document.getElementById('overlayAnt').style.display='none'; })
+          .catch(()=>{ document.getElementById('overlayAnt').style.display='none'; });
+      }else{
         tab=new Tabulator('#tablaAnticipos',{data:d,height:'55vh',layout:'fitColumns',columns:[
           {formatter:'rownum',width:50},
           {title:'Sector',field:'Sector'},
@@ -3037,14 +3048,14 @@ document.addEventListener('DOMContentLoaded',()=>{
   function registrar(){
     const sec=$('antSector').value.trim(), fon=$('antFondo').value.trim(), dep=parseFloat($('antDeposito').value), per=$('antPeriodo').value.trim();
     if(!sec||!fon||!per||!dep||dep<=0){alert('Completa datos');return;}
-    overlay(true, 'Registrando cambios');
+    overlay(true);
     fetch(urlGuardarAnticipo,{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({accion:'registrarAnticipo',Sector:sec,Fondo:fon,Deposito:dep,Periodo:per})})
       .then(r=>r.json()).then(res=>{if(res.status!=='OK')throw new Error(res.message);$('antDeposito').value='';cargar();})
       .catch(e=>alert(e.message)).finally(()=>overlay(false));
   }
   function actualizarEstado(fila,estado){
-    overlay(true, 'Registrando cambios');
+    overlay(true);
     fetch(urlGuardarAnticipo,{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({accion:'actualizarEstadoAnticipo',fila:fila,nuevoEstado:estado})})
       .then(r=>r.json()).then(res=>{if(res.status!=='OK')throw new Error(res.message);cargar();})
@@ -3191,20 +3202,6 @@ document.addEventListener('DOMContentLoaded', function(){
     });
   }
 });
-</script>
-
-
-<script>
-// Override mostrarSeccion para sección de anticipos, asegurando se ejecuta después de su definición
-(function(){
-  var originalMostrar = mostrarSeccion;
-  mostrarSeccion = function(nombre){
-    originalMostrar(nombre);
-    if(nombre === 'registrarAnticipo'){
-      cargar();
-    }
-  };
-})();
 </script>
 
 </body>
