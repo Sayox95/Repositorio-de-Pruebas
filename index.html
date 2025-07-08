@@ -591,7 +591,14 @@ function actualizarVisibilidadBotonesMasivos() {
 #exportExcelBtn {
     margin-left: 0.25rem !important;
 }
-</style></head>
+</style>
+<style>
+#overlayRevision { display:none; position:absolute; top:0; left:0; right:0; bottom:0;
+  background:rgba(0,0,0,0.5); z-index:1000; display:flex; align-items:center; justify-content:center;
+  color:white; font-size:1.2rem; font-weight:bold;}
+</style>
+
+</head>
 <body>
 <div id="overlayCambios">
 <div class="spinner"></div>
@@ -600,7 +607,7 @@ function actualizarVisibilidadBotonesMasivos() {
 <div id="menuPrincipal" style="display: flex; flex-direction: column; align-items: center; margin-top: 50px; gap:20px;">
 <h2>Seleccione una opción</h2>
 <button onclick="mostrarSeccion('reportarFactura')" style="width: 250px;  padding: 10px;">📥 Reportar Factura</button>
-<button onclick="mostrarSeccion('revisionFacturas')" style="width: 250px;  padding: 10px;">🔍 Revisión de Facturas</button>
+<button onclick="cargarRevisionFacturas()" style="width: 250px;  padding: 10px;">🔍 Revisión de Facturas</button>
 <button onclick="cargarPagoFacturas()" style="width: 250px;  padding: 10px;">💳 Pago de Facturas</button>
 <button id="btnIrRegistrarAnticipo" style="width:250px;padding:10px;">💵 Registrar Anticipo</button></div><div id="seccionPagoFacturas" style="display: none;">
 <button onclick="mostrarSeccion('menuPrincipal')" style="height:24px; line-height:1; padding: 0.25rem 0.5rem; display: flex; align-items: center; justify-content: center;"><span style="margin-right: 0.5rem;">←</span>Regresar al Menú Principal</button><h2>Pago de Facturas</h2>
@@ -2104,7 +2111,7 @@ document.addEventListener('DOMContentLoaded', function() {
 <button onclick="actualizarEstadoSeleccionados('Anulada')">✖ Marcar como Anulada</button></div>
 </div>
 <div class="tabla-responsive" style="border: 1px solid #ccc; border-radius: 8px; overflow-x: auto; max-height: 60vh; padding: 1rem;">
-<div id="tablaRevisionFacturas"></div>
+<div id="tablaRevisionWrapper" style="position:relative;"><div id="tablaRevisionFacturas"></div><div id="overlayRevision"><span id="overlayTextRevision">Cargando información</span></div></div>
 </div> <!-- Fin de contenedor scroll de tabla -->
 </div>
 
@@ -2252,8 +2259,6 @@ mostrarSeccion('seccionPagoFacturas');
 
   spinner.style.display = "block";
   tabla.style.display = "table";
-  tbody.innerHTML = "";
-
   fetch("https://repositorio-de-pruebas.pages.dev/api/leer")
     .then(response => {
       if (!response.ok) throw new Error("HTTP " + response.status);
@@ -2264,7 +2269,10 @@ mostrarSeccion('seccionPagoFacturas');
       if (data.length === 0) {
         tbody.innerHTML = "<tr><td colspan='12'>⚠️ No hay facturas para mostrar</td></tr>";
         return;
-      }
+      
+        // Limpiar filas previas sólo cuando llegan los datos nuevos
+        tbody.innerHTML = "";
+        }
 
       
       const filtradas = data.filter(factura => {
@@ -2617,21 +2625,10 @@ document.getElementById('exportExcelBtn').addEventListener('click', function() {
   const urlGuardarReporte = "/api/guardar";
 // Tabulator setup for Revisión de Facturas
 document.addEventListener("DOMContentLoaded", function(){
-  var tableRevision = new Tabulator("#tablaRevisionFacturas", {
+  var tableRevision = window.tableRevision = new Tabulator("#tablaRevisionFacturas", {
     layout: "fitColumns",
     height: "60vh",
-    ajaxURL: urlLeerFacturas,
     // Use fetch directly to avoid CORS preflight by removing custom headers
-    ajaxRequestFunc: function(url, config, params) {
-      return fetch(url)
-        .then(function(response){ return response.json(); });
-    },
-    ajaxResponse: function(url, params, data){
-      // Exclude already paid invoices
-      return data.filter(function(f){
-        return (f.Estado||"").toLowerCase().trim() !== "pagada";
-      });
-    },
     selectable: true,
     columns: [
       {formatter: "rowSelection", titleFormatter: "rowSelection", hozAlign: "center", headerSort: false},
@@ -2642,7 +2639,9 @@ document.addEventListener("DOMContentLoaded", function(){
       {title: "Nombre", field: "Nombre"},
       {title: "Identidad", field: "Identidad"},
       {title: "Total Gastado", field: "Total Gastado", formatter: "money", formatterParams: {symbol: "L", symbolAfter: false, thousand: ",", decimal: ".", precision: 2}},
-      {title: "Fecha", field: "Fecha", formatter: function(cell){ var v = cell.getValue(); return v?v.split("T")[0]:""; }},
+      {title: "Fecha", field: "Fecha", formatter: function(cell){ var v = cell.getValue(); 
+window.tableRevision = tableRevision;
+return v?v.split("T")[0]:""; }},
       {title:"Número de Factura", field:"Numero de Factura"},
       {title: "Enlace PDF", field: "Enlace PDF", formatter: function(cell){ var v = cell.getValue(); return v?'<a href="'+v+'" target="_blank">📄</a>':""; }},
       {title: "Estado", field: "Estado", editor: "list", editorParams: {values: ["Registrada","Revisada","Anulada"], autocomplete: true}, cellEdited: function(cell){ var d = cell.getRow().getData(); actualizarEstadoIndividual(d.fila, cell.getValue()); }}
@@ -2678,8 +2677,7 @@ document.addEventListener("DOMContentLoaded", function(){
     });
   }
   // Populate sector filter options when data loads
-  tableRevision.on("dataLoaded", function(data){
-    var sectorSelect = document.getElementById("filtroSector");
+  tableRevision.on("dataLoaded", function(data){ if(!Array.isArray(data)) return;  if(!Array.isArray(data)) return; var sectorSelect = document.getElementById("filtroSector");
     if (!sectorSelect) return;
     // Reset options except default
     var length = sectorSelect.options.length;
@@ -2708,7 +2706,7 @@ document.addEventListener("DOMContentLoaded", function(){
     });
   }
   // Populate estado filter options when data loads
-  tableRevision.on("dataLoaded", function(data){
+  tableRevision.on("dataLoaded", function(data){ if(!Array.isArray(data)) return; 
     var estadoSelect = document.getElementById("filtroEstado");
     if (!estadoSelect) return;
     // Reset options except default
@@ -2769,51 +2767,7 @@ document.addEventListener("DOMContentLoaded", function(){
 
 });
 </script>
-<!-- ===== Patch v19: Cumulative filters with ISO date support ===== -->
-<script>
-document.addEventListener("DOMContentLoaded", () => {
-  // Attempt to locate Tabulator instance
-  let tableRevision = window.tableRevision;
-  if(!tableRevision){
-    const tables = Tabulator.findTable("#tablaRevision");
-    if(tables.length) tableRevision = tables[0];
-  }
-  if(!tableRevision) return;  // abort if not found
 
-  // Setup/ensure flatpickr instance
-  const dateInput = document.getElementById("rangoFechas");
-  if(dateInput && !window.flatpickrRevision){
-    window.flatpickrRevision = flatpickr(dateInput, {
-      mode:"range",
-      dateFormat:"Y-m-d",
-      locale: flatpickr.l10ns.es,
-      onClose: () => setTimeout(applyFiltersRevision, 0)
-    });
-  }else if(window.flatpickrRevision){
-    window.flatpickrRevision.set("onClose", () => setTimeout(applyFiltersRevision, 0));
-  }
-
-  // Helper to attach listeners and block original ones
-  function hook(id, evt){
-    const el = document.getElementById(id);
-    if(!el) return;
-    el.addEventListener(evt, (e)=>{
-      e.stopImmediatePropagation();          // bloquea listener anterior
-      applyFiltersRevision();
-    }, true); // capture
-  }
-  hook("filtroSector","change");
-  hook("filtroEstado","change");
-  hook("filtroNumeroFactura","input");
-
-  // Core filter function
-  
-
-  // Expose for manual use if needed
-  window.applyFiltersRevision = applyFiltersRevision;
-});
-</script>
-<!-- ===== End Patch v19 ===== -->
 <!-- ==== Patch v20: cumulative filters + single-day fix === -->
 <script>
 document.addEventListener("DOMContentLoaded", function(){
@@ -3132,6 +3086,95 @@ document.getElementById('btnIrRegistrarAnticipo').addEventListener('click', func
   poblarPeriodoAnticipo();
 });
 </script>
+
+<script>
+// Flag de primera carga
+window.isFirstLoadRevisionFacturas = true;
+
+// Carga datos (fetch + setData) replicando lógica de sección Pago
+function loadDataRevisionFacturas(){
+  return fetch(urlLeerFacturas)
+    .then(r => r.json())
+    .then(function(data){
+      // Solo facturas que NO estén pagadas
+      var rows = data.filter(function(f){
+        return (f.Estado || "").toLowerCase().trim() !== "pagada";
+      });
+      // Guarda en global si lo necesitas
+      window.revisionFacturasGlobal = rows;
+      // Carga en tabla
+      if(window.tableRevision && window.window.tableRevision.setData){
+        return window.tableRevision.setData(rows).then(updateCountersRevision);
+      }
+    });
+}
+
+// Overlay helper
+function mostrarOverlayRevision(modo){
+  var overlay = document.getElementById('overlayRevision');
+  var textEl  = document.getElementById('overlayTextRevision');
+  if(!overlay || !textEl) return;
+  textEl.textContent = (modo === 'init') ? 'Cargando información' : 'Actualizando información';
+  overlay.style.display = 'flex';
+}
+
+
+
+// Actualiza contadores de revisión
+function updateCountersRevision(){
+  var data = window.tableRevision ? window.tableRevision.getData() : window.revisionFacturasGlobal || [];
+  var regs = 0, revisadas = 0, anuladas = 0;
+  data.forEach(function(f){
+    var e = (f.Estado || "").toLowerCase().trim();
+    if(e === "registrada") regs++;
+    else if(e === "revisada") revisadas++;
+    else if(e === "anulada") anuladas++;
+  });
+  document.getElementById('counterRegistradas').textContent = regs;
+  document.getElementById('counterRevisadas').textContent = revisadas;
+  document.getElementById('counterAnuladas').textContent = anuladas;
+}
+// Botón o evento para entrar a sección
+function cargarRevisionFacturas(){
+  mostrarSeccion('revisionFacturas');
+  const overlay = document.getElementById('overlayRevision');
+  const textEl = document.getElementById('overlayTextRevision');
+  textEl.textContent = window.isFirstLoadRevisionFacturas ? "Cargando información" : "Actualizando información";
+  overlay.style.display = 'flex';
+  window.isFirstLoadRevisionFacturas = false;
+
+  
+  // Limpiar datos previos en la tabla de revisión
+  if(window.tableRevision){ window.tableRevision.clearData(); }
+// Reset filtros
+  document.getElementById('filtroSector').value = '';
+  document.getElementById('filtroEstado').value = '';
+  document.getElementById('filtroNumeroFactura').value = '';
+  if(window.flatpickrRevision) flatpickrRevision.clear();
+
+  // Reset contadores
+  document.getElementById('counterRegistradas').textContent = '0';
+  document.getElementById('counterRevisadas').textContent = '0';
+  document.getElementById('counterAnuladas').textContent = '0';
+
+  loadDataRevisionFacturas()
+    .catch(function(err){ console.error('Error al cargar revisión de facturas:', err); })
+    .finally(function(){
+      overlay.style.display = 'none';
+    });
+}
+
+// Ocultar overlay cuando datos renderizados (Tabulator event)
+document.addEventListener('DOMContentLoaded', function(){
+  if(window.tableRevision){
+    tableRevision.on("dataRendered", function(){
+      var overlay = document.getElementById('overlayRevision');
+      if(overlay) overlay.style.display = 'none';
+    });
+  }
+});
+</script>
+
 </body>
 </html>
 <div id="generando_pdf_modal" style="
