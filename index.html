@@ -3219,7 +3219,10 @@ function cargarAnticipos(){
     .then(function(res){return res.json();})
     .then(function(data){
       tabAnticipos.clearData();
-      tabAnticipos.setData(data);
+      
+    // Reset counters to zero before loading new data
+    document.getElementById('antTotal').textContent = 'L 0.00';
+    document.getElementById('antSaldo').textContent = 'L 0.00';tabAnticipos.setData(data);
     })
     .catch(function(err){ console.error("Error al cargar anticipos:", err); })
     .finally(function(){
