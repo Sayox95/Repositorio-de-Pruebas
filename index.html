@@ -2981,30 +2981,34 @@ document.addEventListener("DOMContentLoaded", function(){
 <!-- ==== Fin Patch v34 ==== -->
 
 
-<!-- ==== Patch v35c: Sync Pago counters on state edits ==== -->
+<!-- ==== Patch v36: Counters Pago live on Estado edit ==== -->
 <script>
 document.addEventListener("DOMContentLoaded", function(){
-  function attachPagoCounterHooks(){
-    if(!window.tabulatorTable){ setTimeout(attachPagoCounterHooks, 300); return; }
-    if(window.tabulatorTable._counterHookAttached) return;
-    window.tabulatorTable._counterHookAttached = true;
+  function hookPago(){
+    if(!window.tabulatorTable){ setTimeout(hookPago, 300); return; }
+    if(window.tabulatorTable._pagoHookAttached) return;
+    window.tabulatorTable._pagoHookAttached = true;
 
-    // Recompute counters whenever a cell in Estado column is edited
+    // Recalculate counters when Estado changes
     window.tabulatorTable.on("cellEdited", function(cell){
-      if(cell.getField() === "Estado"){
-        if(typeof updateCounters === "function") updateCounters();
+      if(cell.getField() === "Estado" && typeof updateCountersPago === "function"){
+        updateCountersPago();
       }
     });
 
-    // Also recompute after dataLoaded or group toggle
-    ["dataLoaded","dataProcessed","rowDeleted"].forEach(ev=>{
-      window.tabulatorTable.on(ev, function(){ if(typeof updateCounters==="function") updateCounters(); });
-    });
+    // Also recalc after filters applied via applyFiltrosPago if exists
+    if(typeof aplicarFiltrosPago === "function"){
+      const old = aplicarFiltrosPago;
+      aplicarFiltrosPago = function(){
+        old();
+        if(typeof updateCountersPago === "function") updateCountersPago();
+      };
+    }
   }
-  attachPagoCounterHooks();
+  hookPago();
 });
 </script>
-<!-- ==== End Patch v35c ==== -->
+<!-- ==== End Patch v36 ==== -->
 
 </body>
 </html>
