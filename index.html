@@ -20,7 +20,7 @@
   };
 
   // Handle direct property assignment window.onpagehide = fn;
-  Object.defineProperty(window, 'onunload', {
+  Object.defineProperty(window, 'onpagehide', {
     set: function(fn){
       if(typeof fn === 'function'){
         window.addEventListener('pagehide', fn);
