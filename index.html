@@ -5,6 +5,9 @@
 <script>
   const urlGuardarAnticipo = "/api/GuardarAnti";
   const urlLeerAnticipos = "/api/Anticipos";
+
+
+
 </script>
 <!-- ==== unload listener interception Patch v26 ==== -->
 <script>
@@ -387,6 +390,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
 <script>
 window.isFirstLoadPagoFacturas = true;
+  // Flag para control de carga en sección de anticipos
+  window.isFirstLoadAnticipo = true;
 
   var generatedPDF = null;
   var generatedFilename = '';
@@ -2994,8 +2999,21 @@ document.addEventListener('DOMContentLoaded',()=>{
   const $=id=>document.getElementById(id);
   const money=v=>'L '+Number(v||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
   let tab;
-  function overlay(s){$('overlayAnt').style.display=s?'flex':'none';}
+  function overlay(s, text){
+    const ov = document.getElementById('overlayAnt');
+    if(text){
+      const span = ov.querySelector('span');
+      if(span) span.textContent = text;
+    }
+    ov.style.display = s ? 'flex' : 'none';
+  }
   function cargar(){
+    // Mostrar overlay de carga o actualización
+    overlay(true, window.isFirstLoadAnticipo ? 'Cargando información' : 'Actualizando información');
+    window.isFirstLoadAnticipo = false;
+    // Limpiar datos previos en tabla de anticipos
+    if(tab) tab.clearData();
+
     fetch(urlLeerAnticipos).then(r=>r.json()).then(d=>{
       if(tab){tab.replaceData(d);}else{
         tab=new Tabulator('#tablaAnticipos',{data:d,height:'55vh',layout:'fitColumns',columns:[
@@ -3019,14 +3037,14 @@ document.addEventListener('DOMContentLoaded',()=>{
   function registrar(){
     const sec=$('antSector').value.trim(), fon=$('antFondo').value.trim(), dep=parseFloat($('antDeposito').value), per=$('antPeriodo').value.trim();
     if(!sec||!fon||!per||!dep||dep<=0){alert('Completa datos');return;}
-    overlay(true);
+    overlay(true, 'Registrando cambios');
     fetch(urlGuardarAnticipo,{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({accion:'registrarAnticipo',Sector:sec,Fondo:fon,Deposito:dep,Periodo:per})})
       .then(r=>r.json()).then(res=>{if(res.status!=='OK')throw new Error(res.message);$('antDeposito').value='';cargar();})
       .catch(e=>alert(e.message)).finally(()=>overlay(false));
   }
   function actualizarEstado(fila,estado){
-    overlay(true);
+    overlay(true, 'Registrando cambios');
     fetch(urlGuardarAnticipo,{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({accion:'actualizarEstadoAnticipo',fila:fila,nuevoEstado:estado})})
       .then(r=>r.json()).then(res=>{if(res.status!=='OK')throw new Error(res.message);cargar();})
@@ -3173,6 +3191,20 @@ document.addEventListener('DOMContentLoaded', function(){
     });
   }
 });
+</script>
+
+
+<script>
+// Override mostrarSeccion para sección de anticipos, asegurando se ejecuta después de su definición
+(function(){
+  var originalMostrar = mostrarSeccion;
+  mostrarSeccion = function(nombre){
+    originalMostrar(nombre);
+    if(nombre === 'registrarAnticipo'){
+      cargar();
+    }
+  };
+})();
 </script>
 
 </body>
