@@ -374,14 +374,14 @@
 <span>Total anticipos: <span id="antTotal">L 0.00</span></span>
 <span>Saldo disponible: <span id="antSaldo">L 0.00</span></span>
 </div>
-<div style="border:1px solid #ccc;border-radius:6px;overflow:hidden;width:100%;max-width:1200px;">
-<div id="tablaAnticipos"></div>
+<div id="tablaAnticiposWrapper" style="position:relative;border:1px solid #ccc;border-radius:6px;overflow:hidden;width:100%;max-width:1200px;">
+  <div id="tablaAnticipos"></div>
+  <div id="overlayAnt" style="position:absolute;top:0;left:0;right:0;bottom:0;display:none;flex-direction:column;justify-content:center;align-items:center;background:rgba(255,255,255,0.8);z-index:1000;">
+    <div style="width:3rem;height:3rem;border:.4rem solid #eee;border-top-color:#007bff;border-radius:50%;animation:spin .8s linear infinite;"></div>
+    <span style="color:#333;font-weight:bold;margin-top:.5rem;">Cargando información</span>
+  </div>
 </div>
-<div id="overlayAnt" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1000;flex-direction:column;justify-content:center;align-items:center;">
-<div style="width:3rem;height:3rem;border:.4rem solid #eee;border-top-color:#007bff;border-radius:50%;animation:spin .8s linear infinite;"></div>
-<span style="color:#fff;font-weight:bold;margin-top:.5rem;">Procesando…</span>
-</div>
-<style>@keyframes spin{to{transform:rotate(360deg);}}</style>
+<style>@keyframes spin { to { transform: rotate(360deg); } }</style>
 </section>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
@@ -3017,23 +3017,16 @@ document.addEventListener('DOMContentLoaded',()=>{
     $('antTotal').textContent=money(t); $('antSaldo').textContent=money(sld);
   }
   function registrar(){
-    const sec=$('antSector').value.trim(), fon=$('antFondo').value.trim(), dep=parseFloat($('antDeposito').value), per=$('antPeriodo').value.trim();
-    if(!sec||!fon||!per||!dep||dep<=0){alert('Completa datos');return;}
-    overlay(true);
-    fetch(urlGuardarAnticipo,{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({accion:'registrarAnticipo',Sector:sec,Fondo:fon,Deposito:dep,Periodo:per})})
-      .then(r=>r.json()).then(res=>{if(res.status!=='OK')throw new Error(res.message);$('antDeposito').value='';cargar();})
-      .catch(e=>alert(e.message)).finally(()=>overlay(false));
-  }
-  function actualizarEstado(fila,estado){
-    overlay(true);
-    fetch(urlGuardarAnticipo,{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({accion:'actualizarEstadoAnticipo',fila:fila,nuevoEstado:estado})})
-      .then(r=>r.json()).then(res=>{if(res.status!=='OK')throw new Error(res.message);cargar();})
-      .catch(e=>alert(e.message)).finally(()=>overlay(false));
-  }
-  // enlaces
-  $('btnIrRegistrarAnticipo').addEventListener('click',()=>{ $('menuPrincipal').style.display='none'; $('registrarAnticipo').style.display='flex'; cargar();});
+  var ov = document.getElementById("overlayAnt");
+  ov.querySelector("span").textContent = "Registrando cambios";
+  ov.style.display = "flex";
+
+  fetch(urlGuardarAnticipo, { method:"POST" })
+    .then(function(res){ return res.json(); })
+    .then(function(res){ if(res.status !== "OK") throw new Error(res.message); })
+    .catch(function(err){ console.error("Error al registrar:", err); })
+    .finally(function(){ cargarAnticipos(); });
+};
   $('btnBackAnt').addEventListener('click',()=>{ $('registrarAnticipo').style.display='none'; $('menuPrincipal').style.display='flex';});
   
 // populate periodo select
@@ -3176,11 +3169,12 @@ document.addEventListener('DOMContentLoaded', function(){
 </script>
 
 
+
 <script>
-// Control de overlays en sección Anticipos
+// Anticipos: Overlay y lógica de carga
 window.isFirstLoadAnticipo = true;
 
-// Inicialización de la tabla vacía
+// Inicializar tabla vacía al cargar
 document.addEventListener("DOMContentLoaded", function(){
   window.tabAnticipos = new Tabulator("#tablaAnticipos", {
     height: "55vh",
@@ -3201,12 +3195,18 @@ document.addEventListener("DOMContentLoaded", function(){
       }
     ]
   });
-  tabAnticipos.on("dataLoaded", function(){
+  tabAnticipos.on("dataLoaded", function(rows){
+    // Actualizar contadores antes de ocultar overlay
+    var t = rows.reduce(function(sum, r){return sum + Number(r.Deposito||0);}, 0);
+    var sld = rows.filter(function(r){return r.Estado==="Vigente";})
+                  .reduce(function(sum, r){return sum + Number(r.Deposito||0);},0);
+    document.getElementById("antTotal").textContent = "L " + t.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+    document.getElementById("antSaldo").textContent = "L " + sld.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
     document.getElementById("overlayAnt").style.display = "none";
   });
 });
 
-// Función para cargar Anticipos con overlay dinámico
+// Cargar anticipos con overlay dinámico
 function cargarAnticipos(){
   mostrarSeccion("registrarAnticipo");
   var ov = document.getElementById("overlayAnt");
@@ -3214,44 +3214,50 @@ function cargarAnticipos(){
   txt.textContent = window.isFirstLoadAnticipo ? "Cargando información" : "Actualizando información";
   ov.style.display = "flex";
   window.isFirstLoadAnticipo = false;
-  tabAnticipos.clearData();
-  tabAnticipos.replaceData(urlLeerAnticipos).catch(function(err){
-    console.error("Error al cargar anticipos:", err);
-    ov.style.display = "none";
-  });
+  // Fetch y poblar datos
+  fetch(urlLeerAnticipos)
+    .then(function(res){return res.json();})
+    .then(function(data){
+      tabAnticipos.clearData();
+      tabAnticipos.setData(data);
+    })
+    .catch(function(err){ console.error("Error al cargar anticipos:", err); })
+    .finally(function(){
+      // overlay se oculta en dataLoaded listener
+    });
 }
 
-// Navegación a Anticipos
+// Navegación
 document.getElementById("btnIrRegistrarAnticipo").addEventListener("click", cargarAnticipos);
 document.getElementById("btnBackAnt").addEventListener("click", function(){
   mostrarSeccion("menuPrincipal");
 });
 
-// Registro de Anticipo
+// Registro de anticipo
 function registrar(){
   var ov = document.getElementById("overlayAnt");
   ov.querySelector("span").textContent = "Registrando cambios";
   ov.style.display = "flex";
-  fetch(urlGuardarAnticipo, { method:"POST" })
-    .then(res => res.json())
-    .then(res => { if(res.status !== "OK") throw new Error(res.message); })
-    .catch(err => console.error("Error al registrar:", err))
+  fetch(urlGuardarAnticipo, {method:"POST"})
+    .then(function(res){return res.json();})
+    .then(function(res){ if(res.status!=="OK") throw new Error(res.message); })
+    .catch(function(err){ console.error("Error al registrar:", err); })
     .finally(cargarAnticipos);
 }
 
-// Actualizar estado de Anticipo
+// Actualizar estado
 function actualizarEstado(fila, estado){
   var ov = document.getElementById("overlayAnt");
   ov.querySelector("span").textContent = "Registrando cambios";
   ov.style.display = "flex";
   fetch(urlGuardarAnticipo, {
     method:"POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ fila: fila, Estado: estado })
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({fila:fila, Estado:estado})
   })
-    .then(res => res.json())
-    .then(res => { if(res.status !== "OK") throw new Error(res.message); })
-    .catch(err => console.error("Error al actualizar:", err))
+    .then(function(res){return res.json();})
+    .then(function(res){ if(res.status!=="OK") throw new Error(res.message); })
+    .catch(function(err){ console.error("Error al actualizar:", err); })
     .finally(cargarAnticipos);
 }
 </script>
