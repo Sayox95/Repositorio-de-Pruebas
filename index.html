@@ -377,7 +377,7 @@
 <div style="border:1px solid #ccc;border-radius:6px;overflow:hidden;width:100%;max-width:1200px;">
 <div id="tablaAnticipos"></div>
 </div>
-<div id="overlayAnt" style="position:absolute;top:0;left:0;right:0;bottom:0;display:none;justify-content:center;align-items:center;background:rgba(0,0,0,0.5);z-index:1000;" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1000;flex-direction:column;justify-content:center;align-items:center;">
+  <div id="overlayAnt" style="position:absolute;top:0;left:0;right:0;bottom:0;display:none;justify-content:center;align-items:center;background:rgba(255,255,255,0.8);z-index:1000;" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1000;flex-direction:column;justify-content:center;align-items:center;">
 <div style="width:3rem;height:3rem;border:.4rem solid #eee;border-top-color:#007bff;border-radius:50%;animation:spin .8s linear infinite;"></div>
 <span style="color:#fff;font-weight:bold;margin-top:.5rem;">Procesando…</span>
 </div>
@@ -388,19 +388,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
 <script>
 window.isFirstLoadPagoFacturas = true;
-
-// Carga datos de anticipos y actualiza tabla
-function loadDataAnticipos(){
-  return fetch(urlLeerAnticipos)
-    .then(res => res.json())
-    .then(rows => {
-      if(window.tabAnticipos){
-        return window.tabAnticipos.replaceData(rows);
-      }
-    });
-}
-
-// Flag para primera carga de Anticipos
+// Flag for first load of Anticipos
 window.isFirstLoadAnticipo = true;
 
   var generatedPDF = null;
@@ -615,6 +603,37 @@ function actualizarVisibilidadBotonesMasivos() {
 
 </head>
 <body>
+
+<script>
+// Initialize Anticipos Tabulator empty
+document.addEventListener("DOMContentLoaded", function(){
+  window.tabAnticipos = new Tabulator("#tablaAnticipos", {
+    height: "55vh",
+    layout: "fitColumns",
+    data: [], // start empty
+    columns: [
+      {formatter:"rownum", width:50},
+      {title:"Sector", field:"Sector"},
+      {title:"Fondo", field:"Fondo"},
+      {title:"Deposito", field:"Deposito", formatter:"money", formatterParams:{symbol:"L ", precision:2}},
+      {title:"Periodo", field:"Periodo"},
+      {title:"Estado", field:"Estado", editor:"list", editorParams:{values:["Vigente","Aplicado","Anulado"]},
+        cellEdited:function(cell){
+          var r = cell.getRow().getData();
+          actualizarEstado(r.fila || r._fila, cell.getValue());
+        }
+      }
+    ],
+    loader: false,
+  });
+
+  // Hide overlay when data loaded
+  window.tabAnticipos.on("dataLoaded", function(){
+    document.getElementById("overlayAnt").style.display = "none";
+  });
+});
+</script>
+
 <div id="overlayCambios">
 <div class="spinner"></div>
 <div class="text">Registrando Cambios...</div>
@@ -3032,7 +3051,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     $('antTotal').textContent=money(t); $('antSaldo').textContent=money(sld);
   }
   function registrar(){
-  const ov = document.getElementById('overlayAnt');
+  var ov = document.getElementById('overlayAnt');
   ov.querySelector('span').textContent = 'Registrando cambios';
   ov.style.display = 'flex';
     const sec=$('antSector').value.trim(), fon=$('antFondo').value.trim(), dep=parseFloat($('antDeposito').value), per=$('antPeriodo').value.trim();
@@ -3043,8 +3062,8 @@ document.addEventListener('DOMContentLoaded',()=>{
       .then(r=>r.json()).then(res=>{if(res.status!=='OK')throw new Error(res.message);$('antDeposito').value='';cargar();})
       .catch(e=>alert(e.message)).finally(()=>overlay(false));
   }
-  function actualizarEstado($1){
-  const ov = document.getElementById('overlayAnt');
+  function actualizarEstado(fila,estado){
+  var ov = document.getElementById('overlayAnt');
   ov.querySelector('span').textContent = 'Registrando cambios';
   ov.style.display = 'flex';
     overlay(true);
@@ -3097,23 +3116,6 @@ function poblarPeriodoAnticipo() {
     sel.add(new Option(ym, ym));
   }
 }
-
-// Función de carga anticipos con overlay dinámico
-function cargarAnticipos(){
-  mostrarSeccion('registrarAnticipo');
-  const ov = document.getElementById('overlayAnt');
-  const text = ov.querySelector('span');
-  text.textContent = window.isFirstLoadAnticipo ? 'Cargando información' : 'Actualizando información';
-  ov.style.display = 'flex';
-  window.isFirstLoadAnticipo = false;
-  if(window.tabAnticipos){
-    window.tabAnticipos.clearData();
-    loadDataAnticipos()
-      .then(() => ov.style.display = 'none')
-      .catch(() => ov.style.display = 'none');
-  }
-}
-
 // Mostrar sección al pulsar el botón y cargar datos
 document.getElementById('btnIrRegistrarAnticipo').addEventListener('click', function(){
   document.getElementById('menuPrincipal').style.display = 'none';
@@ -3211,6 +3213,40 @@ document.addEventListener('DOMContentLoaded', function(){
     });
   }
 });
+</script>
+
+
+<script>
+// Helper to load anticipos data
+function loadDataAnticipos(){
+  return fetch(urlLeerAnticipos)
+    .then(res => res.json())
+    .then(rows => window.tabAnticipos.replaceData(rows));
+}
+
+// Function to show overlay and load data
+function cargarAnticipos(){
+  mostrarSeccion('registrarAnticipo');
+  var ov = document.getElementById('overlayAnt');
+  var txt = ov.querySelector('span');
+  txt.textContent = window.isFirstLoadAnticipo ? 'Cargando información' : 'Actualizando información';
+  ov.style.display = 'flex';
+  window.isFirstLoadAnticipo = false;
+  // Clear previous data and load new
+  window.tabAnticipos.clearData();
+  loadDataAnticipos().catch(console.error);
+}
+
+// Hook into section navigation
+(function(){
+  var originalMostrar = mostrarSeccion;
+  mostrarSeccion = function(nombre){
+    originalMostrar(nombre);
+    if(nombre === 'registrarAnticipo'){
+      cargarAnticipos();
+    }
+  };
+})();
 </script>
 
 </body>
