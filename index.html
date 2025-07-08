@@ -354,22 +354,7 @@
   <button id="btnBackAnt" style="align-self:flex-start;">← Volver</button>
   <h2>Registrar Anticipo</h2>
   <div style="display:flex;flex-wrap:wrap;gap:.8rem;align-items:flex-end;">
-    <div><label>Sector<br><select id="antSector" required>
-  <option value="">Seleccione</option>
-  <option value="SAN PEDRO SULA">SAN PEDRO SULA</option>
-  <option value="EL PROGRESO">EL PROGRESO</option>
-  <option value="STA. CRUZ">STA. CRUZ</option>
-  <option value="CHOLUTECA">CHOLUTECA</option>
-  <option value="COMAYAGUA">COMAYAGUA</option>
-  <option value="DANLI">DANLI</option>
-  <option value="GUANAJA">GUANAJA</option>
-  <option value="JUTICALPA">JUTICALPA</option>
-  <option value="LA CEIBA">LA CEIBA</option>
-  <option value="SANTA ROSA">SANTA ROSA</option>
-  <option value="TEGUCIGALPA">TEGUCIGALPA</option>
-  <option value="TOCOA">TOCOA</option>
-  <option value="BRUS LAGUNA">BRUS LAGUNA</option>
-</select></label></div>
+    <div><label>Sector<br><select id="antSector"><option value="">Seleccione</option><option value="SAN PEDRO SULA">SAN PEDRO SULA</option><option value="EL PROGRESO">EL PROGRESO</option><option value="STA. CRUZ">STA. CRUZ</option><option value="CHOLUTECA">CHOLUTECA</option><option value="COMAYAGUA">COMAYAGUA</option><option value="DANLI">DANLI</option><option value="GUANAJA">GUANAJA</option><option value="JUTICALPA">JUTICALPA</option><option value="LA CEIBA">LA CEIBA</option><option value="SANTA ROSA">SANTA ROSA</option><option value="TEGUCIGALPA">TEGUCIGALPA</option><option value="TOCOA">TOCOA</option><option value="BRUS LAGUNA">BRUS LAGUNA</option></select></label></div>
     <div><label>Fondo<br><select id="antFondo"><option value="">Seleccione</option><option value="Combustible">Combustible</option><option value="Poda">Poda</option></select></label></div>
     <div><label>Depósito (L)<br><input id="antDeposito" type="number" min="0" step="0.01" style="width:8rem;"></label></div>
     <div><label>Periodo<br><select id="antPeriodo" style="width:8rem;"><option value="">Seleccione</option></select></label></div>
@@ -3078,7 +3063,15 @@ document.addEventListener('DOMContentLoaded',()=>{
       resumen(d);
     });
   }
-    function resumen(d){
+  function combos(d){
+    const s=[...new Set(d.map(x=>x.Sector).filter(Boolean))];
+    const f=[...new Set(d.map(x=>x.Fondo ).filter(Boolean))];
+    [[$('antSector'),s],[$('antFondo'),f]].forEach(([sel,arr])=>{
+      sel.querySelectorAll('option:not(:first-child)').forEach(o=>o.remove());
+      arr.forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=v;sel.appendChild(o);});
+    });
+  }
+  function resumen(d){
     const t=d.reduce((s,r)=>s+Number(r.Deposito||0),0);
     const sld=d.filter(r=>r.Estado==='Vigente').reduce((s,r)=>s+Number(r.Deposito||0),0);
     $('antTotal').textContent=money(t); $('antSaldo').textContent=money(sld);
@@ -3107,42 +3100,7 @@ document.addEventListener('DOMContentLoaded',()=>{
 </script>
 
 
-<script>
 
-// Cargar sectores para anticipos (estático)
-function cargarSectoresAnticipo() {
-  const sel = document.getElementById('antSector');
-  sel.innerHTML = '<option value="">Seleccione</option>';
-  const opciones = ["SAN PEDRO SULA", "EL PROGRESO", "STA. CRUZ", "CHOLUTECA", "COMAYAGUA", "DANLI", "GUANAJA", "JUTICALPA", "LA CEIBA", "SANTA ROSA", "TEGUCIGALPA", "TOCOA", "BRUS LAGUNA"];
-  opciones.forEach(s => sel.add(new Option(s, s)));
-}
-
-// Poner opciones de fondo
-function poblarFondo() {
-  const sel = document.getElementById('antFondo');
-  sel.innerHTML = '<option value="">Seleccione</option><option value="Combustible">Combustible</option><option value="Poda">Poda</option>';
-}
-// Generar lista de últimos 12 periodos en formato yyyyMM
-function poblarPeriodoAnticipo() {
-  const sel = document.getElementById('antPeriodo');
-  sel.innerHTML = '<option value="">Seleccione</option>';
-  const now = new Date();
-  for (let i = 0; i < 12; i++) {
-    let date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const ym = date.getFullYear().toString() + (date.getMonth() + 1).toString().padStart(2,'0');
-    sel.add(new Option(ym, ym));
-  }
-}
-// Mostrar sección al pulsar el botón y cargar datos
-document.getElementById('btnIrRegistrarAnticipo').addEventListener('click', function(){
-  document.getElementById('menuPrincipal').style.display = 'none';
-  const sec = document.getElementById('registrarAnticipo');
-  sec.style.display = 'flex';
-  cargarSectoresAnticipo();
-  poblarFondo();
-  poblarPeriodoAnticipo();
-});
-</script>
 
 </body>
 </html>
