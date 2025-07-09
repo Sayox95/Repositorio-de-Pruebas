@@ -3487,8 +3487,11 @@ document.addEventListener("DOMContentLoaded", function(){
 </script>
 
 
+
+
+
 <script>
-// Handler para “Aceptar Pago”
+// Handler para “Aceptar Pago” con limpieza de prefijos en JSON
 document.getElementById("btnAceptarPago").addEventListener("click", function() {
   const sel = document.getElementById("selectPagoFondo");
   const fondoPeriodo = sel.value;
@@ -3509,9 +3512,22 @@ document.getElementById("btnAceptarPago").addEventListener("click", function() {
   })
   .then(res => {
     if (!res.ok) throw new Error("HTTP error " + res.status);
-    return res.json();
+    return res.text();
   })
-  .then(json => {
+  .then(text => {
+    // Limpia posibles prefijos antes de JSON
+    let jsonText = text.trim();
+    const idx = jsonText.indexOf('{');
+    if (idx > 0) {
+      jsonText = jsonText.substring(idx);
+    }
+    let json;
+    try {
+      json = JSON.parse(jsonText);
+    } catch(e) {
+      console.error("JSON parse error. Raw response:", text);
+      return alert("Respuesta inválida del servidor: " + text);
+    }
     if (json.status !== "OK") {
       throw new Error(json.message || "Error al guardar pago.");
     }
@@ -3521,8 +3537,8 @@ document.getElementById("btnAceptarPago").addEventListener("click", function() {
       const data = row.getData();
       if (data.fila === payload.fila) {
         row.update({
-          Estado:    "Pagada",
-          Fondo:     payload.fondoPeriodo,
+          Estado: "Pagada",
+          Fondo: payload.fondoPeriodo,
           FechaPago: payload.fechaPago
         });
       }
