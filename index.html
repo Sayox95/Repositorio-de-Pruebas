@@ -77,6 +77,7 @@
 <script>
   const urlGuardarAnticipo = "/api/GuardarAnti";
   const urlLeerAnticipos = "/api/Anticipos";
+  const urlGuardarFactura = "/api/guardar";
 </script>
 <!-- ==== unload listener interception Patch v26 ==== -->
 <script>
@@ -2697,8 +2698,7 @@ document.getElementById('exportExcelBtn').addEventListener('click', function() {
 <script>
   // Endpoint definitions moved here
   const urlLeerFacturas = "https://repositorio-de-pruebas.pages.dev/api/leer";
-const urlGuardarPago = "/api/PagoFacturas";
-  const urlGuardarReporte = "/api/guardar";
+const urlGuardarReporte = "/api/guardar";
 // Tabulator setup for Revisión de Facturas
 document.addEventListener("DOMContentLoaded", function(){
   var tableRevision = window.tableRevision = new Tabulator("#tablaRevisionFacturas", {
@@ -3388,9 +3388,18 @@ function showModalPago(data) {
   document.getElementById("inputPagoImagen").value = "";
   document.getElementById("modalPago").style.display = "flex";
 }
+
 document.getElementById("btnCancelarPago").onclick = () => {
+  // Limpiar campos del modal
+  document.getElementById("inputPagoImagen").value = "";
+  const sel = document.getElementById("selectPagoFondo");
+  sel.innerHTML = '<option value="">Seleccione</option>';
+  const pasteArea = document.getElementById("pasteArea");
+  pasteArea.innerHTML = '<div class="placeholder-top" contenteditable="false">Arrastra o presiona Ctrl+V</div><div class="placeholder-bottom" contenteditable="false"></div>';
+  // Ocultar modal
   document.getElementById("modalPago").style.display = "none";
 };
+
 document.getElementById("btnAceptarPago").onclick = () => {
   const sel = document.getElementById("selectPagoFondo");
   const fileInput = document.getElementById("inputPagoImagen");
