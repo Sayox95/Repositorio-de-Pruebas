@@ -3412,7 +3412,7 @@ document.getElementById("btnAceptarPago").onclick = () => {
   form.append("fondoPeriodo", sel.value);
   form.append("fechaPago", fecha);
   form.append("comprobante", fileInput.files[0]);
-  fetch(urlGuardarPago, { method: "POST", body: form })
+  fetch(urlGuardarFactura, { method: "POST", body: form })
     .then(res => res.json())
     .then(res => {
       if (res.status !== "OK") throw new Error(res.message);
