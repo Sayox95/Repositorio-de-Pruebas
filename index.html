@@ -2,82 +2,9 @@
 
 <html lang="es">
 <head>
-
-<style>
-  #pasteArea {
-    position: relative;
-    border: 1px dashed #ccc;
-    padding: 1rem;
-    min-height: 150px;
-    text-align: center;
-  }
-  #pasteArea .placeholder-top,
-  #pasteArea .placeholder-bottom {
-    pointer-events: none;
-  }
-  #pasteArea .placeholder-bottom {
-    position: absolute;
-    width: 100%;
-    left: 0;
-    color: #666;
-    pointer-events: none;
-  }
-  #pasteArea .placeholder-top {
-    top: 1rem;
-  }
-  #pasteArea .placeholder-bottom {
-    bottom: 1rem;
-  }
-  #pasteArea img {
-    max-width: 100%;
-    max-height: 100%;
-    margin: auto;
-    display: block;
-  }
-  
-</style>
-
-  
-
-
-<style>
-  .btn-pagar {
-    padding: 4px 8px;
-    background-color: #007bff;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-  }
-  .btn-pagar:hover {
-    background-color: #0056b3;
-  }
-  /* Modal overlay */
-  #modalPago {
-    display: none;
-    position: fixed;
-    top:0; left:0; right:0; bottom:0;
-    background: rgba(0,0,0,0.5);
-    justify-content: center;
-    align-items: center;
-    z-index: 2000;
-  }
-  #modalPago .dialog {
-    background: white;
-    padding: 1rem;
-    border-radius: 6px;
-    width: 100%;
-    max-width: 400px;
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-  }
-</style>
-
 <script>
   const urlGuardarAnticipo = "/api/GuardarAnti";
   const urlLeerAnticipos = "/api/Anticipos";
-  const urlGuardarFactura = "/api/guardar";
 </script>
 <!-- ==== unload listener interception Patch v26 ==== -->
 <script>
@@ -2325,7 +2252,7 @@ mostrarSeccion('seccionPagoFacturas');
   if (seccion) seccion.style.display = "block";
 
   const spinner = document.getElementById("spinnerPago");
-  const tabla = document.getElementById("facturas-table");
+  const tabla = document.getElementById("tablaPagoFacturas");
   const tbody = tabla ? tabla.querySelector("tbody") : null;
 
   if (!tabla || !tbody || !spinner) return;
@@ -2529,7 +2456,7 @@ document.addEventListener("DOMContentLoaded", function(){
   }
 
   // Hide original elements
-  var tbl = document.getElementById("facturas-table");
+  var tbl = document.getElementById("tablaPagoFacturas");
   if(tbl) tbl.style.display = "none";
 
   // Init flatpickr
@@ -2585,15 +2512,12 @@ groupHeader:function(value, count, data){
           var v = cell.getValue();
           return v?`<a href="${v}" target="_blank">📄</a>`:"";
       }},
-      {title:"Estado", field:"Estado", hozAlign:"center",
-          formatter:function(cell){
-            var v = (cell.getValue()||"").toLowerCase();
-            return v==="pagada" ? "Pagado" : '<button class="btn-pagar">Pagar</button>';
-          },
-          cellClick:function(e, cell){
-            showModalPago(cell.getRow().getData());
-          }
-        },
+      {title:"Estado", field:"Estado", editor: "list", editorParams: {values: ["Revisada","Pagada"], autocomplete: true},
+        cellEdited: cell => {
+          var d = cell.getRow().getData();
+          actualizarEstadoIndividual(d.fila, cell.getValue());
+        }
+      }
     ],
   });
   window.tabulatorTable = table;
@@ -2698,7 +2622,7 @@ document.getElementById('exportExcelBtn').addEventListener('click', function() {
 <script>
   // Endpoint definitions moved here
   const urlLeerFacturas = "https://repositorio-de-pruebas.pages.dev/api/leer";
-const urlGuardarReporte = "/api/guardar";
+  const urlGuardarReporte = "/api/guardar";
 // Tabulator setup for Revisión de Facturas
 document.addEventListener("DOMContentLoaded", function(){
   var tableRevision = window.tableRevision = new Tabulator("#tablaRevisionFacturas", {
@@ -3340,214 +3264,6 @@ function actualizarEstado(fila, estado){
     .catch(function(err){ console.error("Error al actualizar:", err); })
     .finally(cargarAnticipos);
 }
-</script>
-
-
-<!-- Modal para registrar pago -->
-<div id="modalPago">
-  <div class="dialog">
-    <h3>Registrar Pago</h3>
-    
-<label>Comprobante de pago:</label>
-<div id="pasteArea" contenteditable="true" spellcheck="false" tabindex="0" style="border:1px dashed #ccc;padding:1rem;min-height:150px;text-align:center;position:relative;">
-  <div class="placeholder-top" contenteditable="false">Arrastra o presiona Ctrl+V</div>
-  <div class="placeholder-bottom" contenteditable="false"></div>
-</div>
-<button id="btnSelectFile" style="display:block;margin:0.5rem auto;padding:0.25rem 0.5rem;height:2rem;font-size:0.875rem;">Seleccionar archivo</button>
-<input type="file" id="inputPagoImagen" accept="image/*" style="display:none"/>
-<label>Fondo – Periodo:<br>
-      <select id="selectPagoFondo">
-        <option value="">Seleccione</option>
-      </select>
-    </label>
-    <div style="display:flex;justify-content:flex-end;gap:1rem">
-      <button id="btnCancelarPago">Cancelar</button>
-      <button id="btnAceptarPago">Aceptar</button>
-    </div>
-  </div>
-</div>
-
-
-<script>
-// Funciones para pago de facturas
-let currentPagoRow = null;
-function showModalPago(data) {
-  currentPagoRow = data;
-  // Cargar fondos asociados al sector
-  fetch(urlLeerAnticipos)
-    .then(res => res.json())
-    .then(rows => {
-      const sel = document.getElementById("selectPagoFondo");
-      sel.innerHTML = '<option value="">Seleccione</option>';
-      rows.filter(r => r.Sector && data.Sector && r.Sector.trim().toLowerCase() === data.Sector.trim().toLowerCase())
-          .forEach(r => {
-            const val = `${r.Fondo}-${r.Periodo}`;
-            sel.appendChild(new Option(val, val));
-          });
-    });
-  document.getElementById("inputPagoImagen").value = "";
-  document.getElementById("modalPago").style.display = "flex";
-}
-
-document.getElementById("btnCancelarPago").onclick = () => {
-  // Limpiar campos del modal
-  document.getElementById("inputPagoImagen").value = "";
-  const sel = document.getElementById("selectPagoFondo");
-  sel.innerHTML = '<option value="">Seleccione</option>';
-  const pasteArea = document.getElementById("pasteArea");
-  pasteArea.innerHTML = '<div class="placeholder-top" contenteditable="false">Arrastra o presiona Ctrl+V</div><div class="placeholder-bottom" contenteditable="false"></div>';
-  // Ocultar modal
-  document.getElementById("modalPago").style.display = "none";
-      // Recargar tabla de pagos para mostrar facturas pendientes y pagadas
-      cargarPagoFacturas();};
-
-document.getElementById("btnAceptarPago").onclick = () => {
-  const sel = document.getElementById("selectPagoFondo");
-  const fileInput = document.getElementById("inputPagoImagen");
-  if (!sel.value || fileInput.files.length === 0) {
-    return alert("Seleccione un fondo-período y cargue la imagen.");
-  }
-  const fecha = new Date().toISOString().substr(0,10);
-  const form = new FormData();
-  form.append("idFactura", currentPagoRow.ID);
-  form.append("fondoPeriodo", sel.value);
-  form.append("fechaPago", fecha);
-  form.append("comprobante", fileInput.files[0]);
-  fetch(urlGuardarFactura, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ fila: currentPagoRow.fila, fondoPeriodo: document.getElementById("selectPagoFondo").value, fechaPago: new Date().toISOString().substr(0,10) })
-  })
-    .then(res => res.json())
-    .then(res => {
-      if (res.status !== "OK") throw new Error(res.message);
-      const table = Tabulator.findTable("#facturas-table")[0];
-      table.getRows().forEach(row => {
-        if (row.getData().ID === currentPagoRow.ID) {
-          row.update({ Estado: "Pagada", Fondo: sel.value, FechaPago: fecha });
-        }
-      });
-      document.getElementById("modalPago").style.display = "none";
-      // Recargar tabla de pagos para mostrar facturas pendientes y pagadas
-      cargarPagoFacturas();})
-    .catch(err => {
-      console.error("Error al registrar pago:", err);
-      alert("Error al registrar pago: " + err.message);
-    });
-};
-</script>
-
-
-<script>
-document.addEventListener("DOMContentLoaded", function(){
-  const pasteArea = document.getElementById("pasteArea");
-  const fileInput = document.getElementById("inputPagoImagen");
-  // Paste support
-  pasteArea.addEventListener("paste", function(e){
-    e.preventDefault();
-    if (e.clipboardData) {
-      const items = e.clipboardData.items;
-      for (let i = 0; i < items.length; i++) {
-        if (items[i].type.indexOf("image") !== -1) {
-          const blob = items[i].getAsFile();
-          const dt = new DataTransfer();
-          dt.items.add(blob);
-          fileInput.files = dt.files;
-          const url = URL.createObjectURL(blob);
-          pasteArea.innerHTML = '<img src="'+url+'" style="max-width:100%;height:auto;"/>';
-          // hide placeholders
-          const top = pasteArea.querySelector(".placeholder-top");
-          const bottom = pasteArea.querySelector(".placeholder-bottom");
-          if (top) top.style.display = "none";
-          if (bottom) bottom.style.display = "none";
-          break;
-        }
-      }
-    }
-  });
-  // Drag & drop support
-  pasteArea.addEventListener("dragover", function(e){
-    e.preventDefault();
-  });
-  pasteArea.addEventListener("drop", function(e){
-    e.preventDefault();
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      const file = e.dataTransfer.files[0];
-      const dt = new DataTransfer();
-      dt.items.add(file);
-      fileInput.files = dt.files;
-      const url = URL.createObjectURL(file);
-      pasteArea.innerHTML = '<img src="'+url+'" style="max-width:100%;height:auto;"/>';
-      const top = pasteArea.querySelector(".placeholder-top");
-      const bottom = pasteArea.querySelector(".placeholder-bottom");
-      if (top) top.style.display = "none";
-      if (bottom) bottom.style.display = "none";
-    }
-  });
-  // Button to open file selector
-  const btn = document.getElementById("btnSelectFile");
-  btn.addEventListener("click", function(){
-    fileInput.click();
-  });
-});
-</script>
-
-
-<script>
-// Handler para “Aceptar Pago”
-document.getElementById("btnAceptarPago").addEventListener("click", function() {
-  const sel = document.getElementById("selectPagoFondo");
-  const fondoPeriodo = sel.value;
-  if (!fondoPeriodo) {
-    return alert("Seleccione un fondo-período.");
-  }
-  const fecha = new Date().toISOString().substr(0,10);
-  const payload = {
-    fila: currentPagoRow.fila,
-    fondoPeriodo: fondoPeriodo,
-    fechaPago: fecha
-  };
-
-  fetch(urlGuardarFactura, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload)
-  })
-  .then(res => {
-    if (!res.ok) throw new Error("HTTP error " + res.status);
-    return res.json();
-  })
-  .then(json => {
-    if (json.status !== "OK") {
-      throw new Error(json.message || "Error al guardar pago.");
-    }
-    // Actualiza la fila en la tabla
-    const table = Tabulator.findTable("#facturas-table")[0];
-    table.getRows().forEach(row => {
-      const data = row.getData();
-      if (data.fila === payload.fila) {
-        row.update({
-          Estado:    "Pagada",
-          Fondo:     payload.fondoPeriodo,
-          FechaPago: payload.fechaPago
-        });
-      }
-    });
-    // Limpia y cierra el modal
-    document.getElementById("inputPagoImagen").value = "";
-    sel.innerHTML = '<option value="">Seleccione</option>';
-    const pa = document.getElementById("pasteArea");
-    pa.innerHTML =
-      '<div class="placeholder-top" contenteditable="false">Arrastra o presiona Ctrl+V</div>' +
-      '<div class="placeholder-bottom" contenteditable="false"></div>';
-    document.getElementById("modalPago").style.display = "none";
-      // Recargar tabla de pagos para mostrar facturas pendientes y pagadas
-      cargarPagoFacturas();})
-  .catch(err => {
-    console.error("Error al guardar pago:", err);
-    alert("Error al guardar pago: " + err.message);
-  });
-});
 </script>
 
 </body>
