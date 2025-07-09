@@ -2325,7 +2325,7 @@ mostrarSeccion('seccionPagoFacturas');
   if (seccion) seccion.style.display = "block";
 
   const spinner = document.getElementById("spinnerPago");
-  const tabla = document.getElementById("tablaPagoFacturas");
+  const tabla = document.getElementById("facturas-table");
   const tbody = tabla ? tabla.querySelector("tbody") : null;
 
   if (!tabla || !tbody || !spinner) return;
@@ -2529,7 +2529,7 @@ document.addEventListener("DOMContentLoaded", function(){
   }
 
   // Hide original elements
-  var tbl = document.getElementById("tablaPagoFacturas");
+  var tbl = document.getElementById("facturas-table");
   if(tbl) tbl.style.display = "none";
 
   // Init flatpickr
@@ -3420,7 +3420,7 @@ document.getElementById("btnAceptarPago").onclick = () => {
     .then(res => res.json())
     .then(res => {
       if (res.status !== "OK") throw new Error(res.message);
-      const table = Tabulator.findTable("#tablaPagoFacturas")[0];
+      const table = Tabulator.findTable("#facturas-table")[0];
       table.getRows().forEach(row => {
         if (row.getData().ID === currentPagoRow.ID) {
           row.update({ Estado: "Pagada", Fondo: sel.value, FechaPago: fecha });
