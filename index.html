@@ -2325,7 +2325,7 @@ mostrarSeccion('seccionPagoFacturas');
   if (seccion) seccion.style.display = "block";
 
   const spinner = document.getElementById("spinnerPago");
-  const tabla = document.getElementById("facturas-table");
+  const tabla = document.getElementById("tablaPagoFacturas");
   const tbody = tabla ? tabla.querySelector("tbody") : null;
 
   if (!tabla || !tbody || !spinner) return;
@@ -2529,7 +2529,7 @@ document.addEventListener("DOMContentLoaded", function(){
   }
 
   // Hide original elements
-  var tbl = document.getElementById("facturas-table");
+  var tbl = document.getElementById("tablaPagoFacturas");
   if(tbl) tbl.style.display = "none";
 
   // Init flatpickr
@@ -3397,7 +3397,8 @@ document.getElementById("btnCancelarPago").onclick = () => {
   const pasteArea = document.getElementById("pasteArea");
   pasteArea.innerHTML = '<div class="placeholder-top" contenteditable="false">Arrastra o presiona Ctrl+V</div><div class="placeholder-bottom" contenteditable="false"></div>';
   // Ocultar modal
-  document.getElementById("modalPago").style.display = "none";};
+  document.getElementById("modalPago").style.display = "none";
+};
 
 document.getElementById("btnAceptarPago").onclick = () => {
   const sel = document.getElementById("selectPagoFondo");
@@ -3411,21 +3412,18 @@ document.getElementById("btnAceptarPago").onclick = () => {
   form.append("fondoPeriodo", sel.value);
   form.append("fechaPago", fecha);
   form.append("comprobante", fileInput.files[0]);
-  fetch(urlGuardarFactura, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ fila: currentPagoRow.fila, fondoPeriodo: document.getElementById("selectPagoFondo").value, fechaPago: new Date().toISOString().substr(0,10) })
-  })
+  fetch(urlGuardarFactura, { method: "POST", body: form })
     .then(res => res.json())
     .then(res => {
       if (res.status !== "OK") throw new Error(res.message);
-      const table = Tabulator.findTable("#facturas-table")[0];
+      const table = Tabulator.findTable("#tablaPagoFacturas")[0];
       table.getRows().forEach(row => {
         if (row.getData().ID === currentPagoRow.ID) {
           row.update({ Estado: "Pagada", Fondo: sel.value, FechaPago: fecha });
         }
       });
-      document.getElementById("modalPago").style.display = "none";})
+      document.getElementById("modalPago").style.display = "none";
+    })
     .catch(err => {
       console.error("Error al registrar pago:", err);
       alert("Error al registrar pago: " + err.message);
@@ -3484,62 +3482,6 @@ document.addEventListener("DOMContentLoaded", function(){
   const btn = document.getElementById("btnSelectFile");
   btn.addEventListener("click", function(){
     fileInput.click();
-  });
-});
-</script>
-
-
-<script>
-// Handler para “Aceptar Pago”
-document.getElementById("btnAceptarPago").addEventListener("click", function() {
-  const sel = document.getElementById("selectPagoFondo");
-  const fondoPeriodo = sel.value;
-  if (!fondoPeriodo) {
-    return alert("Seleccione un fondo-período.");
-  }
-  const fecha = new Date().toISOString().substr(0,10);
-  const payload = {
-    fila: currentPagoRow.fila,
-    fondoPeriodo: fondoPeriodo,
-    fechaPago: fecha
-  };
-
-  fetch(urlGuardarFactura, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload)
-  })
-  .then(res => {
-    if (!res.ok) throw new Error("HTTP error " + res.status);
-    return res.json();
-  })
-  .then(json => {
-    if (json.status !== "OK") {
-      throw new Error(json.message || "Error al guardar pago.");
-    }
-    // Actualiza la fila en la tabla
-    const table = Tabulator.findTable("#facturas-table")[0];
-    table.getRows().forEach(row => {
-      const data = row.getData();
-      if (data.fila === payload.fila) {
-        row.update({
-          Estado:    "Pagada",
-          Fondo:     payload.fondoPeriodo,
-          FechaPago: payload.fechaPago
-        });
-      }
-    });
-    // Limpia y cierra el modal
-    document.getElementById("inputPagoImagen").value = "";
-    sel.innerHTML = '<option value="">Seleccione</option>';
-    const pa = document.getElementById("pasteArea");
-    pa.innerHTML =
-      '<div class="placeholder-top" contenteditable="false">Arrastra o presiona Ctrl+V</div>' +
-      '<div class="placeholder-bottom" contenteditable="false"></div>';
-    document.getElementById("modalPago").style.display = "none";})
-  .catch(err => {
-    console.error("Error al guardar pago:", err);
-    alert("Error al guardar pago: " + err.message);
   });
 });
 </script>
