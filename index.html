@@ -3399,7 +3399,7 @@ document.getElementById("btnCancelarPago").onclick = () => {
   // Ocultar modal
   document.getElementById("modalPago").style.display = "none";
       // Recargar tabla de pagos para mostrar facturas pendientes y pagadas
-      cargarPagoFacturas();};
+      };
 
 document.getElementById("btnAceptarPago").onclick = () => {
   const sel = document.getElementById("selectPagoFondo");
@@ -3429,7 +3429,7 @@ document.getElementById("btnAceptarPago").onclick = () => {
       });
       document.getElementById("modalPago").style.display = "none";
       // Recargar tabla de pagos para mostrar facturas pendientes y pagadas
-      cargarPagoFacturas();})
+      updateCountersPago();})
     .catch(err => {
       console.error("Error al registrar pago:", err);
       alert("Error al registrar pago: " + err.message);
@@ -3542,7 +3542,7 @@ document.getElementById("btnAceptarPago").addEventListener("click", function() {
       '<div class="placeholder-bottom" contenteditable="false"></div>';
     document.getElementById("modalPago").style.display = "none";
       // Recargar tabla de pagos para mostrar facturas pendientes y pagadas
-      cargarPagoFacturas();})
+      updateCountersPago();})
   .catch(err => {
     console.error("Error al guardar pago:", err);
     alert("Error al guardar pago: " + err.message);
