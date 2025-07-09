@@ -3397,10 +3397,7 @@ document.getElementById("btnCancelarPago").onclick = () => {
   const pasteArea = document.getElementById("pasteArea");
   pasteArea.innerHTML = '<div class="placeholder-top" contenteditable="false">Arrastra o presiona Ctrl+V</div><div class="placeholder-bottom" contenteditable="false"></div>';
   // Ocultar modal
-  document.getElementById("modalPago").style.display = "none";
-      applyFilters();
-      updateCounters();
-};
+  document.getElementById("modalPago").style.display = "none";};
 
 document.getElementById("btnAceptarPago").onclick = () => {
   const sel = document.getElementById("selectPagoFondo");
@@ -3428,10 +3425,7 @@ document.getElementById("btnAceptarPago").onclick = () => {
           row.update({ Estado: "Pagada", Fondo: sel.value, FechaPago: fecha });
         }
       });
-      document.getElementById("modalPago").style.display = "none";
-      applyFilters();
-      updateCounters();
-    })
+      document.getElementById("modalPago").style.display = "none";})
     .catch(err => {
       console.error("Error al registrar pago:", err);
       alert("Error al registrar pago: " + err.message);
@@ -3542,10 +3536,7 @@ document.getElementById("btnAceptarPago").addEventListener("click", function() {
     pa.innerHTML =
       '<div class="placeholder-top" contenteditable="false">Arrastra o presiona Ctrl+V</div>' +
       '<div class="placeholder-bottom" contenteditable="false"></div>';
-    document.getElementById("modalPago").style.display = "none";
-      applyFilters();
-      updateCounters();
-  })
+    document.getElementById("modalPago").style.display = "none";})
   .catch(err => {
     console.error("Error al guardar pago:", err);
     alert("Error al guardar pago: " + err.message);
