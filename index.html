@@ -3309,9 +3309,11 @@ function actualizarEstado(fila, estado){
 <div id="modalPago">
   <div class="dialog">
     <h3>Registrar Pago</h3>
-    <label>Comprobante (imagen):<br>
-      <input type="file" id="inputPagoImagen" accept="image/*">
-    </label>
+    <label>Comprobante de pago:<br/>
+      <div id="pasteArea" contenteditable="true" style="border:1px dashed #ccc;padding:1rem;min-height:100px;text-align:center;">
+        Pega la imagen aquí o haz clic para seleccionar
+      </div>
+      <input type="file" id="inputPagoImagen" accept="image/*" style="display:none"/>
     <label>Fondo – Periodo:<br>
       <select id="selectPagoFondo">
         <option value="">Seleccione</option>
@@ -3336,7 +3338,7 @@ function showModalPago(data) {
     .then(rows => {
       const sel = document.getElementById("selectPagoFondo");
       sel.innerHTML = '<option value="">Seleccione</option>';
-      rows.filter(r => r.Sector === data.Sector)
+      rows.filter(r => r.Sector && data.Sector && r.Sector.trim().toLowerCase() === data.Sector.trim().toLowerCase())
           .forEach(r => {
             const val = `${r.Fondo}-${r.Periodo}`;
             sel.appendChild(new Option(val, val));
