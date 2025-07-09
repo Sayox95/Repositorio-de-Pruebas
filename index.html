@@ -2,6 +2,44 @@
 
 <html lang="es">
 <head>
+
+<style>
+  #pasteArea {
+    position: relative;
+    border: 1px dashed #ccc;
+    padding: 1rem;
+    min-height: 150px;
+    text-align: center;
+  }
+  #pasteArea .placeholder-top,
+  #pasteArea .placeholder-bottom {
+    pointer-events: none;
+  }
+  #pasteArea .placeholder-bottom {
+    position: absolute;
+    width: 100%;
+    left: 0;
+    color: #666;
+    pointer-events: none;
+  }
+  #pasteArea .placeholder-top {
+    top: 1rem;
+  }
+  #pasteArea .placeholder-bottom {
+    bottom: 1rem;
+  }
+  #pasteArea img {
+    max-width: 100%;
+    max-height: 100%;
+    margin: auto;
+    display: block;
+  }
+  
+</style>
+
+  
+
+
 <style>
   .btn-pagar {
     padding: 4px 8px;
@@ -3309,12 +3347,15 @@ function actualizarEstado(fila, estado){
 <div id="modalPago">
   <div class="dialog">
     <h3>Registrar Pago</h3>
-    <label>Comprobante de pago:<br/>
-      <div id="pasteArea" contenteditable="true" style="border:1px dashed #ccc;padding:1rem;min-height:100px;text-align:center;">
-        Pega la imagen aquí o haz clic para seleccionar
-      </div>
-      <input type="file" id="inputPagoImagen" accept="image/*" style="display:none"/>
-    <label>Fondo – Periodo:<br>
+    
+<label>Comprobante de pago:</label>
+<div id="pasteArea" contenteditable="true" spellcheck="false" tabindex="0" style="border:1px dashed #ccc;padding:1rem;min-height:150px;text-align:center;position:relative;">
+  <div class="placeholder-top" contenteditable="false">Arrastra o presiona Ctrl+V</div>
+  <div class="placeholder-bottom" contenteditable="false"></div>
+</div>
+<button id="btnSelectFile" style="display:block;margin:0.5rem auto;padding:0.25rem 0.5rem;height:2rem;font-size:0.875rem;">Seleccionar archivo</button>
+<input type="file" id="inputPagoImagen" accept="image/*" style="display:none"/>
+<label>Fondo – Periodo:<br>
       <select id="selectPagoFondo">
         <option value="">Seleccione</option>
       </select>
@@ -3379,6 +3420,61 @@ document.getElementById("btnAceptarPago").onclick = () => {
       alert("Error al registrar pago: " + err.message);
     });
 };
+</script>
+
+
+<script>
+document.addEventListener("DOMContentLoaded", function(){
+  const pasteArea = document.getElementById("pasteArea");
+  const fileInput = document.getElementById("inputPagoImagen");
+  // Paste support
+  pasteArea.addEventListener("paste", function(e){
+    e.preventDefault();
+    if (e.clipboardData) {
+      const items = e.clipboardData.items;
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf("image") !== -1) {
+          const blob = items[i].getAsFile();
+          const dt = new DataTransfer();
+          dt.items.add(blob);
+          fileInput.files = dt.files;
+          const url = URL.createObjectURL(blob);
+          pasteArea.innerHTML = '<img src="'+url+'" style="max-width:100%;height:auto;"/>';
+          // hide placeholders
+          const top = pasteArea.querySelector(".placeholder-top");
+          const bottom = pasteArea.querySelector(".placeholder-bottom");
+          if (top) top.style.display = "none";
+          if (bottom) bottom.style.display = "none";
+          break;
+        }
+      }
+    }
+  });
+  // Drag & drop support
+  pasteArea.addEventListener("dragover", function(e){
+    e.preventDefault();
+  });
+  pasteArea.addEventListener("drop", function(e){
+    e.preventDefault();
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const file = e.dataTransfer.files[0];
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      fileInput.files = dt.files;
+      const url = URL.createObjectURL(file);
+      pasteArea.innerHTML = '<img src="'+url+'" style="max-width:100%;height:auto;"/>';
+      const top = pasteArea.querySelector(".placeholder-top");
+      const bottom = pasteArea.querySelector(".placeholder-bottom");
+      if (top) top.style.display = "none";
+      if (bottom) bottom.style.display = "none";
+    }
+  });
+  // Button to open file selector
+  const btn = document.getElementById("btnSelectFile");
+  btn.addEventListener("click", function(){
+    fileInput.click();
+  });
+});
 </script>
 
 </body>
