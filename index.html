@@ -2533,10 +2533,10 @@ document.addEventListener("DOMContentLoaded", function(){
   if(tbl) tbl.style.display = "none";
 
   // Init flatpickr
-window.flatpickrPago = flatpickr("#filtroFechaPago", {
-  mode: "range", dateFormat: "Y-m-d", locale: flatpickr.l10ns.es,
-  onClose: function(){ window.applyFilters(); }
-});
+  window.flatpickrPago = flatpickr("#filtroFechaPago", {
+    mode: "range", dateFormat: "Y-m-d", locale: flatpickr.l10ns.es,
+    onClose: function(){ window.applyFilters(); }
+  });
 
   // Create Tabulator
   var table = new Tabulator("#facturas-table", {
@@ -2653,18 +2653,18 @@ groupHeader:function(value, count, data){
     if(e!="Todos") filters.push({field:"Estado",type:"=",value:e});
     var n = document.getElementById("filtroNumeroPago").value;
     if(n) filters.push({field:"Numero de Factura",type:"like",value:n});
-   var d = flatpickrPago.selectedDates || [];
+    +  var d = flatpickrPago.selectedDates || [];
    if (d.length) {
      var start = d[0].toISOString().split("T")[0];
      var end   = (d.length === 2) ? d[1].toISOString().split("T")[0] : start;
  
      if (start === end) {
-       // Un solo día
-       filters.push({ field: "Fecha", type: "=", value: start });
+       // un solo día: coincide cualquier hora de ese día
+       filters.push({ field:"Fecha", type:"like", value:start });
      } else {
-       // Rango completo
-       filters.push({ field: "Fecha", type: ">=", value: start });
-       filters.push({ field: "Fecha", type: "<=", value: end });
+       // rango completo desde inicio hasta fin del día
+       filters.push({ field:"Fecha", type:">=", value:start + "T00:00:00" });
+       filters.push({ field:"Fecha", type:"<=", value:end   + "T23:59:59" });
      }
    }
     if(filters.length) table.setFilter(filters);
