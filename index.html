@@ -3376,6 +3376,25 @@ function actualizarEstado(fila, estado){
   </div>
 </div>
 
+<!-- Overlay “Registrando Pago…” -->
+<div id="overlayPagoRegistrando" style="
+  visibility: hidden;
+  opacity: 0;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 3000;
+  transition: opacity 0.3s ease;
+">
+  <div class="spinner"></div>
+  <div style="color:white; font-size:20px; font-weight:bold; margin-top:20px; text-align:center;">
+    Registrando Pago...
+  </div>
+</div>
 
 <script>
 // Funciones para pago de facturas
@@ -3472,9 +3491,16 @@ document.addEventListener("DOMContentLoaded", function(){
 <script>
 // Handler para “Aceptar Pago”
 document.getElementById("btnAceptarPago").addEventListener("click", function() {
+   // Mostrar overlay de registro
+   const ov = document.getElementById("overlayPagoRegistrando");
+   ov.style.visibility = "visible";
+   ov.style.opacity    = 1;
   const sel = document.getElementById("selectPagoFondo");
   const fondoPeriodo = sel.value;
   if (!fondoPeriodo) {
+    // Ocultar overlay si hay error
+     ov.style.opacity    = 0;
+     setTimeout(()=> ov.style.visibility = "hidden", 300);
     return alert("Seleccione un fondo-período.");
   }
   const fecha = new Date().toISOString().substr(0,10);
@@ -3522,7 +3548,13 @@ document.getElementById("btnAceptarPago").addEventListener("click", function() {
   .catch(err => {
     console.error("Error al guardar pago:", err);
     alert("Error al guardar pago: " + err.message);
-  });
+   })
+   .finally(() => {
+     // Ocultar overlay al finalizar (éxito o error)
+     const ov = document.getElementById("overlayPagoRegistrando");
+     ov.style.opacity = 0;
+     setTimeout(() => ov.style.visibility = "hidden", 300);
+   });
 });
 </script>
 
