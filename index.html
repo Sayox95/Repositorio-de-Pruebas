@@ -3191,7 +3191,7 @@ function mostrarOverlayRevision(modo){
 
 // Actualiza contadores de revisión
 function updateCountersRevision(){
-  var data = window.tableRevision ? window.tableRevision.getData() : window.revisionFacturasGlobal || [];
+   var data = window.tableRevision ? window.tableRevision.getData("active") : window.revisionFacturasGlobal || [];
   var regs = 0, revisadas = 0, anuladas = 0;
   data.forEach(function(f){
     var e = (f.Estado || "").toLowerCase().trim();
