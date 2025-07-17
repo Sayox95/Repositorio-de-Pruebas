@@ -3190,10 +3190,8 @@ function mostrarOverlayRevision(modo){
 
 
 // Actualiza contadores de revisión
-
 function updateCountersRevision(){
-  var table = window.tableRevision;
-  var data = table ? table.getData("active") : window.revisionFacturasGlobal || [];
+  var data = window.tableRevision ? window.tableRevision.getData("active") : window.revisionFacturasGlobal || [];
   var regs = 0, revisadas = 0, anuladas = 0;
   data.forEach(function(f){
     var e = (f.Estado || "").toLowerCase().trim();
@@ -3205,7 +3203,6 @@ function updateCountersRevision(){
   document.getElementById('counterRevisadas').textContent = revisadas;
   document.getElementById('counterAnuladas').textContent = anuladas;
 }
-
 // Botón o evento para entrar a sección
 function cargarRevisionFacturas(){
   mostrarSeccion('revisionFacturas');
