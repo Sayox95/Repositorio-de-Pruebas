@@ -2653,10 +2653,10 @@ groupHeader:function(value, count, data){
     if(e!="Todos") filters.push({field:"Estado",type:"=",value:e});
     var n = document.getElementById("filtroNumeroPago").value;
     if(n) filters.push({field:"Numero de Factura",type:"like",value:n});
-    +  var d = flatpickrPago.selectedDates || [];
-   if (d.length) {
-     var start = d[0].toISOString().split("T")[0];
-     var end   = (d.length === 2) ? d[1].toISOString().split("T")[0] : start;
+    var d = flatpickrPago.selectedDates || [];
+    if (d.length) {
+      var start = d[0].toISOString().split("T")[0];
+      var end   = (d.length === 2) ? d[1].toISOString().split("T")[0] : start;
  
      if (start === end) {
        // un solo día: coincide cualquier hora de ese día
