@@ -2653,11 +2653,20 @@ groupHeader:function(value, count, data){
     if(e!="Todos") filters.push({field:"Estado",type:"=",value:e});
     var n = document.getElementById("filtroNumeroPago").value;
     if(n) filters.push({field:"Numero de Factura",type:"like",value:n});
-    var d = flatpickrPago.selectedDates;
-    if(d.length==2){
-      filters.push({field:"Fecha",type:">=",value:d[0].toISOString().split("T")[0]});
-      filters.push({field:"Fecha",type:"<=",value:d[1].toISOString().split("T")[0]});
-    }
+   var d = flatpickrPago.selectedDates || [];
+   if (d.length) {
+     var start = d[0].toISOString().split("T")[0];
+     var end   = (d.length === 2) ? d[1].toISOString().split("T")[0] : start;
+ 
+     if (start === end) {
+       // Un solo día
+       filters.push({ field: "Fecha", type: "=", value: start });
+     } else {
+       // Rango completo
+       filters.push({ field: "Fecha", type: ">=", value: start });
+       filters.push({ field: "Fecha", type: "<=", value: end });
+     }
+   }
     if(filters.length) table.setFilter(filters);
     else table.clearFilter(true);
     updateCounters();
