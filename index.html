@@ -37,9 +37,6 @@
   
 </style>
 
-  
-
-
 <style>
   .btn-pagar {
     padding: 4px 8px;
@@ -2609,6 +2606,22 @@ groupHeader:function(value, count, data){
     var btn = document.getElementById("btn-pagar-facturas");
     btn.style.display = data.length > 0 ? "inline-block" : "none";
   });
+
+  // ==== Patch: función para pagos masivos ====
+  window.actualizarEstadoMultiple = async function(filas, nuevoEstado) {
+    // Para cada fila, envía una petición de pago
+    for (const fila of filas) {
+      const resp = await fetch(urlGuardarFactura, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fila: fila, nuevoEstado: nuevoEstado })
+      });
+      const result = await resp.json();
+      if (result.status !== "OK") {
+        throw new Error(result.message || "Error al actualizar estados múltiples");
+      }
+    }
+  };
 
   // Acción del botón para marcar facturas como pagadas masivamente
   document.getElementById("btn-pagar-facturas").addEventListener("click", async function(){
