@@ -2533,10 +2533,10 @@ document.addEventListener("DOMContentLoaded", function(){
   if(tbl) tbl.style.display = "none";
 
   // Init flatpickr
-  window.flatpickrPago = flatpickr("#filtroFechaPago", {
-    mode: "range", dateFormat: "Y-m-d", locale: flatpickr.l10ns.es,
-    onClose: function(){ window.applyFilters(); }
-  });
+window.flatpickrPago = flatpickr("#filtroFechaPago", {
+  mode: "range", dateFormat: "Y-m-d", locale: flatpickr.l10ns.es,
+  onClose: function(){ window.applyFilters(); }
+});
 
   // Create Tabulator
   var table = new Tabulator("#facturas-table", {
