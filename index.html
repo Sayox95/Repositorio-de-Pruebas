@@ -2425,7 +2425,7 @@ filtradas.forEach((f, index) => {
 <script>
 // Update counters based on Tabulator's internal data
 function updateCountersPago() {
-  const data = window.tabulatorTable.getData();
+  const data = window.tabulatorTable.getData("active");
   let pendientes = 0, pagadas = 0;
   let sumPend = 0, sumPag = 0;
   data.forEach(f => {
@@ -3191,7 +3191,7 @@ function mostrarOverlayRevision(modo){
 
 // Actualiza contadores de revisión
 function updateCountersRevision(){
-  var data = window.tableRevision ? window.tableRevision.getData("active") : window.revisionFacturasGlobal || [];
+  var data = window.tableRevision ? window.tableRevision.getData() : window.revisionFacturasGlobal || [];
   var regs = 0, revisadas = 0, anuladas = 0;
   data.forEach(function(f){
     var e = (f.Estado || "").toLowerCase().trim();
