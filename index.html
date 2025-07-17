@@ -2585,14 +2585,19 @@ groupHeader:function(value, count, data){
           var v = cell.getValue();
           return v?`<a href="${v}" target="_blank">📄</a>`:"";
       }},
-      {title:"Estado", field:"Estado", hozAlign:"center",
-          formatter:function(cell){
-            var v = (cell.getValue()||"").toLowerCase();
-            return v==="pagada" ? "Pagado" : '<button class="btn-pagar">Pagar</button>';
-          },
-          cellClick:function(e, cell){
-            showModalPago(cell.getRow().getData());
-          }
+        {title:"Estado", field:"Estado", hozAlign:"center",
+            formatter:function(cell){
+              var v = (cell.getValue()||"").toLowerCase();
+              return v==="pagada" ? "Pagado" : '<button class="btn-pagar">Pagar</button>';
+            },
+            cellClick:function(e, cell){
+              var v = (cell.getValue()||"").toLowerCase();
+              if(v === "pagada"){
+                // Ya pagada: no permitir acción
+                return;
+              }
+              showModalPago(cell.getRow().getData());
+           }
         },
     ],
   });
