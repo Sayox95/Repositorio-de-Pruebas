@@ -662,6 +662,7 @@ function actualizarVisibilidadBotonesMasivos() {
     margin-left: 0.25rem !important;
 }
 </style>
+
 <style>
 #overlayRevision { display:none; position:absolute; top:0; left:0; right:0; bottom:0;
   background:rgba(0,0,0,0.5); z-index:1000; display:flex; align-items:center; justify-content:center;
@@ -1653,22 +1654,7 @@ const docDefinition = {
   margin: [0, 0, 0, 10]
 },,
 
-      {
-        
-groupHeader:function(value, count, data){
-    // Encontrar el primer nombre coincidente por identidad
-    let fullName = "";
-    for (let i = 0; i < data.length; i++) {
-        if (data[i].Identidad === value && data[i].Nombre) {
-            fullName = data[i].Nombre;
-            break;
-        }
-    }
-    // Calcular el total por grupo
-    let total = data.reduce((sum, row) => sum + (parseFloat(row["Total Gastado"]) || 0), 0);
-    return `${fullName} - ${value} - ${count} factura(s) - Total: L ${total.toFixed(2)}`;
-},
-
+{
     columns: [
         {formatter: 'rowSelection', titleFormatter: 'rowSelection', hozAlign: 'center', headerSort: false},
           {
@@ -2539,14 +2525,46 @@ document.addEventListener("DOMContentLoaded", function(){
   var table = new Tabulator("#facturas-table", {
     layout: "fitColumns", selectable: true, height: "500px", virtualDom: true, placeholder: "",
     
-groupHeader:function(value, count, data){
-    // Obtener nombre completo
-    var fullName = data.find(r => r.Identidad === value && r.Nombre).Nombre;
-    // Calcular total y formatear con separadores de miles
-    var total = data.reduce((sum, row) => sum + (parseFloat(row["Total Gastado"])||0), 0);
-    var formattedTotal = total.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
-    return `${fullName} - ${value} - ${count} factura(s) - Total: L ${formattedTotal}`;
-},
+groupHeader:function(value, count, data, group){
+      // Encontrar nombre completo
+      let fullName = "";
+      for(let r of data){
+       if(r.Identidad === value && r.Nombre){
+          fullName = r.Nombre;
+          break;
+        }
+     }
+      // Sumar total gastado
+      const total = data.reduce((sum, row) => sum + (parseFloat(row["Total Gastado"])||0), 0);
+      const formatted = total.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+
+      // Construir cabecera con checkbox
+      const container = document.createElement("div");
+      container.style.display = "inline-flex";
+      container.style.alignItems = "center";
+      container.style.lineHeight = "1.2";
+      container.style.padding = "2px 4px";
+      container.style.justifyContent = "flex-start";
+      container.style.margin         = "0"; 
+
+     const cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.style.transform = "scale(0.9)";
+      cb.style.margin = "0 6px 0 0";
+      cb.style.verticalAlign = "middle";
+      cb.addEventListener("change", e => {
+        group.getRows().forEach(row => e.target.checked ? row.select() : row.deselect());
+      });
+      container.appendChild(cb);
+
+      const label = document.createElement("span");
+      label.textContent = `${fullName} - ${value} - ${count} factura(s) - Total: L ${formatted}`;
+      label.style.flexGrow = "1";     // para que el label use todo el espacio disponible
+      label.style.textAlign = "left"; // y su texto quede a la izquierda
+      container.appendChild(label);
+
+      return container;
+    },
 
     columns: [
       {formatter:"rowSelection", titleFormatter:"rowSelection", hozAlign:"center", headerSort:false},
@@ -2623,21 +2641,15 @@ groupHeader:function(value, count, data){
     }
   };
 
-  // Acción del botón para marcar facturas como pagadas masivamente
-  document.getElementById("btn-pagar-facturas").addEventListener("click", async function(){
-    var selectedRows = table.getSelectedRows();
-    var filas = selectedRows.map(row => row.getData().fila);
-    this.style.display = "none";
-    await actualizarEstadoMultiple(filas, "Pagada");
-    selectedRows.forEach(function(row){
-      row.update({Estado: "Pagada"});
-    });
-  });
+ document.getElementById("btn-pagar-facturas").addEventListener("click", function(){
+   const selected = table.getSelectedRows();
+   if (!selected.length) return;
 
-
-  var isGroupView = false;
+   // Abrir modal de pago para la primera factura seleccionada
+   const data = selected[0].getData();
+   showModalPago(data);
+ });
   
-
 
   // Load data function
   function loadDataPagoFacturas(){
