@@ -3547,12 +3547,10 @@ document.addEventListener("DOMContentLoaded", function(){
 </script>
 
 
-<script>
 // Handler para “Aceptar Pago”
 document.getElementById("btnAceptarPago").addEventListener("click", async function() {
   const table = window.tabulatorTable || Tabulator.findTable("#facturas-table")[0];
-  
-  // Guardamos la selección ORIGINAL para el envío de correos
+  // Guardamos la selección ORIGINAL para pago y envío de correos
   const selectedPagoRowsPrev = [...selectedPagoRows];
 
   try {
@@ -3562,8 +3560,8 @@ document.getElementById("btnAceptarPago").addEventListener("click", async functi
     ov.style.opacity    = 1;
 
     // 2) Validar fondo-período
-    const sel           = document.getElementById("selectPagoFondo");
-    const fondoPeriodo  = sel.value;
+    const sel          = document.getElementById("selectPagoFondo");
+    const fondoPeriodo = sel.value;
     if (!fondoPeriodo) {
       ov.style.opacity = 0;
       setTimeout(() => ov.style.visibility = "hidden", 300);
@@ -3574,27 +3572,30 @@ document.getElementById("btnAceptarPago").addEventListener("click", async functi
 
     // 3) Guardar pago local (masivo o individual)
     if (selectedPagoRowsPrev.length > 1) {
+      // Pagos masivos
       const filas = selectedPagoRowsPrev.map(r => r.getData().fila);
       await actualizarEstadoMultiple(filas, "Pagada", fondoPeriodo, fechaPago);
       selectedPagoRowsPrev.forEach(r => r.update({
-        Estado: "Pagada",
-        Fondo:  fondoPeriodo,
+        Estado:    "Pagada",
+        Fondo:     fondoPeriodo,
         FechaPago: fechaPago
       }));
       table.deselectRow();
       document.getElementById("btn-pagar-facturas").style.display = "none";
     } else {
-      const fila = currentPagoRow.fila;
+      // Pago individual
+      const rowComp = currentPagoRow;
+      const fila    = rowComp.getData().fila;
       await fetch(urlGuardarFactura, {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
         body:    JSON.stringify({ fila, fondoPeriodo, fechaPago })
-      }).then(r => r.json()).then(j => {
-        if (j.status !== "OK") throw new Error(j.mensaje || "Error al guardar");
-      });
-      currentPagoRow.update({
-        Estado: "Pagada",
-        Fondo:  fondoPeriodo,
+      })
+      .then(r => r.json())
+      .then(j => { if (j.status !== "OK") throw new Error(j.mensaje || "Error al guardar"); });
+      rowComp.update({
+        Estado:    "Pagada",
+        Fondo:     fondoPeriodo,
         FechaPago: fechaPago
       });
     }
