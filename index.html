@@ -2625,8 +2625,12 @@ groupHeader:function(value, count, data, group){
                 return;
               }
                 // Forzar modo INDIVIDUAL: limpiar arreglo masivo antes de abrir modal.
-  selectedPagoRows = [];
-  showModalPago(cell.getRow().getData());
+ // Limpia cualquier selección múltiple
+ selectedPagoRows = [];
+ // Guarda el RowComponent completo
+ currentPagoRow = cell.getRow();
+ // Abre el modal con sus datos
+ showModalPago(currentPagoRow.getData());
            }
         },
     ],
