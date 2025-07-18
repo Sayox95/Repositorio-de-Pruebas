@@ -3620,16 +3620,6 @@ document.getElementById("btnAceptarPago").addEventListener("click", async functi
       });
     }
 
-    // 4) Limpiar UI local
-    selectedPagoRows = [];
-    document.getElementById("inputPagoImagen").value = "";
-    sel.innerHTML = '<option value="">Seleccione</option>';
-    const pa = document.getElementById("pasteArea");
-    pa.innerHTML =
-      '<div class="placeholder-top" contenteditable="false">Arrastra o presiona Ctrl+V</div>' +
-      '<div class="placeholder-bottom" contenteditable="false"></div>';
-    document.getElementById("modalPago").style.display = "none";
-    updateCountersPago();
 
     // 5) Preparar datos para el correo
     const filas = selectedPagoRowsPrev.map(r => r.getData()["Numero de Factura"]);
@@ -3688,6 +3678,17 @@ document.getElementById("btnAceptarPago").addEventListener("click", async functi
     ov.style.opacity = 0;
     setTimeout(() => ov.style.visibility = "hidden", 300);
   }
+    // 8) Limpiar UI local (AHORA SÍ DESPUÉS de enviar el correo)
+  selectedPagoRows = [];
+   document.getElementById("inputPagoImagen").value = "";
+   const sel2 = document.getElementById("selectPagoFondo");
+    sel2.innerHTML = '<option value="">Seleccione</option>';
+    const pa2 = document.getElementById("pasteArea");
+    pa2.innerHTML =
+      '<div class="placeholder-top" contenteditable="false">Arrastra o presiona Ctrl+V</div>' +
+      '<div class="placeholder-bottom" contenteditable="false"></div>';
+    document.getElementById("modalPago").style.display = "none";
+    updateCountersPago();
 });
 
 </script>
