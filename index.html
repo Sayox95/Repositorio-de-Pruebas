@@ -75,7 +75,7 @@
   const urlGuardarAnticipo = "/api/GuardarAnti";
   const urlLeerAnticipos = "/api/Anticipos";
   const urlGuardarFactura = "/api/guardar";
-  const Envio_Correos = 'https://script.google.com/macros/s/AKfycbzTnfw2m35aUJrJkTJbIqYFT747LuQSVOzsKAXBBYFgVuMrxpIu0cOYC6BhY1BgP17J/exec';
+  const Envio_Correos = 'https://script.google.com/macros/s/AKfycbzDwmpuJ3btfGVLLoOepr8u5YMmBTb2QhlJ7FPQ64eFfPOaYsBZyIDz6azwvL2N4g1W/exec';
 </script>
 <!-- ==== unload listener interception Patch v26 ==== -->
 <script>
@@ -3641,7 +3641,7 @@ document.getElementById("btnAceptarPago").addEventListener("click", async functi
     };
     const mailResp = await fetch(Envio_Correos, {
       method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body:    JSON.stringify(mailPayload)
     });
     const mailResult = await mailResp.json();
