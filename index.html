@@ -3546,6 +3546,22 @@ document.addEventListener("DOMContentLoaded", function(){
   btn.addEventListener("click", function(){
     fileInput.click();
   });
+   fileInput.addEventListener("change", function() {
+   if (!this.files || !this.files.length) return;
+   const file = this.files[0];
+   if (!file.type.startsWith("image/")) return;
+
+   // Renderizar preview
+   const url = URL.createObjectURL(file);
+   pasteArea.innerHTML = `<img src="${url}" style="max-width:100%;height:auto;"/>`;
+   // Ocultar placeholders
+   pasteArea.querySelector(".placeholder-top")?.remove();
+   pasteArea.querySelector(".placeholder-bottom")?.remove();
+
+   // (Opcional) Sincronizar input.files con DataTransfer
+   const dt = new DataTransfer();
+   dt.items.add(file);
+   fileInput.files = dt.files;
 });
 </script>
 
