@@ -2640,20 +2640,27 @@ groupHeader:function(value, count, data, group){
   });
 
   // ==== Patch: función para pagos masivos ====
-  window.actualizarEstadoMultiple = async function(filas, nuevoEstado) {
-    // Para cada fila, envía una petición de pago
-    for (const fila of filas) {
-      const resp = await fetch(urlGuardarFactura, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fila: fila, nuevoEstado: nuevoEstado })
-      });
-      const result = await resp.json();
+  window.actualizarEstadoMultiple = async function(filas, nuevoEstado, fondoPeriodo, fechaPago) {
+  // Envía en paralelo todas las peticiones de pago con todos los datos
+  await Promise.all(filas.map(fila =>
+    fetch(urlGuardarFactura, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        fila:         fila,
+        nuevoEstado:  nuevoEstado,
+        fondoPeriodo: fondoPeriodo,
+        fechaPago:    fechaPago
+      }),
+    })
+    .then(res => res.json())
+    .then(result => {
       if (result.status !== "OK") {
         throw new Error(result.message || "Error al actualizar estados múltiples");
       }
-    }
-  };
+    })
+  ));
+};
 
 document.getElementById("btn-pagar-facturas").addEventListener("click", function(){
   const table = window.tabulatorTable || Tabulator.findTable("#facturas-table")[0];
@@ -3557,8 +3564,8 @@ try {
     /* --- PAGOS MASIVOS --- */
     const filas = selectedPagoRows.map(r => r.getData().fila);
 
-    // Reutiliza la utilidad ya existente de actualización múltiple.
-     await actualizarEstadoMultiple(filas, "Pagada");  /* e.g., guardar por cada fila */
+    // Ahora pasamos también fondoPeriodo y fecha
+    await actualizarEstadoMultiple(filas, "Pagada", fondoPeriodo, fecha);
 
     // Refleja cambios en todas las filas seleccionadas
     selectedPagoRows.forEach(r => r.update({
