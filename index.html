@@ -75,6 +75,7 @@
   const urlGuardarAnticipo = "/api/GuardarAnti";
   const urlLeerAnticipos = "/api/Anticipos";
   const urlGuardarFactura = "/api/guardar";
+  const Envio_Correos = 'https://script.google.com/macros/s/AKfycbzZ_byMaZc7znqyCmrvJzcY4TuhjcIL645mFEjg5vN-aYI0YYrJyow80VVfRqRCqQAm/exec';
 </script>
 <!-- ==== unload listener interception Patch v26 ==== -->
 <script>
@@ -3545,84 +3546,69 @@ document.addEventListener("DOMContentLoaded", function(){
 <script>
 // Handler para “Aceptar Pago”
 document.getElementById("btnAceptarPago").addEventListener("click", async function() {
-  const table = window.tabulatorTable || Tabulator.findTable("#facturas-table")[0];
-try {
-   // Mostrar overlay de registro
-   const ov = document.getElementById("overlayPagoRegistrando");
-   ov.style.visibility = "visible";
-   ov.style.opacity    = 1;
-  const sel = document.getElementById("selectPagoFondo");
-  const fondoPeriodo = sel.value;
-  if (!fondoPeriodo) {
-    // Ocultar overlay si hay error
-     ov.style.opacity    = 0;
-     setTimeout(()=> ov.style.visibility = "hidden", 300);
-    return alert("Seleccione un fondo-período.");
-  }
-  const fecha = new Date().toISOString().substr(0,10);
-   if (selectedPagoRows.length > 1) {
-    /* --- PAGOS MASIVOS --- */
-    const filas = selectedPagoRows.map(r => r.getData().fila);
+  try {
+    // 1) Overlay “guardando”
+    const ov = document.getElementById("overlayPagoRegistrando");
+    ov.style.visibility = 'visible';
+    ov.style.opacity    = 1;
 
-    // Ahora pasamos también fondoPeriodo y fecha
-    await actualizarEstadoMultiple(filas, "Pagada", fondoPeriodo, fecha);
+    // 2) Recoger datos de la tabla
+    const filas        = selectedPagoRows.map(r => r.getData().fila);
+    const identidades  = selectedPagoRows.map(r => r.getData().Identidad);
+    const montos       = selectedPagoRows.map(r => r.getData()["Total Gastado"]);
+    const fondoPeriodo = document.getElementById("selectPagoFondo").value;
+    const fechaPago    = new Date().toISOString().substr(0,10);
 
-    // Refleja cambios en todas las filas seleccionadas
-    selectedPagoRows.forEach(r => r.update({
-      Estado: "Pagada",
-      Fondo: fondoPeriodo,
-      FechaPago: fecha
-    }));
+    // 3) Guardar cambio de estado (masivo o individual)
+    if (filas.length > 1) {
+      await actualizarEstadoMultiple(filas, "Pagada", fondoPeriodo, fechaPago);
+      selectedPagoRows.forEach(r => r.update({ Estado:"Pagada", Fondo:fondoPeriodo, FechaPago:fechaPago }));
+    } else {
+      const fila = filas[0];
+      await fetch(urlGuardarFactura, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({ fila, nuevoEstado:"Pagada", fondoPeriodo, fechaPago })
+      });
+      selectedPagoRows[0].update({ Estado:"Pagada", Fondo:fondoPeriodo, FechaPago:fechaPago });
+    }
+    selectedPagoRows = [];
+    document.getElementById("modalPago").style.display = 'none';
+    updateCountersPago();
 
-    // Limpia selección masiva y oculta botón
-    table.deselectRow();
-    document.getElementById("btn-pagar-facturas").style.display = "none";
+    // 4) Convertir imágenes a base64
+    const images = [];
+    const inputImg = document.getElementById("inputPagoImagen");
+    for (const file of inputImg.files) {
+      const dataURL = await new Promise(res => {
+        const fr = new FileReader();
+        fr.onload = () => res(fr.result.split(',')[1]);
+        fr.readAsDataURL(file);
+      });
+      images.push({ filename:file.name, mime:file.type, data:dataURL });
+    }
 
-  } else {
-    /* --- PAGO INDIVIDUAL (flujo original) --- */
-    const payload = {
-      fila: currentPagoRow.fila,
-      fondoPeriodo: fondoPeriodo,
-      fechaPago: fecha
-    };
-    const resp = await fetch(urlGuardarFactura, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
+    // 5) Enviar payload al Apps Script
+    const payload = { filas, identidades, montos, fondoPeriodo, fechaPago, images };
+    const response = await fetch(Envio_Correos, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(payload)
     });
-    const json = await resp.json();
-    if (json.status !== "OK") throw new Error(json.mensaje || "Error al guardar");
+    const result = await response.json();
+    if (result.status !== 'OK') {
+      throw new Error(result.message || 'Error enviando correos');
+    }
+    alert('Correos enviados correctamente.');
 
-    // Actualiza UI para la única fila
-    currentPagoRow.update({
-      Estado: "Pagada",
-      Fondo: fondoPeriodo,
-      FechaPago: fecha
-    });
-  }
-
-  // Reinicia arreglo masivo para no contaminar un pago individual posterior
-  selectedPagoRows = [];
-
-
-    document.getElementById("inputPagoImagen").value = "";
-    sel.innerHTML = '<option value="">Seleccione</option>';
-    const pa = document.getElementById("pasteArea");
-    pa.innerHTML =
-      '<div class="placeholder-top" contenteditable="false">Arrastra o presiona Ctrl+V</div>' +
-      '<div class="placeholder-bottom" contenteditable="false"></div>';
-    document.getElementById("modalPago").style.display = "none";
-      // Recargar tabla de pagos para mostrar facturas pendientes y pagadas
-           updateCountersPago();
-  } 
-    catch(err) {
-    console.error("Error al guardar pago:", err);
-    alert("Error al guardar pago: " + err.message);
+  } catch (err) {
+    console.error(err);
+    alert('Error: ' + err.message);
   } finally {
-    // Ocultar overlay al finalizar (éxito o error)
+    // 6) Ocultar overlay
     const ov = document.getElementById("overlayPagoRegistrando");
     ov.style.opacity = 0;
-    setTimeout(() => ov.style.visibility = "hidden", 300);
+    setTimeout(()=> ov.style.visibility='hidden', 300);
   }
 });
 
