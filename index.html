@@ -2630,7 +2630,7 @@ groupHeader:function(value, count, data, group){
  // Guarda el RowComponent completo
  currentPagoRow = cell.getRow();
  // Abre el modal con sus datos
- showModalPago(currentPagoRow.getData());
+ showModalPago(currentPagoRow.getData(), currentPagoRow);
            }
         },
     ],
@@ -2674,7 +2674,7 @@ document.getElementById("btn-pagar-facturas").addEventListener("click", function
 
   // Abre el modal reutilizando la primera factura como referencia
   const data = selectedPagoRows[0].getData();
-  showModalPago(data);
+  showModalPago(data, selectedPagoRows[0]);
 });
   
 
