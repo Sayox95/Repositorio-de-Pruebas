@@ -3622,6 +3622,9 @@ document.getElementById("btnAceptarPago").addEventListener("click", async functi
     // 6) Leer imágenes y convertir a base64
     const images = [];
     const inputImg = document.getElementById("inputPagoImagen");
+	  
+    console.log('[Pago] Ficheros seleccionados:', inputImg.files.length, inputImg.files);
+	  
     for (const file of inputImg.files) {
       const dataURL = await new Promise(res => {
         const fr = new FileReader();
