@@ -3615,7 +3615,7 @@ document.getElementById("btnAceptarPago").addEventListener("click", async functi
     updateCountersPago();
 
     // 5) Preparar datos para el correo
-    const filas       = selectedPagoRowsPrev.map(r => r.getData().fila);
+    const filas = selectedPagoRowsPrev.map(r => r.getData()["Numero de Factura"]);
     const identidades = selectedPagoRowsPrev.map(r => r.getData().Identidad);
     const montos      = selectedPagoRowsPrev.map(r => r.getData()["Total Gastado"]);
 
