@@ -3639,12 +3639,19 @@ document.getElementById("btnAceptarPago").addEventListener("click", async functi
       fechaPago,
       images
     };
+    console.log('[Pago] Enviando correo con payload:', mailPayload);
+
     const mailResp = await fetch(Envio_Correos, {
       method:  'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body:    JSON.stringify(mailPayload)
     });
+    console.log('[Pago] Respuesta fetch status:', mailResp.status, mailResp.statusText);
+
     const mailResult = await mailResp.json();
+	
+    console.log('[Pago] Respuesta fetch body:', mailResult);
+
     if (mailResult.status !== 'OK') {
       throw new Error(mailResult.message || 'Error enviando notificaciones');
     }
