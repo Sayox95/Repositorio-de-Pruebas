@@ -3462,6 +3462,7 @@ let selectedPagoRows = [];
  function showModalPago(data, rowComp) {
    // Guarda el componente de Tabulator, no sólo los datos
    currentPagoRow = rowComp;
+   selectedPagoRows = [rowComp];
   // Cargar fondos asociados al sector
   fetch(urlLeerAnticipos)
     .then(res => res.json())
