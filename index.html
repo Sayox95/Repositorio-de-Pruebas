@@ -3546,37 +3546,72 @@ document.addEventListener("DOMContentLoaded", function(){
 <script>
 // Handler para “Aceptar Pago”
 document.getElementById("btnAceptarPago").addEventListener("click", async function() {
+  const table = window.tabulatorTable || Tabulator.findTable("#facturas-table")[0];
+  
+  // Guardamos la selección ORIGINAL para el envío de correos
+  const selectedPagoRowsPrev = [...selectedPagoRows];
+
   try {
-    // 1) Overlay “guardando”
+    // 1) Mostrar overlay de registro
     const ov = document.getElementById("overlayPagoRegistrando");
-    ov.style.visibility = 'visible';
+    ov.style.visibility = "visible";
     ov.style.opacity    = 1;
 
-    // 2) Recoger datos de la tabla
-    const filas        = selectedPagoRows.map(r => r.getData().fila);
-    const identidades  = selectedPagoRows.map(r => r.getData().Identidad);
-    const montos       = selectedPagoRows.map(r => r.getData()["Total Gastado"]);
-    const fondoPeriodo = document.getElementById("selectPagoFondo").value;
-    const fechaPago    = new Date().toISOString().substr(0,10);
-
-    // 3) Guardar cambio de estado (masivo o individual)
-    if (filas.length > 1) {
-      await actualizarEstadoMultiple(filas, "Pagada", fondoPeriodo, fechaPago);
-      selectedPagoRows.forEach(r => r.update({ Estado:"Pagada", Fondo:fondoPeriodo, FechaPago:fechaPago }));
-    } else {
-      const fila = filas[0];
-      await fetch(urlGuardarFactura, {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({ fila, nuevoEstado:"Pagada", fondoPeriodo, fechaPago })
-      });
-      selectedPagoRows[0].update({ Estado:"Pagada", Fondo:fondoPeriodo, FechaPago:fechaPago });
+    // 2) Validar fondo-período
+    const sel           = document.getElementById("selectPagoFondo");
+    const fondoPeriodo  = sel.value;
+    if (!fondoPeriodo) {
+      ov.style.opacity = 0;
+      setTimeout(() => ov.style.visibility = "hidden", 300);
+      return alert("Seleccione un fondo-período.");
     }
+
+    const fechaPago = new Date().toISOString().substr(0,10);
+
+    // 3) Guardar pago local (masivo o individual)
+    if (selectedPagoRowsPrev.length > 1) {
+      const filas = selectedPagoRowsPrev.map(r => r.getData().fila);
+      await actualizarEstadoMultiple(filas, "Pagada", fondoPeriodo, fechaPago);
+      selectedPagoRowsPrev.forEach(r => r.update({
+        Estado: "Pagada",
+        Fondo:  fondoPeriodo,
+        FechaPago: fechaPago
+      }));
+      table.deselectRow();
+      document.getElementById("btn-pagar-facturas").style.display = "none";
+    } else {
+      const fila = currentPagoRow.fila;
+      await fetch(urlGuardarFactura, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ fila, fondoPeriodo, fechaPago })
+      }).then(r => r.json()).then(j => {
+        if (j.status !== "OK") throw new Error(j.mensaje || "Error al guardar");
+      });
+      currentPagoRow.update({
+        Estado: "Pagada",
+        Fondo:  fondoPeriodo,
+        FechaPago: fechaPago
+      });
+    }
+
+    // 4) Limpiar UI local
     selectedPagoRows = [];
-    document.getElementById("modalPago").style.display = 'none';
+    document.getElementById("inputPagoImagen").value = "";
+    sel.innerHTML = '<option value="">Seleccione</option>';
+    const pa = document.getElementById("pasteArea");
+    pa.innerHTML =
+      '<div class="placeholder-top" contenteditable="false">Arrastra o presiona Ctrl+V</div>' +
+      '<div class="placeholder-bottom" contenteditable="false"></div>';
+    document.getElementById("modalPago").style.display = "none";
     updateCountersPago();
 
-    // 4) Convertir imágenes a base64
+    // 5) Preparar datos para el correo
+    const filas       = selectedPagoRowsPrev.map(r => r.getData().fila);
+    const identidades = selectedPagoRowsPrev.map(r => r.getData().Identidad);
+    const montos      = selectedPagoRowsPrev.map(r => r.getData()["Total Gastado"]);
+
+    // 6) Leer imágenes y convertir a base64
     const images = [];
     const inputImg = document.getElementById("inputPagoImagen");
     for (const file of inputImg.files) {
@@ -3585,30 +3620,38 @@ document.getElementById("btnAceptarPago").addEventListener("click", async functi
         fr.onload = () => res(fr.result.split(',')[1]);
         fr.readAsDataURL(file);
       });
-      images.push({ filename:file.name, mime:file.type, data:dataURL });
+      images.push({ filename: file.name, mime: file.type, data: dataURL });
     }
 
-    // 5) Enviar payload al Apps Script
-    const payload = { filas, identidades, montos, fondoPeriodo, fechaPago, images };
-    const response = await fetch(Envio_Correos, {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify(payload)
+    // 7) Enviar payload al Web App de Apps Script
+    const mailPayload = {
+      filas,
+      identidades,
+      montos,
+      fondoPeriodo,
+      fechaPago,
+      images
+    };
+    const mailResp = await fetch(Envio_Correos, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(mailPayload)
     });
-    const result = await response.json();
-    if (result.status !== 'OK') {
-      throw new Error(result.message || 'Error enviando correos');
+    const mailResult = await mailResp.json();
+    if (mailResult.status !== 'OK') {
+      throw new Error(mailResult.message || 'Error enviando notificaciones');
     }
-    alert('Correos enviados correctamente.');
+
+    alert('Pago registrado y correos enviados correctamente.');
 
   } catch (err) {
-    console.error(err);
-    alert('Error: ' + err.message);
+    console.error("Error en proceso de pago o envío:", err);
+    alert("Error: " + err.message);
   } finally {
-    // 6) Ocultar overlay
+    // 8) Ocultar overlay al finalizar (éxito o error)
     const ov = document.getElementById("overlayPagoRegistrando");
     ov.style.opacity = 0;
-    setTimeout(()=> ov.style.visibility='hidden', 300);
+    setTimeout(() => ov.style.visibility = "hidden", 300);
   }
 });
 
