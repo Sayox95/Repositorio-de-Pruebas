@@ -2623,7 +2623,9 @@ groupHeader:function(value, count, data, group){
                 // Ya pagada: no permitir acción
                 return;
               }
-              showModalPago(cell.getRow().getData());
+                // Forzar modo INDIVIDUAL: limpiar arreglo masivo antes de abrir modal.
+  selectedPagoRows = [];
+  showModalPago(cell.getRow().getData());
            }
         },
     ],
@@ -2653,14 +2655,15 @@ groupHeader:function(value, count, data, group){
     }
   };
 
- document.getElementById("btn-pagar-facturas").addEventListener("click", function(){
-   const selected = table.getSelectedRows();
-   if (!selected.length) return;
+document.getElementById("btn-pagar-facturas").addEventListener("click", function(){
+  const table = window.tabulatorTable || Tabulator.findTable("#facturas-table")[0];
+  selectedPagoRows = table ? table.getSelectedRows() : [];
+  if (!selectedPagoRows.length) return;
 
-   // Abrir modal de pago para la primera factura seleccionada
-   const data = selected[0].getData();
-   showModalPago(data);
- });
+  // Abre el modal reutilizando la primera factura como referencia
+  const data = selectedPagoRows[0].getData();
+  showModalPago(data);
+});
   
 
   // Load data function
@@ -3441,6 +3444,8 @@ function actualizarEstado(fila, estado){
 <script>
 // Funciones para pago de facturas
 let currentPagoRow = null;
+// Filas seleccionadas cuando se usa el botón "Pagar Facturas" (pago masivo)
+let selectedPagoRows = [];
 function showModalPago(data) {
   currentPagoRow = data;
   // Cargar fondos asociados al sector
@@ -3532,7 +3537,9 @@ document.addEventListener("DOMContentLoaded", function(){
 
 <script>
 // Handler para “Aceptar Pago”
-document.getElementById("btnAceptarPago").addEventListener("click", function() {
+document.getElementById("btnAceptarPago").addEventListener("click", async function() {
+  const table = window.tabulatorTable || Tabulator.findTable("#facturas-table")[0];
+try {
    // Mostrar overlay de registro
    const ov = document.getElementById("overlayPagoRegistrando");
    ov.style.visibility = "visible";
@@ -3546,38 +3553,51 @@ document.getElementById("btnAceptarPago").addEventListener("click", function() {
     return alert("Seleccione un fondo-período.");
   }
   const fecha = new Date().toISOString().substr(0,10);
-  const payload = {
-    fila: currentPagoRow.fila,
-    fondoPeriodo: fondoPeriodo,
-    fechaPago: fecha
-  };
+   if (selectedPagoRows.length > 1) {
+    /* --- PAGOS MASIVOS --- */
+    const filas = selectedPagoRows.map(r => r.getData().fila);
 
-  fetch(urlGuardarFactura, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload)
-  })
-  .then(res => {
-    if (!res.ok) throw new Error("HTTP error " + res.status);
-    return res.json();
-  })
-  .then(json => {
-    if (json.status !== "OK") {
-      throw new Error(json.message || "Error al guardar pago.");
-    }
-    // Actualiza la fila en la tabla
-    const table = Tabulator.findTable("#facturas-table")[0];
-    table.getRows().forEach(row => {
-      const data = row.getData();
-      if (data.fila === payload.fila) {
-        row.update({
-          Estado:    "Pagada",
-          Fondo:     payload.fondoPeriodo,
-          FechaPago: payload.fechaPago
-        });
-      }
+    // Reutiliza la utilidad ya existente de actualización múltiple.
+     await actualizarEstadoMultiple(filas, "Pagada");  /* e.g., guardar por cada fila */
+
+    // Refleja cambios en todas las filas seleccionadas
+    selectedPagoRows.forEach(r => r.update({
+      Estado: "Pagada",
+      Fondo: fondoPeriodo,
+      FechaPago: fecha
+    }));
+
+    // Limpia selección masiva y oculta botón
+    table.deselectRow();
+    document.getElementById("btn-pagar-facturas").style.display = "none";
+
+  } else {
+    /* --- PAGO INDIVIDUAL (flujo original) --- */
+    const payload = {
+      fila: currentPagoRow.fila,
+      fondoPeriodo: fondoPeriodo,
+      fechaPago: fecha
+    };
+    const resp = await fetch(urlGuardarFactura, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
     });
-    // Limpia y cierra el modal
+    const json = await resp.json();
+    if (json.status !== "OK") throw new Error(json.mensaje || "Error al guardar");
+
+    // Actualiza UI para la única fila
+    currentPagoRow.update({
+      Estado: "Pagada",
+      Fondo: fondoPeriodo,
+      FechaPago: fecha
+    });
+  }
+
+  // Reinicia arreglo masivo para no contaminar un pago individual posterior
+  selectedPagoRows = [];
+
+
     document.getElementById("inputPagoImagen").value = "";
     sel.innerHTML = '<option value="">Seleccione</option>';
     const pa = document.getElementById("pasteArea");
@@ -3586,18 +3606,19 @@ document.getElementById("btnAceptarPago").addEventListener("click", function() {
       '<div class="placeholder-bottom" contenteditable="false"></div>';
     document.getElementById("modalPago").style.display = "none";
       // Recargar tabla de pagos para mostrar facturas pendientes y pagadas
-      updateCountersPago();})
-  .catch(err => {
+           updateCountersPago();
+  } 
+    catch(err) {
     console.error("Error al guardar pago:", err);
     alert("Error al guardar pago: " + err.message);
-   })
-   .finally(() => {
-     // Ocultar overlay al finalizar (éxito o error)
-     const ov = document.getElementById("overlayPagoRegistrando");
-     ov.style.opacity = 0;
-     setTimeout(() => ov.style.visibility = "hidden", 300);
-   });
+  } finally {
+    // Ocultar overlay al finalizar (éxito o error)
+    const ov = document.getElementById("overlayPagoRegistrando");
+    ov.style.opacity = 0;
+    setTimeout(() => ov.style.visibility = "hidden", 300);
+  }
 });
+
 </script>
 
 </body>
