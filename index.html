@@ -2298,7 +2298,7 @@ document.getElementById("btnAceptarPago").addEventListener("click", async functi
 
     const mailResp = await fetch(Envio_Correos, {
       method:  'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify(mailPayload)
     });
     console.log('[Pago] Respuesta fetch status:', mailResp.status, mailResp.statusText);
