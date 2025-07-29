@@ -75,7 +75,7 @@
   const urlGuardarAnticipo = "/api/GuardarAnti";
   const urlLeerAnticipos = "/api/Anticipos";
   const urlGuardarFactura = "/api/guardar";
-  const Envio_Correos = 'https://script.google.com/macros/s/AKfycbxUjCC46dHRTG0Fp3wb74u7XxIfdOynthktzLVbeF7mG3vjjnRT907HQYDD95CCPAXr/exec';
+  const Envio_Correos = 'https://script.google.com/macros/s/AKfycbypKfxX5TNYhaSW-CHaq_uZvdLnD_0F3Ca-6d5vVXRdtVdr0PzuiHGC7B_iak9UARnQ/exec';
 </script>
 <!-- ==== unload listener interception Patch v26 ==== -->
 <script>
@@ -1313,12 +1313,11 @@ groupHeader:function(value, count, data, group){
 
 document.getElementById("btn-pagar-facturas").addEventListener("click", function(){
   const table = window.tabulatorTable || Tabulator.findTable("#facturas-table")[0];
-  selectedPagoRows = table ? table.getSelectedRows() : [];
-  if (!selectedPagoRows.length) return;
-
-  // Abre el modal reutilizando la primera factura como referencia
-  const data = selectedPagoRows[0].getData();
-  showModalPago(data, selectedPagoRows[0]);
+  const rowsComps = table ? table.getSelectedRows() : [];
+  if (!rowsComps.length) return;
+  selectedPagoRows = rowsComps;
+  const dataFirst = rowsComps[0].getData();
+  showModalPago(dataFirst, rowsComps);
 });
   
 
@@ -2103,10 +2102,11 @@ let currentPagoRow = null;
 // Filas seleccionadas cuando se usa el botón "Pagar Facturas" (pago masivo)
 let selectedPagoRows = [];
  // Ahora recibe también el RowComponent real
- function showModalPago(data, rowComp) {
-   // Guarda el componente de Tabulator, no sólo los datos
-   currentPagoRow = rowComp;
-   selectedPagoRows = [rowComp];
+  function showModalPago(data, rowComps) {
+    const rowsArray = Array.isArray(rowComps) ? rowComps : [rowComps];
+    currentPagoRow = rowsArray[0];
+    selectedPagoRows = rowsArray;
+    const rowData = data || currentPagoRow.getData();
   // Cargar fondos asociados al sector
   fetch(urlLeerAnticipos)
     .then(res => res.json())
