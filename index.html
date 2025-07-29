@@ -75,7 +75,7 @@
   const urlGuardarAnticipo = "/api/GuardarAnti";
   const urlLeerAnticipos = "/api/Anticipos";
   const urlGuardarFactura = "/api/guardar";
-  const Envio_Correos = 'https://script.google.com/macros/s/AKfycbyg-tXRnE1EHRY5XYqP-xWx7CekqaP5FTDrrh91yDpvPwHqoCEslwWnpnzUSdxqyQM/exec';
+  const Envio_Correos = 'https://script.google.com/macros/s/AKfycbyxu18kQ-oUAXu188swhZUlOc7tgcmdJHsDoxnVTfJ3if-4rxaW1HUI2o4YYIh_Rql6/exec';
 </script>
 <!-- ==== unload listener interception Patch v26 ==== -->
 <script>
@@ -2298,7 +2298,7 @@ document.getElementById("btnAceptarPago").addEventListener("click", async functi
 
     const mailResp = await fetch(Envio_Correos, {
       method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body:    JSON.stringify(mailPayload)
     });
     console.log('[Pago] Respuesta fetch status:', mailResp.status, mailResp.statusText);
