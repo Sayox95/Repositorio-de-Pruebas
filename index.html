@@ -538,6 +538,75 @@ window.isFirstLoadPagoFacturas = true;
 <!-- Tabulator CSS & JS -->
 <link href="https://unpkg.com/tabulator-tables@5.5.0/dist/css/tabulator.min.css" rel="stylesheet"/>
 <script src="https://unpkg.com/tabulator-tables@5.5.0/dist/js/tabulator.min.js"></script>
+
+<script>
+// Tree-table setup for Anticipos
+document.addEventListener("DOMContentLoaded", function(){
+  window.tabAnticipos = new Tabulator("#tablaAnticipos", {
+    height: "55vh",
+    layout: "fitColumns",
+    dataTree: true,
+    dataTreeChildField: "pagos",
+    dataTreeStartExpanded: false,
+    columns: [
+      {formatter:"rownum", width:50},
+      {title:"Descripción", field:"descripcion", headerSort:false},
+      {title:"Monto", field:"monto", hozAlign:"right", formatter:"money", formatterParams:{symbol:"L ", precision:2}},
+      {title:"Saldo", field:"saldo", hozAlign:"right", formatter:"money", formatterParams:{symbol:"L ", precision:2}}
+    ]
+  });
+  window.isFirstLoadAnticipo = true;
+});
+
+// Load anticipos as tree data
+function cargarAnticipos(){
+  mostrarSeccion("registrarAnticipo");
+  const ov = document.getElementById("overlayAnt");
+  const txt = ov.querySelector("span");
+  txt.textContent = window.isFirstLoadAnticipo ? "Cargando información" : "Actualizando información";
+  ov.style.display = "flex";
+  window.isFirstLoadAnticipo = false;
+  document.getElementById('antTotal').textContent = 'L 0.00';
+  document.getElementById('antSaldo').textContent = 'L 0.00';
+  if(window.tabAnticipos) tabAnticipos.clearData();
+
+  fetch(urlLeerAnticipos)
+    .then(res => res.json())
+    .then(({anticipos, pagos, saldoInicial, totalAnticipos}) => {
+      let saldo = saldoInicial;
+      const treeData = anticipos.map(anticipo => {
+        saldo += anticipo.deposito;
+        const node = {
+          id: anticipo.id,
+          descripcion: `Anticipo Fondo ${anticipo.fondo}`,
+          monto: anticipo.deposito,
+          saldo: saldo,
+          pagos: pagos.filter(p => p.anticipoId === anticipo.id).map(pago => {
+            saldo -= pago.monto;
+            return {
+              id: pago.id,
+              descripcion: `Pago factura #${pago.factura}`,
+              monto: -pago.monto,
+              saldo: saldo
+            };
+          })
+        };
+        return node;
+      });
+      tabAnticipos.setData(treeData);
+      document.getElementById("antTotal").textContent = new Intl.NumberFormat('es-HN',{style:'currency',currency:'HNL'}).format(totalAnticipos);
+      document.getElementById("antSaldo").textContent = new Intl.NumberFormat('es-HN',{style:'currency',currency:'HNL'}).format(saldo);
+    })
+    .catch(err => console.error("Error al cargar anticipos:", err));
+}
+
+// Bind buttons
+document.addEventListener("DOMContentLoaded", () => {
+  document.getElementById("btnIrRegistrarAnticipo").addEventListener("click", cargarAnticipos);
+  document.getElementById("btnBackAnt").addEventListener("click", () => mostrarSeccion("menuPrincipal"));
+});
+</script>
+
 <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/es.js"></script>
 <style>
 @keyframes spinner {
@@ -1955,101 +2024,7 @@ document.addEventListener('DOMContentLoaded', function(){
 
 
 
-<script>
-// Anticipos: Overlay y lógica de carga
-window.isFirstLoadAnticipo = true;
 
-// Inicializar tabla vacía al cargar
-document.addEventListener("DOMContentLoaded", function(){
-  window.tabAnticipos = new Tabulator("#tablaAnticipos", {
-    height: "55vh",
-    layout: "fitColumns",
-    data: [],
-    loader: false,
-    columns: [
-      {formatter:"rownum", width:50},
-      {title:"Sector", field:"Sector"},
-      {title:"Fondo", field:"Fondo"},
-      {title:"Depósito", field:"Deposito", formatter:"money", formatterParams:{symbol:"L ", precision:2}},
-      {title:"Periodo", field:"Periodo"},
-      {title:"Estado", field:"Estado", editor:"list", editorParams:{values:["Vigente","Aplicado","Anulado"]},
-        cellEdited:function(cell){
-          var d = cell.getRow().getData();
-          actualizarEstado(d.fila || d._fila, cell.getValue());
-        }
-      }
-    ]
-  });
-  tabAnticipos.on("dataLoaded", function(rows){
-    // Actualizar contadores antes de ocultar overlay
-    var t = rows.reduce(function(sum, r){return sum + Number(r.Deposito||0);}, 0);
-    var sld = rows.filter(function(r){return r.Estado==="Vigente";})
-                  .reduce(function(sum, r){return sum + Number(r.Deposito||0);},0);
-    document.getElementById("antTotal").textContent = "L " + t.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
-    document.getElementById("antSaldo").textContent = "L " + sld.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
-    document.getElementById("overlayAnt").style.display = "none";
-  });
-});
-
-// Cargar anticipos con overlay dinámico
-function cargarAnticipos(){
-  mostrarSeccion("registrarAnticipo");
-  var ov = document.getElementById("overlayAnt");
-  var txt = ov.querySelector("span");
-  txt.textContent = window.isFirstLoadAnticipo ? "Cargando información" : "Actualizando información";
-  ov.style.display = "flex";
-  window.isFirstLoadAnticipo = false;
-  // Reset tabla y contadores al reingresar
-  if(window.tabAnticipos) tabAnticipos.clearData();
-  document.getElementById('antTotal').textContent = 'L 0.00';
-  document.getElementById('antSaldo').textContent = 'L 0.00';
-  // Fetch y poblar datos
-  fetch(urlLeerAnticipos)
-    .then(function(res){return res.json();})
-    .then(function(data){
-      tabAnticipos.clearData();
-      tabAnticipos.setData(data);
-    })
-    .catch(function(err){ console.error("Error al cargar anticipos:", err); })
-    .finally(function(){
-      // overlay se oculta en dataLoaded listener
-    });
-}
-
-// Navegación
-document.getElementById("btnIrRegistrarAnticipo").addEventListener("click", cargarAnticipos);
-document.getElementById("btnBackAnt").addEventListener("click", function(){
-  mostrarSeccion("menuPrincipal");
-});
-
-// Registro de anticipo
-function registrar(){
-  var ov = document.getElementById("overlayAnt");
-  ov.querySelector("span").textContent = "Registrando cambios";
-  ov.style.display = "flex";
-  fetch(urlGuardarAnticipo, {method:"POST"})
-    .then(function(res){return res.json();})
-    .then(function(res){ if(res.status!=="OK") throw new Error(res.message); })
-    .catch(function(err){ console.error("Error al registrar:", err); })
-    .finally(cargarAnticipos);
-}
-
-// Actualizar estado
-function actualizarEstado(fila, estado){
-  var ov = document.getElementById("overlayAnt");
-  ov.querySelector("span").textContent = "Registrando cambios";
-  ov.style.display = "flex";
-  fetch(urlGuardarAnticipo, {
-    method:"POST",
-    headers: {"Content-Type":"application/json"},
-    body: JSON.stringify({fila:fila, Estado:estado})
-  })
-    .then(function(res){return res.json();})
-    .then(function(res){ if(res.status!=="OK") throw new Error(res.message); })
-    .catch(function(err){ console.error("Error al actualizar:", err); })
-    .finally(cargarAnticipos);
-}
-</script>
 
 
 <!-- Modal para registrar pago -->
