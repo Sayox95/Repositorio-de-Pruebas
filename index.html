@@ -1323,7 +1323,7 @@ document.getElementById("btn-pagar-facturas").addEventListener("click", function
 
   // Load data function
   function loadDataPagoFacturas(){
-  return fetch(`${urlLeerFacturas}?leerFacturas=true`)
+  return fetch(urlLeerFacturas)
       .then(r=>r.json())
       .then(data=>{
         var rows = data.filter(f=>["Revisada","Pagada"].includes(f.Estado));
@@ -1871,7 +1871,7 @@ window.isFirstLoadRevisionFacturas = true;
 
 // Carga datos (fetch + setData) replicando lógica de sección Pago
 function loadDataRevisionFacturas(){
-  return fetch(`${urlLeerFacturas}?leerFacturas=true`)
+  return fetch(urlLeerFacturas)
     .then(r => r.json())
     .then(function(data){
       // Solo facturas que NO estén pagadas
@@ -2339,83 +2339,81 @@ document.getElementById("btnAceptarPago").addEventListener("click", async functi
 
 
 <script>
-// Inicializar flag para overlay
-window.isFirstLoadAnticipo = true;
-
-// Tree-table setup para Anticipos
+// Inicialización de Tabulator en modo árbol para anticipos
 document.addEventListener("DOMContentLoaded", function(){
   window.tabAnticipos = new Tabulator("#tablaAnticipos", {
     height: "55vh",
     layout: "fitColumns",
     dataTree: true,
     dataTreeChildField: "pagos",
+    dataTreeElementColumn: "descripcion",
     dataTreeStartExpanded: false,
     columns: [
-      {formatter:"rownum", width:50},
-      {title:"Descripción", field:"descripcion", headerSort:false},
-      {title:"Monto", field:"monto", hozAlign:"right", formatter:"money", formatterParams:{symbol:"L ", precision:2}},
-      {title:"Saldo", field:"saldo", hozAlign:"right", formatter:"money", formatterParams:{symbol:"L ", precision:2}}
+      {title: "Descripción", field: "descripcion", headerSort: false},
+      {title: "Monto", field: "monto", hozAlign: "right", formatter: "money", formatterParams: {symbol: "L ", precision: 2}},
+      {title: "Saldo", field: "saldo", hozAlign: "right", formatter: "money", formatterParams: {symbol: "L ", precision: 2}}
     ]
   });
 });
 
-// Función para cargar anticipos con pagos como hijos
+// Función personalizada para cargar anticipos con sus facturas pagadas como hijos
 function cargarAnticipos(){
   mostrarSeccion("registrarAnticipo");
-  const ov = document.getElementById("overlayAnt");
-  const txt = ov.querySelector("span");
-  txt.textContent = window.isFirstLoadAnticipo ? "Cargando información" : "Actualizando información";
-  ov.style.display = "flex";
-  window.isFirstLoadAnticipo = false;
+  const overlay = document.getElementById("overlayAnt");
+  const msg = overlay.querySelector("span");
+  msg.textContent = overlay.style.display === "none" ? "Cargando información" : "Actualizando información";
+  overlay.style.display = "flex";
+  // Reiniciar totales
   document.getElementById("antTotal").textContent = "L 0.00";
   document.getElementById("antSaldo").textContent = "L 0.00";
-  if(window.tabAnticipos) window.tabAnticipos.clearData();
+  tabAnticipos.clearData();
 
   Promise.all([
-    fetch(urlLeerAnticipos).then(res => res.json()),
-    fetch(`${urlLeerFacturas}?leerFacturas=true`).then(res => res.json())
+    fetch(urlLeerAnticipos + "?accion=leerAnticipos").then(res => res.json()),
+    fetch(urlLeerFacturas + "?leerFacturas=true").then(res => res.json())
   ])
-  .then(([anticipos, pagos]) => {
+  .then(([anticipos, facturas]) => {
     let saldo = 0;
-    let totalAnt = 0;
-    const treeData = anticipos.map((anticipo, idx) => {
-      const dep = parseFloat(anticipo.Deposito) || 0;
-      totalAnt += dep;
-      saldo += dep;
-      // Filtrar pagos pagados de este fondo
-      const pagosAsignados = (pagos || []).filter(p => p.Fondo === anticipo.Fondo && p.Estado === 'Pagada');
-      const hijos = pagosAsignados.map((pago, j) => {
-        const amt = parseFloat(pago.TotalGastado) || 0;
-        saldo -= amt;
-        return {
-          id: `p_${idx}_${j}`,
-          descripcion: `Pago factura #${pago.NumeroFactura}`,
-          monto: -amt,
-          saldo: saldo
-        };
-      });
+    let totalAnticipos = 0;
+    const treeData = anticipos.map((anticipo, i) => {
+      const dep = anticipo.Deposito || anticipo.deposito || 0;
+      totalAnticipos += parseFloat(dep);
+      saldo += parseFloat(dep);
+      // Filtrar facturas pagadas asignadas al mismo fondo y periodo
+      const pagos = facturas
+        .filter(f => f.FondoPeriodo === anticipo.Fondo && f.Estado === "Pagada")
+        .map(f => {
+          const amt = parseFloat(f["Total Gastado"] || f.TotalGastado || 0);
+          saldo -= amt;
+          return {
+            id: `p_${i}_${f.fila}`,
+            descripcion: `Pago factura #${f["Numero de Factura"]}`,
+            monto: -amt,
+            saldo: saldo
+          };
+        });
       return {
-        id: idx+1,
-        descripcion: `Anticipo Fondo ${anticipo.Fondo}`,
-        monto: dep,
+        id: anticipo.fila || i + 1,
+        descripcion: `Anticipo Fondo ${anticipo.Fondo} (${anticipo.Periodo})`,
+        monto: parseFloat(dep),
         saldo: saldo,
-        pagos: hijos
+        pagos: pagos
       };
     });
-    window.tabAnticipos.setData(treeData);
-    document.getElementById("antTotal").textContent = new Intl.NumberFormat('es-HN',{style:'currency',currency:'HNL'}).format(totalAnt);
-    document.getElementById("antSaldo").textContent = new Intl.NumberFormat('es-HN',{style:'currency',currency:'HNL'}).format(saldo);
+    tabAnticipos.setData(treeData);
+    document.getElementById("antTotal").textContent = new Intl.NumberFormat('es-HN', {style:'currency',currency:'HNL'}).format(totalAnticipos);
+    document.getElementById("antSaldo").textContent = new Intl.NumberFormat('es-HN', {style:'currency',currency:'HNL'}).format(saldo);
   })
   .catch(err => console.error("Error al cargar anticipos:", err))
-  .finally(() => { ov.style.display = "none"; });
+  .finally(() => {
+    overlay.style.display = "none";
+  });
 }
 
-// Vincular botón que abre registro de anticipos
+// Asignar el listener al botón
 document.addEventListener("DOMContentLoaded", () => {
   const btn = document.getElementById("btnIrRegistrarAnticipo");
-  if(btn) btn.addEventListener("click", cargarAnticipos);
-  const back = document.getElementById("btnBackAnt");
-  if(back) back.addEventListener("click", () => mostrarSeccion("menuPrincipal"));
+  if (btn) btn.addEventListener("click", cargarAnticipos);
 });
 </script>
 
