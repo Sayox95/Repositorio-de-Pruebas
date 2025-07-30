@@ -1959,39 +1959,93 @@ document.addEventListener('DOMContentLoaded', function(){
 // Anticipos: Overlay y lógica de carga
 window.isFirstLoadAnticipo = true;
 
-// Inicializar tabla vacía al cargar
 document.addEventListener("DOMContentLoaded", function(){
+  // Inicializamos Tabulator en modo árbol
   window.tabAnticipos = new Tabulator("#tablaAnticipos", {
     height: "55vh",
     layout: "fitColumns",
-    data: [],
-    loader: false,
+    placeholder: "No hay registros",
+    dataTree: true,
+    dataTreeChildField: "pagos",
+    dataTreeElementColumn: "descripcion",
+    dataTreeStartExpanded: false,
     columns: [
-      {formatter:"rownum", width:50},
-      {title:"Sector", field:"Sector"},
-      {title:"Fondo", field:"Fondo"},
-      {title:"Depósito", field:"Deposito", formatter:"money", formatterParams:{symbol:"L ", precision:2}},
-      {title:"Periodo", field:"Periodo"},
-      {title:"Estado", field:"Estado", editor:"list", editorParams:{values:["Vigente","Aplicado","Anulado"]},
-        cellEdited:function(cell){
-          var d = cell.getRow().getData();
-          actualizarEstado(d.fila || d._fila, cell.getValue());
-        }
-      }
+      { title: "Descripción", field: "descripcion", headerSort: false },
+      { title: "Monto",       field: "monto",       hozAlign: "right", formatter: "money", formatterParams: { symbol: "L ", precision: 2 } },
+      { title: "Saldo",       field: "saldo",       hozAlign: "right", formatter: "money", formatterParams: { symbol: "L ", precision: 2 } }
     ]
   });
-  tabAnticipos.on("dataLoaded", function(rows){
-    // Actualizar contadores antes de ocultar overlay
-    var t = rows.reduce(function(sum, r){return sum + Number(r.Deposito||0);}, 0);
-    var sld = rows.filter(function(r){return r.Estado==="Vigente";})
-                  .reduce(function(sum, r){return sum + Number(r.Deposito||0);},0);
-    document.getElementById("antTotal").textContent = "L " + t.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
-    document.getElementById("antSaldo").textContent = "L " + sld.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
-    document.getElementById("overlayAnt").style.display = "none";
-  });
+
+  // Botones de navegación
+  document.getElementById("btnIrRegistrarAnticipo")
+          .addEventListener("click", cargarAnticipos);
+  document.getElementById("btnBackAnt")
+          .addEventListener("click", () => mostrarSeccion("menuPrincipal"));
 });
 
-// Cargar anticipos con overlay dinámico
+async function cargarAnticipos(){
+  mostrarSeccion("registrarAnticipo");
+  const ov = document.getElementById("overlayAnt");
+  ov.style.display = "flex";
+
+  // Reiniciar contador y tabla
+  document.getElementById("antTotal").textContent = "L 0.00";
+  document.getElementById("antSaldo").textContent = "L 0.00";
+  tabAnticipos.clearData();
+
+  try {
+    // Carga paralela de anticipos y facturas
+    const [anticipos, facturas] = await Promise.all([
+      fetch(urlLeerAnticipos + "?accion=leerAnticipos").then(r=>r.json()),
+      fetch(urlLeerFacturas + "?leerFacturas=true").then(r=>r.json())
+    ]);
+
+    let saldo = 0, total = 0;
+
+    const treeData = anticipos.map(a => {
+      const dep = Number(a.Deposito) || 0;
+      total += dep;
+      saldo += dep;
+
+      // filtramos facturas que coincidan en Fondo + Periodo y estén pagadas
+      const hijos = (facturas||[])
+        .filter(f => f.Fondo === a.Fondo 
+                  && String(f.Periodo) === String(a.Periodo)
+                  && (f.Estado||"").toLowerCase() === "pagada")
+        .map(f => {
+          const amt = Number(f.TotalGastado||f["Total Gastado"]||0);
+          saldo -= amt;
+          return {
+            id: `p_${f.fila}`,
+            descripcion: `Pago factura #${f.NumeroFactura||f["Numero de Factura"]}`,
+            monto: -amt,
+            saldo
+          };
+        });
+
+      return {
+        id: a.fila,
+        descripcion: `Anticipo ${a.Fondo} (${a.Periodo})`,
+        monto: dep,
+        saldo,
+        pagos: hijos
+      };
+    });
+
+    tabAnticipos.setData(treeData);
+
+    // Actualizamos totales en pantalla
+    document.getElementById("antTotal").textContent = 
+      new Intl.NumberFormat('es-HN',{style:'currency',currency:'HNL'}).format(total);
+    document.getElementById("antSaldo").textContent = 
+      new Intl.NumberFormat('es-HN',{style:'currency',currency:'HNL'}).format(saldo);
+
+  } catch (err) {
+    console.error("Error al cargar anticipos:", err);
+  } finally {
+    ov.style.display = "none";
+  }
+}
 </script>
 
 
@@ -2278,97 +2332,6 @@ document.getElementById("btnAceptarPago").addEventListener("click", async functi
     updateCountersPago();
 });
 
-</script>
-
-
-<script>
-// Inicializar flag si no existe
-if(typeof window.isFirstLoadAnticipo === 'undefined') window.isFirstLoadAnticipo = true;
-
-// Configurar árbol de Tabulator si no está hecho
-document.addEventListener("DOMContentLoaded", function(){
-  if(!window.tabAnticipos){
-    window.tabAnticipos = new Tabulator("#tablaAnticipos", {
-      height: "55vh",
-      layout: "fitColumns",
-      dataTree: true,
-      dataTreeChildField: "pagos",
-      dataTreeElementColumn: "descripcion",
-      dataTreeStartExpanded: false,
-      columns: [
-        {title: "Descripción", field: "descripcion", headerSort: false},
-        {title: "Monto", field: "monto", hozAlign: "right", formatter: "money", formatterParams: {symbol: "L ", precision: 2}},
-        {title: "Saldo", field: "saldo", hozAlign: "right", formatter: "money", formatterParams: {symbol: "L ", precision: 2}}
-      ]
-    });
-  }
-});
-
-// Función para cargar anticipos y pagos pagados correctamente
-function cargarAnticipos(){
-  mostrarSeccion("registrarAnticipo");
-  const overlay = document.getElementById("overlayAnt");
-  const msg = overlay.querySelector("span");
-  msg.textContent = window.isFirstLoadAnticipo ? "Cargando información" : "Actualizando información";
-  overlay.style.display = "flex";
-  window.isFirstLoadAnticipo = false;
-
-  // Reiniciar totales
-  document.getElementById("antTotal").textContent = "L 0.00";
-  document.getElementById("antSaldo").textContent = "L 0.00";
-  if(window.tabAnticipos) window.tabAnticipos.clearData();
-
-  Promise.all([
-    fetch(urlLeerAnticipos + "?accion=leerAnticipos").then(r=>r.json()),
-    fetch(urlLeerFacturas + "?leerFacturas=true").then(r=>r.json())
-  ])
-  .then(([anticipos, facturas])=>{
-    let saldo = 0;
-    let totalAnticipos = 0;
-    const treeData = anticipos.map(a=>{
-      const dep = Number(a.Deposito || a.deposito || 0);
-      totalAnticipos += dep;
-      saldo += dep;
-      // Clave fondo-periodo
-      const clave = `${a.Fondo}-${a.Periodo}`;
-      // Filtrar facturas pagadas con esa clave
-      const pagos = (facturas || []).filter(f=>{
-        return (f.FondoPeriodo === clave || f.fondoPeriodo === clave) &&
-               String(f.Estado || "").toLowerCase().trim() === "pagada";
-      }).map(f=>{
-        const amt = Number(f.TotalGastado || f["Total Gastado"] || 0);
-        saldo -= amt;
-        return {
-          id: f.fila,
-          descripcion: `Pago factura #${f.NumeroFactura || f["Numero de Factura"]}`,
-          monto: -amt,
-          saldo: saldo
-        };
-      });
-      return {
-        id: a.fila,
-        descripcion: `Anticipo Fondo ${a.Fondo} (${a.Periodo})`,
-        monto: dep,
-        saldo: saldo,
-        pagos: pagos
-      };
-    });
-    window.tabAnticipos.setData(treeData);
-    document.getElementById("antTotal").textContent =
-      new Intl.NumberFormat('es-HN', {style:'currency',currency:'HNL'}).format(totalAnticipos);
-    document.getElementById("antSaldo").textContent =
-      new Intl.NumberFormat('es-HN', {style:'currency',currency:'HNL'}).format(saldo);
-  })
-  .catch(err=>{ console.error("Error al cargar anticipos:", err); })
-  .finally(()=>{ overlay.style.display = "none"; });
-}
-
-// Remap evento del botón
-document.addEventListener("DOMContentLoaded", ()=>{
-  const btn = document.getElementById("btnIrRegistrarAnticipo");
-  if(btn) btn.removeEventListener("click", cargarAnticipos);
-  if(btn) btn.addEventListener("click", cargarAnticipos);
-});
 </script>
 
 </body>
