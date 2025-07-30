@@ -1323,7 +1323,7 @@ document.getElementById("btn-pagar-facturas").addEventListener("click", function
 
   // Load data function
   function loadDataPagoFacturas(){
-  return fetch(urlLeerFacturas)
+  return fetch(`${urlLeerFacturas}?leerFacturas=true`)
       .then(r=>r.json())
       .then(data=>{
         var rows = data.filter(f=>["Revisada","Pagada"].includes(f.Estado));
@@ -1871,7 +1871,7 @@ window.isFirstLoadRevisionFacturas = true;
 
 // Carga datos (fetch + setData) replicando lógica de sección Pago
 function loadDataRevisionFacturas(){
-  return fetch(urlLeerFacturas)
+  return fetch(`${urlLeerFacturas}?leerFacturas=true`)
     .then(r => r.json())
     .then(function(data){
       // Solo facturas que NO estén pagadas
@@ -2373,7 +2373,7 @@ function cargarAnticipos(){
 
   Promise.all([
     fetch(urlLeerAnticipos).then(res => res.json()),
-    fetch(urlLeerFacturas).then(res => res.json())
+    fetch(`${urlLeerFacturas}?leerFacturas=true`).then(res => res.json())
   ])
   .then(([anticipos, pagos]) => {
     let saldo = 0;
@@ -2385,11 +2385,11 @@ function cargarAnticipos(){
       // Filtrar pagos pagados de este fondo
       const pagosAsignados = (pagos || []).filter(p => p.Fondo === anticipo.Fondo && p.Estado === 'Pagada');
       const hijos = pagosAsignados.map((pago, j) => {
-        const amt = parseFloat(pago["Total Gastado"]) || 0;
+        const amt = parseFloat(pago.TotalGastado) || 0;
         saldo -= amt;
         return {
           id: `p_${idx}_${j}`,
-          descripcion: `Pago factura #${pago["Numero de Factura"]}`,
+          descripcion: `Pago factura #${pago.NumeroFactura}`,
           monto: -amt,
           saldo: saldo
         };
