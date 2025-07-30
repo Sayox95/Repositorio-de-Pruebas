@@ -2389,7 +2389,7 @@ function cargarAnticipos(){
         saldo -= amt;
         return {
           id: `p_${idx}_${j}`,
-          descripcion: `Pago factura #${pago.Numero}`,
+          descripcion: `Pago factura #${pago["Numero de Factura"]}`,
           monto: -amt,
           saldo: saldo
         };
