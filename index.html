@@ -1956,11 +1956,10 @@ document.addEventListener('DOMContentLoaded', function(){
 
 
 <script>
-// Anticipos: Overlay y lógica de carga
+// Anticipos: Overlay y lógica de carga (tree-table con pagos)
 window.isFirstLoadAnticipo = true;
 
 document.addEventListener("DOMContentLoaded", function(){
-  // Inicializamos Tabulator en modo árbol
   window.tabAnticipos = new Tabulator("#tablaAnticipos", {
     height: "55vh",
     layout: "fitColumns",
@@ -1976,74 +1975,69 @@ document.addEventListener("DOMContentLoaded", function(){
     ]
   });
 
-  // Botones de navegación
   document.getElementById("btnIrRegistrarAnticipo")
-          .addEventListener("click", cargarAnticipos);
+    .addEventListener("click", cargarAnticipos);
   document.getElementById("btnBackAnt")
-          .addEventListener("click", () => mostrarSeccion("menuPrincipal"));
+    .addEventListener("click", () => mostrarSeccion("menuPrincipal"));
 });
 
 async function cargarAnticipos(){
   mostrarSeccion("registrarAnticipo");
   const ov = document.getElementById("overlayAnt");
+  const span = ov.querySelector("span");
+  span.textContent = window.isFirstLoadAnticipo ? "Cargando información" : "Actualizando información";
   ov.style.display = "flex";
+  window.isFirstLoadAnticipo = false;
 
-  // Reiniciar contador y tabla
   document.getElementById("antTotal").textContent = "L 0.00";
   document.getElementById("antSaldo").textContent = "L 0.00";
   tabAnticipos.clearData();
 
   try {
-    // Carga paralela de anticipos y facturas
     const [anticipos, facturas] = await Promise.all([
-      fetch(urlLeerAnticipos + "?accion=leerAnticipos").then(r=>r.json()),
-      fetch(urlLeerFacturas + "?leerFacturas=true").then(r=>r.json())
+      fetch(urlLeerAnticipos + "?accion=leerAnticipos").then(r => r.json()),
+      fetch(urlLeerFacturas + "?leerFacturas=true").then(r => r.json())
     ]);
 
-    let saldo = 0, total = 0;
-
+    let saldo = 0, totalAnt = 0;
     const treeData = anticipos.map(a => {
-      const dep = Number(a.Deposito) || 0;
-      total += dep;
+      const dep = Number(a.Deposito || a.deposito || 0);
+      totalAnt += dep;
       saldo += dep;
-
-      // filtramos facturas que coincidan en Fondo + Periodo y estén pagadas
-      const hijos = (facturas||[])
-        .filter(f => f.Fondo === a.Fondo 
-                  && String(f.Periodo) === String(a.Periodo)
-                  && (f.Estado||"").toLowerCase() === "pagada")
-        .map(f => {
-          const amt = Number(f.TotalGastado||f["Total Gastado"]||0);
-          saldo -= amt;
-          return {
-            id: `p_${f.fila}`,
-            descripcion: `Pago factura #${f.NumeroFactura||f["Numero de Factura"]}`,
-            monto: -amt,
-            saldo
-          };
-        });
-
+      const key = `${a.Fondo}-${a.Periodo}`;
+      const pagos = (facturas || []).filter(f =>
+        String(f.fondoPeriodo || f.FondoPeriodo) === key &&
+        (f.Estado || "").toLowerCase() === "pagada"
+      ).map(f => {
+        const amt = Number(f.TotalGastado || 0);
+        saldo -= amt;
+        return {
+          id: f.fila,
+          descripcion: `Pago factura #${f.NumeroFactura}`,
+          monto: -amt,
+          saldo: saldo
+        };
+      });
       return {
         id: a.fila,
         descripcion: `Anticipo ${a.Fondo} (${a.Periodo})`,
         monto: dep,
-        saldo,
-        pagos: hijos
+        saldo: saldo,
+        pagos: pagos
       };
     });
 
     tabAnticipos.setData(treeData);
 
-    // Actualizamos totales en pantalla
-    document.getElementById("antTotal").textContent = 
-      new Intl.NumberFormat('es-HN',{style:'currency',currency:'HNL'}).format(total);
-    document.getElementById("antSaldo").textContent = 
-      new Intl.NumberFormat('es-HN',{style:'currency',currency:'HNL'}).format(saldo);
+    document.getElementById("antTotal").textContent =
+      new Intl.NumberFormat('es-HN', {style: 'currency', currency: 'HNL'}).format(totalAnt);
+    document.getElementById("antSaldo").textContent =
+      new Intl.NumberFormat('es-HN', {style: 'currency', currency: 'HNL'}).format(saldo);
 
-  } catch (err) {
-    console.error("Error al cargar anticipos:", err);
+  } catch (error) {
+    console.error("Error al cargar anticipos:", error);
   } finally {
-    ov.style.display = "none";
+    document.getElementById("overlayAnt").style.display = "none";
   }
 }
 </script>
