@@ -1992,63 +1992,6 @@ document.addEventListener("DOMContentLoaded", function(){
 });
 
 // Cargar anticipos con overlay dinámico
-function cargarAnticipos(){
-  mostrarSeccion("registrarAnticipo");
-  var ov = document.getElementById("overlayAnt");
-  var txt = ov.querySelector("span");
-  txt.textContent = window.isFirstLoadAnticipo ? "Cargando información" : "Actualizando información";
-  ov.style.display = "flex";
-  window.isFirstLoadAnticipo = false;
-  // Reset tabla y contadores al reingresar
-  if(window.tabAnticipos) tabAnticipos.clearData();
-  document.getElementById('antTotal').textContent = 'L 0.00';
-  document.getElementById('antSaldo').textContent = 'L 0.00';
-  // Fetch y poblar datos
-  fetch(urlLeerAnticipos)
-    .then(function(res){return res.json();})
-    .then(function(data){
-      tabAnticipos.clearData();
-      tabAnticipos.setData(data);
-    })
-    .catch(function(err){ console.error("Error al cargar anticipos:", err); })
-    .finally(function(){
-      // overlay se oculta en dataLoaded listener
-    });
-}
-
-// Navegación
-document.getElementById("btnIrRegistrarAnticipo").addEventListener("click", cargarAnticipos);
-document.getElementById("btnBackAnt").addEventListener("click", function(){
-  mostrarSeccion("menuPrincipal");
-});
-
-// Registro de anticipo
-function registrar(){
-  var ov = document.getElementById("overlayAnt");
-  ov.querySelector("span").textContent = "Registrando cambios";
-  ov.style.display = "flex";
-  fetch(urlGuardarAnticipo, {method:"POST"})
-    .then(function(res){return res.json();})
-    .then(function(res){ if(res.status!=="OK") throw new Error(res.message); })
-    .catch(function(err){ console.error("Error al registrar:", err); })
-    .finally(cargarAnticipos);
-}
-
-// Actualizar estado
-function actualizarEstado(fila, estado){
-  var ov = document.getElementById("overlayAnt");
-  ov.querySelector("span").textContent = "Registrando cambios";
-  ov.style.display = "flex";
-  fetch(urlGuardarAnticipo, {
-    method:"POST",
-    headers: {"Content-Type":"application/json"},
-    body: JSON.stringify({fila:fila, Estado:estado})
-  })
-    .then(function(res){return res.json();})
-    .then(function(res){ if(res.status!=="OK") throw new Error(res.message); })
-    .catch(function(err){ console.error("Error al actualizar:", err); })
-    .finally(cargarAnticipos);
-}
 </script>
 
 
@@ -2339,81 +2282,92 @@ document.getElementById("btnAceptarPago").addEventListener("click", async functi
 
 
 <script>
-// Inicialización de Tabulator en modo árbol para anticipos
+// Inicializar flag si no existe
+if(typeof window.isFirstLoadAnticipo === 'undefined') window.isFirstLoadAnticipo = true;
+
+// Configurar árbol de Tabulator si no está hecho
 document.addEventListener("DOMContentLoaded", function(){
-  window.tabAnticipos = new Tabulator("#tablaAnticipos", {
-    height: "55vh",
-    layout: "fitColumns",
-    dataTree: true,
-    dataTreeChildField: "pagos",
-    dataTreeElementColumn: "descripcion",
-    dataTreeStartExpanded: false,
-    columns: [
-      {title: "Descripción", field: "descripcion", headerSort: false},
-      {title: "Monto", field: "monto", hozAlign: "right", formatter: "money", formatterParams: {symbol: "L ", precision: 2}},
-      {title: "Saldo", field: "saldo", hozAlign: "right", formatter: "money", formatterParams: {symbol: "L ", precision: 2}}
-    ]
-  });
+  if(!window.tabAnticipos){
+    window.tabAnticipos = new Tabulator("#tablaAnticipos", {
+      height: "55vh",
+      layout: "fitColumns",
+      dataTree: true,
+      dataTreeChildField: "pagos",
+      dataTreeElementColumn: "descripcion",
+      dataTreeStartExpanded: false,
+      columns: [
+        {title: "Descripción", field: "descripcion", headerSort: false},
+        {title: "Monto", field: "monto", hozAlign: "right", formatter: "money", formatterParams: {symbol: "L ", precision: 2}},
+        {title: "Saldo", field: "saldo", hozAlign: "right", formatter: "money", formatterParams: {symbol: "L ", precision: 2}}
+      ]
+    });
+  }
 });
 
-// Función personalizada para cargar anticipos con sus facturas pagadas como hijos
+// Función para cargar anticipos y pagos pagados correctamente
 function cargarAnticipos(){
   mostrarSeccion("registrarAnticipo");
   const overlay = document.getElementById("overlayAnt");
   const msg = overlay.querySelector("span");
-  msg.textContent = overlay.style.display === "none" ? "Cargando información" : "Actualizando información";
+  msg.textContent = window.isFirstLoadAnticipo ? "Cargando información" : "Actualizando información";
   overlay.style.display = "flex";
+  window.isFirstLoadAnticipo = false;
+
   // Reiniciar totales
   document.getElementById("antTotal").textContent = "L 0.00";
   document.getElementById("antSaldo").textContent = "L 0.00";
-  tabAnticipos.clearData();
+  if(window.tabAnticipos) window.tabAnticipos.clearData();
 
   Promise.all([
-    fetch(urlLeerAnticipos + "?accion=leerAnticipos").then(res => res.json()),
-    fetch(urlLeerFacturas + "?leerFacturas=true").then(res => res.json())
+    fetch(urlLeerAnticipos + "?accion=leerAnticipos").then(r=>r.json()),
+    fetch(urlLeerFacturas + "?leerFacturas=true").then(r=>r.json())
   ])
-  .then(([anticipos, facturas]) => {
+  .then(([anticipos, facturas])=>{
     let saldo = 0;
     let totalAnticipos = 0;
-    const treeData = anticipos.map((anticipo, i) => {
-      const dep = anticipo.Deposito || anticipo.deposito || 0;
-      totalAnticipos += parseFloat(dep);
-      saldo += parseFloat(dep);
-      // Filtrar facturas pagadas asignadas al mismo fondo y periodo
-      const pagos = facturas
-        .filter(f => f.FondoPeriodo === anticipo.Fondo && f.Estado === "Pagada")
-        .map(f => {
-          const amt = parseFloat(f["Total Gastado"] || f.TotalGastado || 0);
-          saldo -= amt;
-          return {
-            id: `p_${i}_${f.fila}`,
-            descripcion: `Pago factura #${f["Numero de Factura"]}`,
-            monto: -amt,
-            saldo: saldo
-          };
-        });
+    const treeData = anticipos.map(a=>{
+      const dep = Number(a.Deposito || a.deposito || 0);
+      totalAnticipos += dep;
+      saldo += dep;
+      // Clave fondo-periodo
+      const clave = `${a.Fondo}-${a.Periodo}`;
+      // Filtrar facturas pagadas con esa clave
+      const pagos = (facturas || []).filter(f=>{
+        return (f.FondoPeriodo === clave || f.fondoPeriodo === clave) &&
+               String(f.Estado || "").toLowerCase().trim() === "pagada";
+      }).map(f=>{
+        const amt = Number(f.TotalGastado || f["Total Gastado"] || 0);
+        saldo -= amt;
+        return {
+          id: f.fila,
+          descripcion: `Pago factura #${f.NumeroFactura || f["Numero de Factura"]}`,
+          monto: -amt,
+          saldo: saldo
+        };
+      });
       return {
-        id: anticipo.fila || i + 1,
-        descripcion: `Anticipo Fondo ${anticipo.Fondo} (${anticipo.Periodo})`,
-        monto: parseFloat(dep),
+        id: a.fila,
+        descripcion: `Anticipo Fondo ${a.Fondo} (${a.Periodo})`,
+        monto: dep,
         saldo: saldo,
         pagos: pagos
       };
     });
-    tabAnticipos.setData(treeData);
-    document.getElementById("antTotal").textContent = new Intl.NumberFormat('es-HN', {style:'currency',currency:'HNL'}).format(totalAnticipos);
-    document.getElementById("antSaldo").textContent = new Intl.NumberFormat('es-HN', {style:'currency',currency:'HNL'}).format(saldo);
+    window.tabAnticipos.setData(treeData);
+    document.getElementById("antTotal").textContent =
+      new Intl.NumberFormat('es-HN', {style:'currency',currency:'HNL'}).format(totalAnticipos);
+    document.getElementById("antSaldo").textContent =
+      new Intl.NumberFormat('es-HN', {style:'currency',currency:'HNL'}).format(saldo);
   })
-  .catch(err => console.error("Error al cargar anticipos:", err))
-  .finally(() => {
-    overlay.style.display = "none";
-  });
+  .catch(err=>{ console.error("Error al cargar anticipos:", err); })
+  .finally(()=>{ overlay.style.display = "none"; });
 }
 
-// Asignar el listener al botón
-document.addEventListener("DOMContentLoaded", () => {
+// Remap evento del botón
+document.addEventListener("DOMContentLoaded", ()=>{
   const btn = document.getElementById("btnIrRegistrarAnticipo");
-  if (btn) btn.addEventListener("click", cargarAnticipos);
+  if(btn) btn.removeEventListener("click", cargarAnticipos);
+  if(btn) btn.addEventListener("click", cargarAnticipos);
 });
 </script>
 
