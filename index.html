@@ -1794,6 +1794,7 @@ document.addEventListener('DOMContentLoaded',()=>{
                 };
               });
               return {
+               Sector: a.Sector,       // ← añadimos esta línea
                 id: `anticipo-${a.fila}`,
                 Sector: a.Sector,
                 descripcion: `Anticipo Fondo ${a.Fondo}`,
@@ -2000,9 +2001,10 @@ document.addEventListener("DOMContentLoaded", function(){
     dataTreeElementColumn: "descripcion",
     dataTreeStartExpanded: false,
     columns: [
+      { title: "Sector",      field: "Sector" },
       { title: "Descripción", field: "descripcion", headerSort: false },
-      { title: "Monto",       field: "monto",       hozAlign: "right", formatter: "money", formatterParams: { symbol: "L ", precision: 2 } },
-      { title: "Saldo",       field: "saldo",       hozAlign: "right", formatter: "money", formatterParams: { symbol: "L ", precision: 2 } }
+      { title: "Monto",       field: "monto",       hozAlign: "right", formatter: "money", formatterParams: { symbol: "L ", precision: 2 } },
+      { title: "Saldo",       field: "saldo",       hozAlign: "right", formatter: "money", formatterParams: { symbol: "L ", precision: 2 } }
     ]
   });
 
@@ -2015,151 +2017,78 @@ document.addEventListener("DOMContentLoaded", function(){
 async function cargarAnticipos(){
   mostrarSeccion("registrarAnticipo");
   const ov = document.getElementById("overlayAnt");
-  const span = ov.querySelector("span");
-  span.textContent = window.isFirstLoadAnticipo ? "Cargando información" : "Actualizando información";
+  ov.querySelector("span").textContent = window.isFirstLoadAnticipo ? "Cargando información" : "Actualizando información";
   ov.style.display = "flex";
   window.isFirstLoadAnticipo = false;
 
-  document.getElementById("antTotal").textContent = "L 0.00";
-  document.getElementById("antSaldo").textContent = "L 0.00";
+  document.getElementById("antTotal").textContent = "L 0.00";
+  document.getElementById("antSaldo").textContent = "L 0.00";
   tabAnticipos.clearData();
 
   try {
     const [anticipos, facturas] = await Promise.all([
       fetch(urlLeerAnticipos + "?accion=leerAnticipos").then(r => r.json()),
-      fetch(urlLeerFacturas + "?leerFacturas=true").then(r => r.json())
+      fetch(urlLeerFacturas   + "?leerFacturas=true").then(r => r.json())
     ]);
 
-    let saldo = 0, totalAnt = 0;
+    let saldo    = 0;
+    let totalAnt = 0;
+
     const treeData = anticipos.map(a => {
-      const dep = Number(a.Deposito || a.deposito || 0);
+      const dep = Number(a.Deposito || 0);
       totalAnt += dep;
-      saldo += dep;
+      saldo    += dep;
+
+      // usa la clave correcta FONDO-PERIODO
       const key = `${a.Fondo}-${a.Periodo}`;
-      const pagos = (facturas || []).filter(f =>
-        String(f.fondoPeriodo || f.FondoPeriodo) === key &&
-        (f.Estado || "").toLowerCase() === "pagada"
-      ).map(f => {
-        const amt = Number(f.TotalGastado || 0);
-        saldo -= amt;
-        return {
-          id: f.fila,
-          descripcion: `Pago factura #${f["Numero de Factura"]}`,
-          monto: -amt,
-          saldo: saldo
-        };
-      });
+      const pagos = (facturas || [])
+        .filter(f =>
+          String(f.fondoPeriodo || f.FondoPeriodo) === key &&
+          (f.Estado || "").toLowerCase() === "pagada"
+        )
+        .map(f => {
+          const amt = Number(f["Total Gastado"] || 0);
+          saldo -= amt;
+          return {
+            id:          `pago-${f.fila}`,
+            Sector:      f.Sector,
+            descripcion: `Pago factura #${f["Numero de Factura"]}`,
+            monto:       -amt,
+            saldo:       saldo,
+            fecha:       f["Fecha de Pago"],
+            pagos:       []        // los hijos de un pago, vacíos
+          };
+        });
+
       return {
-        id: a.fila,
+        id:          `anticipo-${a.fila}`,
+        Sector:      a.Sector,
         descripcion: `Anticipo ${a.Fondo} (${a.Periodo})`,
-        monto: dep,
-        saldo: saldo,
-        pagos: pagos
+        monto:       dep,
+        saldo:       saldo,
+        fecha:       a.Fecha,
+        pagos:       pagos
       };
     });
 
+    // **1)** renderiza el árbol  
     tabAnticipos.setData(treeData);
 
+    // **2)** actualiza los totales  
     document.getElementById("antTotal").textContent =
-      new Intl.NumberFormat('es-HN', {style: 'currency', currency: 'HNL'}).format(totalAnt);
+      new Intl.NumberFormat('es-HN',{style:'currency',currency:'HNL'}).format(totalAnt);
     document.getElementById("antSaldo").textContent =
-      new Intl.NumberFormat('es-HN', {style: 'currency', currency: 'HNL'}).format(saldo);
+      new Intl.NumberFormat('es-HN',{style:'currency',currency:'HNL'}).format(saldo);
 
   } catch (error) {
     console.error("Error al cargar anticipos:", error);
   } finally {
-    document.getElementById("overlayAnt").style.display = "none";
+    ov.style.display = "none";
   }
 }
 </script>
 
-
-<!-- Modal para registrar pago -->
-<div id="modalPago">
-  <div class="dialog">
-    <h3>Registrar Pago</h3>
-    
-<label>Comprobante de pago:</label>
-<div id="pasteArea" contenteditable="true" spellcheck="false" tabindex="0" style="border:1px dashed #ccc;padding:1rem;min-height:150px;text-align:center;position:relative;">
-  <div class="placeholder-top" contenteditable="false">Arrastra o presiona Ctrl+V</div>
-  <div class="placeholder-bottom" contenteditable="false"></div>
-</div>
-<button id="btnSelectFile" style="display:block;margin:0.5rem auto;padding:0.25rem 0.5rem;height:2rem;font-size:0.875rem;">Seleccionar archivo</button>
-<input type="file" id="inputPagoImagen" accept="image/*" style="display:none"/>
-<label>Fondo – Periodo:<br>
-      <select id="selectPagoFondo">
-        <option value="">Seleccione</option>
-      </select>
-    </label>
-    <div style="display:flex;justify-content:flex-end;gap:1rem">
-      <button id="btnCancelarPago">Cancelar</button>
-      <button id="btnAceptarPago">Aceptar</button>
-    </div>
-  </div>
-</div>
-
-<!-- Overlay “Registrando Pago…” -->
-<div id="overlayPagoRegistrando" style="
-  visibility: hidden;
-  opacity: 0;
-  position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0,0,0,0.6);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  z-index: 3000;
-  transition: opacity 0.3s ease;
-">
-  <div class="spinner"></div>
-  <div style="color:white; font-size:20px; font-weight:bold; margin-top:20px; text-align:center;">
-    Registrando Pago...
-  </div>
-</div>
-
-<script>
-// Funciones para pago de facturas
-let currentPagoRow = null;
-// Filas seleccionadas cuando se usa el botón "Pagar Facturas" (pago masivo)
-let selectedPagoRows = [];
- // Ahora recibe también el RowComponent real
-  function showModalPago(data, rowComps) {
-    const rowsArray = Array.isArray(rowComps) ? rowComps : [rowComps];
-    currentPagoRow = rowsArray[0];
-    selectedPagoRows = rowsArray;
-    const rowData = data || currentPagoRow.getData();
-  // Cargar fondos asociados al sector
-  fetch(urlLeerAnticipos)
-    .then(res => res.json())
-    .then(rows => {
-      const sel = document.getElementById("selectPagoFondo");
-      sel.innerHTML = '<option value="">Seleccione</option>';
-      rows.filter(r => r.Sector && data.Sector && r.Sector.trim().toLowerCase() === data.Sector.trim().toLowerCase())
-          .forEach(r => {
-            const val = `${r.Fondo}-${r.Periodo}`;
-            sel.appendChild(new Option(val, val));
-          });
-    });
-  document.getElementById("inputPagoImagen").value = "";
-  document.getElementById("modalPago").style.display = "flex";
-}
-
-document.getElementById("btnCancelarPago").onclick = () => {
-  // Limpiar campos del modal
-  document.getElementById("inputPagoImagen").value = "";
-  const sel = document.getElementById("selectPagoFondo");
-  sel.innerHTML = '<option value="">Seleccione</option>';
-  const pasteArea = document.getElementById("pasteArea");
-  pasteArea.innerHTML = '<div class="placeholder-top" contenteditable="false">Arrastra o presiona Ctrl+V</div><div class="placeholder-bottom" contenteditable="false"></div>';
-  // Ocultar modal
-  document.getElementById("modalPago").style.display = "none";
-      // Recargar tabla de pagos para mostrar facturas pendientes y pagadas
-      };
-
-
 </script>
-
 
 <script>
 document.addEventListener("DOMContentLoaded", function(){
@@ -2284,6 +2213,23 @@ document.getElementById("btnAceptarPago").addEventListener("click", async functi
         Fondo:     fondoPeriodo,
         FechaPago: fechaPago
       });
+   // 1) Poner el treeData en la tabla
+   tabAnticipos.setData(treeData);
+
+   // 2) Actualizar contadores Total y Saldo
+   document.getElementById("antTotal").textContent =
+    new Intl.NumberFormat('es-HN', { style: 'currency', currency: 'HNL' })
+       .format(totalAnt);
+   document.getElementById("antSaldo").textContent =
+     new Intl.NumberFormat('es-HN', { style: 'currency', currency: 'HNL' })
+       .format(saldo);
+
+  } catch (error) {
+    console.error("Error al cargar anticipos:", error);
+  } finally {
+    // 3) Ocultar overlay
+    document.getElementById("overlayAnt").style.display = "none";
+  }
     }
 
 
