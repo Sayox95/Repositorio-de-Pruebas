@@ -1773,20 +1773,59 @@ document.addEventListener('DOMContentLoaded',()=>{
   let tab;
   function overlay(s){$('overlayAnt').style.display=s?'flex':'none';}
   function cargar(){
-    fetch(urlLeerAnticipos).then(r=>r.json()).then(d=>{
-      if(tab){tab.replaceData(d);}else{
-        tab=new Tabulator('#tablaAnticipos',{data:d,height:'55vh',layout:'fitColumns',columns:[
-          {formatter:'rownum',width:50},
-          {title:'Sector',field:'Sector'},
-          {title:'Fondo',field:'Fondo'},
-          {title:'Deposito',field:'Deposito',formatter:'money',formatterParams:{symbol:'L ',precision:2}},
-          {title:'Periodo',field:'Periodo'},
-          {title:'Estado',field:'Estado',editor:'list',editorParams:{values:['Vigente','Aplicado','Anulado']},
-            cellEdited:c=>{const r=c.getRow().getData();actualizarEstado(r.fila||r._fila,c.getValue());}}
-        ]});
-      }
-      resumen(d);
-    });
+        fetch(urlLeerAnticipos).then(r=>r.json()).then(anticipos=>{
+          fetch(urlLeerFacturas + "?leerFacturas=true").then(r=>r.json()).then(facturas=>{
+            let totalAnt = 0;
+            let saldo = 0;
+            const treeData = anticipos.map(a => {
+              const dep = Number(a.Deposito || 0);
+              totalAnt += dep;
+              saldo += dep;
+              const pagos = facturas.filter(f => String(f.fondoPeriodo) === String(a.Fondo)).map(f => {
+                const pagoMonto = Number(f.fondoPeriodo);
+                saldo -= pagoMonto;
+                return {
+                  id: `pago-${f.NumeroFactura}-${f.fila}`,
+                  descripcion: `Pago factura #${f.NumeroFactura}`,
+                  monto: -pagoMonto,
+                  saldo: saldo,
+                  fecha: f.fechaPago,
+                  pagos: []
+                };
+              });
+              return {
+                id: `anticipo-${a.fila}`,
+                Sector: a.Sector,
+                descripcion: `Anticipo Fondo ${a.Fondo}`,
+                monto: dep,
+                saldo: saldo,
+                fecha: a.Fecha,
+                pagos: pagos
+              };
+            });
+            if(tab){
+              tab.replaceData(treeData);
+            } else {
+              tab=new Tabulator('#tablaAnticipos',{
+                data: treeData,
+                height: '55vh',
+                layout: 'fitColumns',
+                dataTree: true,
+                dataTreeChildField: 'pagos',
+                dataTreeElementColumn: 'descripcion',
+                columns:[
+                  {title:'Sector',field:'Sector'},
+                  {title:'Descripción',field:'descripcion'},
+                  {title:'Monto',field:'monto',formatter:'money',formatterParams:{symbol:'L ',precision:2},hozAlign:'right'},
+                  {title:'Saldo',field:'saldo',formatter:'money',formatterParams:{symbol:'L ',precision:2},hozAlign:'right'},
+                  {title:'Fecha',field:'fecha',hozAlign:'center'},
+                ]
+              });
+            }
+            document.getElementById('antTotal').textContent = money(totalAnt);
+            document.getElementById('antSaldo').textContent = money(saldo);
+          });
+        });
   }
     function resumen(d){
     const t=d.reduce((s,r)=>s+Number(r.Deposito||0),0);
