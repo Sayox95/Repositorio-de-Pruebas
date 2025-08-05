@@ -1,6 +1,6 @@
 // GET  /api/Anticipos  →  Proxy a Apps Script ?accion=leerAnticipos
 const GAS_URL =
-"https://script.google.com/macros/s/AKfycbwkeitkaLq-XIapwYrirjY6OfSaUnUatOWApm8Gof4cK8mE1KaJAtxiqdCpoYumXwfd/exec";
+"https://script.google.com/macros/s/AKfycbzxlPdLxw5GJPsogsu9je02eqNxtuPAK82aacos396nJG_RLsOg5McIXLvfjO7kjoaW/exec";
 
 export async function onRequestGet({ request }) {
   const origin = request.headers.get("Origin") || "*";
