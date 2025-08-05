@@ -72,6 +72,9 @@
 </style>
 
 <script>
+  const urlGuardarAnticipo = "/api/GuardarAnti";
+  const urlLeerAnticipos = "/api/Anticipos";
+  const urlGuardarFactura = "/api/guardar";
   const Envio_Correos = 'https://script.google.com/macros/s/AKfycbyxu18kQ-oUAXu188swhZUlOc7tgcmdJHsDoxnVTfJ3if-4rxaW1HUI2o4YYIh_Rql6/exec';
 </script>
 <!-- ==== unload listener interception Patch v26 ==== -->
@@ -1395,11 +1398,8 @@ document.getElementById('exportExcelBtn').addEventListener('click', function() {
 </script>
 <script>
   // Endpoint definitions moved here
-  const baseApi            = window.location.origin + "/api";
-  const urlGuardarAnticipo = baseApi + "/GuardarAnti";
-  const urlLeerAnticipos   = baseApi + "/Anticipos";
-  const urlGuardarFactura  = baseApi + "/guardar";
-  const urlLeerFacturas    = baseApi + "/leer";
+  const urlLeerFacturas = "https://repositorio-de-pruebas.pages.dev/api/leer";
+const urlGuardarReporte = "/api/guardar";
 // Tabulator setup for Revisión de Facturas
 document.addEventListener("DOMContentLoaded", function(){
   var tableRevision = window.tableRevision = new Tabulator("#tablaRevisionFacturas", {
