@@ -1781,15 +1781,15 @@ document.addEventListener('DOMContentLoaded',()=>{
               const dep = Number(a.Deposito || 0);
               totalAnt += dep;
               saldo += dep;
-              const pagos = facturas.filter(f => String(f.fondoPeriodo) === String(a.Fondo)).map(f => {
+              const pagos = facturas.filter(f => String(f.Fondo) === String(a.Fondo)).map(f => {
                 const pagoMonto = Number(f.fondoPeriodo);
                 saldo -= pagoMonto;
                 return {
-                  id: `pago-${f.NumeroFactura}-${f.fila}`,
-                  descripcion: `Pago factura #${f.NumeroFactura}`,
+                  id: `pago-${f["Numero de Factura"]}-${f.fila}`,
+                  descripcion: `Pago factura #${f["Numero de Factura"]}`,
                   monto: -pagoMonto,
                   saldo: saldo,
-                  fecha: f.fechaPago,
+                  fecha: f["Fecha de Pago"],
                   pagos: []
                 };
               });
@@ -2044,7 +2044,7 @@ async function cargarAnticipos(){
         saldo -= amt;
         return {
           id: f.fila,
-          descripcion: `Pago factura #${f.NumeroFactura}`,
+          descripcion: `Pago factura #${f["Numero de Factura"]}`,
           monto: -amt,
           saldo: saldo
         };
