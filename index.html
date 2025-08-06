@@ -416,159 +416,61 @@
 </style>
 <div id="toast-alert">⚠️ Hay campos obligatorios sin completar.</div>
 <!-- ==== Registrar Anticipo ==== -->
-<section id="registrarAnticipo" style="display:flex;flex-direction:column;gap:1rem;padding:1rem;align-items:center;">
-  <button id="btnBackAnt" style="align-self:flex-start;">← Volver</button>
-  <h2>Registrar Anticipo</h2>
-  <div style="display:flex;flex-wrap:wrap;gap:.8rem;align-items:flex-end;">
-    <div>
-      <label>Sector<br/>
-        <select id="antSector" required>
-          <option value="">Seleccione</option>
-          <!-- tus opciones -->
-        </select>
-      </label>
-    </div>
-    <div>
-      <label>Fondo<br/>
-        <select id="antFondo">
-          <option value="">Seleccione</option>
-          <option value="Combustible">Combustible</option>
-          <option value="Poda">Poda</option>
-        </select>
-      </label>
-    </div>
-    <div>
-      <label>Depósito (L)<br/>
-        <input id="antDeposito" min="0" step="0.01" type="number" style="width:8rem;"/>
-      </label>
-    </div>
-    <div>
-      <label>Periodo<br/>
-        <select id="antPeriodo" style="width:8rem;">
-          <option value="">Seleccione</option>
-        </select>
-      </label>
-    </div>
-    <button id="btnAddAnt" style="height:2.3rem;">＋ Registrar</button>
+<section id="registrarAnticipo" style="display:none;flex-direction:column;gap:1rem;padding:1rem;align-items:center;">
+<button id="btnBackAnt" style="align-self:flex-start;">← Volver</button>
+<h2>Registrar Anticipo</h2>
+<div style="display:flex;flex-wrap:wrap;gap:.8rem;align-items:flex-end;">
+<div><label>Sector<br/><select id="antSector" required="">
+<option value="">Seleccione</option>
+<option value="SAN PEDRO SULA">SAN PEDRO SULA</option>
+<option value="EL PROGRESO">EL PROGRESO</option>
+<option value="STA. CRUZ">STA. CRUZ</option>
+<option value="CHOLUTECA">CHOLUTECA</option>
+<option value="COMAYAGUA">COMAYAGUA</option>
+<option value="DANLI">DANLI</option>
+<option value="GUANAJA">GUANAJA</option>
+<option value="JUTICALPA">JUTICALPA</option>
+<option value="LA CEIBA">LA CEIBA</option>
+<option value="SANTA ROSA">SANTA ROSA</option>
+<option value="TEGUCIGALPA">TEGUCIGALPA</option>
+<option value="TOCOA">TOCOA</option>
+<option value="BRUS LAGUNA">BRUS LAGUNA</option>
+</select></label></div>
+<div><label>Fondo<br/><select id="antFondo"><option value="">Seleccione</option><option value="Combustible">Combustible</option><option value="Poda">Poda</option></select></label></div>
+<div><label>Depósito (L)<br/><input id="antDeposito" min="0" step="0.01" style="width:8rem;" type="number"/></label></div>
+<div><label>Periodo<br/><select id="antPeriodo" style="width:8rem;"><option value="">Seleccione</option></select></label></div>
+<button id="btnAddAnt" style="height:2.3rem;">＋ Registrar</button>
+</div>
+<div style="font-weight:bold;display:flex;gap:2rem;margin-top:.5rem;">
+<span>Total anticipos: <span id="antTotal">L 0.00</span></span>
+<span>Saldo disponible: <span id="antSaldo">L 0.00</span></span>
+</div>
+<div id="tablaAnticiposWrapper" style="position:relative;border:1px solid #ccc;border-radius:6px;overflow:hidden;width:100%;max-width:1200px;">
+  <div id="tablaAnticipos"></div>
+  <div id="overlayAnt" style="position:absolute;top:0;left:0;right:0;bottom:0;display:none;flex-direction:column;justify-content:center;align-items:center;background:rgba(255,255,255,0.8);z-index:1000;">
+    <div style="width:3rem;height:3rem;border:.4rem solid #eee;border-top-color:#007bff;border-radius:50%;animation:spin .8s linear infinite;"></div>
+    <span style="color:#333;font-weight:bold;margin-top:.5rem;">Cargando información</span>
   </div>
-  <div style="font-weight:bold;display:flex;gap:2rem;margin-top:.5rem;">
-    <span>Total anticipos: <span id="antTotal">L 0.00</span></span>
-    <span>Saldo disponible: <span id="antSaldo">L 0.00</span></span>
-  </div>
-  <div id="tablaAnticiposWrapper" style="position:relative;border:1px solid #ccc;border-radius:6px;overflow:hidden;width:100%;max-width:1200px;">
-    <div id="tablaAnticipos"></div>
-    <div id="overlayAnt" style="position:absolute;top:0;left:0;right:0;bottom:0;display:none;flex-direction:column;justify-content:center;align-items:center;background:rgba(255,255,255,0.8);z-index:1000;">
-      <div class="spinner"></div>
-      <span>Cargando información</span>
-    </div>
-  </div>
+</div>
+<style>@keyframes spin { to { transform: rotate(360deg); } }</style>
 </section>
-
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-  const $ = id => document.getElementById(id);
-  const money = v => 'L ' + Number(v||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
-  let tab;
-
-  // Endpoints
-  const urlLeerAnticiposConPagos = '/api/anticiposConPagos';
-  const urlGuardarAnticipo       = '/api/GuardarAnti';
-
-  // Overlay helper
-  function overlay(show) {
-    $('overlayAnt').style.display = show ? 'flex' : 'none';
-  }
-
-  // Load and refresh data
-  function cargar() {
-    overlay(true);
-    fetch(urlLeerAnticiposConPagos)
-      .then(res => res.json())
-      .then(data => {
-        const treeData = data.map(a => {
-          let saldo = Number(a.monto);
-          const children = (a.pagos || []).map(p => {
-            saldo -= Number(p.monto);
-            return {
-              description: `Pago factura #${p.numeroFactura}`,
-              monto: -Number(p.monto),
-              saldo,
-            };
-          });
-          return {
-            description: `Anticipo ${a.fondo}`,
-            monto: Number(a.monto),
-            saldo: Number(a.monto),
-            _children: children,
-          };
-        });
-
-        if (tab) {
-          tab.replaceData(treeData);
-        } else {
-          tab = new Tabulator('#tablaAnticipos', {
-            data: treeData,
-            dataTree: true,
-            dataTreeStartExpanded: true,
-            dataTreeChildField: '_children',
-            height: '55vh',
-            layout: 'fitColumns',
-            columns: [
-              { title: 'Descripción', field: 'description', widthGrow: 3 },
-              { title: 'Monto',        field: 'monto',       hozAlign: 'right', formatter: 'money' },
-              { title: 'Saldo',        field: 'saldo',       hozAlign: 'right', formatter: 'money' },
-            ],
-          });
-        }
-      })
-      .catch(console.error)
-      .finally(() => overlay(false));
-  }
-
-  // Register new anticipo
-  function registrar() {
-    const sector   = $('antSector').value;
-    const fondo    = $('antFondo').value;
-    const monto    = $('antDeposito').value;
-    const periodo  = $('antPeriodo').value;
-    if (!sector || !fondo || !monto || !periodo) {
-      alert('Completa todos los campos.');
-      return;
-    }
-    overlay(true);
-    fetch(urlGuardarAnticipo, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sector, fondo, monto, periodo })
-    })
-    .then(r => r.json())
-    .then(res => {
-      if (res.status !== 'OK') throw new Error(res.message);
-      cargar();
-    })
-    .catch(e => { console.error(e); alert('Error al registrar.'); })
-    .finally(() => overlay(false));
-  }
-
-  // Button handlers and populate period
-  $('btnBackAnt').addEventListener('click', () => {});
-  $('btnAddAnt').addEventListener('click', registrar);
-  (()=>{
-    const sel = $('antPeriodo');
-    const today = new Date();
-    for (let i = 0; i < 18; i++) {
-      const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
-      const val = `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}`;
-      const opt = document.createElement('option');
-      opt.value = val; opt.textContent = val;
-      sel.appendChild(opt);
-    }
-  })();
-
-  cargar();
-});
-</script>
-
+<style>
+@keyframes fadeOutUp {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(-20px); }
+}
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-out-up {
+  animation: fadeOutUp 0.3s forwards;
+}
+.fade-in-down {
+  animation: fadeInDown 0.3s ease-out forwards;
+}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
 <script src="https://unpkg.com/blueimp-load-image/js/load-image.all.min.js"></script>
 <!-- Custom Header Styles -->
 <style>
