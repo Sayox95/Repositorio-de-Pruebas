@@ -1,5 +1,5 @@
 const GAS_URL =
-  "https://script.google.com/macros/s/AKfycbxwGljJCml1QTJdUkyZmbi0ZDvACke9k4Rgjf67U9WipVmg-FG0YiJ4RPGKqCp3Bcq_/exec";
+  "https://script.google.com/macros/s/AKfycbwVUHX8N1ffqHbpuNX2q6bDg6lH6AYbSnJ-cju2SYLvy1vDrixyIwYA83mlMghIcWdZ/exec";
 
 export async function onRequestGet({ request }) {
   const origin = request.headers.get("Origin") || "*";
