@@ -1997,10 +1997,10 @@ async function cargarAnticipos(){
       totalAnt += dep;
       saldo += dep;
       const key = `${a.Fondo}-${a.Periodo}`;
-        const pagos = (facturas || []).filter(f =>
-      `${f.Fondo}-${f.Periodo}` === key &&
-       (f.Estado || "").toLowerCase() === "pagada"
-      ).map(f => {
+  const pagos = (facturas || []).filter(f =>
+    f.Fondo === key &&                                  // nuevo: comparamos directamente contra Fondo
+    (f.Estado  || "").toLowerCase() === "pagada"
+  ).map(f => {
         const amt = Number(f.TotalGastado || 0);
         saldo -= amt;
         return {
