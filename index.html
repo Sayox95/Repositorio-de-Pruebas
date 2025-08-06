@@ -1961,6 +1961,7 @@ document.addEventListener("DOMContentLoaded", function(){
     dataTreeElementColumn: "descripcion",
     dataTreeStartExpanded: false,
     columns: [
+      { title: "Sector",       field: "Sector",      hozAlign:"left" },
       { title: "Descripción", field: "descripcion", headerSort: false },
       { title: "Monto",       field: "monto",       hozAlign: "right", formatter: "money", formatterParams: { symbol: "L ", precision: 2 } },
       { title: "Saldo",       field: "saldo",       hozAlign: "right", formatter: "money", formatterParams: { symbol: "L ", precision: 2 } }
@@ -2004,6 +2005,7 @@ async function cargarAnticipos(){
         const amt = Number(f["Total Gastado"] || 0);
         saldo -= amt;
         return {
+          Sector: a.Sector, 
           id: f.fila,
           descripcion: `Pago factura #${f["Numero de Factura"] || ""}`,
           monto: -amt,
@@ -2011,6 +2013,7 @@ async function cargarAnticipos(){
         };
       });
   const nodo = {
+    Sector: a.Sector,
     id: a.fila,
     descripcion: `Anticipo ${a.Fondo} (${a.Periodo})`,
     monto: dep,
