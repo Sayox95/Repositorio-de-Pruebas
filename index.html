@@ -2001,11 +2001,11 @@ async function cargarAnticipos(){
     f.Fondo === key &&                                  // nuevo: comparamos directamente contra Fondo
     (f.Estado  || "").toLowerCase() === "pagada"
   ).map(f => {
-        const amt = Number(f.TotalGastado || 0);
+        const amt = Number(f["Total Gastado"] || 0);
         saldo -= amt;
         return {
           id: f.fila,
-          descripcion: `Pago factura #${f.NumeroFactura}`,
+          descripcion: `Pago factura #${f["Numero de Factura"] || ""}`,
           monto: -amt,
           saldo: saldo
         };
