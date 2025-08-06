@@ -1997,9 +1997,9 @@ async function cargarAnticipos(){
       totalAnt += dep;
       saldo += dep;
       const key = `${a.Fondo}-${a.Periodo}`;
-      const pagos = (facturas || []).filter(f =>
-        String(f.fondoPeriodo || f.FondoPeriodo) === key &&
-        (f.Estado || "").toLowerCase() === "pagada"
+        const pagos = (facturas || []).filter(f =>
+      `${f.Fondo}-${f.Periodo}` === key &&
+       (f.Estado || "").toLowerCase() === "pagada"
       ).map(f => {
         const amt = Number(f.TotalGastado || 0);
         saldo -= amt;
@@ -2010,16 +2010,22 @@ async function cargarAnticipos(){
           saldo: saldo
         };
       });
-      return {
-        id: a.fila,
-        descripcion: `Anticipo ${a.Fondo} (${a.Periodo})`,
-        monto: dep,
-        saldo: saldo,
-        pagos: pagos
-      };
+  const nodo = {
+    id: a.fila,
+    descripcion: `Anticipo ${a.Fondo} (${a.Periodo})`,
+    monto: dep,
+    saldo: saldo,
+  };
+  if (pagos.length) {
+    nodo.pagos = pagos;
+  }
+  return nodo;
     });
 
-    tabAnticipos.setData(treeData);
+     console.log("anticipos:", anticipos);
+ console.log("facturas:", facturas);
+ console.log("treeData:", treeData);
+ tabAnticipos.setData(treeData);
 
     document.getElementById("antTotal").textContent =
       new Intl.NumberFormat('es-HN', {style: 'currency', currency: 'HNL'}).format(totalAnt);
