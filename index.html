@@ -1767,135 +1767,59 @@ document.addEventListener("DOMContentLoaded", function(){
 </script>
 <!-- ==== End Patch v36 ==== -->
 <script>
-// Anticipos: Overlay y lógica de carga (tree-table con pagos)
-document.addEventListener("DOMContentLoaded", function() {
-  // Flag de primera carga
-  window.isFirstLoadAnticipo = true;
-
-  // Helpers
-  const $      = id => document.getElementById(id);
-  const money  = v  => 'L ' + Number(v || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-  // Manejo de overlay
-  function overlayAnt(show) {
-    const ov = $("overlayAnt");
-    if (ov) ov.style.display = show ? "flex" : "none";
-  }
-
-  // Tabulator instance
+document.addEventListener('DOMContentLoaded',()=>{
+  const $=id=>document.getElementById(id);
+  const money=v=>'L '+Number(v||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
   let tab;
-
-  // Función principal de carga
-  async function cargar() {
-    // Mostrar sección y overlay
-    const sec = $("registrarAnticipo");
-    if (sec) sec.style.display = "flex";
-    overlayAnt(true);
-
-    try {
-      // Peticiones paralelas
-      const [anticipos, facturas] = await Promise.all([
-        fetch(urlLeerAnticipos + "?accion=leerAnticipos").then(r => r.json()),
-        fetch(urlLeerFacturas    + "?leerFacturas=true").then(r => r.json())
-      ]);
-
-      let totalAnt = 0, saldo = 0;
-
-      // Construir tree data
-      const treeData = anticipos.map(a => {
-        const dep = Number(a.Deposito || 0);
-        totalAnt += dep;
-        saldo    += dep;
-
-        // Subnodos: pagos ya realizados para este fondo
-        const pagos = (facturas || [])
-          .filter(f => String(f.FondoPeriodo) === `${a.Fondo}-${a.Periodo}` && (f.Estado || "").toLowerCase() === "pagada")
-          .map(f => {
-            const pagoMonto = Number(f.TotalGastado || 0);
-            saldo -= pagoMonto;
-            return {
-              id:          `pago-${f.fila}`,
-              Sector:      f.Sector,
-              descripcion: `Pago factura #${f["Numero de Factura"]}`,
-              monto:       -pagoMonto,
-              saldo:        saldo,
-            };
-          });
-
-        return {
-          id:          `anticipo-${a.fila}`,
-          Sector:      a.Sector,
-          descripcion: `Anticipo ${a.Fondo} (${a.Periodo})`,
-          monto:        dep,
-          saldo:       saldo,
-          pagos:       pagos,
-        };
-      });
-
-      // Inicializar o refrescar Tabulator
-      if (tab) {
-        tab.replaceData(treeData);
-      } else {
-        tab = new Tabulator("#tablaAnticipos", {
-          height: "55vh",
-          layout: "fitColumns",
-          placeholder: "No hay registros",
-          dataTree: true,
-          dataTreeChildField: "pagos",
-          dataTreeElementColumn: "descripcion",
-          dataTreeStartExpanded: false,
-          columns: [
-            { title: "Sector",       field: "Sector" },
-            { title: "Descripción",  field: "descripcion", headerSort: false },
-            { title: "Monto",        field: "monto", hozAlign: "right", formatter: "money", formatterParams: { symbol: "L ", precision: 2 } },
-            { title: "Saldo",        field: "saldo", hozAlign: "right", formatter: "money", formatterParams: { symbol: "L ", precision: 2 } },
-          ],
-        });
+  function overlay(s){$('overlayAnt').style.display=s?'flex':'none';}
+  function cargar(){
+    fetch(urlLeerAnticipos).then(r=>r.json()).then(d=>{
+      if(tab){tab.replaceData(d);}else{
+        tab=new Tabulator('#tablaAnticipos',{data:d,height:'55vh',layout:'fitColumns',columns:[
+          {formatter:'rownum',width:50},
+          {title:'Sector',field:'Sector'},
+          {title:'Fondo',field:'Fondo'},
+          {title:'Deposito',field:'Deposito',formatter:'money',formatterParams:{symbol:'L ',precision:2}},
+          {title:'Periodo',field:'Periodo'},
+          {title:'Estado',field:'Estado',editor:'list',editorParams:{values:['Vigente','Aplicado','Anulado']},
+            cellEdited:c=>{const r=c.getRow().getData();actualizarEstado(r.fila||r._fila,c.getValue());}}
+        ]});
       }
-
-      // Actualizar totales
-      if ($("antTotal"))  $("antTotal").textContent = money(totalAnt);
-      if ($("antSaldo"))  $("antSaldo").textContent = money(saldo);
-
-    } catch (error) {
-      console.error("Error al cargar anticipos:", error);
-    } finally {
-      overlayAnt(false);
-    }
+      resumen(d);
+    });
   }
-
-  // Función para registrar un nuevo anticipo
-  function registrar() {
-    overlayAnt(true);
-    fetch(urlGuardarAnticipo, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        accion:    "registrarAnticipo",
-        Sector:    $("antSector")?.value,
-        Fondo:     $("antFondo")?.value,
-        Deposito:  $("antDeposito")?.value,
-        Periodo:   $("antPeriodo")?.value,
-      })
-    })
-    .then(res => res.json())
-    .then(res => {
-      if (res.status !== "OK") throw new Error(res.message);
-    })
-    .catch(err => console.error("Error al registrar anticipo:", err))
-    .finally(() => cargar());
+    function resumen(d){
+    const t=d.reduce((s,r)=>s+Number(r.Deposito||0),0);
+    const sld=d.filter(r=>r.Estado==='Vigente').reduce((s,r)=>s+Number(r.Deposito||0),0);
+    $('antTotal').textContent=money(t); $('antSaldo').textContent=money(sld);
   }
+  function registrar(){
+  var ov = document.getElementById("overlayAnt");
+  ov.querySelector("span").textContent = "Registrando cambios";
+  ov.style.display = "flex";
 
-  // Listeners de botones (con defensas por si no existen)
-  $("btnIrRegistrarAnticipo")?.addEventListener("click", cargar);
-  $("btnBackAnt")?.addEventListener("click", () => {
-    $("registrarAnticipo").style.display = "none";
-    $("menuPrincipal").style.display     = "flex";
-  });
-  $("btnAddAnt")?.addEventListener("click", registrar);
+  fetch(urlGuardarAnticipo, { method:"POST" })
+    .then(function(res){ return res.json(); })
+    .then(function(res){ if(res.status !== "OK") throw new Error(res.message); })
+    .catch(function(err){ console.error("Error al registrar:", err); })
+    .finally(function(){ cargarAnticipos(); });
+};
+  $('btnBackAnt').addEventListener('click',()=>{ $('registrarAnticipo').style.display='none'; $('menuPrincipal').style.display='flex';});
+  
+// populate periodo select
+const perSel=document.getElementById('antPeriodo');
+if(perSel && perSel.options.length<=1){
+  const today=new Date();
+  for(let i=0;i<18;i++){
+    const d=new Date(today.getFullYear(), today.getMonth()-i,1);
+    const val=`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}`;
+    const opt=document.createElement('option');opt.value=val;opt.textContent=val;perSel.appendChild(opt);
+  }
+}
+$('btnAddAnt').addEventListener
+('click',registrar);
 });
 </script>
-
 <script>
 
 // Cargar sectores para anticipos (estático)
@@ -2037,10 +1961,9 @@ document.addEventListener("DOMContentLoaded", function(){
     dataTreeElementColumn: "descripcion",
     dataTreeStartExpanded: false,
     columns: [
-      { title: "Sector",      field: "Sector" },
       { title: "Descripción", field: "descripcion", headerSort: false },
-      { title: "Monto",       field: "monto",       hozAlign: "right", formatter: "money", formatterParams: { symbol: "L ", precision: 2 } },
-      { title: "Saldo",       field: "saldo",       hozAlign: "right", formatter: "money", formatterParams: { symbol: "L ", precision: 2 } }
+      { title: "Monto",       field: "monto",       hozAlign: "right", formatter: "money", formatterParams: { symbol: "L ", precision: 2 } },
+      { title: "Saldo",       field: "saldo",       hozAlign: "right", formatter: "money", formatterParams: { symbol: "L ", precision: 2 } }
     ]
   });
 
@@ -2053,82 +1976,156 @@ document.addEventListener("DOMContentLoaded", function(){
 async function cargarAnticipos(){
   mostrarSeccion("registrarAnticipo");
   const ov = document.getElementById("overlayAnt");
-  ov.querySelector("span").textContent = window.isFirstLoadAnticipo ? "Cargando información" : "Actualizando información";
+  const span = ov.querySelector("span");
+  span.textContent = window.isFirstLoadAnticipo ? "Cargando información" : "Actualizando información";
   ov.style.display = "flex";
   window.isFirstLoadAnticipo = false;
 
-  document.getElementById("antTotal").textContent = "L 0.00";
-  document.getElementById("antSaldo").textContent = "L 0.00";
+  document.getElementById("antTotal").textContent = "L 0.00";
+  document.getElementById("antSaldo").textContent = "L 0.00";
   tabAnticipos.clearData();
 
   try {
     const [anticipos, facturas] = await Promise.all([
       fetch(urlLeerAnticipos + "?accion=leerAnticipos").then(r => r.json()),
-      fetch(urlLeerFacturas   + "?leerFacturas=true").then(r => r.json())
+      fetch(urlLeerFacturas + "?leerFacturas=true").then(r => r.json())
     ]);
 
-    let saldo    = 0;
-    let totalAnt = 0;
-
+    let saldo = 0, totalAnt = 0;
     const treeData = anticipos.map(a => {
-      const dep = Number(a.Deposito || 0);
+      const dep = Number(a.Deposito || a.deposito || 0);
       totalAnt += dep;
-      saldo    += dep;
-
-      // usa la clave correcta FONDO-PERIODO
+      saldo += dep;
       const key = `${a.Fondo}-${a.Periodo}`;
-      const pagos = (facturas || [])
-        .filter(f =>
-          String(f.fondoPeriodo || f.FondoPeriodo) === key &&
-          (f.Estado || "").toLowerCase() === "pagada"
-        )
-        .map(f => {
-          const amt = Number(f["Total Gastado"] || 0);
-          saldo -= amt;
-          return {
-            id:          `pago-${f.fila}`,
-            Sector:      f.Sector,
-            descripcion: `Pago factura #${f["Numero de Factura"]}`,
-            monto:       -amt,
-            saldo:       saldo,
-            fecha:       f["Fecha de Pago"],
-            pagos:       []        // los hijos de un pago, vacíos
-          };
-        });
-
+      const pagos = (facturas || []).filter(f =>
+        String(f.fondoPeriodo || f.FondoPeriodo) === key &&
+        (f.Estado || "").toLowerCase() === "pagada"
+      ).map(f => {
+        const amt = Number(f.TotalGastado || 0);
+        saldo -= amt;
+        return {
+          id: f.fila,
+          descripcion: `Pago factura #${f.NumeroFactura}`,
+          monto: -amt,
+          saldo: saldo
+        };
+      });
       return {
-        id:          `anticipo-${a.fila}`,
-        Sector:      a.Sector,
+        id: a.fila,
         descripcion: `Anticipo ${a.Fondo} (${a.Periodo})`,
-        monto:       dep,
-        saldo:       saldo,
-        fecha:       a.Fecha,
-        pagos:       pagos
+        monto: dep,
+        saldo: saldo,
+        pagos: pagos
       };
     });
 
-    // **1)** renderiza el árbol  
     tabAnticipos.setData(treeData);
 
-    // **2)** actualiza los totales  
     document.getElementById("antTotal").textContent =
-      new Intl.NumberFormat('es-HN',{style:'currency',currency:'HNL'}).format(totalAnt);
+      new Intl.NumberFormat('es-HN', {style: 'currency', currency: 'HNL'}).format(totalAnt);
     document.getElementById("antSaldo").textContent =
-      new Intl.NumberFormat('es-HN',{style:'currency',currency:'HNL'}).format(saldo);
+      new Intl.NumberFormat('es-HN', {style: 'currency', currency: 'HNL'}).format(saldo);
 
   } catch (error) {
     console.error("Error al cargar anticipos:", error);
   } finally {
-    ov.style.display = "none";
+    document.getElementById("overlayAnt").style.display = "none";
   }
 }
 </script>
+
+
+<!-- Modal para registrar pago -->
+<div id="modalPago">
+  <div class="dialog">
+    <h3>Registrar Pago</h3>
+    
+<label>Comprobante de pago:</label>
+<div id="pasteArea" contenteditable="true" spellcheck="false" tabindex="0" style="border:1px dashed #ccc;padding:1rem;min-height:150px;text-align:center;position:relative;">
+  <div class="placeholder-top" contenteditable="false">Arrastra o presiona Ctrl+V</div>
+  <div class="placeholder-bottom" contenteditable="false"></div>
+</div>
+<button id="btnSelectFile" style="display:block;margin:0.5rem auto;padding:0.25rem 0.5rem;height:2rem;font-size:0.875rem;">Seleccionar archivo</button>
+<input type="file" id="inputPagoImagen" accept="image/*" style="display:none"/>
+<label>Fondo – Periodo:<br>
+      <select id="selectPagoFondo">
+        <option value="">Seleccione</option>
+      </select>
+    </label>
+    <div style="display:flex;justify-content:flex-end;gap:1rem">
+      <button id="btnCancelarPago">Cancelar</button>
+      <button id="btnAceptarPago">Aceptar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Overlay “Registrando Pago…” -->
+<div id="overlayPagoRegistrando" style="
+  visibility: hidden;
+  opacity: 0;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 3000;
+  transition: opacity 0.3s ease;
+">
+  <div class="spinner"></div>
+  <div style="color:white; font-size:20px; font-weight:bold; margin-top:20px; text-align:center;">
+    Registrando Pago...
+  </div>
+</div>
+
+<script>
+// Funciones para pago de facturas
+let currentPagoRow = null;
+// Filas seleccionadas cuando se usa el botón "Pagar Facturas" (pago masivo)
+let selectedPagoRows = [];
+ // Ahora recibe también el RowComponent real
+  function showModalPago(data, rowComps) {
+    const rowsArray = Array.isArray(rowComps) ? rowComps : [rowComps];
+    currentPagoRow = rowsArray[0];
+    selectedPagoRows = rowsArray;
+    const rowData = data || currentPagoRow.getData();
+  // Cargar fondos asociados al sector
+  fetch(urlLeerAnticipos)
+    .then(res => res.json())
+    .then(rows => {
+      const sel = document.getElementById("selectPagoFondo");
+      sel.innerHTML = '<option value="">Seleccione</option>';
+      rows.filter(r => r.Sector && data.Sector && r.Sector.trim().toLowerCase() === data.Sector.trim().toLowerCase())
+          .forEach(r => {
+            const val = `${r.Fondo}-${r.Periodo}`;
+            sel.appendChild(new Option(val, val));
+          });
+    });
+  document.getElementById("inputPagoImagen").value = "";
+  document.getElementById("modalPago").style.display = "flex";
+}
+
+document.getElementById("btnCancelarPago").onclick = () => {
+  // Limpiar campos del modal
+  document.getElementById("inputPagoImagen").value = "";
+  const sel = document.getElementById("selectPagoFondo");
+  sel.innerHTML = '<option value="">Seleccione</option>';
+  const pasteArea = document.getElementById("pasteArea");
+  pasteArea.innerHTML = '<div class="placeholder-top" contenteditable="false">Arrastra o presiona Ctrl+V</div><div class="placeholder-bottom" contenteditable="false"></div>';
+  // Ocultar modal
+  document.getElementById("modalPago").style.display = "none";
+      // Recargar tabla de pagos para mostrar facturas pendientes y pagadas
+      };
+
+
+</script>
+
 
 <script>
 document.addEventListener("DOMContentLoaded", function(){
   const pasteArea = document.getElementById("pasteArea");
   const fileInput = document.getElementById("inputPagoImagen");
-    if (!pasteArea || !fileInput) return;
   // Paste support
   pasteArea.addEventListener("paste", function(e){
     e.preventDefault();
@@ -2197,135 +2194,130 @@ document.addEventListener("DOMContentLoaded", function(){
 </script>
 
 <script>
-document.addEventListener("DOMContentLoaded", function() {
-  // Handler para “Aceptar Pago”
-  document.getElementById("btnAceptarPago").addEventListener("click", async function() {
-    const table = window.tabulatorTable || Tabulator.findTable("#facturas-table")[0];
-    // Guardamos la selección ORIGINAL para pago y envío de correos
-    const selectedPagoRowsPrev = [...selectedPagoRows];
-  
-    try {
-      // 1) Mostrar overlay de registro
-      const ov = document.getElementById("overlayPagoRegistrando");
-      ov.style.visibility = "visible";
-      ov.style.opacity    = 1;
-  
-      // 2) Validar fondo-período
-      const sel          = document.getElementById("selectPagoFondo");
-      const fondoPeriodo = sel.value;
-      if (!fondoPeriodo) {
-        ov.style.opacity = 0;
-        setTimeout(() => ov.style.visibility = "hidden", 300);
-        return alert("Seleccione un fondo-período.");
-      }
-  
-      const fechaPago = new Date().toISOString().substr(0,10);
-  
-      // 3) Guardar pago local (masivo o individual)
-      if (selectedPagoRowsPrev.length > 1) {
-        // Pagos masivos
-        const filas = selectedPagoRowsPrev.map(r => r.getData().fila);
-        await actualizarEstadoMultiple(filas, "Pagada", fondoPeriodo, fechaPago);
-        selectedPagoRowsPrev.forEach(r => r.update({
-          Estado:    "Pagada",
-          Fondo:     fondoPeriodo,
-          FechaPago: fechaPago
-        }));
-        table.deselectRow();
-        document.getElementById("btn-pagar-facturas").style.display = "none";
-      } else {
-        // Pago individual
-        const rowComp = currentPagoRow;
-        const fila    = rowComp.getData().fila;
-        const response = await fetch(urlGuardarFactura, {
-          method:  "POST",
-          headers: { "Content-Type": "application/json" },
-          body:    JSON.stringify({ fila, fondoPeriodo, fechaPago })
-        });
-    const j = await response.json();
-    if (j.status !== "OK") throw new Error(j.mensaje || "Error al guardar");
-        rowComp.update({
-          Estado:    "Pagada",
-          Fondo:     fondoPeriodo,
-          FechaPago: fechaPago
-        });
-     // 1) Poner el treeData en la tabla
-     tabAnticipos.setData(treeData);
-  
-     // 2) Actualizar contadores Total y Saldo
-  
-  
-      // 5) Preparar datos para el correo
-      const filas = selectedPagoRowsPrev.map(r => r.getData()["Numero de Factura"]);
-      const identidades = selectedPagoRowsPrev.map(r => r.getData().Identidad);
-      const montos      = selectedPagoRowsPrev.map(r => r.getData()["Total Gastado"]);
-  
-      // 6) Leer imágenes y convertir a base64
-      const images = [];
-      const inputImg = document.getElementById("inputPagoImagen");
-  	  
-      console.log('[Pago] Ficheros seleccionados:', inputImg.files.length, inputImg.files);
-  	  
-      for (const file of inputImg.files) {
-        const dataURL = await new Promise(res => {
-          const fr = new FileReader();
-          fr.onload = () => res(fr.result.split(',')[1]);
-          fr.readAsDataURL(file);
-        });
-        images.push({ filename: file.name, mime: file.type, data: dataURL });
-      }
-  
-      // 7) Enviar payload al Web App de Apps Script
-      const mailPayload = {
-        filas,
-        identidades,
-        montos,
-        fondoPeriodo,
-        fechaPago,
-        images
-      };
-      console.log('[Pago] Enviando correo con payload:', mailPayload);
-  
-      const mailResp = await fetch(Envio_Correos, {
-        method:  'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body:    JSON.stringify(mailPayload)
-      });
-      console.log('[Pago] Respuesta fetch status:', mailResp.status, mailResp.statusText);
-  
-      const mailResult = await mailResp.json();
-  	
-      console.log('[Pago] Respuesta fetch body:', mailResult);
-  
-      if (mailResult.status !== 'OK') {
-        throw new Error(mailResult.message || 'Error enviando notificaciones');
-      }
-  
-      alert('Pago registrado y correos enviados correctamente.');
-  
-    } catch (err) {
-      console.error("Error en proceso de pago o envío:", err);
-      alert("Error: " + err.message);
-    } finally {
-      // 8) Ocultar overlay al finalizar (éxito o error)
-      const ov = document.getElementById("overlayPagoRegistrando");
+// Handler para “Aceptar Pago”
+document.getElementById("btnAceptarPago").addEventListener("click", async function() {
+  const table = window.tabulatorTable || Tabulator.findTable("#facturas-table")[0];
+  // Guardamos la selección ORIGINAL para pago y envío de correos
+  const selectedPagoRowsPrev = [...selectedPagoRows];
+
+  try {
+    // 1) Mostrar overlay de registro
+    const ov = document.getElementById("overlayPagoRegistrando");
+    ov.style.visibility = "visible";
+    ov.style.opacity    = 1;
+
+    // 2) Validar fondo-período
+    const sel          = document.getElementById("selectPagoFondo");
+    const fondoPeriodo = sel.value;
+    if (!fondoPeriodo) {
       ov.style.opacity = 0;
       setTimeout(() => ov.style.visibility = "hidden", 300);
+      return alert("Seleccione un fondo-período.");
     }
-      // 8) Limpiar UI local (AHORA SÍ DESPUÉS de enviar el correo)
-    selectedPagoRows = [];
-     document.getElementById("inputPagoImagen").value = "";
-     const sel2 = document.getElementById("selectPagoFondo");
-      sel2.innerHTML = '<option value="">Seleccione</option>';
-      const pa2 = document.getElementById("pasteArea");
-      pa2.innerHTML =
-        '<div class="placeholder-top" contenteditable="false">Arrastra o presiona Ctrl+V</div>' +
-        '<div class="placeholder-bottom" contenteditable="false"></div>';
-      document.getElementById("modalPago").style.display = "none";
-      updateCountersPago();
-  });
-  
+
+    const fechaPago = new Date().toISOString().substr(0,10);
+
+    // 3) Guardar pago local (masivo o individual)
+    if (selectedPagoRowsPrev.length > 1) {
+      // Pagos masivos
+      const filas = selectedPagoRowsPrev.map(r => r.getData().fila);
+      await actualizarEstadoMultiple(filas, "Pagada", fondoPeriodo, fechaPago);
+      selectedPagoRowsPrev.forEach(r => r.update({
+        Estado:    "Pagada",
+        Fondo:     fondoPeriodo,
+        FechaPago: fechaPago
+      }));
+      table.deselectRow();
+      document.getElementById("btn-pagar-facturas").style.display = "none";
+    } else {
+      // Pago individual
+      const rowComp = currentPagoRow;
+      const fila    = rowComp.getData().fila;
+      await fetch(urlGuardarFactura, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ fila, fondoPeriodo, fechaPago })
+      })
+      .then(r => r.json())
+      .then(j => { if (j.status !== "OK") throw new Error(j.mensaje || "Error al guardar"); });
+      rowComp.update({
+        Estado:    "Pagada",
+        Fondo:     fondoPeriodo,
+        FechaPago: fechaPago
+      });
+    }
+
+
+    // 5) Preparar datos para el correo
+    const filas = selectedPagoRowsPrev.map(r => r.getData()["Numero de Factura"]);
+    const identidades = selectedPagoRowsPrev.map(r => r.getData().Identidad);
+    const montos      = selectedPagoRowsPrev.map(r => r.getData()["Total Gastado"]);
+
+    // 6) Leer imágenes y convertir a base64
+    const images = [];
+    const inputImg = document.getElementById("inputPagoImagen");
+	  
+    console.log('[Pago] Ficheros seleccionados:', inputImg.files.length, inputImg.files);
+	  
+    for (const file of inputImg.files) {
+      const dataURL = await new Promise(res => {
+        const fr = new FileReader();
+        fr.onload = () => res(fr.result.split(',')[1]);
+        fr.readAsDataURL(file);
+      });
+      images.push({ filename: file.name, mime: file.type, data: dataURL });
+    }
+
+    // 7) Enviar payload al Web App de Apps Script
+    const mailPayload = {
+      filas,
+      identidades,
+      montos,
+      fondoPeriodo,
+      fechaPago,
+      images
+    };
+    console.log('[Pago] Enviando correo con payload:', mailPayload);
+
+    const mailResp = await fetch(Envio_Correos, {
+      method:  'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body:    JSON.stringify(mailPayload)
+    });
+    console.log('[Pago] Respuesta fetch status:', mailResp.status, mailResp.statusText);
+
+    const mailResult = await mailResp.json();
+	
+    console.log('[Pago] Respuesta fetch body:', mailResult);
+
+    if (mailResult.status !== 'OK') {
+      throw new Error(mailResult.message || 'Error enviando notificaciones');
+    }
+
+    alert('Pago registrado y correos enviados correctamente.');
+
+  } catch (err) {
+    console.error("Error en proceso de pago o envío:", err);
+    alert("Error: " + err.message);
+  } finally {
+    // 8) Ocultar overlay al finalizar (éxito o error)
+    const ov = document.getElementById("overlayPagoRegistrando");
+    ov.style.opacity = 0;
+    setTimeout(() => ov.style.visibility = "hidden", 300);
+  }
+    // 8) Limpiar UI local (AHORA SÍ DESPUÉS de enviar el correo)
+  selectedPagoRows = [];
+   document.getElementById("inputPagoImagen").value = "";
+   const sel2 = document.getElementById("selectPagoFondo");
+    sel2.innerHTML = '<option value="">Seleccione</option>';
+    const pa2 = document.getElementById("pasteArea");
+    pa2.innerHTML =
+      '<div class="placeholder-top" contenteditable="false">Arrastra o presiona Ctrl+V</div>' +
+      '<div class="placeholder-bottom" contenteditable="false"></div>';
+    document.getElementById("modalPago").style.display = "none";
+    updateCountersPago();
 });
+
 </script>
 
 </body>
