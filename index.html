@@ -1770,6 +1770,28 @@ document.addEventListener("DOMContentLoaded", function(){
 </script>
 <!-- ==== End Patch v36 ==== -->
 <script>
+  async function registrar(){
+  var ov = document.getElementById("overlayAnt");
+  ov.querySelector("span").textContent = "Registrando cambios";
+  ov.style.display = "flex";
+
+     const payload = {
+     accion: "registrarAnticipo",
+     Sector:  document.getElementById("antSector").value,
+     Fondo:   document.getElementById("antFondo").value,
+     Deposito:Number(document.getElementById("antDeposito").value),
+     Periodo: document.getElementById("antPeriodo").value
+   };
+   await fetch(urlGuardarAnticipo, {
+     method:  "POST",
+     headers: {"Content-Type": "application/json"},
+     body:    JSON.stringify(payload)
+   })
+    .then(function(res){ return res.json(); })
+    .then(function(res){ if(res.status !== "OK") throw new Error(res.message); })
+    .catch(function(err){ console.error("Error al registrar:", err); })
+    .finally(function(){ cargarAnticipos(); });
+}
 document.addEventListener('DOMContentLoaded',()=>{
   const $=id=>document.getElementById(id);
   const money=v=>'L '+Number(v||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -1796,29 +1818,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     const sld=d.filter(r=>r.Estado==='Vigente').reduce((s,r)=>s+Number(r.Deposito||0),0);
     $('antTotal').textContent=money(t); $('antSaldo').textContent=money(sld);
   }
-  async function registrar(){
-  var ov = document.getElementById("overlayAnt");
-  ov.querySelector("span").textContent = "Registrando cambios";
-  ov.style.display = "flex";
 
-     const payload = {
-     accion: "registrarAnticipo",
-     Sector:  document.getElementById("antSector").value,
-     Fondo:   document.getElementById("antFondo").value,
-     Deposito:Number(document.getElementById("antDeposito").value),
-     Periodo: document.getElementById("antPeriodo").value
-   };
-   await fetch(urlGuardarAnticipo, {
-     method:  "POST",
-     headers: {"Content-Type": "application/json"},
-     body:    JSON.stringify(payload)
-   })
-    .then(function(res){ return res.json(); })
-    .then(function(res){ if(res.status !== "OK") throw new Error(res.message); })
-    .catch(function(err){ console.error("Error al registrar:", err); })
-    .finally(function(){ cargarAnticipos(); });
-};
-	
   $('btnBackAnt').addEventListener('click',()=>{ $('registrarAnticipo').style.display='none'; $('menuPrincipal').style.display='flex';});
   
 // populate periodo select
@@ -1902,8 +1902,6 @@ function mostrarOverlayRevision(modo){
   textEl.textContent = (modo === 'init') ? 'Cargando información' : 'Actualizando información';
   overlay.style.display = 'flex';
 }
-
-
 
 // Actualiza contadores de revisión
 function updateCountersRevision(){
