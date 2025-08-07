@@ -1338,7 +1338,7 @@ document.getElementById("btn-pagar-facturas").addEventListener("click", function
 
   // Load data function
   function loadDataPagoFacturas(){
-  return )
+  return fetch(urlLeerFacturas)
       .then(r=>r.json())
       .then(data=>{
         var rows = data.filter(f=>["Revisada","Pagada"].includes(f.Estado));
@@ -1896,7 +1896,7 @@ window.isFirstLoadRevisionFacturas = true;
 
 // Carga datos (fetch + setData) replicando lógica de sección Pago
 function loadDataRevisionFacturas(){
-  return )
+ return fetch(urlLeerFacturas)
     .then(r => r.json())
     .then(function(data){
       // Solo facturas que NO estén pagadas
