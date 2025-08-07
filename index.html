@@ -1983,8 +1983,7 @@ document.addEventListener('DOMContentLoaded', function(){
 window.isFirstLoadAnticipo = true;
 
 document.addEventListener("DOMContentLoaded", function(){
-
-// utilidades para DOM y formato de moneda
+  // utilidades para DOM y formato de moneda
   const $     = id => document.getElementById(id);
   const money = v  => new Intl.NumberFormat('es-HN', {
     style: 'currency', currency: 'HNL'
@@ -2041,18 +2040,6 @@ document.addEventListener("DOMContentLoaded", function(){
    $('antTotal').textContent = money(tot);
    $('antSaldo').textContent = money(sla);
  }
-
-  // 3) Enganchar los selects
-  fSector.addEventListener("change", aplicarFiltros);
-  fPeriod.addEventListener("change", aplicarFiltros);
-
-  // 4) Resto de listeners de navegación…
-  document.getElementById("btnIrRegistrarAnticipo")
-    .addEventListener("click", cargarAnticipos);
-  document.getElementById("btnBackAnt")
-    .addEventListener("click", () => mostrarSeccion("menuPrincipal"));
-});  
-
 async function cargarAnticipos(){
   mostrarSeccion("registrarAnticipo");
   const ov = document.getElementById("overlayAnt");
@@ -2151,6 +2138,17 @@ async function cargarAnticipos(){
     document.getElementById("overlayAnt").style.display = "none";
   }
 }
+  // 3) Enganchar los selects
+  fSector.addEventListener("change", aplicarFiltros);
+  fPeriod.addEventListener("change", aplicarFiltros);
+
+  // 4) Resto de listeners de navegación…
+  document.getElementById("btnIrRegistrarAnticipo")
+    .addEventListener("click", cargarAnticipos);
+  document.getElementById("btnBackAnt")
+    .addEventListener("click", () => mostrarSeccion("menuPrincipal"));
+});  
+
 </script>
 
 <script>
