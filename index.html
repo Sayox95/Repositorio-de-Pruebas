@@ -2003,13 +2003,6 @@ document.addEventListener("DOMContentLoaded", function(){
   const fSector = document.getElementById("filterSectorAnt");
   const fPeriod = document.getElementById("filterPeriodoAnt");
 
-  // 2) Rellenar automáticamente sus opciones
-  //    (puedes copiar innerHTML de antSector y antPeriodo)
-  document.getElementById("filterSectorAnt").innerHTML =
-    document.getElementById("antSector").innerHTML;
-  document.getElementById("filterPeriodoAnt").innerHTML =
-    document.getElementById("antPeriodo").innerHTML;
-
   // 3) Función que aplica los filtros a tabAnticipos
   function aplicarFiltros(){
     const sec = fSector.value;
