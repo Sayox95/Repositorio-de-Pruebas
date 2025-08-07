@@ -452,6 +452,22 @@
 <div style="font-weight:bold;display:flex;gap:2rem;margin-top:.5rem;">
 <span>Total anticipos: <span id="antTotal">L 0.00</span></span>
 <span>Saldo disponible: <span id="antSaldo">L 0.00</span></span>
+  <!-- ↓↓↓ Controles de filtro ↓↓↓ -->
+  <div id="filtrosAnt" style="display:flex;gap:1rem;align-items:center;margin:1rem 0;">
+    <label>
+      Filtrar Sector:<br/>
+      <select id="filterSectorAnt">
+        <option value="">Todos</option>
+        <!-- Opciones clonadas de antSector -->
+      </select>
+    </label>
+    <label>
+      Filtrar Periodo:<br/>
+      <select id="filterPeriodoAnt">
+        <option value="">Todos</option>
+        <!-- Opciones clonadas de antPeriodo -->
+      </select>
+    </label>
 </div>
 <div id="tablaAnticiposWrapper" style="position:relative;border:1px solid #ccc;border-radius:6px;overflow:hidden;width:100%;max-width:1200px;">
   <div id="tablaAnticipos"></div>
@@ -1983,6 +1999,37 @@ document.addEventListener("DOMContentLoaded", function(){
       { title: "Saldo",       field: "saldo",       hozAlign: "right", formatter: "money", formatterParams: { symbol: "L ", precision: 2 } }
     ]
   });
+
+  // 1) Obtener referencias a los selects de filtro
+  const fSector = document.getElementById("filterSectorAnt");
+  const fPeriod = document.getElementById("filterPeriodoAnt");
+
+  // 2) Rellenar automáticamente sus opciones
+  //    (puedes copiar innerHTML de antSector y antPeriodo)
+  document.getElementById("filterSectorAnt").innerHTML =
+    document.getElementById("antSector").innerHTML;
+  document.getElementById("filterPeriodoAnt").innerHTML =
+    document.getElementById("antPeriodo").innerHTML;
+
+  // 3) Función que aplica los filtros a tabAnticipos
+  function aplicarFiltros(){
+    const sec = fSector.value;
+    const per = fPeriod.value;
+    // Limpiar filtros previos
+    tabAnticipos.clearFilter(true);
+    // Filtro de sector (igualdad exacta)
+    if(sec) tabAnticipos.addFilter("Sector", "=", sec);
+    // Filtro de periodo (busca el código en descripción)
+    if(per) {
+      tabAnticipos.addFilter(row => {
+        return row.getData().descripcion.includes(per);
+      });
+    }
+  }
+
+  // 4) Enganchar cambios de los selects
+  fSector.addEventListener("change", aplicarFiltros);
+  fPeriod.addEventListener("change", aplicarFiltros);
 
   document.getElementById("btnIrRegistrarAnticipo")
     .addEventListener("click", cargarAnticipos);
