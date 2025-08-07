@@ -419,11 +419,26 @@
 <section id="registrarAnticipo" style="display:none;flex-direction:column;gap:1rem;padding:1rem;align-items:center;">
 <button id="btnBackAnt" style="align-self:flex-start;">← Volver</button>
 <h2>Registrar Anticipo</h2>
-<button id="btnShowAnt"
-        style="height:2.3rem; margin:1rem auto;
-               display:flex; justify-content:center; align-items:center;">
-  Registrar nuevo Anticipo
-</button>
+  <!-- Cortar desde aquí ↓↓ -->
+  <div id="filtrosAnt" style="display:flex;gap:1rem;align-items:center;margin:1rem 0;">
+    <label>
+      Filtrar Sector:<br/>
+      <select id="filterSectorAnt">
+        <option value="">Todos</option>
+        <!-- … -->
+      </select>
+    </label>
+    <label>
+      Filtrar Periodo:<br/>
+      <select id="filterPeriodoAnt">
+        <option value="">Todos</option>
+        <!-- … -->
+      </select>
+    </label>
+  </div>
+  <!-- Hasta aquí ↑↑ -->
+  <!-- Y pegarlo justo **antes** del botón Registrar nuevo Anticipo -->
+  <button id="btnShowAnt" style="…">Registrar nuevo Anticipo</button>
 <div id="anticipoMiniForm" style="display:none;flex-wrap:wrap;gap:.8rem;align-items:flex-end;display:flex;">
 <div><label>Sector<br/><select id="antSector" required="">
 <option value="">Seleccione</option>
