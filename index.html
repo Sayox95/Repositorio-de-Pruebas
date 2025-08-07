@@ -438,23 +438,16 @@
   </div>
   <!-- Hasta aquí ↑↑ -->
   <!-- Y pegarlo justo **antes** del botón Registrar nuevo Anticipo -->
-  <button id="btnShowAnt" style="…">Registrar nuevo Anticipo</button>
-<div id="anticipoMiniForm" style="display:none;flex-wrap:wrap;gap:.8rem;align-items:flex-end;display:flex;"> 
-</div>
-<button id="btnExportExcel"
-        style="
-          margin-bottom:1rem;
-          height:2rem;            /* menos alto */
-          width:8rem;             /* menos ancho */
-          background-color:#217346;
-          color:#ffffff;
-          border:none;
-          border-radius:0.25rem;
-          font-size:0.875rem;
-          cursor:pointer;
-        ">
-  Exportar
-</button>
+ + <button id="btnShowAnt" style="…">Registrar nuevo Anticipo</button>
++ <!-- Botón Exportar Excel siempre visible -->
++ <button id="btnExportExcel" style="…">Exportar Excel</button>
++ 
++ <!-- Mini-formulario de registro -->
++ <div id="anticipoMiniForm" style="display:none;flex-wrap:wrap;gap:.8rem;align-items:flex-end;display:flex;">
++   <div><label>Sector<br/><select id="antSector">…
++   <!-- resto de tus campos de mini-form aquí -->
++   <button id="btnAddAnt">＋ Registrar</button>
++ </div>
 <div><label>Sector<br/><select id="antSector" required="">
 <option value="">Seleccione</option>
 <option value="SAN PEDRO SULA">SAN PEDRO SULA</option>
