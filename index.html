@@ -2052,6 +2052,11 @@ function recalcularContadores(){
   document.getElementById("antSaldo").textContent = money(saldo);
 }
 async function cargarAnticipos(){
+  // 0) Al entrar, resetear filtros y contadores
+  document.getElementById("filterSectorAnt").value   = "";
+  document.getElementById("filterPeriodoAnt").value  = "";
+  tabAnticipos.clearFilter(true);
+  recalcularContadores();
   mostrarSeccion("registrarAnticipo");
   const ov = document.getElementById("overlayAnt");
   const span = ov.querySelector("span");
