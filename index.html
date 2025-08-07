@@ -858,7 +858,7 @@ function updateCounters() {
   document.getElementById('counterAnuladas').textContent = counts.Anulada;
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+('DOMContentLoaded', () => {
   // Hook applyFiltros
   if (typeof aplicarFiltros === 'function') {
     const oldApply = aplicarFiltros;
@@ -1778,12 +1778,38 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   let tab;
 
-  // Muestra/oculta overlay de carga
+  // 1) Funciones de ayuda para la sección de registro
+  function cargarSectoresAnticipo() {
+    const sel = $('antSector');
+    sel.innerHTML = '<option value="">Seleccione</option>';
+    const opciones = ["SAN PEDRO SULA","EL PROGRESO","STA. CRUZ","CHOLUTECA","COMAYAGUA","DANLI","GUANAJA","JUTICALPA","LA CEIBA","SANTA ROSA","TEGUCIGALPA","TOCOA","BRUS LAGUNA"];
+    opciones.forEach(s => sel.add(new Option(s, s)));
+  }
+
+  function poblarFondo() {
+    const sel = $('antFondo');
+    sel.innerHTML = '<option value="">Seleccione</option>'
+      + '<option value="Combustible">Combustible</option>'
+      + '<option value="Poda">Poda</option>';
+  }
+
+  function poblarPeriodoAnticipo() {
+    const sel = $('antPeriodo');
+    sel.innerHTML = '<option value="">Seleccione</option>';
+    const now = new Date();
+    for (let i = 0; i < 12; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const ym = d.getFullYear() + String(d.getMonth()+1).padStart(2,'0');
+      sel.add(new Option(ym, ym));
+    }
+  }
+
+  // 2) Overlay de carga
   function overlay(show) {
     $('overlayAnt').style.display = show ? 'flex' : 'none';
   }
 
-  // Carga los anticipos y monta la tabla
+  // 3) Carga de anticipos y tabla
   function cargar() {
     fetch(urlLeerAnticipos)
       .then(r => r.json())
@@ -1812,21 +1838,15 @@ document.addEventListener('DOMContentLoaded', () => {
             ]
           });
         }
-        resumen(data);
+        const total    = data.reduce((sum,r) => sum + Number(r.Deposito||0), 0);
+        const disponible = data.filter(r => r.Estado==='Vigente')
+                                .reduce((sum,r) => sum + Number(r.Deposito||0), 0);
+        $('antTotal').textContent = money(total);
+        $('antSaldo').textContent = money(disponible);
       });
   }
 
-  // Actualiza totales
-  function resumen(data) {
-    const total    = data.reduce((s,r) => s + Number(r.Deposito||0), 0);
-    const disponible = data
-      .filter(r => r.Estado === 'Vigente')
-      .reduce((s,r) => s + Number(r.Deposito||0), 0);
-    $('antTotal').textContent = money(total);
-    $('antSaldo').textContent = money(disponible);
-  }
-
-  // Función para registrar un anticipo
+  // 4) Función registrar
   async function registrar() {
     overlay(true);
     const payload = {
@@ -1842,9 +1862,7 @@ document.addEventListener('DOMContentLoaded', () => {
       body:    JSON.stringify(payload)
     })
     .then(res => res.json())
-    .then(res => {
-      if (res.status !== "OK") throw new Error(res.message);
-    })
+    .then(res => { if (res.status !== "OK") throw new Error(res.message); })
     .catch(err => console.error("Error al registrar:", err))
     .finally(() => {
       overlay(false);
@@ -1852,38 +1870,35 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Listener para volver al menú
+  // 5) Listeners de navegación
   $('btnBackAnt').addEventListener('click', () => {
     $('registrarAnticipo').style.display = 'none';
     $('menuPrincipal').style.display     = 'flex';
   });
 
-  // Al pulsar “Ir a Registrar Anticipo”, muestro sección y cargo selects
   $('btnIrRegistrarAnticipo').addEventListener('click', () => {
-    $('menuPrincipal').style.display       = 'none';
-    $('registrarAnticipo').style.display   = 'flex';
+    $('menuPrincipal').style.display     = 'none';
+    $('registrarAnticipo').style.display = 'flex';
     cargarSectoresAnticipo();
     poblarFondo();
     poblarPeriodoAnticipo();
     cargar();
   });
 
-  // Toggle del mini-form dentro de registrarAnticipo
+  // 6) Toggle mini‐form dentro de registrarAnticipo
   const showBtn = $('btnShowAnt');
   const mini    = $('anticipoMiniForm');
   const addBtn  = $('btnAddAnt');
 
-  // Estado inicial al abrir la sección
+  // Estado inicial
   showBtn.style.display = 'inline-block';
   mini.style.display    = 'none';
 
-  // 1) Mostrar el formulario
   showBtn.addEventListener('click', () => {
     showBtn.style.display = 'none';
     mini.style.display    = 'flex';
   });
 
-  // 2) Registrar y volver a ocultar
   addBtn.addEventListener('click', async e => {
     e.preventDefault();
     await registrar();
