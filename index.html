@@ -419,7 +419,10 @@
 <section id="registrarAnticipo" style="display:none;flex-direction:column;gap:1rem;padding:1rem;align-items:center;">
 <button id="btnBackAnt" style="align-self:flex-start;">← Volver</button>
 <h2>Registrar Anticipo</h2>
-<div style="display:flex;flex-wrap:wrap;gap:.8rem;align-items:flex-end;">
+<button id="btnShowAnt" style="height:2.3rem; align-self:center; margin:1rem auto;">
+  Registrar nuevo Anticipo
+</button>
+<div id="anticipoMiniForm" style="display:none;flex-wrap:wrap;gap:.8rem;align-items:flex-end;display:flex;">
 <div><label>Sector<br/><select id="antSector" required="">
 <option value="">Seleccione</option>
 <option value="SAN PEDRO SULA">SAN PEDRO SULA</option>
@@ -2041,6 +2044,33 @@ async function cargarAnticipos(){
     document.getElementById("overlayAnt").style.display = "none";
   }
 }
+</script>
+
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const showBtn = document.getElementById("btnShowAnt");
+    const mini   = document.getElementById("anticipoMiniForm");
+    const addBtn = document.getElementById("btnAddAnt");
+
+    // Al entrar a la sección (ya se hace via btnIrRegistrarAnticipo), aseguramos estado inicial:
+    showBtn.style.display = "inline-block";
+    mini.style.display    = "none";
+
+    // 1) Mostrar el mini-form al pulsar “Registrar nuevo Anticipo”
+    showBtn.addEventListener("click", () => {
+      showBtn.style.display = "none";
+      mini.style.display    = "flex";
+    });
+
+    // 2) Después de registrar (tu lógica actual de registrarAnticipo)
+    addBtn.addEventListener("click", async (e) => {
+      e.preventDefault();
+      await registrarAnticipo();  // tu función existente
+      // Tras guardarlo, volvemos a ocultar form y volver a mostrar el botón
+      mini.style.display    = "none";
+      showBtn.style.display = "inline-block";
+    });
+  });
 </script>
 
 
