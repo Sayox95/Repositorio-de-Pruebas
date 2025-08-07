@@ -1983,6 +1983,12 @@ document.addEventListener('DOMContentLoaded', function(){
 window.isFirstLoadAnticipo = true;
 
 document.addEventListener("DOMContentLoaded", function(){
+  // utilidades para DOM y formato de moneda
+  const $     = id => document.getElementById(id);
+  const money = v  => new Intl.NumberFormat('es-HN', {
+    style: 'currency', currency: 'HNL'
+  }).format(v || 0);
+
   window.tabAnticipos = new Tabulator("#tablaAnticipos", {
     height: "55vh",
     layout: "fitColumns",
