@@ -2022,24 +2022,35 @@ document.addEventListener("DOMContentLoaded", function(){
   }
 
  // 5) Función para recalcular los contadores según los filtros
- function recalcularContadores(){
-   const sec = fSector.value;
-   const per = fPeriod.value;
-   // Filtrar el array original
-   const filtrados = window.anticiposData.filter(a => {
-     return (!sec || a.Sector === sec)
-         && (!per || a.Periodo === per);
-   });
-   // Sumar depósitos y saldos vigentes
-   let tot = 0, sla = 0;
-   filtrados.forEach(a => {
-     tot += Number(a.Deposito||0);
-     if (a.Estado === "Vigente") sla += Number(a.Deposito||0);
-   });
-   // Actualizar la UI
-   $('antTotal').textContent = money(tot);
-   $('antSaldo').textContent = money(sla);
- }
+function recalcularContadores(){
+  const sec = fSector.value;
+  const per = fPeriod.value;
+
+  // 1) Filtrar anticipos según sector y periodo (coerción de tipos)
+  const filtrados = window.anticiposData.filter(a =>
+    (!sec || a.Sector === sec) &&
+    (!per  || String(a.Periodo) === per)   // <-- String() aquí
+  );
+
+  // 2) Calcular totales y saldos descontando pagos
+  let total = 0, saldo = 0;
+  filtrados.forEach(a => {
+    const dep = Number(a.Deposito || 0);
+    total += dep;
+
+    // buscar pagos para este anticipo
+    const key = `${a.Fondo}-${a.Periodo}`;
+    const pagos = (window.facturasData || [])
+      .filter(f => f.Fondo === key && (f.Estado||"").toLowerCase() === "pagada")
+      .reduce((s, f) => s + Number(f["Total Gastado"]||0), 0);
+
+    saldo += dep - pagos;
+  });
+
+  // 3) Actualizar la UI
+  document.getElementById("antTotal").textContent = money(total);
+  document.getElementById("antSaldo").textContent = money(saldo);
+}
 async function cargarAnticipos(){
   mostrarSeccion("registrarAnticipo");
   const ov = document.getElementById("overlayAnt");
@@ -2060,6 +2071,7 @@ async function cargarAnticipos(){
 
  // Guardamos globalmente para usarlo en los filtros
  window.anticiposData = anticipos;
+ window.facturasData  = facturas;	  
 
     // ↓↓↓ Pueblar filtros con los valores únicos de los anticipos ↓↓↓
   const sectorSel = document.getElementById("filterSectorAnt");
