@@ -1818,6 +1818,8 @@ document.addEventListener('DOMContentLoaded',()=>{
     .catch(function(err){ console.error("Error al registrar:", err); })
     .finally(function(){ cargarAnticipos(); });
 };
+window.registrar = registrar;
+	
   $('btnBackAnt').addEventListener('click',()=>{ $('registrarAnticipo').style.display='none'; $('menuPrincipal').style.display='flex';});
   
 // populate periodo select
