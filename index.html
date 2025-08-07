@@ -2012,9 +2012,7 @@ document.addEventListener("DOMContentLoaded", function(){
     // Filtro de sector (igualdad exacta)
     if(sec) tabAnticipos.addFilter("Sector", "=", sec);
     // Filtro de periodo (busca el código en descripción)
-    if(per) {
-      tabAnticipos.addFilter(row => {
-        return row.getData().descripcion.includes(per);
+	if(per) tabAnticipos.addFilter("Periodo","=",per);
       });
     }
   }
@@ -2083,6 +2081,7 @@ async function cargarAnticipos(){
         const amt = Number(f["Total Gastado"] || 0);
         saldo -= amt;
         return {
+          Periodo: a.Periodo
           Sector: a.Sector, 
           id: f.fila,
           descripcion: `Pago factura #${f["Numero de Factura"] || ""}`,
@@ -2091,6 +2090,7 @@ async function cargarAnticipos(){
         };
       });
   const nodo = {
+    Periodo: a.Periodo,
     Sector: a.Sector,
     id: a.fila,
     descripcion: `Anticipo ${a.Fondo} (${a.Periodo})`,
