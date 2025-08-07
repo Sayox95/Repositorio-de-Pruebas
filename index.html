@@ -2077,7 +2077,7 @@ async function cargarAnticipos(){
         const amt = Number(f["Total Gastado"] || 0);
         saldo -= amt;
         return {
-          Periodo: a.Periodo
+          Periodo: a.Periodo,
           Sector: a.Sector, 
           id: f.fila,
           descripcion: `Pago factura #${f["Numero de Factura"] || ""}`,
