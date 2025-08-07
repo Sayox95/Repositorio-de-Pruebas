@@ -1999,32 +1999,29 @@ document.addEventListener("DOMContentLoaded", function(){
     ]
   });
 
-  // 1) Obtener referencias a los selects de filtro
+  // 1) Obtener referencias
   const fSector = document.getElementById("filterSectorAnt");
   const fPeriod = document.getElementById("filterPeriodoAnt");
 
-  // 3) Función que aplica los filtros a tabAnticipos
+  // 2) Definir la función de filtrado
   function aplicarFiltros(){
     const sec = fSector.value;
     const per = fPeriod.value;
-    // Limpiar filtros previos
     tabAnticipos.clearFilter(true);
-    // Filtro de sector (igualdad exacta)
-    if(sec) tabAnticipos.addFilter("Sector", "=", sec);
-    // Filtro de periodo (busca el código en descripción)
-	if(per) tabAnticipos.addFilter("Periodo","=",per);
-
+    if (sec) tabAnticipos.addFilter("Sector",  "=", sec);
+    if (per) tabAnticipos.addFilter("Periodo","=", per);
   }
 
-  // 4) Enganchar cambios de los selects
+  // 3) Enganchar los selects
   fSector.addEventListener("change", aplicarFiltros);
   fPeriod.addEventListener("change", aplicarFiltros);
 
+  // 4) Resto de listeners de navegación…
   document.getElementById("btnIrRegistrarAnticipo")
     .addEventListener("click", cargarAnticipos);
   document.getElementById("btnBackAnt")
     .addEventListener("click", () => mostrarSeccion("menuPrincipal"));
-});
+});  
 
 async function cargarAnticipos(){
   mostrarSeccion("registrarAnticipo");
