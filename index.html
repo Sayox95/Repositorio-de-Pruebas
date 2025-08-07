@@ -442,12 +442,31 @@
  <!-- Botón Exportar Excel siempre visible -->
  <button id="btnExportExcel" style="…">Exportar Excel</button>
  
- <!-- Mini-formulario de registro -->
- <div id="anticipoMiniForm" style="display:none;flex-wrap:wrap;gap:.8rem;align-items:flex-end;display:flex;">
-   <div><label>Sector<br/><select id="antSector">…
-   <!-- resto de tus campos de mini-form aquí -->
-   <button id="btnAddAnt">＋ Registrar</button>
- </div>
+  <!-- Mini-formulario de registro -->
+  <div id="anticipoMiniForm" style="display:none;flex-wrap:wrap;gap:.8rem;align-items:flex-end;display:flex;">
+    <label>
+      Sector<br/>
+      <select id="antSector" required>
+        <option value="">Seleccione</option>
+        <!-- opciones -->
+      </select>
+    </label>
+    <label>
+      Fondo<br/>
+      <select id="antFondo" required>
+        <option value="">Seleccione</option>
+        <!-- opciones -->
+      </select>
+    </label>
+    <label>
+      Periodo<br/>
+      <select id="antPeriodo" required>
+        <option value="">Seleccione</option>
+        <!-- opciones -->
+      </select>
+    </label>
+    <button id="btnAddAnt">＋ Registrar</button>
+  </div>
 <div><label>Sector<br/><select id="antSector" required="">
 <option value="">Seleccione</option>
 <option value="SAN PEDRO SULA">SAN PEDRO SULA</option>
