@@ -435,29 +435,45 @@
         <!-- … -->
       </select>
     </label>
- <button id="btnExportExcel"
-         style="
-           margin-bottom:1rem;
-           height:2rem;
-           padding:0 1rem;
-           white-space:nowrap;
-           display:flex;
-           align-items:center;
-           justify-content:center;
-           background-color:#217346;
-           color:#ffffff;
-           border:none;
-           border-radius:0.25rem;
-           font-size:0.75rem;         /* letra más pequeña */
-           cursor:pointer;
-         ">
-   Exportar Excel
- </button>
   </div>
-  <!-- Hasta aquí ↑↑ -->
-	  <!-- Y pegarlo justo **antes** del botón Registrar nuevo Anticipo -->
-  <button id="btnShowAnt" style="…">Registrar nuevo Anticipo</button>
- <!-- Muevo el botón Exportar Excel aquí, justo después de “Registrar nuevo Anticipo” -->
+
+<!-- Botones alineados: Exportar y Registrar -->
+ <div style="display:flex;gap:1rem;align-items:center;margin-bottom:1rem;">
+   <button id="btnExportExcel"
+           style="
+             height:2rem;
+             padding:0 1rem;
+             white-space:nowrap;
+             display:flex;
+             align-items:center;
+             justify-content:center;
+             background-color:#217346;
+             color:#ffffff;
+             border:none;
+             border-radius:0.25rem;
+             font-size:0.75rem;
+             cursor:pointer;
+           ">
+     Exportar Excel
+   </button>
+   <button id="btnShowAnt"
+           style="
+             height:2rem;
+             padding:0 1rem;
+             white-space:nowrap;
+             display:flex;
+             align-items:center;
+             justify-content:center;
+             background-color:#0b6fff;
+             color:#ffffff;
+             border:none;
+             border-radius:0.25rem;
+             font-size:0.75rem;
+             cursor:pointer;
+           ">
+     Registrar nuevo Anticipo
+   </button>
+ </div>
 
  <!-- Ahora sí comienza el mini-formulario, sin el Exportar Excel dentro -->
  <div id="anticipoMiniForm" style="display:none;flex-wrap:wrap;gap:.8rem;align-items:flex-end;display:flex;">
