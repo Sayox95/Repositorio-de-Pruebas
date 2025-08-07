@@ -1801,7 +1801,7 @@ document.addEventListener('DOMContentLoaded',()=>{
   ov.querySelector("span").textContent = "Registrando cambios";
   ov.style.display = "flex";
 
-  fetch(urlGuardarAnticipo, { method:"POST" })
+  fetch(urlGuardarAnticipo + "?accion=guardarAnticipo", { method:"POST" })
     .then(function(res){ return res.json(); })
     .then(function(res){ if(res.status !== "OK") throw new Error(res.message); })
     .catch(function(err){ console.error("Error al registrar:", err); })
@@ -2065,7 +2065,7 @@ async function cargarAnticipos(){
     // 2) Después de registrar (tu lógica actual de registrarAnticipo)
     addBtn.addEventListener("click", async (e) => {
       e.preventDefault();
-      await registrarAnticipo();  // tu función existente
+      await registrar();  // tu función existente
       // Tras guardarlo, volvemos a ocultar form y volver a mostrar el botón
       mini.style.display    = "none";
       showBtn.style.display = "inline-block";
