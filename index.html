@@ -1796,12 +1796,23 @@ document.addEventListener('DOMContentLoaded',()=>{
     const sld=d.filter(r=>r.Estado==='Vigente').reduce((s,r)=>s+Number(r.Deposito||0),0);
     $('antTotal').textContent=money(t); $('antSaldo').textContent=money(sld);
   }
-  function registrar(){
+  async function registrar(){
   var ov = document.getElementById("overlayAnt");
   ov.querySelector("span").textContent = "Registrando cambios";
   ov.style.display = "flex";
 
-  fetch(urlGuardarAnticipo + "?accion=guardarAnticipo", { method:"POST" })
+     const payload = {
+     accion: "registrarAnticipo",
+     Sector:  document.getElementById("antSector").value,
+     Fondo:   document.getElementById("antFondo").value,
+     Deposito:Number(document.getElementById("antDeposito").value),
+     Periodo: document.getElementById("antPeriodo").value
+   };
+   await fetch(urlGuardarAnticipo, {
+     method:  "POST",
+     headers: {"Content-Type": "application/json"},
+     body:    JSON.stringify(payload)
+   })
     .then(function(res){ return res.json(); })
     .then(function(res){ if(res.status !== "OK") throw new Error(res.message); })
     .catch(function(err){ console.error("Error al registrar:", err); })
