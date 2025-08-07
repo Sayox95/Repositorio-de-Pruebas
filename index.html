@@ -1338,7 +1338,7 @@ document.getElementById("btn-pagar-facturas").addEventListener("click", function
 
   // Load data function
   function loadDataPagoFacturas(){
-  return fetch(urlLeerFacturas)
+  return )
       .then(r=>r.json())
       .then(data=>{
         var rows = data.filter(f=>["Revisada","Pagada"].includes(f.Estado));
@@ -1896,7 +1896,7 @@ window.isFirstLoadRevisionFacturas = true;
 
 // Carga datos (fetch + setData) replicando lógica de sección Pago
 function loadDataRevisionFacturas(){
-  return fetch(urlLeerFacturas)
+  return )
     .then(r => r.json())
     .then(function(data){
       // Solo facturas que NO estén pagadas
@@ -2011,7 +2011,29 @@ document.addEventListener("DOMContentLoaded", function(){
     tabAnticipos.clearFilter(true);
     if (sec) tabAnticipos.addFilter("Sector",  "=", sec);
     if (per) tabAnticipos.addFilter("Periodo","=", per);
+  // Y actualizamos contadores conforme a los mismos criterios
+   recalcularContadores();
   }
+
+ // 5) Función para recalcular los contadores según los filtros
+ function recalcularContadores(){
+   const sec = fSector.value;
+   const per = fPeriod.value;
+   // Filtrar el array original
+   const filtrados = window.anticiposData.filter(a => {
+     return (!sec || a.Sector === sec)
+         && (!per || a.Periodo === per);
+   });
+   // Sumar depósitos y saldos vigentes
+   let tot = 0, sla = 0;
+   filtrados.forEach(a => {
+     tot += Number(a.Deposito||0);
+     if (a.Estado === "Vigente") sla += Number(a.Deposito||0);
+   });
+   // Actualizar la UI
+   $('antTotal').textContent = money(tot);
+   $('antSaldo').textContent = money(sla);
+ }
 
   // 3) Enganchar los selects
   fSector.addEventListener("change", aplicarFiltros);
@@ -2041,6 +2063,10 @@ async function cargarAnticipos(){
       fetch(urlLeerAnticipos + "?accion=leerAnticipos").then(r => r.json()),
       fetch(urlLeerFacturas + "?leerFacturas=true").then(r => r.json())
     ]);
+
+ // Guardamos globalmente para usarlo en los filtros
+ window.anticiposData = anticipos;
+
     // ↓↓↓ Pueblar filtros con los valores únicos de los anticipos ↓↓↓
   const sectorSel = document.getElementById("filterSectorAnt");
   const periodSel = document.getElementById("filterPeriodoAnt");
@@ -2104,6 +2130,8 @@ async function cargarAnticipos(){
  console.log("facturas:", facturas);
  console.log("treeData:", treeData);
  tabAnticipos.setData(treeData);
+ // Contadores iniciales (sin filtros)
+ recalcularContadores();
 
     document.getElementById("antTotal").textContent =
       new Intl.NumberFormat('es-HN', {style: 'currency', currency: 'HNL'}).format(totalAnt);
