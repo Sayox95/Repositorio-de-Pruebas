@@ -419,7 +419,9 @@
 <section id="registrarAnticipo" style="display:none;flex-direction:column;gap:1rem;padding:1rem;align-items:center;">
 <button id="btnBackAnt" style="align-self:flex-start;">← Volver</button>
 <h2>Registrar Anticipo</h2>
-<button id="btnShowAnt" style="height:2.3rem; align-self:center; margin:1rem auto;">
+<button id="btnShowAnt"
+        style="height:2.3rem; margin:1rem auto;
+               display:flex; justify-content:center; align-items:center;">
   Registrar nuevo Anticipo
 </button>
 <div id="anticipoMiniForm" style="display:none;flex-wrap:wrap;gap:.8rem;align-items:flex-end;display:flex;">
@@ -442,7 +444,9 @@
 <div><label>Fondo<br/><select id="antFondo"><option value="">Seleccione</option><option value="Combustible">Combustible</option><option value="Poda">Poda</option></select></label></div>
 <div><label>Depósito (L)<br/><input id="antDeposito" min="0" step="0.01" style="width:8rem;" type="number"/></label></div>
 <div><label>Periodo<br/><select id="antPeriodo" style="width:8rem;"><option value="">Seleccione</option></select></label></div>
-<button id="btnAddAnt" style="height:2.3rem;">＋ Registrar</button>
+<button id="btnAddAnt"
+        style="height:2.3rem; margin:1rem auto;
+               display:flex; justify-content:center; align-items:center;">
 </div>
 <div style="font-weight:bold;display:flex;gap:2rem;margin-top:.5rem;">
 <span>Total anticipos: <span id="antTotal">L 0.00</span></span>
