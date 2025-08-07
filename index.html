@@ -2053,6 +2053,29 @@ async function cargarAnticipos(){
       fetch(urlLeerAnticipos + "?accion=leerAnticipos").then(r => r.json()),
       fetch(urlLeerFacturas + "?leerFacturas=true").then(r => r.json())
     ]);
+    // ↓↓↓ Pueblar filtros con los valores únicos de los anticipos ↓↓↓
+  const sectorSel = document.getElementById("filterSectorAnt");
+  const periodSel = document.getElementById("filterPeriodoAnt");
+
+  // Obtener sets únicos
+  const sectores = Array.from(new Set(anticipos.map(a => a.Sector)));
+  const periodos = Array.from(new Set(anticipos.map(a => a.Periodo)));
+
+  // Limpiar y rellenar
+  sectorSel.innerHTML = '<option value="">Todos</option>';
+  sectores.forEach(s => {
+    const opt = document.createElement("option");
+    opt.value = s; opt.textContent = s;
+    sectorSel.appendChild(opt);
+  });
+
+  periodSel.innerHTML = '<option value="">Todos</option>';
+  periodos.forEach(p => {
+    const opt = document.createElement("option");
+    opt.value = p; opt.textContent = p;
+    periodSel.appendChild(opt);
+  });
+  // ↑↑↑ fin de población dinámica de filtros ↑↑↑
 
     let saldo = 0, totalAnt = 0;
     const treeData = anticipos.map(a => {
