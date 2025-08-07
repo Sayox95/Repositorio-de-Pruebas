@@ -1770,106 +1770,127 @@ document.addEventListener("DOMContentLoaded", function(){
 </script>
 <!-- ==== End Patch v36 ==== -->
 <script>
-document.addEventListener('DOMContentLoaded',()=>{
-  const $=id=>document.getElementById(id);
-  const money=v=>'L '+Number(v||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+document.addEventListener('DOMContentLoaded', () => {
+  const $     = id => document.getElementById(id);
+  const money = v => 'L ' + Number(v||0).toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
   let tab;
-  function overlay(s){$('overlayAnt').style.display=s?'flex':'none';}
-  function cargar(){
-    fetch(urlLeerAnticipos).then(r=>r.json()).then(d=>{
-      if(tab){tab.replaceData(d);}else{
-        tab=new Tabulator('#tablaAnticipos',{data:d,height:'55vh',layout:'fitColumns',columns:[
-          {formatter:'rownum',width:50},
-          {title:'Sector',field:'Sector'},
-          {title:'Fondo',field:'Fondo'},
-          {title:'Deposito',field:'Deposito',formatter:'money',formatterParams:{symbol:'L ',precision:2}},
-          {title:'Periodo',field:'Periodo'},
-          {title:'Estado',field:'Estado',editor:'list',editorParams:{values:['Vigente','Aplicado','Anulado']},
-            cellEdited:c=>{const r=c.getRow().getData();actualizarEstado(r.fila||r._fila,c.getValue());}}
-        ]});
-      }
-      resumen(d);
+
+  // Muestra/oculta overlay de carga
+  function overlay(show) {
+    $('overlayAnt').style.display = show ? 'flex' : 'none';
+  }
+
+  // Carga los anticipos y monta la tabla
+  function cargar() {
+    fetch(urlLeerAnticipos)
+      .then(r => r.json())
+      .then(data => {
+        if (tab) {
+          tab.replaceData(data);
+        } else {
+          tab = new Tabulator('#tablaAnticipos', {
+            data: data,
+            height: '55vh',
+            layout: 'fitColumns',
+            columns: [
+              { formatter: 'rownum', width: 50 },
+              { title: 'Sector',    field: 'Sector' },
+              { title: 'Fondo',     field: 'Fondo' },
+              { title: 'Deposito',  field: 'Deposito', formatter: 'money', formatterParams: { symbol: 'L ', precision: 2 } },
+              { title: 'Periodo',   field: 'Periodo' },
+              { title: 'Estado',    field: 'Estado',
+                editor: 'list',
+                editorParams: { values: ['Vigente','Aplicado','Anulado'] },
+                cellEdited: c => {
+                  const r = c.getRow().getData();
+                  actualizarEstado(r.fila||r._fila, c.getValue());
+                }
+              }
+            ]
+          });
+        }
+        resumen(data);
+      });
+  }
+
+  // Actualiza totales
+  function resumen(data) {
+    const total    = data.reduce((s,r) => s + Number(r.Deposito||0), 0);
+    const disponible = data
+      .filter(r => r.Estado === 'Vigente')
+      .reduce((s,r) => s + Number(r.Deposito||0), 0);
+    $('antTotal').textContent = money(total);
+    $('antSaldo').textContent = money(disponible);
+  }
+
+  // Función para registrar un anticipo
+  async function registrar() {
+    overlay(true);
+    const payload = {
+      accion:   "registrarAnticipo",
+      Sector:   $('antSector').value,
+      Fondo:    $('antFondo').value,
+      Deposito: Number($('antDeposito').value),
+      Periodo:  $('antPeriodo').value
+    };
+    await fetch(urlGuardarAnticipo, {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify(payload)
+    })
+    .then(res => res.json())
+    .then(res => {
+      if (res.status !== "OK") throw new Error(res.message);
+    })
+    .catch(err => console.error("Error al registrar:", err))
+    .finally(() => {
+      overlay(false);
+      cargar();
     });
   }
-    function resumen(d){
-    const t=d.reduce((s,r)=>s+Number(r.Deposito||0),0);
-    const sld=d.filter(r=>r.Estado==='Vigente').reduce((s,r)=>s+Number(r.Deposito||0),0);
-    $('antTotal').textContent=money(t); $('antSaldo').textContent=money(sld);
-  }
-  async function registrar(){
-  var ov = document.getElementById("overlayAnt");
-  ov.querySelector("span").textContent = "Registrando cambios";
-  ov.style.display = "flex";
 
-     const payload = {
-     accion: "registrarAnticipo",
-     Sector:  document.getElementById("antSector").value,
-     Fondo:   document.getElementById("antFondo").value,
-     Deposito:Number(document.getElementById("antDeposito").value),
-     Periodo: document.getElementById("antPeriodo").value
-   };
-   await fetch(urlGuardarAnticipo, {
-     method:  "POST",
-     headers: {"Content-Type": "application/json"},
-     body:    JSON.stringify(payload)
-   })
-    .then(function(res){ return res.json(); })
-    .then(function(res){ if(res.status !== "OK") throw new Error(res.message); })
-    .catch(function(err){ console.error("Error al registrar:", err); })
-    .finally(function(){ cargarAnticipos(); });
-};
-window.registrar = registrar;
-	
-  $('btnBackAnt').addEventListener('click',()=>{ $('registrarAnticipo').style.display='none'; $('menuPrincipal').style.display='flex';});
-  
-// populate periodo select
-const perSel=document.getElementById('antPeriodo');
-if(perSel && perSel.options.length<=1){
-  const today=new Date();
-  for(let i=0;i<18;i++){
-    const d=new Date(today.getFullYear(), today.getMonth()-i,1);
-    const val=`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}`;
-    const opt=document.createElement('option');opt.value=val;opt.textContent=val;perSel.appendChild(opt);
-  }
-}
-$('btnAddAnt').addEventListener
-('click',registrar);
-});
-</script>
-<script>
+  // Listener para volver al menú
+  $('btnBackAnt').addEventListener('click', () => {
+    $('registrarAnticipo').style.display = 'none';
+    $('menuPrincipal').style.display     = 'flex';
+  });
 
-// Cargar sectores para anticipos (estático)
-function cargarSectoresAnticipo() {
-  const sel = document.getElementById('antSector');
-  sel.innerHTML = '<option value="">Seleccione</option>';
-  const opciones = ["SAN PEDRO SULA", "EL PROGRESO", "STA. CRUZ", "CHOLUTECA", "COMAYAGUA", "DANLI", "GUANAJA", "JUTICALPA", "LA CEIBA", "SANTA ROSA", "TEGUCIGALPA", "TOCOA", "BRUS LAGUNA"];
-  opciones.forEach(s => sel.add(new Option(s, s)));
-}
+  // Al pulsar “Ir a Registrar Anticipo”, muestro sección y cargo selects
+  $('btnIrRegistrarAnticipo').addEventListener('click', () => {
+    $('menuPrincipal').style.display       = 'none';
+    $('registrarAnticipo').style.display   = 'flex';
+    cargarSectoresAnticipo();
+    poblarFondo();
+    poblarPeriodoAnticipo();
+    cargar();
+  });
 
-// Poner opciones de fondo
-function poblarFondo() {
-  const sel = document.getElementById('antFondo');
-  sel.innerHTML = '<option value="">Seleccione</option><option value="Combustible">Combustible</option><option value="Poda">Poda</option>';
-}
-// Generar lista de últimos 12 periodos en formato yyyyMM
-function poblarPeriodoAnticipo() {
-  const sel = document.getElementById('antPeriodo');
-  sel.innerHTML = '<option value="">Seleccione</option>';
-  const now = new Date();
-  for (let i = 0; i < 12; i++) {
-    let date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const ym = date.getFullYear().toString() + (date.getMonth() + 1).toString().padStart(2,'0');
-    sel.add(new Option(ym, ym));
-  }
-}
-// Mostrar sección al pulsar el botón y cargar datos
-document.getElementById('btnIrRegistrarAnticipo').addEventListener('click', function(){
-  document.getElementById('menuPrincipal').style.display = 'none';
-  const sec = document.getElementById('registrarAnticipo');
-  sec.style.display = 'flex';
-  cargarSectoresAnticipo();
-  poblarFondo();
-  poblarPeriodoAnticipo();
+  // Toggle del mini-form dentro de registrarAnticipo
+  const showBtn = $('btnShowAnt');
+  const mini    = $('anticipoMiniForm');
+  const addBtn  = $('btnAddAnt');
+
+  // Estado inicial al abrir la sección
+  showBtn.style.display = 'inline-block';
+  mini.style.display    = 'none';
+
+  // 1) Mostrar el formulario
+  showBtn.addEventListener('click', () => {
+    showBtn.style.display = 'none';
+    mini.style.display    = 'flex';
+  });
+
+  // 2) Registrar y volver a ocultar
+  addBtn.addEventListener('click', async e => {
+    e.preventDefault();
+    await registrar();
+    mini.style.display    = 'none';
+    showBtn.style.display = 'inline-block';
+  });
+
 });
 </script>
 
