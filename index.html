@@ -440,6 +440,9 @@
   <!-- Y pegarlo justo **antes** del botón Registrar nuevo Anticipo -->
   <button id="btnShowAnt" style="…">Registrar nuevo Anticipo</button>
 <div id="anticipoMiniForm" style="display:none;flex-wrap:wrap;gap:.8rem;align-items:flex-end;display:flex;">
+<button id="btnExportExcel" style="margin-bottom:1rem;">
+  Exportar Excel
+</button>	
 <div><label>Sector<br/><select id="antSector" required="">
 <option value="">Seleccione</option>
 <option value="SAN PEDRO SULA">SAN PEDRO SULA</option>
@@ -2163,7 +2166,48 @@ async function cargarAnticipos(){
     .addEventListener("click", cargarAnticipos);
   document.getElementById("btnBackAnt")
     .addEventListener("click", () => mostrarSeccion("menuPrincipal"));
-});  
+}); 
+
+document.getElementById("btnExportExcel").addEventListener("click", () => {
+  // 1) Tomar la data actual (padres + pagos)
+  const data = window.treeData || [];
+
+  // 2) Aplanar nodos y sus hijos
+  const flat = [];
+  data.forEach(nodo => {
+    flat.push({
+      Periodo:     nodo.Periodo,
+      Sector:      nodo.Sector,
+      Descripción: nodo.descripcion,
+      Monto:       nodo.monto,
+      Saldo:       nodo.saldo
+    });
+    (nodo.pagos || []).forEach(p => {
+      flat.push({
+        Periodo:     p.Periodo || nodo.Periodo,
+        Sector:      p.Sector  || nodo.Sector,
+        Descripción: p.descripcion,
+        Monto:       p.monto,
+        Saldo:       p.saldo
+      });
+    });
+  });
+
+  if (!flat.length) {
+    alert("No hay datos para exportar.");
+    return;
+  }
+
+  // 3) Convertir a hoja de cálculo
+  const wb = XLSX.utils.book_new();
+  const headers = Object.keys(flat[0]);
+  const rows    = flat.map(r => headers.map(h => r[h]));
+  const ws      = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+  XLSX.utils.book_append_sheet(wb, ws, "Anticipos");
+
+  // 4) Descargar
+  XLSX.writeFile(wb, "anticipos.xlsx");
+}); 
 
 </script>
 
