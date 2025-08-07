@@ -439,34 +439,24 @@
   <!-- Hasta aquí ↑↑ -->
   <!-- Y pegarlo justo **antes** del botón Registrar nuevo Anticipo -->
   <button id="btnShowAnt" style="…">Registrar nuevo Anticipo</button>
- <!-- Botón Exportar Excel siempre visible -->
- <button id="btnExportExcel" style="…">Exportar Excel</button>
- 
-  <!-- Mini-formulario de registro -->
-  <div id="anticipoMiniForm" style="display:none;flex-wrap:wrap;gap:.8rem;align-items:flex-end;display:flex;">
-    <label>
-      Sector<br/>
-      <select id="antSector" required>
-        <option value="">Seleccione</option>
-        <!-- opciones -->
-      </select>
-    </label>
-    <label>
-      Fondo<br/>
-      <select id="antFondo" required>
-        <option value="">Seleccione</option>
-        <!-- opciones -->
-      </select>
-    </label>
-    <label>
-      Periodo<br/>
-      <select id="antPeriodo" required>
-        <option value="">Seleccione</option>
-        <!-- opciones -->
-      </select>
-    </label>
-    <button id="btnAddAnt">＋ Registrar</button>
-  </div>
+ <!-- Muevo el botón Exportar Excel aquí, justo después de “Registrar nuevo Anticipo” -->
+ <button id="btnExportExcel"
+         style="
+           margin-bottom:1rem;
+           height:2rem;
+           width:8rem;
+           background-color:#217346;
+           color:#ffffff;
+           border:none;
+           border-radius:0.25rem;
+           font-size:0.875rem;
+           cursor:pointer;
+         ">
+   Exportar Excel
+ </button>
+ <!-- Ahora sí comienza el mini-formulario, sin el Exportar Excel dentro -->
+ <div id="anticipoMiniForm" style="display:none;flex-wrap:wrap;gap:.8rem;align-items:flex-end;display:flex;">
+
 <div><label>Sector<br/><select id="antSector" required="">
 <option value="">Seleccione</option>
 <option value="SAN PEDRO SULA">SAN PEDRO SULA</option>
