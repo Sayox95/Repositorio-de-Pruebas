@@ -861,22 +861,51 @@
 <label for="rangoFechas">Filtrar por rango de fechas:</label>
 <input id="rangoFechas" placeholder="Desde - Hasta" readonly="" style="padding:0.5rem;" type="text"/>
 </div>
-<div id="accionesMasivas"
-     style="display:none; gap:.6rem; align-items:center; margin:.4rem 0 .8rem;">
-  <button onclick="actualizarEstadoSeleccionados('Revisada')"
+<div id="toolbarRevision"
+     style="display:flex;gap:.6rem;align-items:center;margin:.4rem 0 .8rem;">
+
+  <!-- Botón visible: Agrupar / Desagrupar -->
+  <button id="btnGroupColab"
     style="display:inline-flex;align-items:center;justify-content:center;
            height:1.8rem !important;
            line-height:1.8rem !important;
            padding:0 0.7rem !important;
            font-size:0.8rem !important;
-           background:#0b6fff;
+           background:#6b7280;          /* gris neutro */
            color:#fff;
            border:0;
            border-radius:.25rem;
            cursor:pointer;
            white-space:nowrap;">
-    ✓ Marcar como Revisada
+    Agrupar por Colaborador
   </button>
+
+  <!-- Botones masivos (ocultos hasta que haya ≥2 seleccionadas) -->
+  <div id="accionesMasivas"
+       style="display:none; gap:.6rem; align-items:center;">
+    <button onclick="actualizarEstadoSeleccionados('Revisada')"
+      style="display:inline-flex;align-items:center;justify-content:center;
+             height:1.8rem !important;
+             line-height:1.8rem !important;
+             padding:0 0.7rem !important;
+             font-size:0.8rem !important;
+             background:#0b6fff;
+             color:#fff;border:0;border-radius:.25rem;cursor:pointer;white-space:nowrap;">
+      ✓ Marcar como Revisada
+    </button>
+
+    <button onclick="actualizarEstadoSeleccionados('Anulada')"
+      style="display:inline-flex;align-items:center;justify-content:center;
+             height:1.8rem !important;
+             line-height:1.8rem !important;
+             padding:0 0.7rem !important;
+             font-size:0.8rem !important;
+             background:#d32f2f;
+             color:#fff;border:0;border-radius:.25rem;cursor:pointer;white-space:nowrap;">
+      ✖ Marcar como Anulada
+    </button>
+  </div>
+</div>
 
   <button onclick="actualizarEstadoSeleccionados('Anulada')"
     style="display:inline-flex;align-items:center;justify-content:center;
