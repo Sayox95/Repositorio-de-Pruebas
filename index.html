@@ -1351,13 +1351,21 @@ groupHeader:function(value, count, data, group){
         precision: 2
     }
 },
-      {
-    title: "Fecha",
-    field: "Fecha", sorter:"string",
-    formatter: function(cell) {
-        var v = cell.getValue();
-        return v ? v.split("T")[0] : "";
-    }
+{
+  title: "Fecha",
+  field: "Fecha",
+  sorter: "string",
+  formatter: function(cell){
+    const v = cell.getValue();
+    return v ? String(v).slice(0,10) : "";        // lo que ves en la tabla
+  },
+  accessorDownload: function(value){
+    if (!value) return "";
+    // lo que se manda al Excel
+    return (typeof value === "string")
+      ? value.slice(0,10)                         // "2025-06-06T..." -> "2025-06-06"
+      : new Date(value).toISOString().slice(0,10);
+  }
 },
 	  {
   title: "Nombre del comercio",
