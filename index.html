@@ -2017,66 +2017,58 @@ document.addEventListener("DOMContentLoaded", function(){
 </script>
 <!-- ==== Fin Patch v34 ==== -->
 <script>
-(function(){
-  // Usa el mismo endpoint que el patch v34
-  async function actualizarEstadoSeleccionados(nuevoEstado){
-    const tab = Tabulator.findTable("#tablaRevisionFacturas")[0];
-    if(!tab){ alert("Tabla no disponible"); return; }
+async function actualizarEstadoSeleccionados(nuevoEstado){
+  const table = window.tableRevision;
+  if (!table) return;
 
-    const rows = tab.getSelectedRows();
-    if(rows.length < 2){
-      alert("Selecciona al menos 2 facturas.");
-      return;
-    }
+  const rows = table.getSelectedRows?.() || [];
+  if (rows.length < 1) return;
 
-    const overlay = document.getElementById("overlayCambios");
-    if(overlay) overlay.style.display = "flex";
+  // Overlay (si lo tienes)
+  const overlay = document.getElementById("overlayCambios");
+  if (overlay) overlay.style.display = "flex";
 
-    try {
-      await Promise.all(rows.map(r => {
-        const d = r.getData();
-        const fila = d.fila ?? d._fila;
-        return fetch(getGuardarEndpoint(), {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ actualizarEstado:true, fila, nuevoEstado })
-        })
-        .then(res => res.json())
-        .then(result => {
-          if(result.status !== "OK") throw new Error(result.message || "Error al actualizar");
-          // refleja el cambio en la tabla
-          r.update({ Estado: nuevoEstado });
-        });
-      }));
+  const endpoint = getGuardarEndpoint();
+  console.log("[Masivo REV] filas seleccionadas:", rows.map(r => r.getData()?.fila));
 
-      // limpiar selección y ocultar botones masivos
-      tab.deselectRow();
-      const cont = document.getElementById("accionesMasivas");
-      if (cont) cont.style.display = "none";
+  try {
+    // Procesar SECUENCIALMENTE para evitar throttling / race conditions
+    for (const row of rows){
+      const d = row.getData?.() || {};
+      const fila = Number(d.fila);
+      if (!fila) continue;
 
-      // refrescar contadores (mismo criterio que tus patches)
-      const data = tab.getData("active");
-      const acc = {registrada:0,revisada:0,anulada:0};
-      data.forEach(row=>{
-        const est = String(row.Estado||"").trim().toLowerCase();
-        if (acc.hasOwnProperty(est)) acc[est]++;
+      const payload = { actualizarEstado:true, fila, nuevoEstado };
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify(payload)
       });
-      const set = (id,val)=>{ const el=document.getElementById(id); if(el) el.textContent = val; };
-      set("counterRegistradas", acc.registrada);
-      set("counterRevisadas",   acc.revisada);
-      set("counterAnuladas",    acc.anulada);
 
-    } catch (e) {
-      console.error(e);
-      alert("No se pudo actualizar algunas filas: " + (e.message || e));
-    } finally {
-      if(overlay) overlay.style.display = "none";
+      const raw = await res.text();
+      let json; try { json = JSON.parse(raw); }
+      catch(e){ throw new Error(`Respuesta no JSON (${res.status}): ${raw.slice(0,200)}`); }
+
+      if (!res.ok || json.status !== "OK"){
+        throw new Error(json.message || `Fallo ${res.status}: ${raw.slice(0,200)}`);
+      }
+
+      // Refrescar UI local sin recargar
+      row.update({ Estado: nuevoEstado });
     }
-  }
 
-  // Exponer global para los botones
-  window.actualizarEstadoSeleccionados = actualizarEstadoSeleccionados;
-})();
+    // Limpia selección y oculta botones
+    table.deselectRow?.();
+    const cont = document.getElementById("accionesMasivas");
+    if (cont) cont.style.display = "none";
+
+  } catch (err) {
+    console.error("[Masivo REV] Error:", err);
+    alert("Error al actualizar en lote: " + err.message);
+  } finally {
+    if (overlay) overlay.style.display = "none";
+  }
+}
 </script>
 
 <!-- ==== Patch v36: Counters Pago live on Estado edit ==== -->
