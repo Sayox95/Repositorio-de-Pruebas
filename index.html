@@ -908,35 +908,6 @@
   </div>
 </div>
 
-    <button onclick="actualizarEstadoSeleccionados('Anulada')"
-      style="display:inline-flex;align-items:center;justify-content:center;
-             height:1.8rem !important;
-             line-height:1.8rem !important;
-             padding:0 0.7rem !important;
-             font-size:0.8rem !important;
-             background:#d32f2f;
-             color:#fff;border:0;border-radius:.25rem;cursor:pointer;white-space:nowrap;">
-      ✖ Marcar como Anulada
-    </button>
-  </div>
-</div>
-
-  <button onclick="actualizarEstadoSeleccionados('Anulada')"
-    style="display:inline-flex;align-items:center;justify-content:center;
-           height:1.8rem !important;
-           line-height:1.8rem !important;
-           padding:0 0.7rem !important;
-           font-size:0.8rem !important;
-           background:#d32f2f;
-           color:#fff;
-           border:0;
-           border-radius:.25rem;
-           cursor:pointer;
-           white-space:nowrap;">
-    ✖ Marcar como Anulada
-  </button>
-</div>
-
 <div class="tabla-responsive" style="border: 1px solid #ccc; border-radius: 8px; overflow-x: auto; max-height: 60vh; padding: 1rem;">
 <div id="tablaRevisionWrapper" style="position:relative;"><div id="tablaRevisionFacturas"></div><div id="overlayRevision"><span id="overlayTextRevision">Cargando información</span></div></div>
 </div> <!-- Fin de contenedor scroll de tabla -->
@@ -1706,6 +1677,47 @@ tableRevision.on("rowSelectionChanged", function(selectedRows){
 
 });
 </script>
+<script>
+(function initRevisionGrouping(){
+  const btn   = document.getElementById("btnGroupColab");
+  const table = window.tableRevision || Tabulator.findTable("#tablaRevisionFacturas")[0];
+  if (!btn || !table) return;
+
+  const moneyHN = v => new Intl.NumberFormat('es-HN',{style:'currency',currency:'HNL'}).format(v||0);
+
+  function applyGrouping(on){
+    if (on){
+      table.setGroupBy("Colaborador");
+      table.setGroupHeader([
+        function(value, count, data){
+          const total = data.reduce((s, r) =>
+            s + Number(r["Total Gastado"] ?? r.Total ?? r.Monto ?? r.Importe ?? 0), 0);
+          const nombre = value || "(Sin colaborador)";
+          return `${nombre} — ${count} factura${count!==1?"s":""} — ${moneyHN(total)}`;
+        }
+      ]);
+      table.setGroupStartOpen(false); // grupos cerrados al activar
+      btn.textContent = "Quitar agrupación";
+    }else{
+      table.setGroupBy(false);
+      btn.textContent = "Agrupar por Colaborador";
+    }
+  }
+
+  // Estado interno
+  let grouped = false;
+
+  // Click del botón: alternar
+  btn.addEventListener("click", () => {
+    grouped = !grouped;
+    applyGrouping(grouped);
+  });
+
+  // Si recargas datos, re-aplica según el estado del botón
+  table.on("dataLoaded", () => applyGrouping(grouped));
+})();
+</script>
+
 
 <!-- ==== Patch v20: cumulative filters + single-day fix === -->
 <script>
