@@ -2170,7 +2170,7 @@ async function cargarAnticipos(){
   return nodo;
     });
 
-
+ window.treeData = treeData;
  tabAnticipos.setData(treeData);
  // Contadores iniciales (sin filtros)
  recalcularContadores();
@@ -2198,26 +2198,50 @@ async function cargarAnticipos(){
 }); 
 
 document.getElementById("btnExportExcel").addEventListener("click", () => {
-  // 1) Tomar la data actual (padres + pagos)
-  const data = window.treeData || [];
+  // 0) Validar que SheetJS esté disponible
+  if (typeof XLSX === "undefined") {
+    alert("No se encontró la librería XLSX. Revisa el <script> de SheetJS.");
+    return;
+  }
 
-  // 2) Aplanar nodos y sus hijos
+  // 1) Tomar filtros actuales
+  const sec = (document.getElementById("filterSectorAnt") || {}).value || "";
+  const per = (document.getElementById("filterPeriodoAnt") || {}).value || "";
+
+  // 2) Base de datos: preferimos el treeData que generas tú.
+  //    Si por cualquier razón no existe/está vacío, usamos los datos de la tabla.
+  const base =
+    (Array.isArray(window.treeData) && window.treeData.length)
+      ? window.treeData
+      : (window.tabAnticipos && typeof window.tabAnticipos.getData === "function"
+          ? window.tabAnticipos.getData()
+          : []);
+
+  // 3) Aplicar filtros (si hay)
+  const data = base.filter(n =>
+    (!sec || n.Sector === sec) &&
+    (!per || String(n.Periodo) === per)
+  );
+
+  // 4) Aplanar padres + hijos (pagos)
   const flat = [];
   data.forEach(nodo => {
+    // Padre (anticipo)
     flat.push({
       Periodo:     nodo.Periodo,
       Sector:      nodo.Sector,
       Descripción: nodo.descripcion,
-      Monto:       nodo.monto,
-      Saldo:       nodo.saldo
+      Monto:       Number(nodo.monto || 0),
+      Saldo:       Number(nodo.saldo || 0)
     });
+    // Hijos (pagos)
     (nodo.pagos || []).forEach(p => {
       flat.push({
-        Periodo:     p.Periodo || nodo.Periodo,
-        Sector:      p.Sector  || nodo.Sector,
+        Periodo:     p.Periodo ?? nodo.Periodo,
+        Sector:      p.Sector  ?? nodo.Sector,
         Descripción: p.descripcion,
-        Monto:       p.monto,
-        Saldo:       p.saldo
+        Monto:       Number(p.monto || 0),
+        Saldo:       Number(p.saldo || 0)
       });
     });
   });
@@ -2227,14 +2251,12 @@ document.getElementById("btnExportExcel").addEventListener("click", () => {
     return;
   }
 
-  // 3) Convertir a hoja de cálculo
-  const wb = XLSX.utils.book_new();
-  const headers = Object.keys(flat[0]);
+  // 5) Crear workbook y descargar
+  const headers = ["Periodo","Sector","Descripción","Monto","Saldo"];
   const rows    = flat.map(r => headers.map(h => r[h]));
   const ws      = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+  const wb      = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Anticipos");
-
-  // 4) Descargar
   XLSX.writeFile(wb, "anticipos.xlsx");
 }); 
 
