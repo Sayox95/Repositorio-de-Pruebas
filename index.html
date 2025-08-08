@@ -1377,20 +1377,20 @@ groupHeader:function(value, count, data, group){
   window.tabulatorTable = table;
     // Ocultar overlay cuando la tabla termine de renderizar datos
     table.on("dataRendered", function(){ document.getElementById("overlayPago").style.display = "none"; });
+
 // Mostrar el botón solo si hay selección y ninguna está en "Pagada"
-table.on("rowSelectionChanged", function (selectedRows) {
+table.on("rowSelectionChanged", function (data, rows) {
   const btn = document.getElementById("btn-pagar-facturas");
   if (!btn) return;
 
-  const canPay =
-    selectedRows.length > 0 &&
-    selectedRows.every(row => {
-      const est = String(row.getData().Estado || "").trim().toLowerCase();
-      return est !== "pagada"; // EXACTO: bloquea si es "Pagada"
-    });
+  // Preferimos rows (RowComponents); si no vienen, caemos a data (objetos)
+  const canPay = (rows && rows.length)
+    ? rows.length > 0 && rows.every(r => String(r.getData().Estado || "").trim() !== "Pagada")
+    : (data && data.length > 0 && data.every(d => String(d.Estado || "").trim() !== "Pagada"));
 
   btn.style.display = canPay ? "inline-block" : "none";
 });
+
 
 
   // ==== Patch: función para pagos masivos ====
