@@ -861,52 +861,50 @@
 <label for="rangoFechas">Filtrar por rango de fechas:</label>
 <input id="rangoFechas" placeholder="Desde - Hasta" readonly="" style="padding:0.5rem;" type="text"/>
 </div>
-<!-- Toolbar Revisión: botón SIEMPRE visible + botones masivos ocultos -->
 <div id="toolbarRevision"
      style="display:flex;gap:.6rem;align-items:center;margin:.4rem 0 .8rem;">
 
   <!-- Botón visible: Agrupar / Desagrupar -->
   <button id="btnGroupColab"
     style="display:inline-flex;align-items:center;justify-content:center;
-           height:1.8rem !important;
-           line-height:1.8rem !important;
-           padding:0 0.7rem !important;
-           font-size:0.8rem !important;
-           background:#6b7280;          /* gris neutro */
-           color:#fff;
-           border:0;
-           border-radius:.25rem;
-           cursor:pointer;
-           white-space:nowrap;">
+           height:1.8rem !important; line-height:1.8rem !important;
+           padding:0 0.7rem !important; font-size:0.8rem !important;
+           background:#6b7280; color:#fff; border:0; border-radius:.25rem;
+           cursor:pointer; white-space:nowrap;">
     Agrupar por Colaborador
   </button>
 
+  <!-- NUEVO: Exportar Excel (Revisión) -->
+  <button id="btnExportRev"
+    style="display:inline-flex;align-items:center;justify-content:center;
+           height:1.8rem !important; line-height:1.8rem !important;
+           padding:0 0.7rem !important; font-size:0.8rem !important;
+           background:#217346; color:#fff; border:0; border-radius:.25rem;
+           cursor:pointer; white-space:nowrap;">
+    Exportar Excel
+  </button>
+
   <!-- Botones masivos (ocultos hasta que haya ≥2 seleccionadas) -->
-  <div id="accionesMasivas"
-       style="display:none; gap:.6rem; align-items:center;">
+  <div id="accionesMasivas" style="display:none; gap:.6rem; align-items:center;">
     <button onclick="actualizarEstadoSeleccionados('Revisada')"
       style="display:inline-flex;align-items:center;justify-content:center;
-             height:1.8rem !important;
-             line-height:1.8rem !important;
-             padding:0 0.7rem !important;
-             font-size:0.8rem !important;
-             background:#0b6fff;
-             color:#fff;border:0;border-radius:.25rem;cursor:pointer;white-space:nowrap;">
+             height:1.8rem !important; line-height:1.8rem !important;
+             padding:0 0.7rem !important; font-size:0.8rem !important;
+             background:#0b6fff; color:#fff; border:0; border-radius:.25rem;
+             cursor:pointer; white-space:nowrap;">
       ✓ Marcar como Revisada
     </button>
-
     <button onclick="actualizarEstadoSeleccionados('Anulada')"
       style="display:inline-flex;align-items:center;justify-content:center;
-             height:1.8rem !important;
-             line-height:1.8rem !important;
-             padding:0 0.7rem !important;
-             font-size:0.8rem !important;
-             background:#d32f2f;
-             color:#fff;border:0;border-radius:.25rem;cursor:pointer;white-space:nowrap;">
+             height:1.8rem !important; line-height:1.8rem !important;
+             padding:0 0.7rem !important; font-size:0.8rem !important;
+             background:#d32f2f; color:#fff; border:0; border-radius:.25rem;
+             cursor:pointer; white-space:nowrap;">
       ✖ Marcar como Anulada
     </button>
   </div>
 </div>
+
 
 <div class="tabla-responsive" style="border: 1px solid #ccc; border-radius: 8px; overflow-x: auto; max-height: 60vh; padding: 1rem;">
 <div id="tablaRevisionWrapper" style="position:relative;"><div id="tablaRevisionFacturas"></div><div id="overlayRevision"><span id="overlayTextRevision">Cargando información</span></div></div>
@@ -1717,6 +1715,56 @@ if (on){
   btnGroup.addEventListener("click", function(){
     grouped = !grouped;
     applyGrouping(grouped);
+  });
+}
+
+// === Exportar Excel (Revisión) ===
+const btnExportRev = document.getElementById("btnExportRev");
+if (btnExportRev){
+  btnExportRev.addEventListener("click", function(){
+    // Toma lo visible (respeta filtros / búsquedas). Agrupación no afecta estos datos.
+    const rows = tableRevision.getData("active") || [];
+    if (!rows.length){
+      alert("No hay datos para exportar.");
+      return;
+    }
+
+    // Define columnas a exportar (en el orden que prefieras)
+    const headers = [
+      "Sector",
+      "Placa",
+      "Proceso",
+      "Nombre",
+      "Identidad",
+      "Total Gastado",
+      "Fecha",
+      "Numero de Factura",
+      "Enlace PDF",
+      "Estado"
+    ];
+
+    // Mapea filas -> objetos planos con esas columnas
+    const flat = rows.map(r => ({
+      "Sector":            r.Sector ?? "",
+      "Placa":             r.Placa ?? "",
+      "Proceso":           r.Proceso ?? "",
+      "Nombre":            r.Nombre ?? "",
+      "Identidad":         r.Identidad ?? "",
+      "Total Gastado":     Number(r["Total Gastado"] ?? r.Total ?? r.Monto ?? 0), // numérico
+      "Fecha":             (r.Fecha ? String(r.Fecha).split("T")[0] : ""),
+      "Numero de Factura": r["Numero de Factura"] ?? "",
+      "Enlace PDF":        r["Enlace PDF"] ?? "",
+      "Estado":            r.Estado ?? ""
+    }));
+
+    // Construir workbook y hoja
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(flat, { header: headers });
+
+    XLSX.utils.book_append_sheet(wb, ws, "Revision");
+    // Nombre de archivo con fecha
+    const fecha = new Date().toISOString().slice(0,10);
+    XLSX.writeFile(wb, `revision_facturas_${fecha}.xlsx`);
   });
 }
 
