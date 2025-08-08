@@ -617,13 +617,7 @@
   font-weight: bold;
 }
 </style>
-<script>
-function actualizarVisibilidadBotonesMasivos() {
-  const checks = document.querySelectorAll("#tablaFacturas input[type=checkbox]:checked");
-  const cont = document.getElementById("accionesMasivas");
-  if (cont) cont.style.display = (checks.length >= 2) ? "block" : "none";
-}
-</script>
+
 <style>
 #countersContainer {
   display: flex;
@@ -877,6 +871,27 @@ function actualizarVisibilidadBotonesMasivos() {
 </div>
 
 <script>
+document.addEventListener("DOMContentLoaded", () => {
+  const tablaRev = document.getElementById("tablaRevisionFacturas");
+  if (!tablaRev) return;
+
+  // Mostrar/ocultar los botones masivos SOLO en revisión
+  function actualizarVisibilidadBotonesMasivosRevision() {
+    const n = tablaRev.querySelectorAll('input[type="checkbox"]:checked').length;
+    const cont = document.getElementById("accionesMasivas");
+    if (cont) cont.style.display = (n >= 2) ? "block" : "none";
+  }
+
+  // Delegación: cualquier checkbox dentro de la tabla
+  tablaRev.addEventListener("change", (e) => {
+    if (e.target && e.target.matches('input[type="checkbox"]')) {
+      actualizarVisibilidadBotonesMasivosRevision();
+    }
+  });
+});
+</script>
+
+<script>
 function regresarAlMenu() {
   // Oculta ambas secciones y muestra menú principal
   document.getElementById('seccionRevisionFacturas').style.display = 'none';
@@ -892,8 +907,12 @@ function regresarAlMenu() {
 </script>
 <script>
 function actualizarVisibilidadBotonesMasivos() {
-  const checks = document.querySelectorAll("#tablaFacturas input[type=checkbox]:checked");
+  // contenedor de los botones masivos en Revisión
   const cont = document.getElementById("accionesMasivas");
+  if (!cont) return;
+
+  // contar checkboxes seleccionados en la tabla de Revisión
+  const checks = document.querySelectorAll("#tablaRevisionFacturas input[type=checkbox]:checked");
   cont.style.display = (checks.length >= 2) ? "block" : "none";
 }
 </script>
