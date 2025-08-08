@@ -74,7 +74,7 @@
 <script>
   const urlGuardarAnticipo = "/api/GuardarAnti";
   const urlLeerAnticipos = "/api/Anticipos";
-  const urlGuardarFactura = "https://repositorio-de-pruebas.pages.dev/api/guardar";
+  const urlGuardarFactura = "/api/guardar";
   const Envio_Correos = 'https://script.google.com/macros/s/AKfycbyxu18kQ-oUAXu188swhZUlOc7tgcmdJHsDoxnVTfJ3if-4rxaW1HUI2o4YYIh_Rql6/exec';
 </script>
 <!-- ==== unload listener interception Patch v26 ==== -->
@@ -1428,7 +1428,7 @@ table.on("rowSelectionChanged", function (data, rows) {
   window.actualizarEstadoMultiple = async function(filas, nuevoEstado, fondoPeriodo, fechaPago) {
   // Envía en paralelo todas las peticiones de pago con todos los datos
   await Promise.all(filas.map(fila =>
-    fetch(getGuardarEndpoint(), {
+    fetch(urlGuardarFactura, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -1541,20 +1541,11 @@ document.getElementById('exportExcelBtn').addEventListener('click', function() {
 });
 </script>
 <script>
-  // Endpoints UNIFICADOS
-  window.API_BASE = "https://repositorio-de-pruebas.pages.dev/api";
-  window.urlLeerFacturas   = window.API_BASE + "/leer";
-  window.urlGuardarReporte = window.API_BASE + "/guardar";
-  window.urlGuardarFactura = window.urlGuardarReporte;
-  window.getGuardarEndpoint = function(){
-    return (
-      window.urlGuardarReporte ||
-      window.urlGuardarFactura ||
-      (window.API_BASE ? window.API_BASE + "/guardar" : "/api/guardar")
-    );
-  };
+  // Endpoints
+  const urlLeerFacturas   = "https://repositorio-de-pruebas.pages.dev/api/leer";
+  const urlGuardarReporte = "/api/guardar";
 
-document.addEventListener("DOMContentLoaded", function () {
+  document.addEventListener("DOMContentLoaded", function () {
     // === Tabla Revisión de Facturas ===
     var tableRevision = window.tableRevision = new Tabulator("#tablaRevisionFacturas", {
       layout: "fitColumns",
@@ -1979,7 +1970,7 @@ document.addEventListener("DOMContentLoaded", function(){
     const overlay = document.getElementById("overlayCambios");
     if(overlay) overlay.style.display = "flex";
     try{
-      const resp = await fetch(getGuardarEndpoint(), {
+      const resp = await fetch(ENDPOINT, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ actualizarEstado: true, fila: fila, nuevoEstado: nuevoEstado })
@@ -2017,58 +2008,69 @@ document.addEventListener("DOMContentLoaded", function(){
 </script>
 <!-- ==== Fin Patch v34 ==== -->
 <script>
-async function actualizarEstadoSeleccionados(nuevoEstado){
-  const table = window.tableRevision;
-  if (!table) return;
+(function(){
+  // Usa el mismo endpoint que el patch v34
+  const ENDPOINT = (typeof urlGuardarReporte !== "undefined")
+      ? urlGuardarReporte : "/api/guardar";
 
-  const rows = table.getSelectedRows?.() || [];
-  if (rows.length < 1) return;
+  async function actualizarEstadoSeleccionados(nuevoEstado){
+    const tab = Tabulator.findTable("#tablaRevisionFacturas")[0];
+    if(!tab){ alert("Tabla no disponible"); return; }
 
-  // Overlay (si lo tienes)
-  const overlay = document.getElementById("overlayCambios");
-  if (overlay) overlay.style.display = "flex";
-
-  const endpoint = getGuardarEndpoint();
-  console.log("[Masivo REV] filas seleccionadas:", rows.map(r => r.getData()?.fila));
-
-  try {
-    // Procesar SECUENCIALMENTE para evitar throttling / race conditions
-    for (const row of rows){
-      const d = row.getData?.() || {};
-      const fila = Number(d.fila);
-      if (!fila) continue;
-
-      const payload = { actualizarEstado:true, fila, nuevoEstado };
-      const res = await fetch(endpoint, {
-        method: "POST",
-        headers: {"Content-Type":"application/json"},
-        body: JSON.stringify(payload)
-      });
-
-      const raw = await res.text();
-      let json; try { json = JSON.parse(raw); }
-      catch(e){ throw new Error(`Respuesta no JSON (${res.status}): ${raw.slice(0,200)}`); }
-
-      if (!res.ok || json.status !== "OK"){
-        throw new Error(json.message || `Fallo ${res.status}: ${raw.slice(0,200)}`);
-      }
-
-      // Refrescar UI local sin recargar
-      row.update({ Estado: nuevoEstado });
+    const rows = tab.getSelectedRows();
+    if(rows.length < 2){
+      alert("Selecciona al menos 2 facturas.");
+      return;
     }
 
-    // Limpia selección y oculta botones
-    table.deselectRow?.();
-    const cont = document.getElementById("accionesMasivas");
-    if (cont) cont.style.display = "none";
+    const overlay = document.getElementById("overlayCambios");
+    if(overlay) overlay.style.display = "flex";
 
-  } catch (err) {
-    console.error("[Masivo REV] Error:", err);
-    alert("Error al actualizar en lote: " + err.message);
-  } finally {
-    if (overlay) overlay.style.display = "none";
+    try {
+      await Promise.all(rows.map(r => {
+        const d = r.getData();
+        const fila = d.fila ?? d._fila;
+        return fetch(ENDPOINT, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ actualizarEstado:true, fila, nuevoEstado })
+        })
+        .then(res => res.json())
+        .then(result => {
+          if(result.status !== "OK") throw new Error(result.message || "Error al actualizar");
+          // refleja el cambio en la tabla
+          r.update({ Estado: nuevoEstado });
+        });
+      }));
+
+      // limpiar selección y ocultar botones masivos
+      tab.deselectRow();
+      const cont = document.getElementById("accionesMasivas");
+      if (cont) cont.style.display = "none";
+
+      // refrescar contadores (mismo criterio que tus patches)
+      const data = tab.getData("active");
+      const acc = {registrada:0,revisada:0,anulada:0};
+      data.forEach(row=>{
+        const est = String(row.Estado||"").trim().toLowerCase();
+        if (acc.hasOwnProperty(est)) acc[est]++;
+      });
+      const set = (id,val)=>{ const el=document.getElementById(id); if(el) el.textContent = val; };
+      set("counterRegistradas", acc.registrada);
+      set("counterRevisadas",   acc.revisada);
+      set("counterAnuladas",    acc.anulada);
+
+    } catch (e) {
+      console.error(e);
+      alert("No se pudo actualizar algunas filas: " + (e.message || e));
+    } finally {
+      if(overlay) overlay.style.display = "none";
+    }
   }
-}
+
+  // Exponer global para los botones
+  window.actualizarEstadoSeleccionados = actualizarEstadoSeleccionados;
+})();
 </script>
 
 <!-- ==== Patch v36: Counters Pago live on Estado edit ==== -->
@@ -2766,7 +2768,7 @@ document.getElementById("btnAceptarPago").addEventListener("click", async functi
       // Pago individual
       const rowComp = currentPagoRow;
       const fila    = rowComp.getData().fila;
-      await fetch(getGuardarEndpoint(), {
+      await fetch(urlGuardarFactura, {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
         body:    JSON.stringify({ fila, fondoPeriodo, fechaPago })
