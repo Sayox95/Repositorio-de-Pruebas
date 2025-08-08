@@ -1672,7 +1672,11 @@ if (btnGroup){
 
   function applyGrouping(on){
     if (!built) return;              // <-- no agrupes antes de tableBuilt
-if (on){
+
+  function applyGrouping(on){
+  tableRevision._groupedByIdentidad = !!on; 
+		  
+  if (on){
   // Agrupar por Identidad (estable)
   tableRevision.setGroupBy(row => String(row.Identidad || "").trim());
 
@@ -1722,47 +1726,53 @@ if (on){
 const btnExportRev = document.getElementById("btnExportRev");
 if (btnExportRev){
   btnExportRev.addEventListener("click", function(){
-    // Toma lo visible (respeta filtros / búsquedas). Agrupación no afecta estos datos.
+    // Exporta lo visible (filtros aplicados)
     const rows = tableRevision.getData("active") || [];
     if (!rows.length){
       alert("No hay datos para exportar.");
       return;
     }
 
-    // Define columnas a exportar (en el orden que prefieras)
-    const headers = [
-      "Sector",
-      "Placa",
-      "Proceso",
-      "Nombre",
-      "Identidad",
-      "Total Gastado",
-      "Fecha",
-      "Numero de Factura",
-      "Enlace PDF",
-      "Estado"
-    ];
+    const wb = XLSX.utils.book_new();
 
-    // Mapea filas -> objetos planos con esas columnas
-    const flat = rows.map(r => ({
+    // Si la vista está agrupada por Identidad, crea hoja de Resumen
+    if (tableRevision._groupedByIdentidad){
+      const map = new Map();
+      rows.forEach(r => {
+        const id = String(r.Identidad || "").trim() || "(Sin identidad)";
+        const g = map.get(id) || { Identidad:id, Nombre:"", Facturas:0, Total:0 };
+        if (!g.Nombre && r.Nombre) g.Nombre = r.Nombre;
+        g.Facturas += 1;
+        g.Total += Number(r["Total Gastado"] ?? r.Total ?? r.Monto ?? 0);
+        map.set(id, g);
+      });
+      const resumen = Array.from(map.values());
+      const wsRes = XLSX.utils.json_to_sheet(resumen, {
+        header: ["Identidad","Nombre","Facturas","Total"]
+      });
+      XLSX.utils.book_append_sheet(wb, wsRes, "Resumen");
+    }
+
+    // Hoja de Detalle (como antes)
+    const headers = [
+      "Sector","Placa","Proceso","Nombre","Identidad",
+      "Total Gastado","Fecha","Numero de Factura","Enlace PDF","Estado"
+    ];
+    const detalle = rows.map(r => ({
       "Sector":            r.Sector ?? "",
       "Placa":             r.Placa ?? "",
       "Proceso":           r.Proceso ?? "",
       "Nombre":            r.Nombre ?? "",
       "Identidad":         r.Identidad ?? "",
-      "Total Gastado":     Number(r["Total Gastado"] ?? r.Total ?? r.Monto ?? 0), // numérico
+      "Total Gastado":     Number(r["Total Gastado"] ?? r.Total ?? r.Monto ?? 0),
       "Fecha":             (r.Fecha ? String(r.Fecha).split("T")[0] : ""),
       "Numero de Factura": r["Numero de Factura"] ?? "",
       "Enlace PDF":        r["Enlace PDF"] ?? "",
       "Estado":            r.Estado ?? ""
     }));
+    const wsDet = XLSX.utils.json_to_sheet(detalle, { header: headers });
+    XLSX.utils.book_append_sheet(wb, wsDet, "Detalle");
 
-    // Construir workbook y hoja
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.json_to_sheet(flat, { header: headers });
-
-    XLSX.utils.book_append_sheet(wb, ws, "Revision");
-    // Nombre de archivo con fecha
     const fecha = new Date().toISOString().slice(0,10);
     XLSX.writeFile(wb, `revision_facturas_${fecha}.xlsx`);
   });
