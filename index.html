@@ -1785,7 +1785,6 @@ document.getElementById('exportExcelBtn').addEventListener('click', function() {
           "Nombre":            r.Nombre ?? "",
           "Identidad":         r.Identidad ?? "",
           "Total Gastado":     Number(r["Total Gastado"] ?? r.Total ?? r.Monto ?? 0),
-          "Nombre del comercio": r["Nombre del comercio"] ?? "",
 		  "Fecha":             (r.Fecha ? String(r.Fecha).split("T")[0] : ""),
           "Nombre del comercio": r["Nombre del comercio"] ?? "",
 		  "Numero de Factura": r["Numero de Factura"] ?? "",
