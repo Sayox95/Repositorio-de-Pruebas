@@ -449,22 +449,22 @@
 
 <button id="btnShowAnt"
   style="
-    display:inline-flex;          /* clave */
-    align-items:center;           /* centra vertical */
-    justify-content:center;       /* centra horizontal */
+    display:inline-block;      /* en vez de inline-flex */
     height:2rem;
-    padding:0 .9rem;
+    line-height:2rem;          /* centra vertical por línea */
+    padding:0 1rem;            /* solo laterales */
     white-space:nowrap;
-    line-height:1;                /* evita desbalance */
-    text-decoration:none;         /* quita subrayado heredado */
+    box-sizing:border-box;
+    text-decoration:none;
     background:#0b6fff;
     color:#fff;
     border:0;
     border-radius:.25rem;
     font-size:.75rem;
     cursor:pointer;
-  ">Registrar nuevo Anticipo
-  </button>
+  ">
+  Registrar nuevo Anticipo
+</button>
  </div>
 
  <!-- Ahora sí comienza el mini-formulario, sin el Exportar Excel dentro -->
