@@ -861,10 +861,24 @@
 <label for="rangoFechas">Filtrar por rango de fechas:</label>
 <input id="rangoFechas" placeholder="Desde - Hasta" readonly="" style="padding:0.5rem;" type="text"/>
 </div>
-<div style="margin-bottom: 1rem;">
-<div id="accionesMasivas" style="margin-bottom:1rem; display:none;"><button onclick="actualizarEstadoSeleccionados('Revisada')">✔ Marcar como Revisada</button>
-<button onclick="actualizarEstadoSeleccionados('Anulada')">✖ Marcar como Anulada</button></div>
+<div id="accionesMasivas"
+     style="display:none; gap:.5rem; align-items:center; margin:.4rem 0 .8rem;">
+  <button onclick="actualizarEstadoSeleccionados('Revisada')"
+          style="display:inline-flex; align-items:center; justify-content:center;
+                 padding:.24rem .7rem; font-size:.72rem; line-height:1; white-space:nowrap;
+                 border:0; border-radius:.35rem; background:#0b6fff; color:#fff; cursor:pointer;">
+    ✓ Marcar como Revisada
+  </button>
+
+  <button onclick="actualizarEstadoSeleccionados('Anulada')"
+          style="display:inline-flex; align-items:center; justify-content:center;
+                 padding:.24rem .7rem; font-size:.72rem; line-height:1; white-space:nowrap;
+                 border:0; border-radius:.35rem; background:#d32f2f; color:#fff; cursor:pointer;">
+    ✖ Marcar como Anulada
+  </button>
 </div>
+
+
 <div class="tabla-responsive" style="border: 1px solid #ccc; border-radius: 8px; overflow-x: auto; max-height: 60vh; padding: 1rem;">
 <div id="tablaRevisionWrapper" style="position:relative;"><div id="tablaRevisionFacturas"></div><div id="overlayRevision"><span id="overlayTextRevision">Cargando información</span></div></div>
 </div> <!-- Fin de contenedor scroll de tabla -->
@@ -1818,6 +1832,72 @@ document.addEventListener("DOMContentLoaded", function(){
 })();
 </script>
 <!-- ==== Fin Patch v34 ==== -->
+<script>
+(function(){
+  // Usa el mismo endpoint que el patch v34
+  const ENDPOINT = (typeof urlGuardarReporte !== "undefined")
+      ? urlGuardarReporte : "/api/guardar";
+
+  async function actualizarEstadoSeleccionados(nuevoEstado){
+    const tab = Tabulator.findTable("#tablaRevisionFacturas")[0];
+    if(!tab){ alert("Tabla no disponible"); return; }
+
+    const rows = tab.getSelectedRows();
+    if(rows.length < 2){
+      alert("Selecciona al menos 2 facturas.");
+      return;
+    }
+
+    const overlay = document.getElementById("overlayCambios");
+    if(overlay) overlay.style.display = "flex";
+
+    try {
+      await Promise.all(rows.map(r => {
+        const d = r.getData();
+        const fila = d.fila ?? d._fila;
+        return fetch(ENDPOINT, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ actualizarEstado:true, fila, nuevoEstado })
+        })
+        .then(res => res.json())
+        .then(result => {
+          if(result.status !== "OK") throw new Error(result.message || "Error al actualizar");
+          // refleja el cambio en la tabla
+          r.update({ Estado: nuevoEstado });
+        });
+      }));
+
+      // limpiar selección y ocultar botones masivos
+      tab.deselectRow();
+      const cont = document.getElementById("accionesMasivas");
+      if (cont) cont.style.display = "none";
+
+      // refrescar contadores (mismo criterio que tus patches)
+      const data = tab.getData("active");
+      const acc = {registrada:0,revisada:0,anulada:0};
+      data.forEach(row=>{
+        const est = String(row.Estado||"").trim().toLowerCase();
+        if (acc.hasOwnProperty(est)) acc[est]++;
+      });
+      const set = (id,val)=>{ const el=document.getElementById(id); if(el) el.textContent = val; };
+      set("counterRegistradas", acc.registrada);
+      set("counterRevisadas",   acc.revisada);
+      set("counterAnuladas",    acc.anulada);
+
+    } catch (e) {
+      console.error(e);
+      alert("No se pudo actualizar algunas filas: " + (e.message || e));
+    } finally {
+      if(overlay) overlay.style.display = "none";
+    }
+  }
+
+  // Exponer global para los botones
+  window.actualizarEstadoSeleccionados = actualizarEstadoSeleccionados;
+})();
+</script>
+
 <!-- ==== Patch v36: Counters Pago live on Estado edit ==== -->
 <script>
 document.addEventListener("DOMContentLoaded", function(){
