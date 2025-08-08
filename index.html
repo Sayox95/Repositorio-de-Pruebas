@@ -1663,121 +1663,119 @@ document.getElementById('exportExcelBtn').addEventListener('click', function() {
       });
     }
 
-    // === Toggle: Agrupar por Colaborador ===
+    // === Toggle: Agrupar por Colaborador (Identidad como clave) ===
     const btnGroup = document.getElementById("btnGroupColab");
-if (btnGroup){
-  const moneyHN = v => new Intl.NumberFormat('es-HN',{style:'currency',currency:'HNL'}).format(v||0);
-  let grouped = false;
-  let built = false;                 // <-- guard
+    if (btnGroup){
+      const moneyHN = v => new Intl.NumberFormat('es-HN',{style:'currency',currency:'HNL'}).format(v||0);
+      let grouped = false;
+      let built   = false;
 
-  function applyGrouping(on){
-    if (!built) return;              // <-- no agrupes antes de tableBuilt
+      function applyGrouping(on){
+        if (!built) return;                        // no agrupar antes de tableBuilt
+        tableRevision._groupedByIdentidad = !!on;  // marca para exportación
 
-  function applyGrouping(on){
-  tableRevision._groupedByIdentidad = !!on; 
-		  
-  if (on){
-  // Agrupar por Identidad (estable)
-  tableRevision.setGroupBy(row => String(row.Identidad || "").trim());
+        if (on){
+          // Agrupar por Identidad (estable)
+          tableRevision.setGroupBy(row => String(row.Identidad || "").trim());
 
-  tableRevision.setGroupHeader([
-    function(value, count, data){
-      // tomar el PRIMER nombre no vacío del grupo
-      const nombre = (data.find(r => r.Nombre && String(r.Nombre).trim())?.Nombre) || "(Sin nombre)";
-      const identidad = value || "(Sin identidad)";
-      const total = data.reduce((s, r) =>
-        s + Number(r["Total Gastado"] ?? r.Total ?? r.Monto ?? r.Importe ?? 0), 0);
+          tableRevision.setGroupHeader([
+            function(value, count, data){
+              // primer Nombre no vacío del grupo
+              const nombre = (data.find(r => r.Nombre && String(r.Nombre).trim())?.Nombre) || "(Sin nombre)";
+              const identidad = value || "(Sin identidad)";
+              const total = data.reduce((s, r) =>
+                s + Number(r["Total Gastado"] ?? r.Total ?? r.Monto ?? 0), 0);
 
-      return `${nombre} [${identidad}] — ${count} factura${count!==1?"s":""} — ${moneyHN(total)}`;
-    }
-  ]);
+              return `${nombre} [${identidad}] — ${count} factura${count!==1?"s":""} — ${moneyHN(total)}`;
+            }
+          ]);
 
-  tableRevision.setGroupStartOpen(false);
-  btnGroup.textContent = "Quitar agrupación";
-} else {
-  tableRevision.setGroupBy(false);
-  btnGroup.textContent = "Agrupar por Colaborador";
- }
+          tableRevision.setGroupStartOpen(false);
+          btnGroup.textContent = "Quitar agrupación";
+        } else {
+          tableRevision.setGroupBy(false);
+          btnGroup.textContent = "Agrupar por Colaborador";
+        }
+      }
 
-}
+      // Desactiva el botón hasta que la tabla esté lista
+      btnGroup.disabled = true;
 
-  // Desactiva el botón hasta que la tabla esté lista
-  btnGroup.disabled = true;
+      // Habilita y aplica tras construir la tabla
+      tableRevision.on("tableBuilt", function(){
+        built = true;
+        btnGroup.disabled = false;
+        applyGrouping(grouped);
 
-  // Habilita y aplica tras la construcción de la tabla
-  tableRevision.on("tableBuilt", function(){
-    built = true;
-    btnGroup.disabled = false;
-    applyGrouping(grouped);
-    // Reaplicar después de cada carga de datos (ya con la tabla construida)
-    tableRevision.on("dataLoaded", function(){
-      applyGrouping(grouped);
-    });
-  });
-
-  // Toggle manual
-  btnGroup.addEventListener("click", function(){
-    grouped = !grouped;
-    applyGrouping(grouped);
-  });
-}
-
-// === Exportar Excel (Revisión) ===
-const btnExportRev = document.getElementById("btnExportRev");
-if (btnExportRev){
-  btnExportRev.addEventListener("click", function(){
-    // Exporta lo visible (filtros aplicados)
-    const rows = tableRevision.getData("active") || [];
-    if (!rows.length){
-      alert("No hay datos para exportar.");
-      return;
-    }
-
-    const wb = XLSX.utils.book_new();
-
-    // Si la vista está agrupada por Identidad, crea hoja de Resumen
-    if (tableRevision._groupedByIdentidad){
-      const map = new Map();
-      rows.forEach(r => {
-        const id = String(r.Identidad || "").trim() || "(Sin identidad)";
-        const g = map.get(id) || { Identidad:id, Nombre:"", Facturas:0, Total:0 };
-        if (!g.Nombre && r.Nombre) g.Nombre = r.Nombre;
-        g.Facturas += 1;
-        g.Total += Number(r["Total Gastado"] ?? r.Total ?? r.Monto ?? 0);
-        map.set(id, g);
+        // Reaplica al recargar datos (ya con tabla construida)
+        tableRevision.on("dataLoaded", function(){
+          applyGrouping(grouped);
+        });
       });
-      const resumen = Array.from(map.values());
-      const wsRes = XLSX.utils.json_to_sheet(resumen, {
-        header: ["Identidad","Nombre","Facturas","Total"]
+
+      // Toggle manual
+      btnGroup.addEventListener("click", function(){
+        grouped = !grouped;
+        applyGrouping(grouped);
       });
-      XLSX.utils.book_append_sheet(wb, wsRes, "Resumen");
     }
 
-    // Hoja de Detalle (como antes)
-    const headers = [
-      "Sector","Placa","Proceso","Nombre","Identidad",
-      "Total Gastado","Fecha","Numero de Factura","Enlace PDF","Estado"
-    ];
-    const detalle = rows.map(r => ({
-      "Sector":            r.Sector ?? "",
-      "Placa":             r.Placa ?? "",
-      "Proceso":           r.Proceso ?? "",
-      "Nombre":            r.Nombre ?? "",
-      "Identidad":         r.Identidad ?? "",
-      "Total Gastado":     Number(r["Total Gastado"] ?? r.Total ?? r.Monto ?? 0),
-      "Fecha":             (r.Fecha ? String(r.Fecha).split("T")[0] : ""),
-      "Numero de Factura": r["Numero de Factura"] ?? "",
-      "Enlace PDF":        r["Enlace PDF"] ?? "",
-      "Estado":            r.Estado ?? ""
-    }));
-    const wsDet = XLSX.utils.json_to_sheet(detalle, { header: headers });
-    XLSX.utils.book_append_sheet(wb, wsDet, "Detalle");
+    // === Exportar Excel (Revisión) ===
+    const btnExportRev = document.getElementById("btnExportRev");
+    if (btnExportRev){
+      btnExportRev.addEventListener("click", function(){
+        // Exporta lo visible (filtros aplicados)
+        const rows = tableRevision.getData("active") || [];
+        if (!rows.length){
+          alert("No hay datos para exportar.");
+          return;
+        }
 
-    const fecha = new Date().toISOString().slice(0,10);
-    XLSX.writeFile(wb, `revision_facturas_${fecha}.xlsx`);
+        const wb = XLSX.utils.book_new();
+
+        // Si está agrupado por Identidad, crea hoja de Resumen
+        if (tableRevision._groupedByIdentidad){
+          const map = new Map();
+          rows.forEach(r => {
+            const id = String(r.Identidad || "").trim() || "(Sin identidad)";
+            const g = map.get(id) || { Identidad:id, Nombre:"", Facturas:0, Total:0 };
+            if (!g.Nombre && r.Nombre) g.Nombre = r.Nombre;
+            g.Facturas += 1;
+            g.Total += Number(r["Total Gastado"] ?? r.Total ?? r.Monto ?? 0);
+            map.set(id, g);
+          });
+          const resumen = Array.from(map.values());
+          const wsRes = XLSX.utils.json_to_sheet(resumen, {
+            header: ["Identidad","Nombre","Facturas","Total"]
+          });
+          XLSX.utils.book_append_sheet(wb, wsRes, "Resumen");
+        }
+
+        // Hoja de Detalle
+        const headers = [
+          "Sector","Placa","Proceso","Nombre","Identidad",
+          "Total Gastado","Fecha","Numero de Factura","Enlace PDF","Estado"
+        ];
+        const detalle = rows.map(r => ({
+          "Sector":            r.Sector ?? "",
+          "Placa":             r.Placa ?? "",
+          "Proceso":           r.Proceso ?? "",
+          "Nombre":            r.Nombre ?? "",
+          "Identidad":         r.Identidad ?? "",
+          "Total Gastado":     Number(r["Total Gastado"] ?? r.Total ?? r.Monto ?? 0),
+          "Fecha":             (r.Fecha ? String(r.Fecha).split("T")[0] : ""),
+          "Numero de Factura": r["Numero de Factura"] ?? "",
+          "Enlace PDF":        r["Enlace PDF"] ?? "",
+          "Estado":            r.Estado ?? ""
+        }));
+        const wsDet = XLSX.utils.json_to_sheet(detalle, { header: headers });
+        XLSX.utils.book_append_sheet(wb, wsDet, "Detalle");
+
+        const fecha = new Date().toISOString().slice(0,10);
+        XLSX.writeFile(wb, `revision_facturas_${fecha}.xlsx`);
+      });
+    }
   });
-}
-
 </script>
 
 <!-- ==== Patch v20: cumulative filters + single-day fix === -->
