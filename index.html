@@ -1504,6 +1504,12 @@ return v?v.split("T")[0]:""; }},
     var overlay = document.getElementById("overlayCambios");
     if(overlay) overlay.style.display = "none";
   });
+	
+tableRevision.on("rowSelectionChanged", function(selectedRows){
+  var cont = document.getElementById("accionesMasivas");
+  if (!cont) return;
+  cont.style.display = (selectedRows.length >= 2) ? "flex" : "none";
+});
 
   // Hook filter inputs to Tabulator filters
   var filtroEstado = document.getElementById("filtroEstado");
