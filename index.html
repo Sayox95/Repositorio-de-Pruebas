@@ -1774,10 +1774,11 @@ document.getElementById('exportExcelBtn').addEventListener('click', function() {
         }
 
         // Hoja de Detalle
-        const headers = [
-          "Sector","Placa","Proceso","Nombre","Identidad",
-          "Total Gastado","Fecha","Numero de Factura","Enlace PDF","Estado"
-        ];
+const headers = [
+  "Sector","Placa","Proceso","Nombre","Identidad",
+  "Total Gastado","Fecha","Nombre del comercio","Numero de Factura","Enlace PDF","Estado"
+];
+
         const detalle = rows.map(r => ({
           "Sector":            r.Sector ?? "",
           "Placa":             r.Placa ?? "",
@@ -1785,7 +1786,11 @@ document.getElementById('exportExcelBtn').addEventListener('click', function() {
           "Nombre":            r.Nombre ?? "",
           "Identidad":         r.Identidad ?? "",
           "Total Gastado":     Number(r["Total Gastado"] ?? r.Total ?? r.Monto ?? 0),
-		  "Fecha":             (r.Fecha ? String(r.Fecha).split("T")[0] : ""),
+		  "Fecha": r.Fecha
+  ? (typeof r.Fecha === "string"
+      ? r.Fecha.slice(0,10)                       // "2025-06-06T..." -> "2025-06-06"
+      : new Date(r.Fecha).toISOString().slice(0,10)) // Date -> "2025-06-06"
+  : "",
           "Nombre del comercio": r["Nombre del comercio"] ?? "",
 		  "Numero de Factura": r["Numero de Factura"] ?? "",
           "Enlace PDF":        r["Enlace PDF"] ?? "",
