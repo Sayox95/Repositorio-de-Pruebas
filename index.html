@@ -1666,40 +1666,51 @@ document.getElementById('exportExcelBtn').addEventListener('click', function() {
     }
 
     // === Toggle: Agrupar por Colaborador ===
-    const btnGroup = document.getElementById("btnGroupColab");
-    if (btnGroup){
-      const moneyHN = v => new Intl.NumberFormat('es-HN',{style:'currency',currency:'HNL'}).format(v||0);
-      let grouped = false;
+  const btnGroup = document.getElementById("btnGroupColab");
+if (btnGroup){
+  const moneyHN = v => new Intl.NumberFormat('es-HN',{style:'currency',currency:'HNL'}).format(v||0);
+  let grouped = false;
+  let built = false;                 // <-- guard
 
-      function applyGrouping(on){
-        if (on){
-          tableRevision.setGroupBy("Colaborador");
-          tableRevision.setGroupHeader([
-            function(value, count, data){
-              const total = data.reduce((s, r) =>
-                s + Number(r["Total Gastado"] ?? r.Total ?? r.Monto ?? r.Importe ?? 0), 0);
-              const nombre = value || "(Sin colaborador)";
-              return `${nombre} — ${count} factura${count!==1?"s":""} — ${moneyHN(total)}`;
-            }
-          ]);
-          tableRevision.setGroupStartOpen(false);
-          btnGroup.textContent = "Quitar agrupación";
-        } else {
-          tableRevision.setGroupBy(false);
-          btnGroup.textContent = "Agrupar por Colaborador";
-        }
-      }
-
-      btnGroup.addEventListener("click", function(){
-        grouped = !grouped;
-        applyGrouping(grouped);
-      });
-
-      tableRevision.on("dataLoaded", function(){
-        applyGrouping(grouped);
-      });
+  function applyGrouping(on){
+    if (!built) return;              // <-- no agrupes antes de tableBuilt
+    if (on){
+      tableRevision.setGroupBy("Colaborador");
+      tableRevision.setGroupHeader([ (value, count, data) => {
+        const total = data.reduce((s, r) =>
+          s + Number(r["Total Gastado"] ?? r.Total ?? r.Monto ?? r.Importe ?? 0), 0);
+        const nombre = value || "(Sin colaborador)";
+        return `${nombre} — ${count} factura${count!==1?"s":""} — ${moneyHN(total)}`;
+      }]);
+      tableRevision.setGroupStartOpen(false);
+      btnGroup.textContent = "Quitar agrupación";
+    } else {
+      tableRevision.setGroupBy(false);
+      btnGroup.textContent = "Agrupar por Colaborador";
     }
+  }
+
+  // Desactiva el botón hasta que la tabla esté lista
+  btnGroup.disabled = true;
+
+  // Habilita y aplica tras la construcción de la tabla
+  tableRevision.on("tableBuilt", function(){
+    built = true;
+    btnGroup.disabled = false;
+    applyGrouping(grouped);
+    // Reaplicar después de cada carga de datos (ya con la tabla construida)
+    tableRevision.on("dataLoaded", function(){
+      applyGrouping(grouped);
+    });
   });
+
+  // Toggle manual
+  btnGroup.addEventListener("click", function(){
+    grouped = !grouped;
+    applyGrouping(grouped);
+  });
+}
+
 </script>
 
 <!-- ==== Patch v20: cumulative filters + single-day fix === -->
