@@ -1674,21 +1674,30 @@ if (btnGroup){
 
   function applyGrouping(on){
     if (!built) return;              // <-- no agrupes antes de tableBuilt
-    if (on){
-      tableRevision.setGroupBy("Colaborador");
-      tableRevision.setGroupHeader([ (value, count, data) => {
-        const total = data.reduce((s, r) =>
-          s + Number(r["Total Gastado"] ?? r.Total ?? r.Monto ?? r.Importe ?? 0), 0);
-        const nombre = value || "(Sin colaborador)";
-        return `${nombre} — ${count} factura${count!==1?"s":""} — ${moneyHN(total)}`;
-      }]);
-      tableRevision.setGroupStartOpen(false);
-      btnGroup.textContent = "Quitar agrupación";
-    } else {
-      tableRevision.setGroupBy(false);
-      btnGroup.textContent = "Agrupar por Colaborador";
+if (on){
+  // Agrupar por Identidad (estable)
+  tableRevision.setGroupBy(row => String(row.Identidad || "").trim());
+
+  tableRevision.setGroupHeader([
+    function(value, count, data){
+      // tomar el PRIMER nombre no vacío del grupo
+      const nombre = (data.find(r => r.Nombre && String(r.Nombre).trim())?.Nombre) || "(Sin nombre)";
+      const identidad = value || "(Sin identidad)";
+      const total = data.reduce((s, r) =>
+        s + Number(r["Total Gastado"] ?? r.Total ?? r.Monto ?? r.Importe ?? 0), 0);
+
+      return `${nombre} [${identidad}] — ${count} factura${count!==1?"s":""} — ${moneyHN(total)}`;
     }
-  }
+  ]);
+
+  tableRevision.setGroupStartOpen(false);
+  btnGroup.textContent = "Quitar agrupación";
+} else {
+  tableRevision.setGroupBy(false);
+  btnGroup.textContent = "Agrupar por Colaborador";
+ }
+
+}
 
   // Desactiva el botón hasta que la tabla esté lista
   btnGroup.disabled = true;
