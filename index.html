@@ -1524,200 +1524,183 @@ document.getElementById('exportExcelBtn').addEventListener('click', function() {
 });
 </script>
 <script>
-  // Endpoint definitions moved here
-  const urlLeerFacturas = "https://repositorio-de-pruebas.pages.dev/api/leer";
-const urlGuardarReporte = "/api/guardar";
-// Tabulator setup for Revisión de Facturas
-document.addEventListener("DOMContentLoaded", function(){
-  var tableRevision = window.tableRevision = new Tabulator("#tablaRevisionFacturas", {
-    layout: "fitColumns",
-    height: "60vh",
-    // Use fetch directly to avoid CORS preflight by removing custom headers
-    selectable: true,
-    columns: [
-      {formatter: "rowSelection", titleFormatter: "rowSelection", hozAlign: "center", headerSort: false},
-      {formatter: "rownum", title: "#", hozAlign: "center", width: 40},
-      {title: "Sector", field: "Sector"},
-      {title: "Placa", field: "Placa"},
-      {title: "Proceso", field: "Proceso"},
-      {title: "Nombre", field: "Nombre"},
-      {title: "Identidad", field: "Identidad"},
-      {title: "Total Gastado", field: "Total Gastado", formatter: "money", formatterParams: {symbol: "L", symbolAfter: false, thousand: ",", decimal: ".", precision: 2}},
-      {title: "Fecha", field: "Fecha", formatter: function(cell){ var v = cell.getValue(); 
-window.tableRevision = tableRevision;
-return v?v.split("T")[0]:""; }},
-      {title:"Número de Factura", field:"Numero de Factura"},
-      {title: "Enlace PDF", field: "Enlace PDF", formatter: function(cell){ var v = cell.getValue(); return v?'<a href="'+v+'" target="_blank">📄</a>':""; }},
-      {title: "Estado", field: "Estado", editor: "list", editorParams: {values: ["Registrada","Revisada","Anulada"], autocomplete: true}, cellEdited: function(cell){ var d = cell.getRow().getData(); actualizarEstadoIndividual(d.fila, cell.getValue()); }}
-    ],
-  });
+  // Endpoints
+  const urlLeerFacturas   = "https://repositorio-de-pruebas.pages.dev/api/leer";
+  const urlGuardarReporte = "/api/guardar";
 
-  // Hide any loading overlay after data render
-  tableRevision.on("dataRendered", function(){ 
-    var overlay = document.getElementById("overlayCambios");
-    if(overlay) overlay.style.display = "none";
-  });
-	
-tableRevision.on("rowSelectionChanged", function(selectedRows){
-  var cont = document.getElementById("accionesMasivas");
-  if (!cont) return;
-  cont.style.display = (selectedRows.length >= 2) ? "flex" : "none";
-});
+  document.addEventListener("DOMContentLoaded", function () {
+    // === Tabla Revisión de Facturas ===
+    var tableRevision = window.tableRevision = new Tabulator("#tablaRevisionFacturas", {
+      layout: "fitColumns",
+      height: "60vh",
+      selectable: true,
+      columns: [
+        { formatter:"rowSelection", titleFormatter:"rowSelection", hozAlign:"center", headerSort:false },
+        { formatter:"rownum", title:"#", hozAlign:"center", width:40 },
+        { title:"Sector", field:"Sector" },
+        { title:"Placa", field:"Placa" },
+        { title:"Proceso", field:"Proceso" },
+        { title:"Nombre", field:"Nombre" },
+        { title:"Identidad", field:"Identidad" },
+        { title:"Total Gastado", field:"Total Gastado", formatter:"money",
+          formatterParams:{ symbol:"L", symbolAfter:false, thousand:",", decimal:".", precision:2 } },
+        { title:"Fecha", field:"Fecha",
+          formatter:function(cell){
+            var v = cell.getValue();
+            return v ? v.split("T")[0] : "";
+          } },
+        { title:"Número de Factura", field:"Numero de Factura" },
+        { title:"Enlace PDF", field:"Enlace PDF",
+          formatter:function(cell){
+            var v = cell.getValue();
+            return v ? '<a href="'+v+'" target="_blank">📄</a>' : "";
+          } },
+        { title:"Estado", field:"Estado",
+          editor:"list", editorParams:{ values:["Registrada","Revisada","Anulada"], autocomplete:true },
+          cellEdited:function(cell){
+            var d = cell.getRow().getData();
+            if (typeof actualizarEstadoIndividual === "function"){
+              actualizarEstadoIndividual(d.fila, cell.getValue());
+            }
+          }
+        },
+      ],
+    });
 
-  // Hook filter inputs to Tabulator filters
-  var filtroEstado = document.getElementById("filtroEstado");
-  if(filtroEstado) {
-    filtroEstado.addEventListener("change", function(){
-      if(this.value === "Todas"){
-        tableRevision.clearFilter(true);
-      } else {
-        tableRevision.setFilter("Estado", "=", this.value);
-      }
+    // Ocultar overlay cuando renderiza
+    tableRevision.on("dataRendered", function(){
+      var overlay = document.getElementById("overlayCambios");
+      if (overlay) overlay.style.display = "none";
     });
-  }
-  // Hook change listener for sector filter
-  var sectorSelect = document.getElementById("filtroSector");
-  if (sectorSelect) {
-    sectorSelect.addEventListener("change", function(){
-      if (this.value === "") {
-        tableRevision.clearFilter(true);
-      } else {
-        tableRevision.setFilter("Sector", "=", this.value);
-      }
+
+    // Mostrar/ocultar acciones masivas (≥ 2 seleccionadas)
+    tableRevision.on("rowSelectionChanged", function(data, rows){
+      var cont = document.getElementById("accionesMasivas");
+      if (!cont) return;
+      cont.style.display = (rows && rows.length >= 2) ? "flex" : "none";
     });
-  }
-  // Populate sector filter options when data loads
-  tableRevision.on("dataLoaded", function(data){ if(!Array.isArray(data)) return;  if(!Array.isArray(data)) return; var sectorSelect = document.getElementById("filtroSector");
-    if (!sectorSelect) return;
-    // Reset options except default
-    var length = sectorSelect.options.length;
-    for(var i=length-1; i>0; i--){
-      sectorSelect.remove(i);
+
+    // --- Filtros (Estado / Sector / Número / Rango fechas) ---
+    var filtroEstado = document.getElementById("filtroEstado");
+    if (filtroEstado){
+      filtroEstado.addEventListener("change", function(){
+        if (this.value === "" || this.value === "Todas"){
+          tableRevision.clearFilter(true);
+        } else {
+          tableRevision.setFilter("Estado", "=", this.value);
+        }
+      });
     }
-    var sectors = data.map(function(r){ return r.Sector; })
-      .filter(function(v, i, a){ return v && a.indexOf(v)===i; })
-      .sort();
-    sectors.forEach(function(s){
-      var opt = document.createElement("option");
-      opt.value = s;
-      opt.text = s;
-      sectorSelect.add(opt);
-    });
-  });
-  // Hook change listener for estado filter
-  var estadoSelect = document.getElementById("filtroEstado");
-  if (estadoSelect) {
-    estadoSelect.addEventListener("change", function(){
-      if (this.value === "") {
-        tableRevision.clearFilter(true);
-      } else {
-        tableRevision.setFilter("Estado", "=", this.value);
-      }
-    });
-  }
-  // Populate estado filter options when data loads
-  tableRevision.on("dataLoaded", function(data){ if(!Array.isArray(data)) return; 
-    var estadoSelect = document.getElementById("filtroEstado");
-    if (!estadoSelect) return;
-    // Reset options except default
-    for (var i = estadoSelect.options.length - 1; i > 0; i--) {
-      estadoSelect.remove(i);
+
+    var sectorSelect = document.getElementById("filtroSector");
+    if (sectorSelect){
+      sectorSelect.addEventListener("change", function(){
+        if (this.value === ""){
+          tableRevision.clearFilter(true);
+        } else {
+          tableRevision.setFilter("Sector", "=", this.value);
+        }
+      });
     }
-    var estados = data.map(function(r){ return r.Estado; })
-      .filter(function(v, i, a){ return v && a.indexOf(v)===i; })
-      .sort();
-    estados.forEach(function(e){
-      var opt = document.createElement("option");
-      opt.value = e;
-      opt.text = e;
-      estadoSelect.add(opt);
-    });
-  // Reconstructed filter for Número de Factura (Revisión)
-  var filtroNum = document.getElementById("filtroNumeroFactura");
-  if (filtroNum) {
-    filtroNum.addEventListener("input", function() {
-      var val = this.value;
-      tableRevision.clearFilter(true);
-      if (val) {
-        tableRevision.setFilter("Numero de Factura", "like", val);
-      }
-    });
-  }
-  // Clear number filter input on data load
-  tableRevision.on("dataLoaded", function() {
+
     var filtroNum = document.getElementById("filtroNumeroFactura");
-    if (filtroNum) filtroNum.value = "";
-  });
-  });
-  var filtroNumero = document.getElementById("filtroNumeroFactura");
-  if(filtroNumero) {
-    filtroNumero.addEventListener("input", function(){
-      tableRevision.setFilter("Número de Factura", "like", this.value);
-    });
-  }
-  // Date range filter initialization
-  var rangoInput = document.getElementById("rangoFechas");
-  if (rangoInput) {
-    flatpickr("#rangoFechas", {
-      mode: "range",
-      dateFormat: "Y-m-d",
-      locale: flatpickr.l10ns.es,
-      onClose: function(selectedDates, dateStr) {
-        // Clear previous filters
+    if (filtroNum){
+      filtroNum.addEventListener("input", function(){
+        var val = this.value;
         tableRevision.clearFilter(true);
-        if (selectedDates.length === 2) {
-          var start = selectedDates[0].toISOString().split("T")[0];
-          var end = selectedDates[1].toISOString().split("T")[0];
-          tableRevision.addFilter("Fecha", ">=", start);
-          tableRevision.addFilter("Fecha", "<=", end);
+        if (val){
+          tableRevision.setFilter("Numero de Factura", "like", val);
+        }
+      });
+    }
+
+    // Poblar selects de filtros al cargar data y limpiar input de número
+    tableRevision.on("dataLoaded", function(data){
+      if (!Array.isArray(data)) return;
+
+      // Poblar Sector
+      var selSector = document.getElementById("filtroSector");
+      if (selSector){
+        for (var i = selSector.options.length - 1; i > 0; i--) selSector.remove(i);
+        var sectores = data.map(r => r.Sector).filter((v,i,a)=>v && a.indexOf(v)===i).sort();
+        sectores.forEach(function(s){
+          var opt = document.createElement("option");
+          opt.value = s; opt.text = s;
+          selSector.add(opt);
+        });
+      }
+
+      // Poblar Estado
+      var selEstado = document.getElementById("filtroEstado");
+      if (selEstado){
+        for (var j = selEstado.options.length - 1; j > 0; j--) selEstado.remove(j);
+        var estados = data.map(r => r.Estado).filter((v,i,a)=>v && a.indexOf(v)===i).sort();
+        estados.forEach(function(e){
+          var opt2 = document.createElement("option");
+          opt2.value = e; opt2.text = e;
+          selEstado.add(opt2);
+        });
+      }
+
+      // Limpiar filtro de número al recargar
+      if (filtroNum) filtroNum.value = "";
+    });
+
+    // Filtro por rango de fechas (flatpickr)
+    var rangoInput = document.getElementById("rangoFechas");
+    if (rangoInput && typeof flatpickr !== "undefined"){
+      flatpickr("#rangoFechas", {
+        mode: "range",
+        dateFormat: "Y-m-d",
+        locale: flatpickr.l10ns.es,
+        onClose: function(selectedDates){
+          tableRevision.clearFilter(true);
+          if (selectedDates.length === 2){
+            var start = selectedDates[0].toISOString().split("T")[0];
+            var end   = selectedDates[1].toISOString().split("T")[0];
+            tableRevision.addFilter("Fecha", ">=", start);
+            tableRevision.addFilter("Fecha", "<=", end);
+          }
+        }
+      });
+    }
+
+    // === Toggle: Agrupar por Colaborador ===
+    const btnGroup = document.getElementById("btnGroupColab");
+    if (btnGroup){
+      const moneyHN = v => new Intl.NumberFormat('es-HN',{style:'currency',currency:'HNL'}).format(v||0);
+      let grouped = false;
+
+      function applyGrouping(on){
+        if (on){
+          tableRevision.setGroupBy("Colaborador");
+          tableRevision.setGroupHeader([
+            function(value, count, data){
+              const total = data.reduce((s, r) =>
+                s + Number(r["Total Gastado"] ?? r.Total ?? r.Monto ?? r.Importe ?? 0), 0);
+              const nombre = value || "(Sin colaborador)";
+              return `${nombre} — ${count} factura${count!==1?"s":""} — ${moneyHN(total)}`;
+            }
+          ]);
+          tableRevision.setGroupStartOpen(false);
+          btnGroup.textContent = "Quitar agrupación";
+        } else {
+          tableRevision.setGroupBy(false);
+          btnGroup.textContent = "Agrupar por Colaborador";
         }
       }
-    });
-  }
 
-});
-</script>
-<script>
-(function initRevisionGrouping(){
-  const btn   = document.getElementById("btnGroupColab");
-  const table = window.tableRevision || Tabulator.findTable("#tablaRevisionFacturas")[0];
-  if (!btn || !table) return;
+      btnGroup.addEventListener("click", function(){
+        grouped = !grouped;
+        applyGrouping(grouped);
+      });
 
-  const moneyHN = v => new Intl.NumberFormat('es-HN',{style:'currency',currency:'HNL'}).format(v||0);
-
-  function applyGrouping(on){
-    if (on){
-      table.setGroupBy("Colaborador");
-      table.setGroupHeader([
-        function(value, count, data){
-          const total = data.reduce((s, r) =>
-            s + Number(r["Total Gastado"] ?? r.Total ?? r.Monto ?? r.Importe ?? 0), 0);
-          const nombre = value || "(Sin colaborador)";
-          return `${nombre} — ${count} factura${count!==1?"s":""} — ${moneyHN(total)}`;
-        }
-      ]);
-      table.setGroupStartOpen(false); // grupos cerrados al activar
-      btn.textContent = "Quitar agrupación";
-    }else{
-      table.setGroupBy(false);
-      btn.textContent = "Agrupar por Colaborador";
+      tableRevision.on("dataLoaded", function(){
+        applyGrouping(grouped);
+      });
     }
-  }
-
-  // Estado interno
-  let grouped = false;
-
-  // Click del botón: alternar
-  btn.addEventListener("click", () => {
-    grouped = !grouped;
-    applyGrouping(grouped);
   });
-
-  // Si recargas datos, re-aplica según el estado del botón
-  table.on("dataLoaded", () => applyGrouping(grouped));
-})();
 </script>
-
 
 <!-- ==== Patch v20: cumulative filters + single-day fix === -->
 <script>
