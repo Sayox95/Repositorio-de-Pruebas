@@ -1666,7 +1666,7 @@ document.getElementById('exportExcelBtn').addEventListener('click', function() {
     }
 
     // === Toggle: Agrupar por Colaborador ===
-  const btnGroup = document.getElementById("btnGroupColab");
+    const btnGroup = document.getElementById("btnGroupColab");
 if (btnGroup){
   const moneyHN = v => new Intl.NumberFormat('es-HN',{style:'currency',currency:'HNL'}).format(v||0);
   let grouped = false;
@@ -1711,6 +1711,7 @@ if (btnGroup){
   });
 }
 
+  });
 </script>
 
 <!-- ==== Patch v20: cumulative filters + single-day fix === -->
