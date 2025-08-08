@@ -862,21 +862,22 @@
 <input id="rangoFechas" placeholder="Desde - Hasta" readonly="" style="padding:0.5rem;" type="text"/>
 </div>
 <div id="accionesMasivas"
-     style="display:none; display:flex; gap:.6rem; align-items:center; margin:.5rem 0 1rem;">
+     style="display:none; gap:.5rem; align-items:center; margin:.4rem 0 .8rem;">
   <button onclick="actualizarEstadoSeleccionados('Revisada')"
           style="display:inline-flex; align-items:center; justify-content:center;
-                 padding:.32rem .9rem; font-size:.8rem; line-height:1; white-space:nowrap;
-                 border:0; border-radius:.4rem; background:#0b6fff; color:#fff; cursor:pointer;">
+                 padding:.24rem .7rem; font-size:.72rem; line-height:1; white-space:nowrap;
+                 border:0; border-radius:.35rem; background:#0b6fff; color:#fff; cursor:pointer;">
     ✓ Marcar como Revisada
   </button>
 
   <button onclick="actualizarEstadoSeleccionados('Anulada')"
           style="display:inline-flex; align-items:center; justify-content:center;
-                 padding:.32rem .9rem; font-size:.8rem; line-height:1; white-space:nowrap;
-                 border:0; border-radius:.4rem; background:#d32f2f; color:#fff; cursor:pointer;">
+                 padding:.24rem .7rem; font-size:.72rem; line-height:1; white-space:nowrap;
+                 border:0; border-radius:.35rem; background:#d32f2f; color:#fff; cursor:pointer;">
     ✖ Marcar como Anulada
   </button>
 </div>
+
 
 <div class="tabla-responsive" style="border: 1px solid #ccc; border-radius: 8px; overflow-x: auto; max-height: 60vh; padding: 1rem;">
 <div id="tablaRevisionWrapper" style="position:relative;"><div id="tablaRevisionFacturas"></div><div id="overlayRevision"><span id="overlayTextRevision">Cargando información</span></div></div>
