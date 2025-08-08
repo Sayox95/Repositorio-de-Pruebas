@@ -1359,6 +1359,17 @@ groupHeader:function(value, count, data, group){
         return v ? v.split("T")[0] : "";
     }
 },
+	  {
+  title: "Nombre del comercio",
+  field: "NombreComercio",         // cámbialo si tu header es distinto
+  width: 220,                      // ajusta el ancho a gusto
+  formatter: (cell) => {
+    const v = String(cell.getValue() ?? "");
+    const max = 28;                // caracteres visibles
+    return v.length > max ? v.slice(0, max) + "…" : v;
+  },
+  tooltip: true                    // muestra el valor completo al hover
+},	
       {title:"Número de Factura", field:"Numero de Factura"},
       {title:"Enlace PDF", field:"Enlace PDF", formatter: cell => {
           var v = cell.getValue();
@@ -1547,6 +1558,17 @@ document.getElementById('exportExcelBtn').addEventListener('click', function() {
             var v = cell.getValue();
             return v ? v.split("T")[0] : "";
           } },
+		{
+  title: "Nombre del comercio",
+  field: "NombreComercio",         // cámbialo si tu header es distinto
+  width: 220,                      // ajusta el ancho a gusto
+  formatter: (cell) => {
+    const v = String(cell.getValue() ?? "");
+    const max = 28;                // caracteres visibles
+    return v.length > max ? v.slice(0, max) + "…" : v;
+  },
+  tooltip: true                    // muestra el valor completo al hover
+},  
         { title:"Número de Factura", field:"Numero de Factura" },
         { title:"Enlace PDF", field:"Enlace PDF",
           formatter:function(cell){
