@@ -15,7 +15,7 @@ export async function onRequestOptions({ request }) {
       // quitamos Access-Control-Allow-Credentials si no usamos cookies
     }
   });
-}
+} 
 
 /**
  * POST: reenvía el JSON al Apps Script y devuelve su respuesta
