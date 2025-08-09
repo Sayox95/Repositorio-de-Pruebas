@@ -68,7 +68,7 @@
     display: flex;
     flex-direction: column;
     gap: 1rem;
-  } 
+  }
 </style>
 
 <script>
@@ -416,62 +416,16 @@
 </style>
 <div id="toast-alert">⚠️ Hay campos obligatorios sin completar.</div>
 <!-- ==== Registrar Anticipo ==== -->
+<button id="btnShowAnt" style="margin:1rem;">Registrar nuevo Anticipo</button>
 <section id="registrarAnticipo" style="display:none;flex-direction:column;gap:1rem;padding:1rem;align-items:center;">
-<button id="btnBackAnt" style="align-self:flex-start;">← Volver</button>
-<h2>Registrar Anticipo</h2>
-  <!-- Cortar desde aquí ↓↓ -->
-  <div id="filtrosAnt" style="display:flex;gap:1rem;align-items:center;margin:1rem 0;">
-    <label>
-      Filtrar Sector:<br/>
-      <select id="filterSectorAnt">
-        <option value="">Todos</option>
-        <!-- … -->
-      </select>
-    </label>
-    <label>
-      Filtrar Periodo:<br/>
-      <select id="filterPeriodoAnt">
-        <option value="">Todos</option>
-        <!-- … -->
-      </select>
-    </label>
-  </div>
-
-<div style="display:flex;gap:1rem;align-items:center;margin-bottom:1rem;">
-  <button id="btnExportExcel"
-    style="display:inline-flex;align-items:center;justify-content:center;
-           height:1.8rem !important;
-           line-height:1.8rem !important;
-           padding:0 0.7rem !important;
-           font-size:0.8rem !important;
-           background:#217346;
-           color:#fff;
-           border:0;
-           border-radius:.25rem;
-           cursor:pointer;
-           white-space:nowrap;">
-    Exportar Excel
-  </button>
-
-  <button id="btnShowAnt"
-    style="display:inline-flex;align-items:center;justify-content:center;
-           height:1.8rem !important;
-           line-height:1.8rem !important;
-           padding:0 0.7rem !important;
-           font-size:0.8rem !important;
-           background:#0b6fff;
-           color:#fff;
-           border:0;
-           border-radius:.25rem;
-           cursor:pointer;
-           white-space:nowrap;">
+  <button id="btnShowAnt" style="height:2.3rem; align-self:center; margin:1rem auto; display:none;">
     Registrar nuevo Anticipo
   </button>
-</div>
+  <div id="anticipoFormContent" style="display:none;flex-direction:column;gap:1rem;align-items:center;width:100%;">
 
- <!-- Ahora sí comienza el mini-formulario, sin el Exportar Excel dentro -->
- <div id="anticipoMiniForm" style="display:none;flex-wrap:wrap;gap:.8rem;align-items:flex-end;display:flex;">
-
+<button id="btnBackAnt" style="align-self:flex-start;">← Volver</button>
+<h2>Registrar Anticipo</h2>
+<div style="display:flex;flex-wrap:wrap;gap:.8rem;align-items:flex-end;">
 <div><label>Sector<br/><select id="antSector" required="">
 <option value="">Seleccione</option>
 <option value="SAN PEDRO SULA">SAN PEDRO SULA</option>
@@ -491,10 +445,9 @@
 <div><label>Fondo<br/><select id="antFondo"><option value="">Seleccione</option><option value="Combustible">Combustible</option><option value="Poda">Poda</option></select></label></div>
 <div><label>Depósito (L)<br/><input id="antDeposito" min="0" step="0.01" style="width:8rem;" type="number"/></label></div>
 <div><label>Periodo<br/><select id="antPeriodo" style="width:8rem;"><option value="">Seleccione</option></select></label></div>
-<button id="btnAddAnt"
-        style="height:2.3rem; margin:1rem auto;
-               display:flex; justify-content:center; align-items:center;">
-	＋ Registrar
+    <button id="btnAddAnt" style="height:2.3rem; align-self:center; margin-left:auto; margin-right:auto;">
+       Registrar
+    </button>
 </div>
 <div style="font-weight:bold;display:flex;gap:2rem;margin-top:.5rem;">
 <span>Total anticipos: <span id="antTotal">L 0.00</span></span>
@@ -508,6 +461,8 @@
   </div>
 </div>
 <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
+
+  </div>
 </section>
 <style>
 @keyframes fadeOutUp {
@@ -617,7 +572,13 @@
   font-weight: bold;
 }
 </style>
-
+<script>
+function actualizarVisibilidadBotonesMasivos() {
+  const checks = document.querySelectorAll("#tablaFacturas input[type=checkbox]:checked");
+  const cont = document.getElementById("accionesMasivas");
+  if (cont) cont.style.display = (checks.length >= 2) ? "block" : "none";
+}
+</script>
 <style>
 #countersContainer {
   display: flex;
@@ -785,6 +746,7 @@
       document.getElementById('seccionRevisionFacturas').style.display = 'none';
       document.getElementById('registrarAnticipo').style.display = 'none';
       document.getElementById('seccionPagoFacturas').style.display = 'none';
+     
 
       // Mostrar la sección solicitada
       if (nombre === 'menuPrincipal') {
@@ -861,76 +823,14 @@
 <label for="rangoFechas">Filtrar por rango de fechas:</label>
 <input id="rangoFechas" placeholder="Desde - Hasta" readonly="" style="padding:0.5rem;" type="text"/>
 </div>
-<div id="toolbarRevision"
-     style="display:flex;gap:.6rem;align-items:center;margin:.4rem 0 .8rem;">
-
-  <!-- Botón visible: Agrupar / Desagrupar -->
-  <button id="btnGroupColab"
-    style="display:inline-flex;align-items:center;justify-content:center;
-           height:1.8rem !important; line-height:1.8rem !important;
-           padding:0 0.7rem !important; font-size:0.8rem !important;
-           background:#6b7280; color:#fff; border:0; border-radius:.25rem;
-           cursor:pointer; white-space:nowrap;">
-    Agrupar por Colaborador
-  </button>
-
-  <!-- NUEVO: Exportar Excel (Revisión) -->
-  <button id="btnExportRev"
-    style="display:inline-flex;align-items:center;justify-content:center;
-           height:1.8rem !important; line-height:1.8rem !important;
-           padding:0 0.7rem !important; font-size:0.8rem !important;
-           background:#217346; color:#fff; border:0; border-radius:.25rem;
-           cursor:pointer; white-space:nowrap;">
-    Exportar Excel
-  </button>
-
-  <!-- Botones masivos (ocultos hasta que haya ≥2 seleccionadas) -->
-  <div id="accionesMasivas" style="display:none; gap:.6rem; align-items:center;">
-    <button onclick="actualizarEstadoSeleccionados('Revisada')"
-      style="display:inline-flex;align-items:center;justify-content:center;
-             height:1.8rem !important; line-height:1.8rem !important;
-             padding:0 0.7rem !important; font-size:0.8rem !important;
-             background:#0b6fff; color:#fff; border:0; border-radius:.25rem;
-             cursor:pointer; white-space:nowrap;">
-      ✓ Marcar como Revisada
-    </button>
-    <button onclick="actualizarEstadoSeleccionados('Anulada')"
-      style="display:inline-flex;align-items:center;justify-content:center;
-             height:1.8rem !important; line-height:1.8rem !important;
-             padding:0 0.7rem !important; font-size:0.8rem !important;
-             background:#d32f2f; color:#fff; border:0; border-radius:.25rem;
-             cursor:pointer; white-space:nowrap;">
-      ✖ Marcar como Anulada
-    </button>
-  </div>
+<div style="margin-bottom: 1rem;">
+<div id="accionesMasivas" style="margin-bottom:1rem; display:none;"><button onclick="actualizarEstadoSeleccionados('Revisada')">✔ Marcar como Revisada</button>
+<button onclick="actualizarEstadoSeleccionados('Anulada')">✖ Marcar como Anulada</button></div>
 </div>
-
-
 <div class="tabla-responsive" style="border: 1px solid #ccc; border-radius: 8px; overflow-x: auto; max-height: 60vh; padding: 1rem;">
 <div id="tablaRevisionWrapper" style="position:relative;"><div id="tablaRevisionFacturas"></div><div id="overlayRevision"><span id="overlayTextRevision">Cargando información</span></div></div>
 </div> <!-- Fin de contenedor scroll de tabla -->
 </div>
-
-<script>
-document.addEventListener("DOMContentLoaded", () => {
-  const tablaRev = document.getElementById("tablaRevisionFacturas");
-  if (!tablaRev) return;
-
-  // Mostrar/ocultar los botones masivos SOLO en revisión
-  function actualizarVisibilidadBotonesMasivosRevision() {
-    const n = tablaRev.querySelectorAll('input[type="checkbox"]:checked').length;
-    const cont = document.getElementById("accionesMasivas");
-    if (cont) cont.style.display = (n >= 2) ? "block" : "none";
-  }
-
-  // Delegación: cualquier checkbox dentro de la tabla
-  tablaRev.addEventListener("change", (e) => {
-    if (e.target && e.target.matches('input[type="checkbox"]')) {
-      actualizarVisibilidadBotonesMasivosRevision();
-    }
-  });
-});
-</script>
 
 <script>
 function regresarAlMenu() {
@@ -948,12 +848,8 @@ function regresarAlMenu() {
 </script>
 <script>
 function actualizarVisibilidadBotonesMasivos() {
-  // contenedor de los botones masivos en Revisión
+  const checks = document.querySelectorAll("#tablaFacturas input[type=checkbox]:checked");
   const cont = document.getElementById("accionesMasivas");
-  if (!cont) return;
-
-  // contar checkboxes seleccionados en la tabla de Revisión
-  const checks = document.querySelectorAll("#tablaRevisionFacturas input[type=checkbox]:checked");
   cont.style.display = (checks.length >= 2) ? "block" : "none";
 }
 </script>
@@ -1079,7 +975,7 @@ mostrarSeccion('seccionPagoFacturas');
 
   spinner.style.display = "block";
   tabla.style.display = "table";
-  fetch(urlLeerFacturas)
+  fetch("https://repositorio-de-pruebas.pages.dev/api/leer")
     .then(response => {
       if (!response.ok) throw new Error("HTTP " + response.status);
       return response.json();
@@ -1351,33 +1247,14 @@ groupHeader:function(value, count, data, group){
         precision: 2
     }
 },
-{
-  title: "Fecha",
-  field: "Fecha",
-  sorter: "string",
-  formatter: function(cell){
-    const v = cell.getValue();
-    return v ? String(v).slice(0,10) : "";        // lo que ves en la tabla
-  },
-  accessorDownload: function(value){
-    if (!value) return "";
-    // lo que se manda al Excel
-    return (typeof value === "string")
-      ? value.slice(0,10)                         // "2025-06-06T..." -> "2025-06-06"
-      : new Date(value).toISOString().slice(0,10);
-  }
+      {
+    title: "Fecha",
+    field: "Fecha", sorter:"string",
+    formatter: function(cell) {
+        var v = cell.getValue();
+        return v ? v.split("T")[0] : "";
+    }
 },
-	  {
-  title: "Nombre del comercio",
-  field: "Nombre del comercio",         // cámbialo si tu header es distinto
-  width: 220,                      // ajusta el ancho a gusto
-  formatter: (cell) => {
-    const v = String(cell.getValue() ?? "");
-    const max = 28;                // caracteres visibles
-    return v.length > max ? v.slice(0, max) + "…" : v;
-  },
-  tooltip: true                    // muestra el valor completo al hover
-},	
       {title:"Número de Factura", field:"Numero de Factura"},
       {title:"Enlace PDF", field:"Enlace PDF", formatter: cell => {
           var v = cell.getValue();
@@ -1408,21 +1285,11 @@ groupHeader:function(value, count, data, group){
   window.tabulatorTable = table;
     // Ocultar overlay cuando la tabla termine de renderizar datos
     table.on("dataRendered", function(){ document.getElementById("overlayPago").style.display = "none"; });
-
-// Mostrar el botón solo si hay selección y ninguna está en "Pagada"
-table.on("rowSelectionChanged", function (data, rows) {
-  const btn = document.getElementById("btn-pagar-facturas");
-  if (!btn) return;
-
-  // Preferimos rows (RowComponents); si no vienen, caemos a data (objetos)
-  const canPay = (rows && rows.length)
-    ? rows.length > 0 && rows.every(r => String(r.getData().Estado || "").trim() !== "Pagada")
-    : (data && data.length > 0 && data.every(d => String(d.Estado || "").trim() !== "Pagada"));
-
-  btn.style.display = canPay ? "inline-block" : "none";
-});
-
-
+  // Mostrar u ocultar botón 'Pagar Facturas' según selección
+  table.on("rowSelectionChanged", function(data){
+    var btn = document.getElementById("btn-pagar-facturas");
+    btn.style.display = data.length > 0 ? "inline-block" : "none";
+  });
 
   // ==== Patch: función para pagos masivos ====
   window.actualizarEstadoMultiple = async function(filas, nuevoEstado, fondoPeriodo, fechaPago) {
@@ -1541,277 +1408,152 @@ document.getElementById('exportExcelBtn').addEventListener('click', function() {
 });
 </script>
 <script>
-  // Endpoints
-  const urlLeerFacturas   = "/api/leer";
-  const urlGuardarReporte = "/api/guardar";
-
-  document.addEventListener("DOMContentLoaded", function () {
-    // === Tabla Revisión de Facturas ===
-    var tableRevision = window.tableRevision = new Tabulator("#tablaRevisionFacturas", {
-      layout: "fitColumns",
-      height: "60vh",
-      selectable: true,
-      columns: [
-        { formatter:"rowSelection", titleFormatter:"rowSelection", hozAlign:"center", headerSort:false },
-        { formatter:"rownum", title:"#", hozAlign:"center", width:40 },
-        { title:"Sector", field:"Sector" },
-        { title:"Placa", field:"Placa" },
-        { title:"Proceso", field:"Proceso" },
-        { title:"Nombre", field:"Nombre" },
-        { title:"Identidad", field:"Identidad" },
-        { title:"Total Gastado", field:"Total Gastado", formatter:"money",
-          formatterParams:{ symbol:"L", symbolAfter:false, thousand:",", decimal:".", precision:2 } },
-        { title:"Fecha", field:"Fecha",
-          formatter:function(cell){
-            var v = cell.getValue();
-            return v ? v.split("T")[0] : "";
-          } },
-		{
-  title: "Nombre del comercio",
-  field: "Nombre del comercio",         // cámbialo si tu header es distinto
-  width: 220,                      // ajusta el ancho a gusto
-  formatter: (cell) => {
-    const v = String(cell.getValue() ?? "");
-    const max = 28;                // caracteres visibles
-    return v.length > max ? v.slice(0, max) + "…" : v;
-  },
-  tooltip: true                    // muestra el valor completo al hover
-},  
-        { title:"Número de Factura", field:"Numero de Factura" },
-        { title:"Enlace PDF", field:"Enlace PDF",
-          formatter:function(cell){
-            var v = cell.getValue();
-            return v ? '<a href="'+v+'" target="_blank">📄</a>' : "";
-          } },
-        { title:"Estado", field:"Estado",
-          editor:"list", editorParams:{ values:["Registrada","Revisada","Anulada"], autocomplete:true },
-          cellEdited:function(cell){
-            var d = cell.getRow().getData();
-            if (typeof actualizarEstadoIndividual === "function"){
-              actualizarEstadoIndividual(d.fila, cell.getValue());
-            }
-          }
-        },
-      ],
-    });
-
-    // Ocultar overlay cuando renderiza
-    tableRevision.on("dataRendered", function(){
-      var overlay = document.getElementById("overlayCambios");
-      if (overlay) overlay.style.display = "none";
-    });
-
-    // Mostrar/ocultar acciones masivas (≥ 2 seleccionadas)
-    tableRevision.on("rowSelectionChanged", function(data, rows){
-      var cont = document.getElementById("accionesMasivas");
-      if (!cont) return;
-      cont.style.display = (rows && rows.length >= 2) ? "flex" : "none";
-    });
-
-    // --- Filtros (Estado / Sector / Número / Rango fechas) ---
-    var filtroEstado = document.getElementById("filtroEstado");
-    if (filtroEstado){
-      filtroEstado.addEventListener("change", function(){
-        if (this.value === "" || this.value === "Todas"){
-          tableRevision.clearFilter(true);
-        } else {
-          tableRevision.setFilter("Estado", "=", this.value);
-        }
-      });
-    }
-
-    var sectorSelect = document.getElementById("filtroSector");
-    if (sectorSelect){
-      sectorSelect.addEventListener("change", function(){
-        if (this.value === ""){
-          tableRevision.clearFilter(true);
-        } else {
-          tableRevision.setFilter("Sector", "=", this.value);
-        }
-      });
-    }
-
-    var filtroNum = document.getElementById("filtroNumeroFactura");
-    if (filtroNum){
-      filtroNum.addEventListener("input", function(){
-        var val = this.value;
-        tableRevision.clearFilter(true);
-        if (val){
-          tableRevision.setFilter("Numero de Factura", "like", val);
-        }
-      });
-    }
-
-    // Poblar selects de filtros al cargar data y limpiar input de número
-    tableRevision.on("dataLoaded", function(data){
-      if (!Array.isArray(data)) return;
-
-      // Poblar Sector
-      var selSector = document.getElementById("filtroSector");
-      if (selSector){
-        for (var i = selSector.options.length - 1; i > 0; i--) selSector.remove(i);
-        var sectores = data.map(r => r.Sector).filter((v,i,a)=>v && a.indexOf(v)===i).sort();
-        sectores.forEach(function(s){
-          var opt = document.createElement("option");
-          opt.value = s; opt.text = s;
-          selSector.add(opt);
-        });
-      }
-
-      // Poblar Estado
-      var selEstado = document.getElementById("filtroEstado");
-      if (selEstado){
-        for (var j = selEstado.options.length - 1; j > 0; j--) selEstado.remove(j);
-        var estados = data.map(r => r.Estado).filter((v,i,a)=>v && a.indexOf(v)===i).sort();
-        estados.forEach(function(e){
-          var opt2 = document.createElement("option");
-          opt2.value = e; opt2.text = e;
-          selEstado.add(opt2);
-        });
-      }
-
-      // Limpiar filtro de número al recargar
-      if (filtroNum) filtroNum.value = "";
-    });
-
-    // Filtro por rango de fechas (flatpickr)
-    var rangoInput = document.getElementById("rangoFechas");
-    if (rangoInput && typeof flatpickr !== "undefined"){
-      flatpickr("#rangoFechas", {
-        mode: "range",
-        dateFormat: "Y-m-d",
-        locale: flatpickr.l10ns.es,
-        onClose: function(selectedDates){
-          tableRevision.clearFilter(true);
-          if (selectedDates.length === 2){
-            var start = selectedDates[0].toISOString().split("T")[0];
-            var end   = selectedDates[1].toISOString().split("T")[0];
-            tableRevision.addFilter("Fecha", ">=", start);
-            tableRevision.addFilter("Fecha", "<=", end);
-          }
-        }
-      });
-    }
-
-    // === Toggle: Agrupar por Colaborador (Identidad como clave) ===
-    const btnGroup = document.getElementById("btnGroupColab");
-    if (btnGroup){
-      const moneyHN = v => new Intl.NumberFormat('es-HN',{style:'currency',currency:'HNL'}).format(v||0);
-      let grouped = false;
-      let built   = false;
-
-      function applyGrouping(on){
-        if (!built) return;                        // no agrupar antes de tableBuilt
-        tableRevision._groupedByIdentidad = !!on;  // marca para exportación
-
-        if (on){
-          // Agrupar por Identidad (estable)
-          tableRevision.setGroupBy(row => String(row.Identidad || "").trim());
-
-          tableRevision.setGroupHeader([
-            function(value, count, data){
-              // primer Nombre no vacío del grupo
-              const nombre = (data.find(r => r.Nombre && String(r.Nombre).trim())?.Nombre) || "(Sin nombre)";
-              const identidad = value || "(Sin identidad)";
-              const total = data.reduce((s, r) =>
-                s + Number(r["Total Gastado"] ?? r.Total ?? r.Monto ?? 0), 0);
-
-              return `${nombre} [${identidad}] — ${count} factura${count!==1?"s":""} — ${moneyHN(total)}`;
-            }
-          ]);
-
-          tableRevision.setGroupStartOpen(false);
-          btnGroup.textContent = "Quitar agrupación";
-        } else {
-          tableRevision.setGroupBy(false);
-          btnGroup.textContent = "Agrupar por Colaborador";
-        }
-      }
-
-      // Desactiva el botón hasta que la tabla esté lista
-      btnGroup.disabled = true;
-
-      // Habilita y aplica tras construir la tabla
-      tableRevision.on("tableBuilt", function(){
-        built = true;
-        btnGroup.disabled = false;
-        applyGrouping(grouped);
-
-        // Reaplica al recargar datos (ya con tabla construida)
-        tableRevision.on("dataLoaded", function(){
-          applyGrouping(grouped);
-        });
-      });
-
-      // Toggle manual
-      btnGroup.addEventListener("click", function(){
-        grouped = !grouped;
-        applyGrouping(grouped);
-      });
-    }
-
-    // === Exportar Excel (Revisión) ===
-    const btnExportRev = document.getElementById("btnExportRev");
-    if (btnExportRev){
-      btnExportRev.addEventListener("click", function(){
-        // Exporta lo visible (filtros aplicados)
-        const rows = tableRevision.getData("active") || [];
-        if (!rows.length){
-          alert("No hay datos para exportar.");
-          return;
-        }
-
-        const wb = XLSX.utils.book_new();
-
-        // Si está agrupado por Identidad, crea hoja de Resumen
-        if (tableRevision._groupedByIdentidad){
-          const map = new Map();
-          rows.forEach(r => {
-            const id = String(r.Identidad || "").trim() || "(Sin identidad)";
-            const g = map.get(id) || { Identidad:id, Nombre:"", Facturas:0, Total:0 };
-            if (!g.Nombre && r.Nombre) g.Nombre = r.Nombre;
-            g.Facturas += 1;
-            g.Total += Number(r["Total Gastado"] ?? r.Total ?? r.Monto ?? 0);
-            map.set(id, g);
-          });
-          const resumen = Array.from(map.values());
-          const wsRes = XLSX.utils.json_to_sheet(resumen, {
-            header: ["Identidad","Nombre","Facturas","Total"]
-          });
-          XLSX.utils.book_append_sheet(wb, wsRes, "Resumen");
-        }
-
-        // Hoja de Detalle
-const headers = [
-  "Sector","Placa","Proceso","Nombre","Identidad",
-  "Total Gastado","Fecha","Nombre del comercio","Numero de Factura","Enlace PDF","Estado"
-];
-
-        const detalle = rows.map(r => ({
-          "Sector":            r.Sector ?? "",
-          "Placa":             r.Placa ?? "",
-          "Proceso":           r.Proceso ?? "",
-          "Nombre":            r.Nombre ?? "",
-          "Identidad":         r.Identidad ?? "",
-          "Total Gastado":     Number(r["Total Gastado"] ?? r.Total ?? r.Monto ?? 0),
-		  "Fecha": r.Fecha
-  ? (typeof r.Fecha === "string"
-      ? r.Fecha.slice(0,10)                       // "2025-06-06T..." -> "2025-06-06"
-      : new Date(r.Fecha).toISOString().slice(0,10)) // Date -> "2025-06-06"
-  : "",
-          "Nombre del comercio": r["Nombre del comercio"] ?? "",
-		  "Numero de Factura": r["Numero de Factura"] ?? "",
-          "Enlace PDF":        r["Enlace PDF"] ?? "",
-          "Estado":            r.Estado ?? ""
-        }));
-        const wsDet = XLSX.utils.json_to_sheet(detalle, { header: headers });
-        XLSX.utils.book_append_sheet(wb, wsDet, "Detalle");
-
-        const fecha = new Date().toISOString().slice(0,10);
-        XLSX.writeFile(wb, `revision_facturas_${fecha}.xlsx`);
-      });
-    }
+  // Endpoint definitions moved here
+  const urlLeerFacturas = "https://repositorio-de-pruebas.pages.dev/api/leer";
+const urlGuardarReporte = "/api/guardar";
+// Tabulator setup for Revisión de Facturas
+document.addEventListener("DOMContentLoaded", function(){
+  var tableRevision = window.tableRevision = new Tabulator("#tablaRevisionFacturas", {
+    layout: "fitColumns",
+    height: "60vh",
+    // Use fetch directly to avoid CORS preflight by removing custom headers
+    selectable: true,
+    columns: [
+      {formatter: "rowSelection", titleFormatter: "rowSelection", hozAlign: "center", headerSort: false},
+      {formatter: "rownum", title: "#", hozAlign: "center", width: 40},
+      {title: "Sector", field: "Sector"},
+      {title: "Placa", field: "Placa"},
+      {title: "Proceso", field: "Proceso"},
+      {title: "Nombre", field: "Nombre"},
+      {title: "Identidad", field: "Identidad"},
+      {title: "Total Gastado", field: "Total Gastado", formatter: "money", formatterParams: {symbol: "L", symbolAfter: false, thousand: ",", decimal: ".", precision: 2}},
+      {title: "Fecha", field: "Fecha", formatter: function(cell){ var v = cell.getValue(); 
+window.tableRevision = tableRevision;
+return v?v.split("T")[0]:""; }},
+      {title:"Número de Factura", field:"Numero de Factura"},
+      {title: "Enlace PDF", field: "Enlace PDF", formatter: function(cell){ var v = cell.getValue(); return v?'<a href="'+v+'" target="_blank">📄</a>':""; }},
+      {title: "Estado", field: "Estado", editor: "list", editorParams: {values: ["Registrada","Revisada","Anulada"], autocomplete: true}, cellEdited: function(cell){ var d = cell.getRow().getData(); actualizarEstadoIndividual(d.fila, cell.getValue()); }}
+    ],
   });
+
+  // Hide any loading overlay after data render
+  tableRevision.on("dataRendered", function(){ 
+    var overlay = document.getElementById("overlayCambios");
+    if(overlay) overlay.style.display = "none";
+  });
+
+  // Hook filter inputs to Tabulator filters
+  var filtroEstado = document.getElementById("filtroEstado");
+  if(filtroEstado) {
+    filtroEstado.addEventListener("change", function(){
+      if(this.value === "Todas"){
+        tableRevision.clearFilter(true);
+      } else {
+        tableRevision.setFilter("Estado", "=", this.value);
+      }
+    });
+  }
+  // Hook change listener for sector filter
+  var sectorSelect = document.getElementById("filtroSector");
+  if (sectorSelect) {
+    sectorSelect.addEventListener("change", function(){
+      if (this.value === "") {
+        tableRevision.clearFilter(true);
+      } else {
+        tableRevision.setFilter("Sector", "=", this.value);
+      }
+    });
+  }
+  // Populate sector filter options when data loads
+  tableRevision.on("dataLoaded", function(data){ if(!Array.isArray(data)) return;  if(!Array.isArray(data)) return; var sectorSelect = document.getElementById("filtroSector");
+    if (!sectorSelect) return;
+    // Reset options except default
+    var length = sectorSelect.options.length;
+    for(var i=length-1; i>0; i--){
+      sectorSelect.remove(i);
+    }
+    var sectors = data.map(function(r){ return r.Sector; })
+      .filter(function(v, i, a){ return v && a.indexOf(v)===i; })
+      .sort();
+    sectors.forEach(function(s){
+      var opt = document.createElement("option");
+      opt.value = s;
+      opt.text = s;
+      sectorSelect.add(opt);
+    });
+  });
+  // Hook change listener for estado filter
+  var estadoSelect = document.getElementById("filtroEstado");
+  if (estadoSelect) {
+    estadoSelect.addEventListener("change", function(){
+      if (this.value === "") {
+        tableRevision.clearFilter(true);
+      } else {
+        tableRevision.setFilter("Estado", "=", this.value);
+      }
+    });
+  }
+  // Populate estado filter options when data loads
+  tableRevision.on("dataLoaded", function(data){ if(!Array.isArray(data)) return; 
+    var estadoSelect = document.getElementById("filtroEstado");
+    if (!estadoSelect) return;
+    // Reset options except default
+    for (var i = estadoSelect.options.length - 1; i > 0; i--) {
+      estadoSelect.remove(i);
+    }
+    var estados = data.map(function(r){ return r.Estado; })
+      .filter(function(v, i, a){ return v && a.indexOf(v)===i; })
+      .sort();
+    estados.forEach(function(e){
+      var opt = document.createElement("option");
+      opt.value = e;
+      opt.text = e;
+      estadoSelect.add(opt);
+    });
+  // Reconstructed filter for Número de Factura (Revisión)
+  var filtroNum = document.getElementById("filtroNumeroFactura");
+  if (filtroNum) {
+    filtroNum.addEventListener("input", function() {
+      var val = this.value;
+      tableRevision.clearFilter(true);
+      if (val) {
+        tableRevision.setFilter("Numero de Factura", "like", val);
+      }
+    });
+  }
+  // Clear number filter input on data load
+  tableRevision.on("dataLoaded", function() {
+    var filtroNum = document.getElementById("filtroNumeroFactura");
+    if (filtroNum) filtroNum.value = "";
+  });
+  });
+  var filtroNumero = document.getElementById("filtroNumeroFactura");
+  if(filtroNumero) {
+    filtroNumero.addEventListener("input", function(){
+      tableRevision.setFilter("Número de Factura", "like", this.value);
+    });
+  }
+  // Date range filter initialization
+  var rangoInput = document.getElementById("rangoFechas");
+  if (rangoInput) {
+    flatpickr("#rangoFechas", {
+      mode: "range",
+      dateFormat: "Y-m-d",
+      locale: flatpickr.l10ns.es,
+      onClose: function(selectedDates, dateStr) {
+        // Clear previous filters
+        tableRevision.clearFilter(true);
+        if (selectedDates.length === 2) {
+          var start = selectedDates[0].toISOString().split("T")[0];
+          var end = selectedDates[1].toISOString().split("T")[0];
+          tableRevision.addFilter("Fecha", ">=", start);
+          tableRevision.addFilter("Fecha", "<=", end);
+        }
+      }
+    });
+  }
+
+});
 </script>
 
 <!-- ==== Patch v20: cumulative filters + single-day fix === -->
@@ -2007,72 +1749,6 @@ document.addEventListener("DOMContentLoaded", function(){
 })();
 </script>
 <!-- ==== Fin Patch v34 ==== -->
-<script>
-(function(){
-  // Usa el mismo endpoint que el patch v34
-  const ENDPOINT = (typeof urlGuardarReporte !== "undefined")
-      ? urlGuardarReporte : "/api/guardar";
-
-  async function actualizarEstadoSeleccionados(nuevoEstado){
-    const tab = Tabulator.findTable("#tablaRevisionFacturas")[0];
-    if(!tab){ alert("Tabla no disponible"); return; }
-
-    const rows = tab.getSelectedRows();
-    if(rows.length < 2){
-      alert("Selecciona al menos 2 facturas.");
-      return;
-    }
-
-    const overlay = document.getElementById("overlayCambios");
-    if(overlay) overlay.style.display = "flex";
-
-    try {
-      await Promise.all(rows.map(r => {
-        const d = r.getData();
-        const fila = d.fila ?? d._fila;
-        return fetch(ENDPOINT, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ actualizarEstado:true, fila, nuevoEstado })
-        })
-        .then(res => res.json())
-        .then(result => {
-          if(result.status !== "OK") throw new Error(result.message || "Error al actualizar");
-          // refleja el cambio en la tabla
-          r.update({ Estado: nuevoEstado });
-        });
-      }));
-
-      // limpiar selección y ocultar botones masivos
-      tab.deselectRow();
-      const cont = document.getElementById("accionesMasivas");
-      if (cont) cont.style.display = "none";
-
-      // refrescar contadores (mismo criterio que tus patches)
-      const data = tab.getData("active");
-      const acc = {registrada:0,revisada:0,anulada:0};
-      data.forEach(row=>{
-        const est = String(row.Estado||"").trim().toLowerCase();
-        if (acc.hasOwnProperty(est)) acc[est]++;
-      });
-      const set = (id,val)=>{ const el=document.getElementById(id); if(el) el.textContent = val; };
-      set("counterRegistradas", acc.registrada);
-      set("counterRevisadas",   acc.revisada);
-      set("counterAnuladas",    acc.anulada);
-
-    } catch (e) {
-      console.error(e);
-      alert("No se pudo actualizar algunas filas: " + (e.message || e));
-    } finally {
-      if(overlay) overlay.style.display = "none";
-    }
-  }
-
-  // Exponer global para los botones
-  window.actualizarEstadoSeleccionados = actualizarEstadoSeleccionados;
-})();
-</script>
-
 <!-- ==== Patch v36: Counters Pago live on Estado edit ==== -->
 <script>
 document.addEventListener("DOMContentLoaded", function(){
@@ -2102,28 +1778,6 @@ document.addEventListener("DOMContentLoaded", function(){
 </script>
 <!-- ==== End Patch v36 ==== -->
 <script>
-  async function registrar(){
-  var ov = document.getElementById("overlayAnt");
-  ov.querySelector("span").textContent = "Registrando cambios";
-  ov.style.display = "flex";
-
-     const payload = {
-     accion: "registrarAnticipo",
-     Sector:  document.getElementById("antSector").value,
-     Fondo:   document.getElementById("antFondo").value,
-     Deposito:Number(document.getElementById("antDeposito").value),
-     Periodo: document.getElementById("antPeriodo").value
-   };
-   await fetch(urlGuardarAnticipo, {
-     method:  "POST",
-     headers: {"Content-Type": "application/json"},
-     body:    JSON.stringify(payload)
-   })
-    .then(function(res){ return res.json(); })
-    .then(function(res){ if(res.status !== "OK") throw new Error(res.message); })
-    .catch(function(err){ console.error("Error al registrar:", err); })
-    .finally(function(){ cargarAnticipos(); });
-}
 document.addEventListener('DOMContentLoaded',()=>{
   const $=id=>document.getElementById(id);
   const money=v=>'L '+Number(v||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -2150,7 +1804,17 @@ document.addEventListener('DOMContentLoaded',()=>{
     const sld=d.filter(r=>r.Estado==='Vigente').reduce((s,r)=>s+Number(r.Deposito||0),0);
     $('antTotal').textContent=money(t); $('antSaldo').textContent=money(sld);
   }
+  function registrar(){
+  var ov = document.getElementById("overlayAnt");
+  ov.querySelector("span").textContent = "Registrando cambios";
+  ov.style.display = "flex";
 
+  fetch(urlGuardarAnticipo, { method:"POST" })
+    .then(function(res){ return res.json(); })
+    .then(function(res){ if(res.status !== "OK") throw new Error(res.message); })
+    .catch(function(err){ console.error("Error al registrar:", err); })
+    .finally(function(){ cargarAnticipos(); });
+};
   $('btnBackAnt').addEventListener('click',()=>{ $('registrarAnticipo').style.display='none'; $('menuPrincipal').style.display='flex';});
   
 // populate periodo select
@@ -2163,6 +1827,8 @@ if(perSel && perSel.options.length<=1){
     const opt=document.createElement('option');opt.value=val;opt.textContent=val;perSel.appendChild(opt);
   }
 }
+$('btnAddAnt').addEventListener
+('click',registrar);
 });
 </script>
 <script>
@@ -2208,7 +1874,7 @@ window.isFirstLoadRevisionFacturas = true;
 
 // Carga datos (fetch + setData) replicando lógica de sección Pago
 function loadDataRevisionFacturas(){
- return fetch(urlLeerFacturas)
+  return fetch(urlLeerFacturas)
     .then(r => r.json())
     .then(function(data){
       // Solo facturas que NO estén pagadas
@@ -2232,6 +1898,8 @@ function mostrarOverlayRevision(modo){
   textEl.textContent = (modo === 'init') ? 'Cargando información' : 'Actualizando información';
   overlay.style.display = 'flex';
 }
+
+
 
 // Actualiza contadores de revisión
 function updateCountersRevision(){
@@ -2295,12 +1963,6 @@ document.addEventListener('DOMContentLoaded', function(){
 window.isFirstLoadAnticipo = true;
 
 document.addEventListener("DOMContentLoaded", function(){
-  // utilidades para DOM y formato de moneda
-  const $     = id => document.getElementById(id);
-  const money = v  => new Intl.NumberFormat('es-HN', {
-    style: 'currency', currency: 'HNL'
-  }).format(v || 0);
-
   window.tabAnticipos = new Tabulator("#tablaAnticipos", {
     height: "55vh",
     layout: "fitColumns",
@@ -2310,7 +1972,6 @@ document.addEventListener("DOMContentLoaded", function(){
     dataTreeElementColumn: "descripcion",
     dataTreeStartExpanded: false,
     columns: [
-	  { title: "Periodo", field: "Periodo", hozAlign:"center" },	
       { title: "Sector",       field: "Sector",      hozAlign:"left" },
       { title: "Descripción", field: "descripcion", headerSort: false },
       { title: "Monto",       field: "monto",       hozAlign: "right", formatter: "money", formatterParams: { symbol: "L ", precision: 2 } },
@@ -2318,57 +1979,13 @@ document.addEventListener("DOMContentLoaded", function(){
     ]
   });
 
-  // 1) Obtener referencias
-  const fSector = document.getElementById("filterSectorAnt");
-  const fPeriod = document.getElementById("filterPeriodoAnt");
+  document.getElementById("btnIrRegistrarAnticipo")
+    .addEventListener("click", cargarAnticipos);
+  document.getElementById("btnBackAnt")
+    .addEventListener("click", () => mostrarSeccion("menuPrincipal"));
+});
 
-  // 2) Definir la función de filtrado
-  function aplicarFiltros(){
-    const sec = fSector.value;
-    const per = fPeriod.value;
-    tabAnticipos.clearFilter(true);
-    if (sec) tabAnticipos.addFilter("Sector",  "=", sec);
-    if (per) tabAnticipos.addFilter("Periodo","=", per);
-  // Y actualizamos contadores conforme a los mismos criterios
-   recalcularContadores();
-  }
-
- // 5) Función para recalcular los contadores según los filtros
-function recalcularContadores(){
-  const sec = fSector.value;
-  const per = fPeriod.value;
-
-  // 1) Filtrar anticipos según sector y periodo (coerción de tipos)
-  const filtrados = window.anticiposData.filter(a =>
-    (!sec || a.Sector === sec) &&
-    (!per  || String(a.Periodo) === per)   // <-- String() aquí
-  );
-
-  // 2) Calcular totales y saldos descontando pagos
-  let total = 0, saldo = 0;
-  filtrados.forEach(a => {
-    const dep = Number(a.Deposito || 0);
-    total += dep;
-
-    // buscar pagos para este anticipo
-    const key = `${a.Fondo}-${a.Periodo}`;
-    const pagos = (window.facturasData || [])
-      .filter(f => f.Fondo === key && (f.Estado||"").toLowerCase() === "pagada")
-      .reduce((s, f) => s + Number(f["Total Gastado"]||0), 0);
-
-    saldo += dep - pagos;
-  });
-
-  // 3) Actualizar la UI
-  document.getElementById("antTotal").textContent = money(total);
-  document.getElementById("antSaldo").textContent = money(saldo);
-}
 async function cargarAnticipos(){
-  // 0) Al entrar, resetear filtros y contadores
-  document.getElementById("filterSectorAnt").value   = "";
-  document.getElementById("filterPeriodoAnt").value  = "";
-  tabAnticipos.clearFilter(true);
-
   mostrarSeccion("registrarAnticipo");
   const ov = document.getElementById("overlayAnt");
   const span = ov.querySelector("span");
@@ -2386,35 +2003,6 @@ async function cargarAnticipos(){
       fetch(urlLeerFacturas + "?leerFacturas=true").then(r => r.json())
     ]);
 
- // Guardamos globalmente para usarlo en los filtros
- window.anticiposData = anticipos;
- window.facturasData  = facturas;
- window.cargarAnticipos = cargarAnticipos;
-
-    // ↓↓↓ Pueblar filtros con los valores únicos de los anticipos ↓↓↓
-  const sectorSel = document.getElementById("filterSectorAnt");
-  const periodSel = document.getElementById("filterPeriodoAnt");
-
-  // Obtener sets únicos
-  const sectores = Array.from(new Set(anticipos.map(a => a.Sector)));
-  const periodos = Array.from(new Set(anticipos.map(a => a.Periodo)));
-
-  // Limpiar y rellenar
-  sectorSel.innerHTML = '<option value="">Todos</option>';
-  sectores.forEach(s => {
-    const opt = document.createElement("option");
-    opt.value = s; opt.textContent = s;
-    sectorSel.appendChild(opt);
-  });
-
-  periodSel.innerHTML = '<option value="">Todos</option>';
-  periodos.forEach(p => {
-    const opt = document.createElement("option");
-    opt.value = p; opt.textContent = p;
-    periodSel.appendChild(opt);
-  });
-  // ↑↑↑ fin de población dinámica de filtros ↑↑↑
-
     let saldo = 0, totalAnt = 0;
     const treeData = anticipos.map(a => {
       const dep = Number(a.Deposito || a.deposito || 0);
@@ -2428,7 +2016,6 @@ async function cargarAnticipos(){
         const amt = Number(f["Total Gastado"] || 0);
         saldo -= amt;
         return {
-          Periodo: a.Periodo,
           Sector: a.Sector, 
           id: f.fila,
           descripcion: `Pago factura #${f["Numero de Factura"] || ""}`,
@@ -2437,7 +2024,6 @@ async function cargarAnticipos(){
         };
       });
   const nodo = {
-    Periodo: a.Periodo,
     Sector: a.Sector,
     id: a.fila,
     descripcion: `Anticipo ${a.Fondo} (${a.Periodo})`,
@@ -2450,10 +2036,10 @@ async function cargarAnticipos(){
   return nodo;
     });
 
- window.treeData = treeData;
+     console.log("anticipos:", anticipos);
+ console.log("facturas:", facturas);
+ console.log("treeData:", treeData);
  tabAnticipos.setData(treeData);
- // Contadores iniciales (sin filtros)
- recalcularContadores();
 
     document.getElementById("antTotal").textContent =
       new Intl.NumberFormat('es-HN', {style: 'currency', currency: 'HNL'}).format(totalAnt);
@@ -2466,109 +2052,31 @@ async function cargarAnticipos(){
     document.getElementById("overlayAnt").style.display = "none";
   }
 }
-  // 3) Enganchar los selects
-  fSector.addEventListener("change", aplicarFiltros);
-  fPeriod.addEventListener("change", aplicarFiltros);
-
-  // 4) Resto de listeners de navegación…
-  document.getElementById("btnIrRegistrarAnticipo")
-    .addEventListener("click", cargarAnticipos);
-  document.getElementById("btnBackAnt")
-    .addEventListener("click", () => mostrarSeccion("menuPrincipal"));
-}); 
-
-document.getElementById("btnExportExcel").addEventListener("click", () => {
-  // 0) Validar que SheetJS esté disponible
-  if (typeof XLSX === "undefined") {
-    alert("No se encontró la librería XLSX. Revisa el <script> de SheetJS.");
-    return;
-  }
-
-  // 1) Tomar filtros actuales
-  const sec = (document.getElementById("filterSectorAnt") || {}).value || "";
-  const per = (document.getElementById("filterPeriodoAnt") || {}).value || "";
-
-  // 2) Base de datos: preferimos el treeData que generas tú.
-  //    Si por cualquier razón no existe/está vacío, usamos los datos de la tabla.
-  const base =
-    (Array.isArray(window.treeData) && window.treeData.length)
-      ? window.treeData
-      : (window.tabAnticipos && typeof window.tabAnticipos.getData === "function"
-          ? window.tabAnticipos.getData()
-          : []);
-
-  // 3) Aplicar filtros (si hay)
-  const data = base.filter(n =>
-    (!sec || n.Sector === sec) &&
-    (!per || String(n.Periodo) === per)
-  );
-
-  // 4) Aplanar padres + hijos (pagos)
-  const flat = [];
-  data.forEach(nodo => {
-    // Padre (anticipo)
-    flat.push({
-      Periodo:     nodo.Periodo,
-      Sector:      nodo.Sector,
-      Descripción: nodo.descripcion,
-      Monto:       Number(nodo.monto || 0),
-      Saldo:       Number(nodo.saldo || 0)
-    });
-    // Hijos (pagos)
-    (nodo.pagos || []).forEach(p => {
-      flat.push({
-        Periodo:     p.Periodo ?? nodo.Periodo,
-        Sector:      p.Sector  ?? nodo.Sector,
-        Descripción: p.descripcion,
-        Monto:       Number(p.monto || 0),
-        Saldo:       Number(p.saldo || 0)
-      });
-    });
-  });
-
-  if (!flat.length) {
-    alert("No hay datos para exportar.");
-    return;
-  }
-
-  // 5) Crear workbook y descargar
-  const headers = ["Periodo","Sector","Descripción","Monto","Saldo"];
-  const rows    = flat.map(r => headers.map(h => r[h]));
-  const ws      = XLSX.utils.aoa_to_sheet([headers, ...rows]);
-  const wb      = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Anticipos");
-  XLSX.writeFile(wb, "anticipos.xlsx");
-}); 
-
 </script>
 
 <script>
-  document.addEventListener("DOMContentLoaded", () => {
-    const showBtn = document.getElementById("btnShowAnt");
-    const mini   = document.getElementById("anticipoMiniForm");
-    const addBtn = document.getElementById("btnAddAnt");
+  const sec = document.getElementById("registrarAnticipo");
+  const showBtn = document.getElementById("btnShowAnt");
+  const addBtn = document.getElementById("btnAddAnt");
 
-    // Al entrar a la sección (ya se hace via btnIrRegistrarAnticipo), aseguramos estado inicial:
-    showBtn.style.display = "inline-block";
-    mini.style.display    = "none";
-
-    // 1) Mostrar el mini-form al pulsar “Registrar nuevo Anticipo”
-    showBtn.addEventListener("click", () => {
-      showBtn.style.display = "none";
-      mini.style.display    = "flex";
-    });
-
-    // 2) Después de registrar (tu lógica actual de registrarAnticipo)
-    addBtn.addEventListener("click", async (e) => {
-      e.preventDefault();
-      await registrar();  // tu función existente
-      // Tras guardarlo, volvemos a ocultar form y volver a mostrar el botón
-      mini.style.display    = "none";
-      showBtn.style.display = "inline-block";
-    });
+  // Al pulsar "Registrar nuevo Anticipo", muestro el form y oculto el botón
+  showBtn.addEventListener("click", () => {
+    showBtn.style.display = "none";
+    sec.style.display = "flex";
   });
-</script>
 
+  // Al terminar de registrar (en tu handler existente de btnAddAnt), oculta de nuevo
+  addBtn.addEventListener("click", async (e) => {
+    e.preventDefault();
+    // --- aquí tu lógica de registro que ya tienes ---
+    await registrarAnticipo(); // o como sea que llames a tu función
+
+    // Una vez terminado:
+    sec.style.display = "none";
+    showBtn.style.display = "inline-block";
+  });
+
+</script>
 
 <!-- Modal para registrar pago -->
 <div id="modalPago">
@@ -2855,5 +2363,27 @@ document.getElementById("btnAceptarPago").addEventListener("click", async functi
 
 </script>
 
+
+<script>
+  // Botón para mostrar el formulario de registro de anticipos
+  document.getElementById('btnShowAnt').addEventListener('click', () => {
+    document.getElementById('btnShowAnt').style.display = 'none';
+    document.getElementById('anticipoFormContent').style.display = 'flex';
+  });
+
+  // Ajuste en el botón que muestra la sección de registro
+  document.getElementById('btnIrRegistrarAnticipo').addEventListener('click', () => {
+    document.getElementById('anticipoFormContent').style.display = 'none';
+    document.getElementById('btnShowAnt').style.display = 'inline-block';
+  });
+
+  // Al completar el registro, ocultar el formulario y mostrar el botón de nuevo
+  document.getElementById('btnAddAnt').addEventListener('click', async (e) => {
+    e.preventDefault();
+    await registrarAnticipo();
+    document.getElementById('anticipoFormContent').style.display = 'none';
+    document.getElementById('btnShowAnt').style.display = 'inline-block';
+  });
+</script>
 </body>
 </html>
