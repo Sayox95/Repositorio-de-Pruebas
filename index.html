@@ -1677,7 +1677,7 @@ document.getElementById('exportExcelBtn').addEventListener('click', function() {
     // Filtro por rango de fechas (flatpickr)
     var rangoInput = document.getElementById("rangoFechas");
     if (rangoInput && typeof flatpickr !== "undefined"){
-flatpickr("#rangoFechas", {
+window.flatpickrRevision = flatpickr("#rangoFechas", {
   mode: "range",
   dateFormat: "Y-m-d",
   locale: flatpickr.l10ns.es,
@@ -2296,15 +2296,6 @@ function cargarRevisionFacturas(){
     .finally(() => { if (overlay) overlay.style.display = 'none'; });
 }
 
-// Ocultar overlay cuando datos renderizados (Tabulator event)
-document.addEventListener('DOMContentLoaded', function(){
-  if(window.tableRevision){
-    tableRevision.on("dataRendered", function(){
-      var overlay = document.getElementById('overlayRevision');
-      if(overlay) overlay.style.display = 'none';
-    });
-  }
-});
 </script>
 
 
