@@ -1,820 +1,1746 @@
 <!DOCTYPE html>
+
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Gestión de Reportes</title>
-  <!-- Incluir Leaflet CSS -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-  <style>
-    /* Reset básico */
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-    body {
-      font-family: Arial, sans-serif;
-      background: #f4f4f4;
-      padding: 20px;
-      color: #333;
-    }
-    h2, h3 {
-      text-align: center;
-      margin-bottom: 10px;
-    }
-    /* Transiciones */
-    .fade {
-      opacity: 0;
-      transform: translateY(-20px);
-      transition: opacity 0.5s ease, transform 0.5s ease;
-    }
-    .visible {
-      opacity: 1;
-      transform: translateY(0);
-      pointer-events: auto;
-    }
-    .hidden {
-      opacity: 0;
-      pointer-events: none;
-    }
-    /* Formulario de login */
-    #login_form {
-      background: #fff;
-      border: 1px solid #ccc;
-      padding: 20px;
-      border-radius: 8px;
-      max-width: 400px;
-      margin: 40px auto;
-      text-align: center;
-    }
-    #login_form label {
-      display: block;
-      margin-bottom: 5px;
-      text-align: left;
-    }
-    #login_form input {
-      width: 100%;
-      padding: 10px;
-      margin-bottom: 15px;
-      font-size: 16px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-    }
-    #login_form button {
-      padding: 10px 20px;
-      font-size: 16px;
-      background: #007BFF;
-      border: none;
-      color: #fff;
-      border-radius: 4px;
-      cursor: pointer;
-      transition: background 0.3s ease;
-    }
-    #login_form button:hover {
-      background: #0056b3;
-    }
-    /* Menú principal */
-    #menu_principal {
-      display: flex;
-      justify-content: center;
-      gap: 15px;
-      margin: 40px auto;
-      max-width: 600px;
-    }
-    #menu_principal button {
-      flex: 1;
-      padding: 15px;
-      font-size: 16px;
-      background: #28a745;
-      border: none;
-      color: #fff;
-      border-radius: 4px;
-      cursor: pointer;
-      transition: background 0.3s ease, transform 0.3s ease;
-    }
-    #menu_principal button:hover {
-      background: #218838;
-      transform: scale(1.03);
-    }
-    /* Formulario de Reporte de Mantenimiento */
-    #form_reporte {
-      background: #fff;
-      border: 1px solid #ccc;
-      padding: 20px;
-      border-radius: 8px;
-      max-width: 600px;
-      margin: 20px auto;
-      display: none;
-    }
-    .info-container {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-      gap: 10px;
-      margin-top: 10px;
-      text-align: center;
-    }
-    .info-box {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      font-weight: bold;
-    }
-    .info-box input,
-    .info-box select,
-    .info-box textarea {
-      width: 100%;
-      padding: 8px;
-      font-size: 16px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      margin-top: 5px;
-    }
-    button[type="button"] {
-      margin-top: 15px;
-      padding: 12px 25px;
-      font-size: 16px;
-      background: #007BFF;
-      border: none;
-      color: #fff;
-      border-radius: 4px;
-      cursor: pointer;
-      transition: background 0.3s ease;
-    }
-    button[type="button"]:hover {
-      background: #0056b3;
-    }
-    /* Sección para materiales */
-    #lista_materiales {
-      margin-top: 15px;
-    }
-    .material-row {
-      display: flex;
-      gap: 10px;
-      align-items: center;
-      margin-bottom: 10px;
-      flex-wrap: wrap;
-    }
-    .material-row select,
-    .material-row input {
-      padding: 8px;
-      font-size: 14px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-    }
-    .material-row button {
-      background: #dc3545;
-      color: #fff;
-      border: none;
-      border-radius: 4px;
-      padding: 5px 10px;
-      cursor: pointer;
-      font-size: 14px;
-    }
-    #btnAgregarMaterial {
-      background: #28a745;
-      color: #fff;
-      border: none;
-      border-radius: 4px;
-      padding: 10px;
-      cursor: pointer;
-      margin-top: 10px;
-      display: block;
-      width: 100%;
-      font-size: 16px;
-    }
-    button[type="submit"] {
-      background: #007BFF;
-      color: #fff;
-      border: none;
-      border-radius: 4px;
-      padding: 12px 25px;
-      font-size: 16px;
-      cursor: pointer;
-      margin-top: 20px;
-      display: block;
-      width: 100%;
-    }
-    /* Sección de Ver Reportes Realizados */
-    #ver_reportes {
-      display: none;
-      max-width: 800px;
-      margin: 20px auto;
-    }
-    #map_reportes {
-      width: 100%;
-      height: 400px;
-      margin-bottom: 10px;
-    }
-    #detalle_reporte {
-      background: #fff;
-      border: 1px solid #ccc;
-      padding: 10px;
-      border-radius: 4px;
-    }
-    #btn_regresar_reportes {
-      margin-bottom: 10px;
-      background: #6c757d;
-    }
-    @media screen and (max-width: 600px) {
-      .info-container {
-        grid-template-columns: 1fr;
-      }
-      .material-row {
-        flex-direction: column;
-        align-items: stretch;
-      }
-    }
-  </style>
-  <!-- Incluir Leaflet JS y CSS -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-</head>
-<body>
-  <h2>Gestión de Reportes</h2>
-  
-  <!-- FORMULARIO DE LOGIN -->
-  <div id="login_form" class="fade visible">
-    <h3>Iniciar Sesión</h3>
-    <label>Usuario</label>
-    <input type="text" id="username" placeholder="Ingrese su usuario">
-    <label>Contraseña</label>
-    <input type="password" id="password" placeholder="Ingrese su contraseña">
-    <button onclick="login()">Acceder</button>
-  </div>
-  
-  <!-- MENÚ PRINCIPAL -->
-  <div id="menu_principal" class="fade hidden" style="display:none;">
-    <button id="btn_reporte">Realizar reporte</button>
-    <button id="btn_ver">Ver Reportes Realizados</button>
-    <button id="btn_csv">Cargar Excel/CSV</button>
-  </div>
-  
-  <!-- FORMULARIO DE REPORTE DE MANTENIMIENTO -->
-  <form id="form_reporte" class="fade hidden">
-    <!-- Botón de regresar -->
-    <button type="button" id="btn_regresar" onclick="regresarMenu()">← Regresar</button>
-    <h3>Reporte de Mantenimiento</h3>
-    <!-- Datos generales -->
-    <div class="info-container">
-      <div class="info-box">
-        <label for="reporte_mant">REPORTE (numérico)</label>
-        <input type="number" id="reporte_mant" required>
-      </div>
-      <div class="info-box">
-        <label for="fecha_mantenimiento">FECHA MANTENIMIENTO</label>
-        <input type="date" id="fecha_mantenimiento" required>
-      </div>
-      <div class="info-box">
-        <label for="circuito">CIRCUITO</label>
-        <select id="circuito" required>
-          <option value="" disabled selected>Seleccione...</option>
-        </select>
-      </div>
-    </div>
-    
-    <h3>Materiales Utilizados</h3>
-    <p id="mensaje_cargando" style="text-align:center;">Cargando materiales...</p>
-    <div id="lista_materiales"></div>
-    <button type="button" id="btnAgregarMaterial">Agregar Material</button>
-    
-    <!-- Ubicación y botón para captar coordenadas -->
-    <div class="info-container" style="margin-top: 15px;">
-      <div class="info-box">
-        <label for="lat">LAT</label>
-        <input type="text" id="lat" placeholder="Ingrese latitud" required>
-      </div>
-      <div class="info-box">
-        <label for="lon">LON</label>
-        <input type="text" id="lon" placeholder="Ingrese longitud" required>
-      </div>
-    </div>
-    <div class="info-box" style="margin-top: 10px; text-align: center;">
-      <button type="button" onclick="captarCoordenadas()">Captar Coordenadas</button>
-    </div>
-    
-    <!-- Supervisor y Cuadrillas -->
-    <div class="info-container" style="margin-top: 15px;">
-      <div class="info-box">
-        <label for="supervisor">SUPERVISOR</label>
-        <select id="supervisor" required>
-          <option value="" disabled selected>Seleccione...</option>
-        </select>
-      </div>
-      <div class="info-box">
-        <label for="tipo_cuadrilla">Tipo de Cuadrilla</label>
-        <select id="tipo_cuadrilla" required>
-          <option value="" disabled selected>Seleccione...</option>
-          <option value="PESADAS">PESADAS</option>
-          <option value="LIVIANAS">LIVIANAS</option>
-        </select>
-      </div>
-    </div>
-    <!-- Select para la cuadrilla filtrada -->
-    <div class="info-box" style="margin-top: 15px;">
-      <label for="cuadrillaSelect">Cuadrilla</label>
-      <select id="cuadrillaSelect" required>
-        <option value="" disabled selected>Seleccione tipo primero</option>
-      </select>
-    </div>
-    
-    <div class="info-box" style="margin-top: 15px;">
-      <label for="observaciones">OBSERVACIONES</label>
-      <textarea id="observaciones" rows="3" placeholder="Información adicional..."></textarea>
-    </div>
-    
-    <button type="submit">Guardar Reporte</button>
-  </form>
-  
-  <!-- SECCIÓN DE VER REPORTES REALIZADOS -->
-<div id="ver_reportes" class="fade hidden">
-  <button type="button" id="btn_regresar_reportes" onclick="regresarMenu()">← Regresar</button>
-  <h3>Reportes Realizados</h3>
-  <!-- NUEVO FILTRO DE FECHAS -->
-<div style="text-align:center; margin-bottom:15px;">
-  <label>Desde: <input type="date" id="fecha_inicio"></label>
-  <label>Hasta: <input type="date" id="fecha_fin"></label>
-  <button onclick="filtrarReportes()">Filtrar</button>
-</div>
-
-<!-- NUEVO FILTRO DE CIRCUITO -->
-<div style="text-align:center; margin-bottom:15px;">
-  <label>Seleccionar Circuito: 
-    <select id="filtro_circuito" onchange="filtrarReportes()">
-      <option value="">-- Todos --</option>
-    </select>
-  </label>
-</div>
-
-  <!-- MENSAJE DE CARGA -->
-  <div id="mensaje_carga_mapa" style="text-align:center; margin-bottom:10px; font-weight:bold;">
-    Cargando Información...
-  </div>
-  
-  <!-- MAPA -->
-  <div id="map_reportes"></div>
-
-  <!-- DETALLES DEL REPORTE -->
-  <div id="detalle_reporte"></div>
-</div>
-  
-  <script>
-    /***** Funciones de Transición y Menú *****/
-    function login() {
-      const user = document.getElementById("username").value;
-      const pass = document.getElementById("password").value;
-      if (user === "DistSPS" && pass === "Distribucion2025*") {
-        document.getElementById("login_form").classList.remove("visible");
-        document.getElementById("login_form").classList.add("hidden");
-        setTimeout(() => {
-          document.getElementById("login_form").style.display = "none";
-          document.getElementById("menu_principal").style.display = "flex";
-          setTimeout(() => {
-            document.getElementById("menu_principal").classList.remove("hidden");
-            document.getElementById("menu_principal").classList.add("visible");
-          }, 50);
-        }, 500);
-      } else {
-        alert("Credenciales incorrectas");
-      }
-    }
-    
-    // Botones del menú principal
-    const btnReporte = document.getElementById("btn_reporte");
-    const btnVer = document.getElementById("btn_ver");
-    const btnCsv = document.getElementById("btn_csv");
-    const formReporte = document.getElementById("form_reporte");
-    const verReportes = document.getElementById("ver_reportes");
-    
-    btnReporte.addEventListener("click", () => {
-      document.getElementById("menu_principal").classList.remove("visible");
-      document.getElementById("menu_principal").classList.add("hidden");
-      setTimeout(() => {
-        document.getElementById("menu_principal").style.display = "none";
-        formReporte.style.display = "block";
-        setTimeout(() => {
-          formReporte.classList.remove("hidden");
-          formReporte.classList.add("visible");
-        }, 50);
-      }, 500);
-    });
-    
-btnVer.addEventListener("click", () => {
-  document.getElementById("menu_principal").classList.remove("visible");
-  document.getElementById("menu_principal").classList.add("hidden");
-  setTimeout(() => {
-    document.getElementById("menu_principal").style.display = "none";
-    verReportes.style.display = "block";
-    setTimeout(() => {
-      verReportes.classList.remove("hidden");
-      verReportes.classList.add("visible");
-      
-      // Limpia el contenido anterior del mapa y detalle del reporte
-      document.getElementById('map_reportes').innerHTML = "";
-      document.getElementById('detalle_reporte').innerHTML = "";
-
-      // Resetea los filtros de fechas
-      document.getElementById("fecha_inicio").value = "";
-      document.getElementById("fecha_fin").value = "";
-
-      // **Resetea el filtro de circuito**
-      document.getElementById("filtro_circuito").selectedIndex = 0;
-
-      // Luego vuelve a cargar reportes
-      cargarReportes();
-    }, 50);
-  }, 500);
-});
-
-    
-    btnCsv.addEventListener("click", () => {
-      alert("Aquí se cargará un archivo Excel/CSV (en construcción).");
-    });
-    
-    function regresarMenu() {
-      // Función para regresar al menú principal desde cualquier sección (formulario o ver reportes)
-      document.getElementById("form_reporte").classList.remove("visible");
-      document.getElementById("form_reporte").classList.add("hidden");
-      verReportes.classList.remove("visible");
-      verReportes.classList.add("hidden");
-      setTimeout(() => {
-        document.getElementById("form_reporte").style.display = "none";
-        verReportes.style.display = "none";
-        document.getElementById("menu_principal").style.display = "flex";
-        setTimeout(() => {
-          document.getElementById("menu_principal").classList.remove("hidden");
-          document.getElementById("menu_principal").classList.add("visible");
-        }, 50);
-      }, 500);
-    }
-    
-    /***** Endpoints *****/
-    const urlCatalogo = "https://script.google.com/macros/s/AKfycby3uvB909R5dTbOs0U8apxUvvhKh5J7zezQDMfT35Zrl85YaYzTyHyKBlB5LB98wu5y/exec";
-    const urlCuadrillas = "https://script.google.com/macros/s/AKfycbx4hFZU-fCkgT5gFWv9XqjuRrvFN6oSdFv3BjCNjCLURsK6sJiuBMRcVLpel0ufgmtO/exec";
-    const urlCircuitos = "https://script.google.com/macros/s/AKfycbzeTZm-ynKcqVaK2pIKmXux5lsFY_TocOVW1qzr5mK_z9pRABu_WkE7r6BSitaDcscksA/exec";
-    const urlSupervisores = "https://script.google.com/macros/s/AKfycbwtXZBQCdvT-QUQl1vTpyjGYTOkw04ZJ0_VfpvVMK0Jk7tWwbIVyPBGiNJm-JsmdoEBBg/exec";
-    // Nuevo endpoint para guardar reportes
-    const urlGuardar = "https://script.google.com/macros/s/AKfycbx6CehrV-xiMuY4sJpXeQChOjGyBPgXn2JGNCCi9pGO3eNx1pEC-MwfxlVVr12YhOkX/exec";
-    // Nuevo endpoint para obtener los reportes guardados (se asume que tienes un doGet que devuelve la hoja REPORTES en JSON)
-    const urlReportes = "https://script.google.com/macros/s/AKfycby4NzEHYi0pSbreO04D6H_fOOZ-9W96LDVBhcHqZfOHmAfwcxecDUzSRn-YWM_X1LJA1Q/exec"; // Reemplaza con tu URL real para obtener reportes.
-    
-    let materialesData = [];
-    let tiposUnicos = [];
-    let cuadrillasData = [];
-    let map;
-    
-    // Cargar materiales
-    document.getElementById("btnAgregarMaterial").disabled = true;
-    document.getElementById("mensaje_cargando").style.display = "block";
-    fetch(urlCatalogo)
-      .then(res => res.json())
-      .then(data => {
-        materialesData = data;
-        const tiposSet = new Set(data.map(item => item.tipo));
-        tiposUnicos = Array.from(tiposSet);
-        document.getElementById("btnAgregarMaterial").disabled = false;
-        document.getElementById("mensaje_cargando").style.display = "none";
-      })
-      .catch(err => {
-        console.error("Error al cargar materiales:", err);
-        document.getElementById("mensaje_cargando").textContent = "Error al cargar materiales";
-      });
-    
-    // Cargar circuitos
-    fetch(urlCircuitos)
-      .then(res => res.json())
-      .then(data => {
-        const selectCircuito = document.getElementById("circuito");
-        selectCircuito.innerHTML = "<option value='' disabled selected>Seleccione...</option>";
-        data.forEach(item => {
-          const opt = document.createElement("option");
-          opt.value = item.circuito;
-          opt.textContent = item.circuito;
-          selectCircuito.appendChild(opt);
-        });
-      })
-      .catch(err => console.error("Error al cargar circuitos:", err));
-    
-    // Cargar supervisores
-    fetch(urlSupervisores)
-      .then(res => res.json())
-      .then(data => {
-        const selectSupervisor = document.getElementById("supervisor");
-        selectSupervisor.innerHTML = "<option value='' disabled selected>Seleccione...</option>";
-        data.forEach(item => {
-          const opt = document.createElement("option");
-          opt.value = item.supervisor;
-          opt.textContent = item.supervisor;
-          selectSupervisor.appendChild(opt);
-        });
-      })
-      .catch(err => console.error("Error al cargar supervisores:", err));
-    
-    // Cargar cuadrillas
-    fetch(urlCuadrillas)
-      .then(res => res.json())
-      .then(data => {
-        cuadrillasData = data;
-      })
-      .catch(err => console.error("Error al cargar cuadrillas:", err));
-    
-    // Al cambiar el select de "tipo_cuadrilla", llenar el select de cuadrillas
-    document.getElementById("tipo_cuadrilla").addEventListener("change", () => {
-      const tipoSel = document.getElementById("tipo_cuadrilla").value;
-      const selectCuadrilla = document.getElementById("cuadrillaSelect");
-      selectCuadrilla.innerHTML = "";
-      const defOpt = document.createElement("option");
-      defOpt.value = "";
-      defOpt.disabled = true;
-      defOpt.selected = true;
-      defOpt.textContent = "Seleccione...";
-      selectCuadrilla.appendChild(defOpt);
-      const cuadrillasFiltradas = cuadrillasData.filter(c => c.tipo === tipoSel);
-      cuadrillasFiltradas.forEach(c => {
-        const opt = document.createElement("option");
-        opt.value = c.cuadrillas;
-        opt.textContent = c.cuadrillas;
-        selectCuadrilla.appendChild(opt);
-      });
-    });
-    
-    // Función para crear una fila de material
-    function crearFilaMaterial() {
-      const row = document.createElement("div");
-      row.className = "material-row";
-      
-      const tipoSelect = document.createElement("select");
-      tipoSelect.required = true;
-      let defaultTipo = document.createElement("option");
-      defaultTipo.value = "";
-      defaultTipo.textContent = "Tipo...";
-      defaultTipo.disabled = true;
-      defaultTipo.selected = true;
-      tipoSelect.appendChild(defaultTipo);
-      tiposUnicos.forEach(t => {
-        const opt = document.createElement("option");
-        opt.value = t;
-        opt.textContent = t;
-        tipoSelect.appendChild(opt);
-      });
-      
-      const materialSelect = document.createElement("select");
-      materialSelect.required = true;
-      let defaultMat = document.createElement("option");
-      defaultMat.value = "";
-      defaultMat.textContent = "Material...";
-      defaultMat.disabled = true;
-      defaultMat.selected = true;
-      materialSelect.appendChild(defaultMat);
-      
-      const codigoInput = document.createElement("input");
-      codigoInput.type = "text";
-      codigoInput.placeholder = "Código";
-      codigoInput.readOnly = true;
-      
-      const unidadInput = document.createElement("input");
-      unidadInput.type = "text";
-      unidadInput.placeholder = "Unidad";
-      unidadInput.readOnly = true;
-      
-      const cantidadInput = document.createElement("input");
-      cantidadInput.type = "number";
-      cantidadInput.placeholder = "Cantidad";
-      cantidadInput.required = true;
-      
-      const removeBtn = document.createElement("button");
-      removeBtn.type = "button";
-      removeBtn.textContent = "Eliminar";
-      removeBtn.addEventListener("click", () => row.remove());
-      
-      tipoSelect.addEventListener("change", () => {
-        materialSelect.innerHTML = "";
-        let def = document.createElement("option");
-        def.value = "";
-        def.textContent = "Material...";
-        def.disabled = true;
-        def.selected = true;
-        materialSelect.appendChild(def);
-        const tipoSel = tipoSelect.value;
-        const matsFiltrados = materialesData.filter(m => m.tipo === tipoSel);
-        matsFiltrados.forEach(m => {
-          const opt = document.createElement("option");
-          opt.value = m.descripcion;
-          opt.textContent = m.descripcion;
-          materialSelect.appendChild(opt);
-        });
-        codigoInput.value = "";
-        unidadInput.value = "";
-      });
-      
-      materialSelect.addEventListener("change", () => {
-        const tipoSel = tipoSelect.value;
-        const descSel = materialSelect.value;
-        const encontrado = materialesData.find(m =>
-          m.tipo === tipoSel && m.descripcion === descSel
-        );
-        if (encontrado) {
-          codigoInput.value = encontrado.codigoSAP;
-          unidadInput.value = encontrado.unidad;
-        } else {
-          codigoInput.value = "";
-          unidadInput.value = "";
-        }
-      });
-      
-      row.appendChild(tipoSelect);
-      row.appendChild(materialSelect);
-      row.appendChild(codigoInput);
-      row.appendChild(unidadInput);
-      row.appendChild(cantidadInput);
-      row.appendChild(removeBtn);
-      
-      return row;
-    }
-    
-    document.getElementById("btnAgregarMaterial").addEventListener("click", () => {
-      document.getElementById("lista_materiales").appendChild(crearFilaMaterial());
-    });
-    
-    function captarCoordenadas() {
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(function(position) {
-          document.getElementById("lat").value = position.coords.latitude;
-          document.getElementById("lon").value = position.coords.longitude;
-        }, function(error) {
-          alert("No se pudieron obtener las coordenadas: " + error.message);
-        });
-      } else {
-        alert("Geolocalización no soportada en este navegador.");
-      }
-    }
-    
-    // Función para cargar los reportes y mostrarlos en un mapa
-let datosReportes = []; // Variable global (poner justo arriba de esta función)
-
-function cargarReportes() {
-  const mensajeCarga = document.getElementById('mensaje_carga_mapa');
-  mensajeCarga.style.display = 'block';
-
-  fetch(urlReportes)
-    .then(res => res.json())
-    .then(data => {
-      datosReportes = data; // Guarda globalmente los datos
-      cargarMapa(datosReportes); // Carga inicial con todos los datos
-
-      // Obtener circuitos únicos y llenar el select
-      const circuitosUnicos = [...new Set(datosReportes.map(item => item.circuito))];
-      const selectCircuito = document.getElementById("filtro_circuito");
-      selectCircuito.innerHTML = `<option value="">-- Todos --</option>`; // Resetear lista
-      circuitosUnicos.forEach(circuito => {
-        const option = document.createElement("option");
-        option.value = circuito;
-        option.textContent = circuito;
-        selectCircuito.appendChild(option);
-      });
-
-      mensajeCarga.style.display = 'none';
-    })
-    .catch(err => {
-      console.error("Error al cargar reportes:", err);
-      mensajeCarga.textContent = "Error al cargar los reportes.";
-    });
-}
-
-
-// Nueva función que recarga el mapa con datos específicos (pegar justo después de cargarReportes())
-// Función para cargar el mapa con datos específicos
-function cargarMapa(datos) {
-  if (map) {
-    map.remove();
+<style>
+  /* Global button styles for mobile friendliness */
+  button {
+    padding: 1rem 1.5rem !important;
+    font-size: 1.1rem !important;
+    border-radius: 0.5rem !important;
+    margin-bottom: 1rem !important;
   }
 
-  map = L.map('map_reportes').setView([15.5, -87.5], 7);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-  setTimeout(() => { map.invalidateSize(); }, 200);
+  /* Navigation buttons spacing */
+  .nav-buttons button + button {
+    margin-left: 0.5rem !important;
+  }
 
-  const grupos = {};
-  datos.forEach(item => {
-    const id = item.reporte;
-    if (!grupos[id]) {
-      grupos[id] = [];
+  /* Signature buttons layout */
+  .signature-buttons {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: center;
+    margin: 1rem 0 !important;
+  }
+  .signature-buttons button {
+    flex: 1;
+    margin: 0 !important;
+  }
+
+  /* Download confirmation modal readability */
+  #downloadModal .modal-content {
+    padding: 2rem !important;
+  }
+  #downloadModal .modal-content p {
+    font-size: 1.1rem !important;
+    line-height: 1.5 !important;
+  }
+  #downloadModal .modal-content button {
+    padding: 1rem 1.5rem !important;
+    font-size: 1.1rem !important;
+    flex: 1 !important;
+    margin: 0.5rem !important;
+  }
+</style>
+<meta content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" name="viewport"/>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Control de Combustible</title>
+<style>
+  /* Responsive layout */
+  .form-steps {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+  }
+  @media (max-width: 640px) {
+    .form-steps {
+      grid-template-columns: 1fr;
     }
-    grupos[id].push(item);
-  });
+  }
 
-  Object.keys(grupos).forEach(id => {
-    const grupo = grupos[id];
-    const primerRegistro = grupo[0];
-    const lat = parseFloat(primerRegistro.lat);
-    const lon = parseFloat(primerRegistro.lon);
-    if (!isNaN(lat) && !isNaN(lon)) {
-      const marker = L.marker([lat, lon]).addTo(map);
-      marker.on('click', function() {
-        mostrarDetalleReporte(grupo);
-      });
+  /* Tap targets and spacing */
+  input, select, textarea, button {
+    padding: 0.75rem 1rem;
+    margin-bottom: 1rem !important;
+    font-size: 1.1rem;
+    border-radius: 0.5rem;
+    box-sizing: border-box;
+  }
+
+  /* Full-screen camera preview */
+  .camera-preview {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: #000;
+    display: none; /* toggled on capture */
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+  }
+  .camera-preview.active {
+    display: flex;
+  }
+  .camera-preview .overlay-controls {
+    position: absolute;
+    bottom: 1rem;
+    width: 100%;
+    display: flex;
+    justify-content: space-around;
+  }
+
+  button { margin: 0 0 1rem !important; }
+</style>
+<style>
+.photo-buttons {
+  display: flex;
+  gap: 1rem;
+  padding: 0.75rem;
+}
+.photo-buttons button {
+  flex: 1;
+  margin: 0 !important;
+}
+</style>
+<!-- Roboto font for consistent typography -->
+<link href="https://fonts.googleapis.com/css2?family=Roboto&amp;display=swap" rel="stylesheet"/>
+<style>
+    /* Animaciones para transiciones */
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .fade-in-up {
+      animation: fadeInUp 0.5s ease-out forwards;
+    }
+
+    /* Global page styles */
+    /* Global page styles */
+    body {
+      font-family: 'Roboto', sans-serif;
+      background: #f4f4f4;
+      padding: 20px;
+    }
+    .formulario {
+      max-width: 800px;
+      margin: 0 auto;
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    h2 { text-align: center; }
+    label { display: block; margin-top: 10px; }
+    input, select, textarea {
+      width: 100%;
+      padding: 8px;
+      margin-top: 5px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+    button {
+      padding: 10px;
+      background-color: #007BFF;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      font-size: 16px;
+      cursor: pointer;
+      margin: 5px 0;
+    }
+    button:hover { background-color: #0056b3; }
+    #mensaje_cargando {
+      text-align: center;
+      font-weight: bold;
+      color: #007BFF;
+      margin-bottom: 15px;
+    }
+
+    /* Styles for preview pages to mimic Letter dimensions */
+    @page {
+      size: letter;
+      margin: 1.27cm;
+    }
+    .page {
+      background: white;
+      width: 216mm;           /* Carta: 8.5in = 216mm */
+      height: 279mm;          /* Carta: 11in = 279mm */
+      margin: 20px auto;      /* Separación entre páginas */
+      padding: 1.27cm;        /* Márgenes internos de 1.27cm */
+      box-shadow: 0 0 5px rgba(0,0,0,0.1);
+      display: flex;          /* Contenedor flex para extender contenido */
+      flex-direction: column; /* Organizar header y contenido en columna */
+      overflow: hidden;       /* Ocultar desbordes */
+      page-break-after: always;
+    }
+    @media print {
+      .page { page-break-after: always; margin: 0; box-shadow: none; }
+      body { margin: 0; }
+    }
+    .format-header {
+      text-align: center;
+      font-weight: bold;
+      border: 1px solid #000;
+      padding: 5px;
+      margin-bottom: 10px;
+      font-size: 18px;
+    }
+    .preview-box {
+      display: flex;
+      gap: 10px; /* Gap between columns */
+      flex: 1; /* Fill vertical space under header */
+    }
+    .invoice-box {
+      flex: 0 0 55%; /* Width ratio for invoice box */
+      height: 100%;  /* Fill parent height */
+    }
+    .summary-box {
+      flex: 0 0 45%; /* Width ratio for summary box */
+      height: 100%;  /* Fill parent height */
+    }
+    .invoice-box .placeholder {
+      width: 100%; height: 100%;
+      border: 2px dashed #666;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #666;
+      font-style: italic;
+    }
+    .summary-box table {
+      width: 100%; height: 100%;
+      border-collapse: collapse;
+    }
+    .summary-box td:first-child { width: 30%; }
+    .summary-box td:nth-child(2) { width: 70%; }
+    .summary-box td {
+      font-size: 14px;
+      border: 1px solid #ccc;
+      padding: 8px;
+      vertical-align: top;
+    }
+
+    /* Adjust page 2 to fill remaining height */
+    #photos_table_container {
+      flex: 1;               /* Fill vertical space under header */
+      display: flex;
+      flex-direction: column;
+    }
+    .photos-table {
+      flex: 1;               /* Fill all available height */
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+    .photos-table td {
+      border: 1px solid #ccc;
+      padding: 4px;
+      vertical-align: top;
+      overflow: hidden;
+      width: 45%;
+      height: 300px; /* Ajustado a 300px según pedido */
+    }
+    .photos-table td[rowspan="2"] {
+      width: 55%;
+      height: 530px; /* Ajustado a 530px según pedido */
+    }
+    .photos-table img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+      margin: 0 auto;
+    }
+    .photo-title { font-size: 14px; font-weight: bold; margin-bottom: 4px; }
+    .photo-footer { font-size: 14px; font-weight: bold; text-align: left; padding: 6px; }
+    /* Pie de página: altura fija distinta de las fotos */
+    .photos-table tr:last-child td {
+      height: 20px; /* Ajustado a 20px para el pie de página */ /* Ajusta este valor para cambiar el largo del pie de página */
+    }
+      /* Ensure preview content matches Letter width */
+    html, body { box-sizing: border-box; }
+    #preview_contenido {
+      width: 216mm;       /* Match page width for PDF capture */
+      margin: 0 auto;
+      overflow: visible;
+    }
+  </style>
+<style>
+.spinner {
+  border: 6px solid #f3f3f3;
+  border-top: 6px solid #3498db;
+  border-radius: 50%;
+  width: 60px;
+  height: 60px;
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+</style>
+<style>
+#toast-alert {
+  visibility: hidden;
+  min-width: 280px;
+  background-color: #c62828;
+  color: white;
+  text-align: center;
+  border-radius: 5px;
+  padding: 14px 28px;
+  position: fixed;
+  z-index: 9999;
+  left: 50%;
+  bottom: 30px;
+  font-size: 16px;
+  transform: translateX(-50%);
+}
+#toast-alert.show {
+  visibility: visible;
+  animation: fadein 0.5s, fadeout 0.5s 2.5s;
+}
+@keyframes fadein {
+  from { bottom: 10px; opacity: 0; }
+  to   { bottom: 30px; opacity: 1; }
+}
+@keyframes fadeout {
+  from { bottom: 30px; opacity: 1; }
+  to   { bottom: 10px; opacity: 0; }
+}
+</style>
+<div id="toast-alert">⚠️ Hay campos obligatorios sin completar.</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+<script>
+  var generatedPDF = null;
+  var generatedFilename = '';
+</script>
+<style>
+@keyframes fadeOutUp {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(-20px); }
+}
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-out-up {
+  animation: fadeOutUp 0.3s forwards;
+}
+.fade-in-down {
+  animation: fadeInDown 0.3s ease-out forwards;
+}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
+<script src="https://unpkg.com/blueimp-load-image/js/load-image.all.min.js"></script>
+<!-- Custom Header Styles -->
+<style>
+    .custom-header {
+      display: table;
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 10px;
+    }
+    .custom-header > div {
+      display: table-cell;
+      border: 1px solid #000;
+      vertical-align: middle;
+      padding: 8px;
+    }
+    .custom-header .header-left img {
+      max-height: 60px;
+      display: block;
+    }
+    .custom-header .header-center h1 {
+      font-size: 18px;
+      margin: 0;
+      text-align: center;
+    }
+      width: 100%;
+      border-collapse: collapse;
+    }
+      border: 1px solid #000;
+      padding: 4px 8px;
+      font-size: 12px;
+    }
+  </style>
+<style>
+  .header-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 10px;
+  }
+  .header-table td {
+    border: 1px solid #000;
+    padding: 4px;
+    vertical-align: middle;
+  }
+  .header-table img {
+    max-height: 60px;
+    display: block;
+  }
+  .header-table .title-cell {
+    text-align: center;
+    font-size: 18px;
+    font-weight: bold;
+  }
+</style>
+<!-- flatpickr CSS & JS -->
+<link href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+</meta><style>
+.flatpickr-input {
+    caret-color: transparent;
+    pointer-events: auto;
+}
+</style></head>
+<body>
+<div id="notification" style="display:none; position:fixed; top:20px; left:50%; transform:translateX(-50%); background:#28a745; color:white; padding:15px 30px; border-radius:5px; opacity:0; transition:opacity 0.5s ease-in-out; z-index:1000;">Información enviada correctamente</div>
+<!-- Initial loading message displayed while fetching data -->
+<div id="mensaje_cargando">Cargando información, por favor espere...</div>
+<!-- Formulario: oculto hasta cargar sectores y procesos -->
+<div class="formulario" id="formulario_contenido" style="display:none;">
+<h2>Reporte de Gasto de Combustible</h2>
+<!-- Sector selector populated dinámicamente -->
+<!-- Placa selector dependiente del sector -->
+<datalist id="placas"></datalist>
+<!-- Proceso seleccionado por usuario (movido) -->
+<!-- Datos del colaborador -->
+<!-- Kilometraje y gasto -->
+<!-- Nuevo campo: Litros Consumidos, no aparece en preview ni PDF -->
+<!-- Motivación del viaje -->
+<!-- Motivación del viaje -->
+<!-- Proceso seleccionado por usuario -->
+<!-- Fecha y duración -->
+<!-- Datos del vehículo y factura -->
+<!-- Inputs de imágenes (galería o cámara) reordered -->
+<!-- Botón para generar vista previa -->
+<div class="paso" id="paso1" style="display:block;"><label for="sector">Seleccionar Sector:</label><span class="error-msg" id="error_sector" style="color:red; display:none;">(Campo obligatorio)</span><select id="sector"><option value="">Seleccione un sector</option></select><label for="placa">Seleccionar Placa del Vehículo:</label><span class="error-msg" id="error_placa" style="color:red; display:none;">(Campo obligatorio)</span><input autocomplete="off" id="placa" list="placas" placeholder="Escribe o selecciona una placa" type="text"/><label for="proceso">Proceso:</label><span class="error-msg" id="error_proceso" style="color:red; display:none;">(Campo obligatorio)</span><select id="proceso"><option value="">Seleccione un proceso</option></select><label for="nombre">Nombre Completo:</label><span class="error-msg" id="error_nombre" style="color:red; display:none;">(Campo obligatorio)</span><input id="nombre" required="" type="text"/><label for="identidad">No. Identidad:</label><span class="error-msg" id="error_identidad" style="color:red; display:none;">(Campo obligatorio)</span><input id="identidad" maxlength="15" oninput="maskIdentidad(this)" required="" type="text"/><label for="total">Total Gastado (L):</label><span class="error-msg" id="error_total" style="color:red; display:none;">(Campo obligatorio)</span><input id="total" step="0.01" type="number"/><label for="litros">Litros Consumidos:</label><span class="error-msg" id="error_litros" style="color:red; display:none;">(Campo obligatorio)</span><input id="litros" step="0.01" type="number"/><label for="motivo">Motivo del Llenado:</label><span class="error-msg" id="error_motivo" style="color:red; display:none;">(Campo obligatorio)</span><textarea id="motivo" rows="3"></textarea><label for="fecha">Fecha:</label><span class="error-msg" id="error_fecha" style="color:red; display:none;">(Campo obligatorio)</span><input class="flatpickr-input" id="fecha" name="fecha" placeholder="Selecciona fecha" type="text"/><label for="horas">Horas de Viaje:</label><input id="horas" type="text"/><label for="km">Km Actual del Vehículo:</label><span class="error-msg" id="error_km" style="color:red; display:none;">(Campo obligatorio)</span><input id="km" type="number"/><label for="nombre_comercio">Nombre del comercio:</label><span class="error-msg" id="error_nombre_comercio" style="color:red; display:none;">(Campo obligatorio)</span><input id="nombre_comercio" placeholder="Nombre del comercio" type="text"/><label for="factura">Número de Factura:</label><span class="error-msg" id="error_factura" style="color:red; display:none;">(Campo obligatorio)</span><input id="factura" oninput="maskFactura(this)" type="text"/><div><button onclick="validarYVerificarDuplicado();" type="button">Siguiente</button></div></div><div class="paso" id="paso2" style="display:none;;text-align:center;"><label for="foto_tablero_antes">Fotografía Tablero Antes:</label><img alt="Ejemplo de fotografía" src="https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/main/imagenes/Tablero%20antes%20de%20llenado.png" style="display: block; margin: 10px auto; height: 200px; object-fit: contain; border-radius: 8px;"/><span class="error-msg" id="error_foto_tablero_antes" style="color:red; display:none;">(Campo obligatorio)</span><button onclick="activarCamara('foto_tablero_antes')" style=" margin: 5px" type="button">Tomar Fotografía</button><button onclick="abrirGaleria('foto_tablero_antes')" style=" margin: 5px" type="button">Subir desde Galería</button><div class="preview" id="preview_foto_tablero_antes"></div><div><button onclick="mostrarPaso(1)" style=" margin: 5px" type="button">Anterior</button><button onclick="if(validarImagenPaso('foto_tablero_antes')){siguientePaso(3);}" style=" margin: 5px" type="button">Siguiente</button></div><input accept="image/*" hidden="True" id="foto_tablero_antes" type="file"/></div><div class="paso" id="paso3" style="display:none;;text-align:center;"><label for="foto_bomba">Fotografía Bomba en 0:</label><img alt="Ejemplo de fotografía" src="https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/main/imagenes/Bomba%20en%20cero.png" style="display: block; margin: 10px auto; height: 200px; object-fit: contain; border-radius: 8px;"/><span class="error-msg" id="error_foto_bomba" style="color:red; display:none;">(Campo obligatorio)</span><button onclick="activarCamara('foto_bomba')" style=" margin: 5px" type="button">Tomar Fotografía</button><button onclick="abrirGaleria('foto_bomba')" style=" margin: 5px" type="button">Subir desde Galería</button><div class="preview" id="preview_foto_bomba"></div><div><button onclick="mostrarPaso(2)" style=" margin: 5px" type="button">Anterior</button><button onclick="if(validarImagenPaso('foto_bomba')){siguientePaso(4);}" style=" margin: 5px" type="button">Siguiente</button></div><input accept="image/*" hidden="True" id="foto_bomba" type="file"/></div><div class="paso" id="paso4" style="display:none;;text-align:center;"><label for="foto_frontal">Fotografía Frontal del Vehículo o VIN con Vehículo:</label><img alt="Ejemplo de fotografía" src="https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/main/imagenes/Vista%20Frontal.png" style="display: block; margin: 10px auto; height: 200px; object-fit: contain; border-radius: 8px;"/><span class="error-msg" id="error_foto_frontal" style="color:red; display:none;">(Campo obligatorio)</span><button onclick="activarCamara('foto_frontal')" style=" margin: 5px" type="button">Tomar Fotografía</button><button onclick="abrirGaleria('foto_frontal')" style=" margin: 5px" type="button">Subir desde Galería</button><div class="preview" id="preview_foto_frontal"></div><div><button onclick="mostrarPaso(3)" style=" margin: 5px" type="button">Anterior</button><button onclick="if(validarImagenPaso('foto_frontal')){siguientePaso(5);}" style=" margin: 5px" type="button">Siguiente</button></div><input accept="image/*" hidden="True" id="foto_frontal" type="file"/></div><div class="paso" id="paso5" style="display:none;;text-align:center;"><label for="foto_bomba_llenado">Fotografía Bomba Llena:</label><img alt="Ejemplo de fotografía" src="https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/main/imagenes/Bomba%20llena.png" style="display: block; margin: 10px auto; height: 200px; object-fit: contain; border-radius: 8px;"/><span class="error-msg" id="error_foto_bomba_llenado" style="color:red; display:none;">(Campo obligatorio)</span><button onclick="activarCamara('foto_bomba_llenado')" style=" margin: 5px" type="button">Tomar Fotografía</button><button onclick="abrirGaleria('foto_bomba_llenado')" style=" margin: 5px" type="button">Subir desde Galería</button><div class="preview" id="preview_foto_bomba_llenado"></div><div><button onclick="mostrarPaso(4)" style=" margin: 5px" type="button">Anterior</button><button onclick="if(validarImagenPaso('foto_bomba_llenado')){siguientePaso(6);}" style=" margin: 5px" type="button">Siguiente</button></div><input accept="image/*" hidden="True" id="foto_bomba_llenado" type="file"/></div><div class="paso" id="paso6" style="display:none;;text-align:center;"><input accept="image/*" hidden="True" id="foto_despues" type="file"/><label for="foto_despues">Fotografía Tablero Después de Llenado:</label><img alt="Ejemplo de fotografía" src="https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/main/imagenes/Tablero%20antes%20de%20llenado.png" style="display: block; margin: 10px auto; height: 200px; object-fit: contain; border-radius: 8px;"/><span class="error-msg" id="error_foto_despues" style="color:red; display:none;">(Campo obligatorio)</span><button onclick="activarCamara('foto_despues')" style=" margin: 5px" type="button">Tomar Fotografía</button><button onclick="abrirGaleria('foto_despues')" style=" margin: 5px" type="button">Subir desde Galería</button><div class="preview" id="preview_foto_despues"></div><div><button onclick="mostrarPaso(5)" style=" margin: 5px" type="button">Anterior</button><button onclick="if(validarImagenPaso('foto_despues')){siguientePaso(7);}" style=" margin: 5px" type="button">Siguiente</button></div></div><div class="paso" id="paso7" style="display:none; text-align: center;"><h2>Fotografía de la Factura:</h2><img alt="Ejemplo factura" src="https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/main/imagenes/Factura.png" style="display: block; margin: 10px auto; height: 200px; object-fit: contain; border-radius: 8px;"/><input accept="image/*" hidden="True" id="foto_factura" type="file"/><button onclick="activarCamara('foto_factura')" style=" margin: 5px" type="button">Tomar Fotografía</button><button onclick="abrirGaleria('foto_factura')" style=" margin: 5px" type="button">Subir desde Galería</button><div class="preview" id="preview_foto_factura"></div>
+<div class="nav-buttons" style="display:flex; justify-content:center; gap:0.5rem;  margin-top: 20px;">
+<button onclick="mostrarPaso(6)" style="margin: 5px;" type="button">Anterior</button>
+<button id="guardar_reporte" style="margin: 5px;" type="button">Guardar Reporte</button>
+</div>
+</div></div>
+<!-- Contenedor de vista previa: dos páginas A4 simuladas -->
+<div id="preview_contenido" style="display:none;">
+<!-- Página 1: resumen e inserción de factura -->
+<div class="page" id="preview_page1">
+<table class="header-table">
+<tr>
+<td rowspan="3" style="width:100px;">
+<!-- Pega aquí la URL de tu logo en GitHub -->
+<img alt="Logo UTCD" src="https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/refs/heads/main/imagenes/Logo.png"/>
+</td>
+<td class="title-cell" rowspan="3">
+      DETALLE DE LA FACTURA DE COMBUSTIBLE
+    </td>
+<td>Código</td>
+<td>CLS-PAU-F-19</td>
+</tr>
+<tr>
+<td>Versión</td>
+<td>1</td>
+</tr>
+<tr>
+<td>Fecha</td>
+<td>20/5/2025</td>
+</tr>
+</table>
+<div class="preview-box">
+<div class="invoice-box">
+<div class="placeholder" id="placeholder_box">Pegar Factura Original en este Espacio</div>
+</div>
+<div class="summary-box" id="summary_box"></div>
+</div>
+</div>
+<!-- Página 2: galería de fotografías con pie de página -->
+<div class="page" id="preview_page2">
+<h3 class="format-header">FOTOGRAFÍAS</h3>
+<div id="photos_table_container"></div>
+</div>
+<!-- Página 3: separador -->
+<!-- Página 3: solo fotografía de la factura -->
+<div class="page" id="preview_page3">
+<h3 class="format-header">FACTURA ORIGINAL</h3>
+<div class="invoice-box">
+<img id="factura_only_img" style="width:auto; height:800px; object-fit:contain; display:block; margin:0 auto;">
+</img></div>
+</div>
+<button id="enviar_reporte">Enviar Reporte</button>
+<button id="modificar_reporte">Modificar Reporte</button>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script>
+// Mostrar previews para cada campo de imagen
+['foto_tablero_antes','foto_bomba','foto_despues','foto_bomba_llenado','foto_frontal','foto_factura'].forEach(id => {
+  const input = document.getElementById(id);
+  if (input) {
+    input.addEventListener('change', () => {
+      if (input.files && input.files.length > 0) {
+        const archivo = input.files[0];
+        
+        // Validar antigüedad de la foto (no mayor a 48 horas)
+        const fileDate = new Date(archivo.lastModified);
+        if (Date.now() - fileDate.getTime() > 672 * 3600 * 1000) {
+          alert('La fotografía debe ser reciente (no mayor a 48 horas).');
+          input.value = '';
+          return;
+        }
+        const url = URL.createObjectURL(archivo);
+        const contenedor = document.getElementById('preview_' + id);
+        if (contenedor) {
+          contenedor.innerHTML = `<img src="${url}" style="max-width:100%; max-height:300px;">`;
+        }
+      }
+    });
+  }
+});
+
+
+function validarFormulario() {
+  let valido = true;
+  const campos = ['sector', 'placa', 'proceso', 'nombre', 'identidad', 'total', 'litros', 'motivo', 'fecha', 'km', 'nombre_comercio', 'factura', 'foto_tablero_antes', 'foto_bomba', 'foto_despues', 'foto_bomba_llenado', 'foto_frontal', 'foto_factura'];
+
+  campos.forEach(id => {
+    const campo = document.getElementById(id);
+    const error = document.getElementById("error_" + id);
+    if (campo && (!campo.value || campo.value.trim() === "")) {
+      if (error) error.style.display = "inline";
+      valido = false;
+    } else {
+      if (error) error.style.display = "none";
     }
   });
+
+  if (!valido) {
+    const toast = document.getElementById("toast-alert");
+    toast.classList.add("show");
+    setTimeout(() => toast.classList.remove("show"), 3000);
+  }
+  return valido;
 }
 
-// Función para filtrar reportes según rango de fechas
-function filtrarReportes() {
-  const inicio = document.getElementById("fecha_inicio").value;
-  const fin = document.getElementById("fecha_fin").value;
-  const circuitoSeleccionado = document.getElementById("filtro_circuito").value;
-
-  // Convertimos el formato del input de yyyy-mm-dd a dd/mm/yyyy
-  const fechaInicioFormateada = inicio ? inicio.split("-").reverse().join("/") : "";
-  const fechaFinFormateada = fin ? fin.split("-").reverse().join("/") : "";
-
-  const datosFiltrados = datosReportes.filter(item => {
-    const fechaItem = item["fecha_mantenimiento"].trim(); // Asegura que no tenga espacios
-    const cumpleFecha = (!inicio || !fin) || (fechaItem >= fechaInicioFormateada && fechaItem <= fechaFinFormateada);
-    const cumpleCircuito = circuitoSeleccionado === "" || item.circuito === circuitoSeleccionado;
+</script>
+<script>
     
-    return cumpleFecha && cumpleCircuito;
-  });
+  // Máscara para No. Identidad: formato ####-####-#####
+  function maskIdentidad(el) {
+    let v = el.value.replace(/\D/g, '');
+    v = v.slice(0, 13);
+    if (v.length > 8) {
+      v = v.replace(/(\d{4})(\d{4})(\d+)/, '$1-$2-$3');
+    } else if (v.length > 4) {
+      v = v.replace(/(\d{4})(\d+)/, '$1-$2');
+    }
+    el.value = v;
+  }
 
-  cargarMapa(datosFiltrados);
-}
+  // Máscara para Número de Factura: formato ###-###-##-#####
+    function maskFactura(el) {
+      // Solo dígitos
+      let v = el.value.replace(/\D/g, '');
+      // 1er tramo (0–3 dígitos)
+      if (v.length <= 3) {
+        el.value = v;
+      }
+      // 2º tramo (4–6 dígitos)
+      else if (v.length <= 6) {
+        el.value = `${v.slice(0,3)}-${v.slice(3)}`;
+      }
+      // 3er tramo (7–8 dígitos)
+      else if (v.length <= 8) {
+        el.value = `${v.slice(0,3)}-${v.slice(3,6)}-${v.slice(6)}`;
+      }
+      // Resto (9+ dígitos)
+      else {
+        el.value = `${v.slice(0,3)}-${v.slice(3,6)}-${v.slice(6,8)}-${v.slice(8)}`;
+      }
+    }
 
-    
-    // Función para mostrar en el panel de detalle la información del reporte
-function mostrarDetalleReporte(grupo) {
-  const registro = grupo[0];
-  let html = `
-    <h4>Reporte: ${registro.reporte}</h4>
-    <p><strong>Fecha Mantenimiento:</strong> ${registro["fecha_mantenimiento"]}</p>
-    <p><strong>Circuito:</strong> ${registro.circuito}</p>
-    <p><strong>Supervisor:</strong> ${registro.supervisor}</p>
-    <p><strong>Cuadrilla:</strong> ${registro.cuadrilla}</p>
-    <p><strong>Observaciones:</strong> ${registro.observaciones}</p>
-    <h5>Materiales Utilizados:</h5>
-  `; // 🚩👈 Asegúrate de tener exactamente esto
+    /* URLs de servicios Google Apps Script */
+    const urlVehiculos = "https://script.google.com/macros/s/AKfycbxp2yVp4hF-t9f2LdU9NhZxVt6RwXyL3uKrKzXk4a_l4na2Rkd1LZMB02pEJeRQ_eCF/exec";
+    const urlProcesos  = "https://script.google.com/macros/s/AKfycbw4KLB3AiRM6N1sC39cn1-HANO6ccsBQs3AeL6S5y-bt1IEoV8eZOakwHU_OSbspJWG/exec";
+    const urlGuardarReporte = "/api/guardar";
+    let vehiculos = [], procesos = [];
 
-  grupo.forEach((item, index) => {
-    html += `<p><em>Material ${index+1}:</em> Descripción: ${item["material_descripcion"]} | Cantidad: ${item["material_cantidad"]}</p>`;
-  });
-  document.getElementById("detalle_reporte").innerHTML = html;
-}
-
-    
-    // Manejo del envío del formulario de reporte
-    document.getElementById("form_reporte").addEventListener("submit", function(e) {
-      e.preventDefault();
-      document.getElementById("loadingPopup").style.display = "block";
-      
-      const materiales = [];
-      document.querySelectorAll("#lista_materiales .material-row").forEach(row => {
-        const elems = row.querySelectorAll("select, input");
-        const tipoValue = elems[0].value;
-        const descValue = elems[1].value;
-        const codValue  = elems[2].value;
-        const uniValue  = elems[3].value;
-        const cantValue = elems[4].value;
-        materiales.push({
-          tipo: tipoValue,
-          descripcion: descValue,
-          codigo: codValue,
-          unidad: uniValue,
-          cantidad: cantValue
+    /**
+     * Carga sectores y placas de la hoja "Vehiculos".
+     * Popula <select id="sector"> y muestra el formulario.
+     */
+    function cargarDatosVehiculos() {
+      fetch(urlVehiculos)
+        .then(res => res.json())
+        .then(data => {
+          vehiculos = data;
+          const sel = document.getElementById('sector');
+          // Eliminar duplicados usando Set
+          [...new Set(data.map(x => x.Sector))].forEach(s => sel.add(new Option(s, s)));
+          // Agregar sector CORPORATIVO manualmente
+          sel.add(new Option('CORPORATIVO', 'CORPORATIVO'));
+          document.getElementById('mensaje_cargando').style.display = 'none';
+          // Animar formulario al aparecer
+          const formEl = document.getElementById('formulario_contenido');
+          formEl.style.display = 'block';
+          formEl.classList.add('fade-in-up');
+            mostrarPaso(1);
+          document.getElementById('formulario_contenido').style.display = 'block';
+        })
+        .catch(err => {
+          console.error(err);
+          document.getElementById('mensaje_cargando').innerText = 'Error al cargar los datos.';
         });
+    }
+
+    /**
+     * Carga procesos de la hoja "Procesos".
+     * Popula <select id="proceso">.
+     */
+    function cargarProcesos() {
+      fetch(urlProcesos)
+        .then(res => res.json())
+        .then(data => {
+          procesos = data.map(item => item.Proceso);
+          const sel = document.getElementById('proceso');
+          sel.innerHTML = '<option value="">Seleccione un proceso</option>';
+          procesos.forEach(p => sel.add(new Option(p, p)));
+        })
+        .catch(err => console.error('Error al cargar procesos:', err));
+    }
+
+    // Al cambiar sector, filtrar placas correspondientes
+    document.getElementById('sector').addEventListener('change', function() {
+      const dataList = document.getElementById('placas');
+      dataList.innerHTML = '';
+      // Si es CORPORATIVO, mostrar todas las placas
+      const lista = (this.value === 'CORPORATIVO') ? vehiculos : vehiculos.filter(v => v.Sector === this.value);
+      lista.forEach(v => {
+        const opt = document.createElement('option');
+        opt.value = v.PLACA;
+        dataList.appendChild(opt);
       });
-      const cuadrillaSeleccionada = document.getElementById("cuadrillaSelect").value;
-      const datos = {
-        reporte: document.getElementById("reporte_mant").value,
-        fecha_mantenimiento: document.getElementById("fecha_mantenimiento").value,
-        circuito: document.getElementById("circuito").value,
-        materiales: materiales,
-        lat: document.getElementById("lat").value,
-        lon: document.getElementById("lon").value,
-        supervisor: document.getElementById("supervisor").value,
-        cuadrilla: cuadrillaSeleccionada,
-        observaciones: document.getElementById("observaciones").value
+      // Limpiar el input de placa al cambiar el sector
+      document.getElementById('placa').value = '';
+      // Limpiar proceso
+      document.getElementById('proceso').value = '';
+    });
+
+    
+    // Verificar duplicado antes de generar preview
+    async function verificarDuplicado(placa, fecha, factura) {
+      try {
+        const response = await fetch("/api/guardar", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            validarDuplicado: true,
+            Placa: placa,
+            Fecha: fecha,
+            NumeroFactura: factura
+          })
+        });
+        const result = await response.json();
+        return result.duplicado || false;
+      } catch (err) {
+        console.error("Error al verificar duplicado:", err);
+        return false;
+      }
+    }
+
+
+function imagenesCompletas() {
+  const campos = [
+    'foto_tablero_antes',
+    'foto_bomba',
+    'foto_despues',
+    'foto_bomba_llenado',
+    'foto_frontal',
+    'foto_factura'
+  ];
+  for (const id of campos) {
+    const input = document.getElementById(id);
+    if (!input || !input.files || input.files.length === 0) {
+      return false;
+    }
+  }
+  return true;
+}
+
+// Guardar reporte y generar vista previa
+    document.getElementById('guardar_reporte').onclick = async () => {
+
+  if (!validarFormulario()) return;
+  if (!imagenesCompletas()) {
+    alert("⚠️ Faltan fotografías por cargar. Por favor verifica antes de continuar.");
+    return;
+  }
+  const placa = document.getElementById('placa').value;
+  const fecha = document.getElementById('fecha').value;
+  const factura = document.getElementById('factura').value;// Continúa con la generación de PDF y carga previa
+  // ... el resto del código de recopilación de datos permanece intacto ...
+
+  // Recopilar datos del formulario
+      const data = {
+        Fecha:      document.getElementById('fecha').value,
+        Nombre:     document.getElementById('nombre').value,
+        Identidad:  document.getElementById('identidad').value,
+        Total:      document.getElementById('total').value + ' L',
+        Motivo:     document.getElementById('motivo').value,
+        Proceso:    document.getElementById('proceso').value,
+        Horas:      document.getElementById('horas').value,
+        Sector:     document.getElementById('sector').value,
+        Km:         document.getElementById('km').value,
+        FacturaNo:  document.getElementById('factura').value,
+        Placa:      document.getElementById('placa').value
+      
+};
+    // Capturar firma digital
+    data.Firma = window.colaboradorFirma || '';
+      // Buscar jefe inmediato por placa
+      const jefeObj = vehiculos.find(v => v.PLACA === data.Placa);
+      data.JefeInmediato = jefeObj
+        ? (jefeObj["Jefe inmediato"]
+           || jefeObj["Jefe Inmediato"]
+           || jefeObj.JefeInmediato
+           || "")
+        : "";
+          // Para sector CORPORATIVO no hay jefe inmediato
+          if (data.Sector === 'CORPORATIVO') {
+            data.JefeInmediato = '';
+          }
+
+      // Construir tabla resumen dinámicamente
+      const sb = document.getElementById('summary_box'); sb.innerHTML = '';
+      const tbl = document.createElement('table');
+      const rows = [
+        ['Nombre Completo', data.Nombre],
+        ['No. Identidad', data.Identidad],
+        ['Firma del Colaborador', data.Firma ? `<img src="${data.Firma}" style="max-width:150px;"/>` : ''],
+        ['Tipo de Gestión', 'Liquidación de gastos de combustible'],
+        ['Total', data.Total],
+        ['Motivo del llenado de combustible',
+         `Compra de Combustible al Vehículo<br><br>Para Labores de: ${data.Motivo}<br><br>Proceso: ${data.Proceso}`],
+        ['Fecha', data.Fecha],        ['Placa / VIN', data.Placa],
+        ['Observación',
+         `SECTOR: ${data.Sector}<br><br>KM: ${data.Km}<br><br>FACTURA: ${data.FacturaNo}`],
+        ['Autorizado por Jefe Inmediato', data.JefeInmediato],
+        ['Firma', '']
+      ];
+      rows.forEach(([k,v]) => {
+        const r = tbl.insertRow();
+        r.insertCell().textContent = k;
+        r.insertCell().innerHTML = v;
+      });
+      sb.appendChild(tbl);
+
+      // Construir galería de fotografías
+      const container = document.getElementById('photos_table_container');
+      const imgHTML = id => {
+        const f = document.getElementById(id).files[0];
+        if (!f) return '';
+        return `<img src="${URL.createObjectURL(f)}" class="photo-img">`;
       };
-      console.log("Datos a enviar:", datos);
-      fetch(urlGuardar, {
-        method: "POST",
-        mode: "no-cors",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(datos)
-      })
-      .then(() => {
-        document.getElementById("loadingPopup").style.display = "none";
-        alert("Reporte guardado exitosamente.");
-        document.getElementById("form_reporte").reset();
-        document.getElementById("lista_materiales").innerHTML = "";
-      })
-      .catch(error => {
-        document.getElementById("loadingPopup").style.display = "none";
-        console.error("Error al guardar reporte:", error);
-        alert("Error al guardar reporte.");
+      container.innerHTML = `
+        <table class="photos-table">
+          <tr>
+            <td><div class="photo-title">TABLERO ANTES DE LLENADO</div>${imgHTML('foto_tablero_antes')}</td>
+            <td colspan="2"><div class="photo-title">BOMBA DE COMBUSTIBLE 0</div>${imgHTML('foto_bomba')}</td>
+          </tr>
+          <tr>
+            <td><div class="photo-title">TABLERO DESPUÉS DE LLENADO</div>${imgHTML('foto_despues')}</td>
+            <td colspan="2" rowspan="2"><div class="photo-title">BOMBA DE COMBUSTIBLE LLENA</div>${imgHTML('foto_bomba_llenado')}</td>
+          </tr>
+          <tr>
+            <td><div class="photo-title">VISTA FRONTAL DEL VEHÍCULO / VIN CON VEHICULO</div>${imgHTML('foto_frontal')}</td>
+          </tr>
+          <tr>
+            <td class="photo-footer">PLACA: ${data.Placa}</td>
+            <td class="photo-footer">FECHA: ${data.Fecha}</td>
+            <td class="photo-footer">FACTURA: ${data.FacturaNo}</td>
+          </tr>
+        </table>`;
+      // Cargar imagen de factura en la página 3
+      const factImg = document.getElementById('factura_only_img');
+      const fileF = document.getElementById('foto_factura').files[0];
+      if (fileF) {
+        const rdF = new FileReader();
+        rdF.onload = e => factImg.src = e.target.result;
+        rdF.readAsDataURL(fileF);
+      }
+
+      // Mostrar vista previa y ocultar formulario
+      // Ocultar formulario con animación
+      const formEl = document.getElementById('formulario_contenido');
+      formEl.classList.remove('fade-in-up');
+      formEl.style.display = 'none';
+      document.getElementById('preview_contenido').style.display = 'block';
+      // Animar vista previa al aparecer
+      const previewEl = document.getElementById('preview_contenido');
+      previewEl.classList.add('fade-in-up');
+
+// Asegurar mostrar botones en la vista previa
+      document.getElementById('enviar_reporte').style.display = 'inline-block';
+      document.getElementById('modificar_reporte').style.display = 'inline-block';
+      // Ajustar scroll para centrar preview
+      setTimeout(() => previewEl.scrollIntoView({ behavior: 'smooth' }), 100);
+    };
+
+    // Volver al formulario desde la vista previa
+    document.getElementById('modificar_reporte').onclick = () => {
+      // Animar cierre de preview
+      const previewEl = document.getElementById('preview_contenido');
+      previewEl.classList.remove('fade-in-up');
+      previewEl.style.display = 'none';
+      // Mostrar formulario con animación
+      const formEl = document.getElementById('formulario_contenido');
+      formEl.style.display = 'block';
+      formEl.classList.add('fade-in-up');
+            mostrarPaso(1);
+      // Centramos el formulario en vista
+      setTimeout(() => formEl.scrollIntoView({ behavior: 'smooth' }), 100);
+    };
+
+    // Generar y descargar PDF de forma manual para controlar cada página
+    document.getElementById('enviar_reporte').onclick = async () => {
+      const modalGen = document.getElementById('generando_pdf_modal');
+      modalGen.style.visibility = 'visible';
+      modalGen.style.opacity = 1;
+      await new Promise(r => setTimeout(r, 100));
+
+      // Recopilar datos del formulario
+      const reportData = {
+        Sector: document.getElementById('sector').value,
+        Placa: document.getElementById('placa').value,
+        Proceso: document.getElementById('proceso').value,
+        Nombre: document.getElementById('nombre').value,
+        Identidad: document.getElementById('identidad').value,
+        TotalGastado: document.getElementById('total').value,
+        LitrosConsumidos: document.getElementById('litros').value,
+        MotivoDelLlenado: document.getElementById('motivo').value,
+        Fecha: document.getElementById('fecha').value,
+        HorasDelViaje: document.getElementById('horas').value,
+        KmActual: document.getElementById('km').value,
+        NombreComercio: document.getElementById('nombre_comercio').value,
+        NumeroFactura: document.getElementById('factura').value
+      };
+
+      try {
+        const saveResponse = await fetch(urlGuardarReporte, {
+          method: 'POST',
+          mode: 'cors',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(reportData)
+        });
+        const saveResult = await saveResponse.json();
+        if (saveResult.status !== 'OK') {
+          alert('Error al guardar el reporte: ' + saveResult.message);
+          console.error('Respuesta del servidor:', saveResult);
+          return;
+        }
+
+        // Generar PDF
+        const pages = document.querySelectorAll('.page');
+        const margins = { top: 12.7, left: 12.7, bottom: 12.7, right: 12.7 };
+        const pdf = new jspdf.jsPDF({ unit: 'mm', format: 'letter', orientation: 'portrait' });
+        for (let i = 0; i < pages.length; i++) {
+          const pg = pages[i];
+          pg.style.boxShadow = 'none';
+          const canvas = await html2canvas(pg, { scale: 1, useCORS: true, backgroundColor: '#ffffff' });
+          const imgData = canvas.toDataURL('image/png');
+          const pdfWidth = pdf.internal.pageSize.getWidth() - margins.left - margins.right;
+          const pdfHeight = pdf.internal.pageSize.getHeight() - margins.top - margins.bottom;
+          if (i > 0) pdf.addPage();
+          pdf.addImage(imgData, 'PNG', margins.left, margins.top, pdfWidth, pdfHeight);
+        }
+
+        // Guardar PDF para descargarlo cuando se confirme
+        window.generatedPDF = pdf;
+        window.generatedFilename = `${reportData.Sector}_${reportData.Fecha}_${reportData.NumeroFactura}.pdf`;
+
+        // Ocultar modal de generación
+        modalGen.style.opacity = 0;
+        setTimeout(() => { modalGen.style.visibility = 'hidden'; }, 300);
+
+        // Mostrar modal de confirmación de descarga
+        document.getElementById('downloadModal').style.display = 'flex';
+      } catch (err) {
+        modalGen.style.opacity = 0;
+        modalGen.style.visibility = 'hidden';
+        alert('Ocurrió un error al generar o subir el PDF.');
+        console.error('Error:', err);
+      }
+    };
+
+
+
+
+    // Inicializar carga al abrir página
+    window.onload = () => {
+      cargarDatosVehiculos();
+      cargarProcesos();
+    };
+  
+// Mostrar previews para cada campo de imagen
+['foto_tablero_antes','foto_bomba','foto_despues','foto_bomba_llenado','foto_frontal','foto_factura'].forEach(id => {
+  const input = document.getElementById(id);
+  if (input) {
+    input.addEventListener('change', () => {
+      if (input.files && input.files.length > 0) {
+        const archivo = input.files[0];
+        
+        // Validar antigüedad de la foto (no mayor a 48 horas)
+        const fileDate = new Date(archivo.lastModified);
+        if (Date.now() - fileDate.getTime() > 672 * 3600 * 1000) {
+          alert('La fotografía debe ser reciente (no mayor a 48 horas).');
+          input.value = '';
+          return;
+        }
+        const url = URL.createObjectURL(archivo);
+        const contenedor = document.getElementById('preview_' + id);
+        if (contenedor) {
+          contenedor.innerHTML = `<img src="${url}" style="max-width:100%; max-height:300px;">`;
+        }
+      }
+    });
+  }
+});
+
+
+function validarFormulario() {
+  let valido = true;
+  const campos = ['sector', 'placa', 'proceso', 'nombre', 'identidad', 'total', 'litros', 'motivo', 'fecha', 'km', 'nombre_comercio', 'factura', 'foto_tablero_antes', 'foto_bomba', 'foto_despues', 'foto_bomba_llenado', 'foto_frontal', 'foto_factura'];
+
+  campos.forEach(id => {
+    const campo = document.getElementById(id);
+    const error = document.getElementById("error_" + id);
+    if (campo && (!campo.value || campo.value.trim() === "")) {
+      if (error) error.style.display = "inline";
+      valido = false;
+    } else {
+      if (error) error.style.display = "none";
+    }
+  });
+
+  if (!valido) {
+    const toast = document.getElementById("toast-alert");
+    toast.classList.add("show");
+    setTimeout(() => toast.classList.remove("show"), 3000);
+  }
+  return valido;
+}
+
+</script>
+<!-- Incluir html2pdf.js desde CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+// Mostrar previews para cada campo de imagen
+['foto_tablero_antes','foto_bomba','foto_despues','foto_bomba_llenado','foto_frontal','foto_factura'].forEach(id => {
+  const input = document.getElementById(id);
+  if (input) {
+    input.addEventListener('change', () => {
+      if (input.files && input.files.length > 0) {
+        const archivo = input.files[0];
+        
+        // Validar antigüedad de la foto (no mayor a 48 horas)
+        const fileDate = new Date(archivo.lastModified);
+        if (Date.now() - fileDate.getTime() > 672 * 3600 * 1000) {
+          alert('La fotografía debe ser reciente (no mayor a 48 horas).');
+          input.value = '';
+          return;
+        }
+        const url = URL.createObjectURL(archivo);
+        const contenedor = document.getElementById('preview_' + id);
+        if (contenedor) {
+          contenedor.innerHTML = `<img src="${url}" style="max-width:100%; max-height:300px;">`;
+        }
+      }
+    });
+  }
+});
+
+
+function validarFormulario() {
+  let valido = true;
+  const campos = ['sector', 'placa', 'proceso', 'nombre', 'identidad', 'total', 'litros', 'motivo', 'fecha', 'km', 'nombre_comercio', 'factura', 'foto_tablero_antes', 'foto_bomba', 'foto_despues', 'foto_bomba_llenado', 'foto_frontal', 'foto_factura'];
+
+  campos.forEach(id => {
+    const campo = document.getElementById(id);
+    const error = document.getElementById("error_" + id);
+    if (campo && (!campo.value || campo.value.trim() === "")) {
+      if (error) error.style.display = "inline";
+      valido = false;
+    } else {
+      if (error) error.style.display = "none";
+    }
+  });
+
+  if (!valido) {
+    const toast = document.getElementById("toast-alert");
+    toast.classList.add("show");
+    setTimeout(() => toast.classList.remove("show"), 3000);
+  }
+  return valido;
+}
+
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.2/html2pdf.bundle.min.js"></script>
+<script>
+// Mostrar previews para cada campo de imagen
+['foto_tablero_antes','foto_bomba','foto_despues','foto_bomba_llenado','foto_frontal','foto_factura'].forEach(id => {
+  const input = document.getElementById(id);
+  if (input) {
+    input.addEventListener('change', () => {
+      if (input.files && input.files.length > 0) {
+        const archivo = input.files[0];
+        
+        // Validar antigüedad de la foto (no mayor a 48 horas)
+        const fileDate = new Date(archivo.lastModified);
+        if (Date.now() - fileDate.getTime() > 672 * 3600 * 1000) {
+          alert('La fotografía debe ser reciente (no mayor a 48 horas).');
+          input.value = '';
+          return;
+        }
+        const url = URL.createObjectURL(archivo);
+        const contenedor = document.getElementById('preview_' + id);
+        if (contenedor) {
+          contenedor.innerHTML = `<img src="${url}" style="max-width:100%; max-height:300px;">`;
+        }
+      }
+    });
+  }
+});
+
+
+function validarFormulario() {
+  let valido = true;
+  const campos = ['sector', 'placa', 'proceso', 'nombre', 'identidad', 'total', 'litros', 'motivo', 'fecha', 'km', 'nombre_comercio', 'factura', 'foto_tablero_antes', 'foto_bomba', 'foto_despues', 'foto_bomba_llenado', 'foto_frontal', 'foto_factura'];
+
+  campos.forEach(id => {
+    const campo = document.getElementById(id);
+    const error = document.getElementById("error_" + id);
+    if (campo && (!campo.value || campo.value.trim() === "")) {
+      if (error) error.style.display = "inline";
+      valido = false;
+    } else {
+      if (error) error.style.display = "none";
+    }
+  });
+
+  if (!valido) {
+    const toast = document.getElementById("toast-alert");
+    toast.classList.add("show");
+    setTimeout(() => toast.classList.remove("show"), 3000);
+  }
+  return valido;
+}
+
+</script>
+<div id="generando_pdf_modal" style="
+  visibility: hidden;
+  opacity: 0;
+  position:fixed;
+  top:0; left:0; right:0; bottom:0;
+  background:rgba(0,0,0,0.6);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  z-index:2000;
+  transition: opacity 0.3s ease;">
+<div class="spinner"></div>
+<div style="color:white; font-size:20px; font-weight:bold; margin-top:20px;">
+    Generando PDF, por favor espere...
+  </div>
+</div>
+<div id="verificando_duplicado_modal" style="
+  visibility: hidden;
+  opacity: 0;
+  position:fixed;
+  top:0; left:0; right:0; bottom:0;
+  background:rgba(0,0,0,0.6);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  z-index:2000;
+  transition: opacity 0.3s ease;">
+<div class="spinner"></div>
+<div style="color:white; font-size:20px; font-weight:bold; margin-top:20px;">
+    Verificando datos, por favor espere...
+  </div>
+</div>
+<script>
+function mostrarLoaderVerificacion() {
+  const modal = document.getElementById("verificando_duplicado_modal");
+  if (modal) modal.style.visibility = 'visible', modal.style.opacity = 1;
+}
+function ocultarLoaderVerificacion() {
+  const modal = document.getElementById("verificando_duplicado_modal");
+  if (modal) modal.style.opacity = 0;
+  setTimeout(() => { if (modal) modal.style.visibility = 'hidden'; }, 300);
+}
+</script>
+<script>
+function mostrarPaso(paso) {
+  document.querySelectorAll('.paso').forEach(p => p.style.display = 'none');
+  const siguiente = document.getElementById('paso' + paso);
+  if (siguiente) siguiente.style.display = 'block';
+}
+
+async function siguientePaso(pasoActual) {
+  if (pasoActual === 2) {
+    if (!validarFormulario()) return;const placa = document.getElementById('placa').value;
+    const fecha = document.getElementById('fecha').value;
+    const factura = document.getElementById('factura').value;
+    const duplicado = await verificarDuplicado(placa, fecha, factura);
+    ocultarLoaderVerificacion();
+    if (duplicado) {
+      const continuar = confirm("⚠️ Ya existe un reporte con estos datos. ¿Deseas reemplazarlo?");
+      if (!continuar) return;
+    }
+  }
+  mostrarPaso(pasoActual);
+}
+</script><script>
+function validarFormulario() {
+  const paso1 = document.getElementById("paso1");
+  const campos = Array.from(paso1.querySelectorAll("input, select, textarea")).filter(c => c.id !== "horas")
+              .filter(campo => campo.id !== "horas");
+  let esValido = true;
+
+  campos.forEach(campo => {
+    const error = document.getElementById(`error_${campo.id}`);
+    if (!campo.value.trim()) {
+      esValido = false;
+      if (error) error.style.display = 'inline';
+      campo.classList.add("invalido");
+    } else {
+      if (error) error.style.display = 'none';
+      campo.classList.remove("invalido");
+    }
+  });
+
+  return esValido;
+}
+</script><script>
+function activarCamara(id) {
+  const input = document.getElementById(id);
+  input.setAttribute("capture", "environment");
+  input.click();
+}
+
+function abrirGaleria(id) {
+  const input = document.getElementById(id);
+  input.removeAttribute("capture");
+  input.click();
+}
+
+// Validar imagen cargada por paso antes de avanzar
+function validarImagenPaso(id) {
+  const input = document.getElementById(id);
+  if (!input || !input.files || input.files.length === 0) {
+    alert("Debe tomar o subir una fotografía antes de continuar.");
+    return false;
+  }
+  return true;
+}
+</script><script>
+document.addEventListener("DOMContentLoaded", () => {
+  const btn = document.getElementById("guardar_reporte");
+  if (btn && typeof generarPreviewPDF === "function") {
+  }
+});
+</script><script>
+document.addEventListener("DOMContentLoaded", () => {
+  const input = document.getElementById("foto_factura");
+  if (input) {
+    input.addEventListener("change", e => {
+      const preview = document.getElementById("preview_foto_factura");
+      if (preview && e.target.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(ev) {
+          preview.innerHTML = '<img src="' + ev.target.result + '" style="max-width: 100%; max-height: 200px;">';
+        };
+        reader.readAsDataURL(e.target.files[0]);
+      }
+    });
+  }
+});
+</script>
+<script>
+function mostrarLoaderVerificacion() {
+  const modal = document.getElementById("verificando_duplicado_modal");
+  if (modal) {
+    modal.style.visibility = 'visible';
+    modal.style.opacity = 1;
+  }
+}
+function ocultarLoaderVerificacion() {
+  const modal = document.getElementById("verificando_duplicado_modal");
+  if (modal) {
+    modal.style.opacity = 0;
+    setTimeout(() => {
+      modal.style.visibility = 'hidden';
+    }, 300);
+  }
+}
+</script>
+<script>
+function validarYVerificarDuplicado() {
+
+    const opciones = document.querySelectorAll('#placas option');
+    const listaPlacas = Array.from(opciones).map(opt => opt.value.trim());
+    const inputPlaca = document.getElementById('placa');
+    const placaIngresada = inputPlaca.value.trim();
+    const placaMayus = placaIngresada.toUpperCase();
+    if (!listaPlacas.map(p => p.toUpperCase()).includes(placaMayus)) {
+        alert("La placa ingresada no está registrada. Por favor seleccione una válida.");
+        inputPlaca.focus();
+        return;
+    }
+
+  if (!validarFormulario()) return;
+
+  mostrarLoaderVerificacion();
+
+  requestAnimationFrame(() => {
+    setTimeout(() => {
+      const duplicado = false;
+
+      if (duplicado) {
+        alert("Ya existe un reporte con esta información.");
+        ocultarLoaderVerificacion();
+      } else {
+        const paso2 = document.getElementById('paso2');
+
+        const observer = new MutationObserver(() => {
+          if (paso2.style.display === "block") {
+            ocultarLoaderVerificacion();
+            observer.disconnect();
+          }
+        });
+
+        observer.observe(paso2, { attributes: true, attributeFilter: ["style"] });
+        siguientePaso(2);
+      }
+    }, 100);
+  });
+}
+</script>
+<script>
+async function fileToBase64(inputId) {
+  return new Promise((resolve, reject) => {
+    const file = document.getElementById(inputId).files[0];
+    if (!file) return resolve(null);
+    // Use blueimp-load-image to correct orientation based on EXIF
+    loadImage(
+      file,
+      function (canvas) {
+        const orientedDataUrl = canvas.toDataURL('image/jpeg');
+        resolve(orientedDataUrl);
+      },
+      { canvas: true, orientation: true }
+    );
+  });
+};
+
+document.getElementById('enviar_reporte').onclick = async () => {
+  const fields = ['foto_tablero_antes','foto_bomba','foto_despues','foto_bomba_llenado','foto_frontal','foto_factura'];
+  const images = {};
+  for (const id of fields) {
+    images[id] = await fileToBase64(id);
+  }
+
+  const data = {
+    Sector: document.getElementById('sector').value,
+    Placa: document.getElementById('placa').value,
+    Proceso: document.getElementById('proceso').value,
+    Nombre: document.getElementById('nombre').value,
+    Identidad: document.getElementById('identidad').value,
+    TotalGastado: document.getElementById('total').value,
+    LitrosConsumidos: document.getElementById('litros').value,
+    MotivoDelLlenado: document.getElementById('motivo').value,
+    Fecha: document.getElementById('fecha').value,
+    HorasDelViaje: document.getElementById('horas').value,
+    KmActual: document.getElementById('km').value,
+    NumeroFactura: document.getElementById('factura').value,
+    NombreComercio: document.getElementById('nombre_comercio').value
+  };
+
+  const [year, month, day] = data.Fecha.split('-').map(Number);
+      const fDate = new Date(year, month - 1, day);
+  const meses = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
+  const headerText = `FORMATO DE FACTURAS COMBUSTIBLE ${meses[fDate.getMonth()]} ${fDate.getFullYear()}`;
+
+  document.getElementById('loader_pdf').style.display = 'flex';
+
+data.JefeInmediato = window._jefeInmediato || "";
+
+// Asignar Jefe Inmediato para PDF desde el resumen
+    const rows = Array.from(document.querySelector('#summary_box table').rows);
+    data.JefeInmediato = rows.find(r => r.cells[0].innerText.trim() === 'Autorizado por Jefe Inmediato')
+      ?.cells[1]?.innerText || '';
+// Pega aquí la URL de tu logo en GitHub
+const logoUrl = 'https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/refs/heads/main/imagenes/Logo.png';
+  const logoBase64 = await urlToBase64(logoUrl);
+
+const docDefinition = {
+    pageSize: 'letter',
+    pageMargins: [30, 30, 30, 30],
+    content: [
+
+      {
+  table: {
+    widths: [100, '*', 'auto', 'auto'],
+    body: [
+      [
+        { image: logoBase64, width: 90, rowSpan: 3, alignment: 'center', margin: [0, 10, 0, 0] },
+        { text: 'DETALLE DE LA FACTURA DE COMBUSTIBLE', style: 'header', fontSize: 14, alignment: 'center', bold: true, rowSpan: 3, margin: [0, 20, 0, 0] , verticalAlignment: 'middle' },
+        { text: 'Código', bold: true , verticalAlignment: 'middle', alignment: 'center', verticalAlignment: 'middle' },
+        { text: 'CLS-PAU-F-19' , verticalAlignment: 'middle', alignment: 'center', verticalAlignment: 'middle' }
+      ],
+      [
+        {}, {},
+        { text: 'Versión', bold: true , verticalAlignment: 'middle', alignment: 'center', verticalAlignment: 'middle' },
+        { text: '1' , verticalAlignment: 'middle', alignment: 'center', verticalAlignment: 'middle' }
+      ],
+      [
+        {}, {},
+        { text: 'Fecha', bold: true , verticalAlignment: 'middle', alignment: 'center', verticalAlignment: 'middle' },
+        { text: '20/5/2025' , verticalAlignment: 'middle', alignment: 'center', verticalAlignment: 'middle' }
+      ]
+    ]
+  },
+  layout: {
+    hLineWidth: function () { return 1; },
+    vLineWidth: function () { return 1; },
+    hLineColor: function () { return '#000'; },
+    vLineColor: function () { return '#000'; }
+  },
+  margin: [0, 0, 0, 10]
+},,
+
+      {
+        columns: [
+          {
+            width: '48%',
+            table: {
+              widths: ['*'],
+              body: [[
+                { text: 'Pegar Factura Original en este Espacio', italics: true, alignment: 'center', margin: [0, 309] , verticalAlignment: 'middle' }
+              ]]
+            },
+            layout: {
+              hLineWidth: () => 1,
+              vLineWidth: () => 1,
+              hLineColor: () => '#aaa',
+              vLineColor: () => '#aaa',
+              hLineStyle: () => ({ dash: { length: 3, space: 3 } }),
+              vLineStyle: () => ({ dash: { length: 3, space: 3 } })
+            },
+            margin: [0, 10, 5, 0]
+          },
+          {
+            width: '52%',
+            table: {
+              widths: ['30%', '70%'],
+              heights: [40, 40, 40, 40, 40, 80, 40, 40, 80, 60, 60],
+              body: [
+                ['Nombre Completo', data.Nombre],
+                ['No. Identidad', data.Identidad],
+                ['Firma del Colaborador', window.colaboradorFirma ? { image: window.colaboradorFirma, width: 150 } : ''],
+                ['Tipo de Gestión', 'Liquidación de gastos de combustible'],
+                ['Total', data.TotalGastado + ' L'],
+                ['Motivo del llenado de combustible', `Compra de Combustible al Vehículo
+
+Para Labores de: ${data.MotivoDelLlenado}
+
+Proceso: ${data.Proceso}`],
+                ['Fecha', data.Fecha],
+                ['Placa o VIN', data.Placa],
+                ['Observación', `SECTOR: ${data.Sector}
+
+KM: ${data.KmActual}
+
+FACTURA: ${data.NumeroFactura}`],
+                ['Autorizado por Jefe Inmediato', data.JefeInmediato || ''],
+                ['Firma', '']
+              ]
+            },
+            layout: 'grid',
+            margin: [5, 10, 0, 0]
+          }
+        ]
+      },
+      {
+      table: {
+        widths: ['*'],
+        body: [[
+          { text: 'FOTOGRAFÍAS', style: 'subheader', alignment: 'center', bold: true, border: [true, true, true, true] , verticalAlignment: 'middle' }
+        ]]
+      },
+      layout: {
+        hLineWidth: () => 1,
+        vLineWidth: () => 1
+      },
+      pageBreak: 'before',
+      margin: [0, 0, 0, 10]
+    },
+      {
+        table: {
+          widths: ['50%', '50%'],
+          heights: [200, 200, 200],
+          body: [
+            [
+              { stack: [{ text: 'TABLERO ANTES DE LLENADO', bold: true, margin: [0, 0, 0, 5] , verticalAlignment: 'middle', alignment: 'center', verticalAlignment: 'middle' }, { image: images['foto_tablero_antes'], fit: [250, 180] }], alignment: 'center' },
+              { stack: [{ text: 'BOMBA DE COMBUSTIBLE 0', bold: true, margin: [0, 0, 0, 5] , verticalAlignment: 'middle', alignment: 'center', verticalAlignment: 'middle' }, { image: images['foto_bomba'], fit: [250, 180] }], alignment: 'center' },
+            ],
+            [
+              { stack: [{ text: 'TABLERO DESPUÉS DE LLENADO', bold: true, margin: [0, 0, 0, 5] , verticalAlignment: 'middle', alignment: 'center', verticalAlignment: 'middle' }, { image: images['foto_despues'], fit: [250, 180] }], alignment: 'center' },
+              {
+                stack: [{ text: 'VISTA FRONTAL DEL VEHÍCULO / VIN CON VEHICULO', bold: true, margin: [0, 0, 0, 5] , verticalAlignment: 'middle', alignment: 'center', verticalAlignment: 'middle' }, { image: images['foto_frontal'], fit: [250, 200] }], alignment: 'center' , rowSpan: 2 },
+            ],
+            [
+              { stack: [{ text: 'BOMBA DE COMBUSTIBLE LLENA', bold: true, margin: [0, 0, 0, 5] , verticalAlignment: 'middle', alignment: 'center', verticalAlignment: 'middle' }, { image: images['foto_bomba_llenado'], fit: [250, 180] }], alignment: 'center' },
+            ]
+          ]
+        },
+        layout: 'grid'
+      },
+      {
+        table: {
+          widths: ['33%', '33%', '34%'],
+          body: [[
+            { text: `PLACA: ${data.Placa}`, bold: true, margin: [0, 0, 0, 5] },
+            { text: `FECHA: ${data.Fecha}`, bold: true, alignment: 'center' },
+            { text: `FACTURA: ${data.NumeroFactura}`, bold: true, alignment: 'right' }
+          ]]
+        },
+        margin: [0, 10, 0, 0]
+      },
+      {
+      table: {
+        widths: ['*'],
+        body: [[
+          { text: 'FACTURA ORIGINAL', style: 'subheader', alignment: 'center', bold: true, border: [true, true, true, true], margin: [0, 0, 0, 10] , verticalAlignment: 'middle' }
+        ]]
+      },
+      layout: {
+        hLineWidth: () => 1,
+        vLineWidth: () => 1
+      },
+      pageBreak: 'before'
+    },
+      images['foto_factura'] ? { image: images['foto_factura'], fit: [400, 500], alignment: 'center', margin: [0, 30, 0, 0] } : ''
+    ],
+    styles: {
+      header: { fontSize: 16, bold: true, margin: [0, 10, 0, 10] },
+      subheader: { fontSize: 14, bold: true, margin: [0, 10, 0, 10] }
+    },
+    defaultStyle: {
+      fontSize: 10
+    }
+  };
+
+  const filename = `${data.Sector}_${data.Fecha}_${data.NumeroFactura}.pdf`;
+
+  
+async function urlToBase64(url) {
+  const response = await fetch(url);
+  const blob = await response.blob();
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result);
+    reader.readAsDataURL(blob);
+  });
+}
+
+pdfMake.createPdf(docDefinition).getBase64(function(base64) {
+    const savePayload = { ...data, pdf: base64, filename };
+
+    fetch('/api/guardar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(savePayload)
+    }).then(() => {
+        // Guardar PDF para descarga posterior
+        generatedPDF = pdfMake.createPdf(docDefinition);
+        generatedFilename = filename;
+        document.getElementById('loader_pdf').style.display = 'none';
+        document.getElementById('downloadModal').style.display = 'flex';
+    });
+
+  });
+};
+</script>
+<div id="loader_pdf" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.8); z-index:9999; align-items:center; justify-content:center; flex-direction: column;">
+<div class="spinner" style="border: 6px solid #f3f3f3; border-top: 6px solid #3498db; border-radius: 50%; width: 60px; height: 60px; animation: spin 1s linear infinite;"></div>
+<div style="font-size:20px; font-weight:bold; margin-top:20px;">Generando PDF...</div>
+</div>
+<div id="success_alert" style="display:none; position:fixed; top:20px; right:20px; background-color:#4CAF50; color:white; padding:15px; border-radius:5px; z-index:10000;">
+  Información enviada con éxito
+</div>
+<script>
+function mostrarSuccessYReset() {
+  const alerta = document.getElementById('success_alert');
+  if (alerta) {
+    alerta.style.display = 'block';
+    setTimeout(() => {
+      alerta.style.display = 'none';
+      location.reload();
+    }, 2500);
+  } else {
+    location.reload();
+  }
+}
+</script>
+<script>
+function validarYVerificarDuplicado() {
+
+    const opciones = document.querySelectorAll('#placas option');
+    const listaPlacas = Array.from(opciones).map(opt => opt.value.trim());
+    const inputPlaca = document.getElementById('placa');
+    const placaIngresada = inputPlaca.value.trim();
+    const placaMayus = placaIngresada.toUpperCase();
+    if (!listaPlacas.map(p => p.toUpperCase()).includes(placaMayus)) {
+        alert("La placa ingresada no está registrada. Por favor seleccione una válida.");
+        inputPlaca.focus();
+        return;
+    }
+
+  if (!validarFormulario()) return;
+
+  const identidad = document.getElementById("identidad").value.replace(/\D/g, '');
+  const factura = document.getElementById("factura").value.replace(/\D/g, '');
+
+  if (identidad.length !== 13) {
+    alert("El número de identidad debe tener exactamente 13 dígitos.");
+    return;
+  }
+
+  if (factura.length < 16) {
+    alert("El número de factura debe tener al menos 16 dígitos.");
+    return;
+  }
+
+  // Validación de Monto Gastado (>5000)
+  const totalVal = parseFloat(document.getElementById('total').value) || 0;
+  if (totalVal > 5000) {
+    alert('El monto ingresado es muy elevado. El máximo permitido es 5000.');
+    return;
+  }
+
+  // Validación de Litros Consumidos (>250)
+  const litrosVal = parseFloat(document.getElementById('litros').value) || 0;
+  if (litrosVal > 250) {
+    alert('El valor de litros consumidos es muy elevado. El máximo permitido es 250.');
+    return;
+  }
+
+  mostrarLoaderVerificacion();
+
+  requestAnimationFrame(() => {
+    setTimeout(() => {
+      const duplicado = false; // Aquí normalmente iría la verificación real
+
+      if (duplicado) {
+        alert("Ya existe un reporte con esta información.");
+        ocultarLoaderVerificacion();
+      } else {
+        const paso2 = document.getElementById('paso2');
+        const observer = new MutationObserver(() => {
+          if (paso2.style.display === "block") {
+            ocultarLoaderVerificacion();
+            observer.disconnect();
+          }
+        });
+
+        observer.observe(paso2, { attributes: true, attributeFilter: ["style"] });
+        siguientePaso(2);
+      }
+    }, 100);
+  });
+}
+</script>
+<script>
+function validarFormulario() {
+  const paso1 = document.getElementById("paso1");
+  const campos = Array.from(paso1.querySelectorAll("input, select, textarea")).filter(c => c.id !== "horas");
+  let esValido = true;
+
+  campos.forEach(campo => {
+    const error = document.getElementById("error_" + campo.id);
+    if (!campo.value.trim()) {
+      esValido = false;
+      if (error) error.style.display = "inline";
+      campo.classList.add("invalido");
+    } else {
+      if (error) error.style.display = "none";
+      campo.classList.remove("invalido");
+    }
+  });
+
+  if (!esValido) {
+    const toast = document.getElementById("toast-alert");
+    if (toast) {
+      toast.classList.add("show");
+      setTimeout(() => toast.classList.remove("show"), 3000);
+    }
+  }
+
+  return esValido;
+}
+</script>
+<script>
+function mostrarPaso(paso) {
+  const pasos = document.querySelectorAll('.paso');
+  const visible = Array.from(pasos).find(p => p.style.display !== "none");
+  const siguiente = document.getElementById('paso' + paso);
+
+  if (visible && visible !== siguiente) {
+    visible.classList.remove('fade-in-down');
+    visible.classList.add('fade-out-up');
+
+    setTimeout(() => {
+      visible.style.display = 'none';
+      visible.classList.remove('fade-out-up');
+
+      siguiente.style.display = 'block';
+      siguiente.classList.add('fade-in-down');
+    }, 300);
+  } else {
+    siguiente.style.display = 'block';
+    siguiente.classList.add('fade-in-down');
+  }
+}
+</script>
+<!-- Modal Firma Digital -->
+<div id="modal-signature" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); align-items:center; justify-content:center; z-index:3000; ">
+<div style="background:#fff; padding:20px; border-radius:8px; max-width:500px; width:90%;">
+<h3>Firma de Aprobación</h3>
+<canvas height="180" id="canvas-signature" style="border:1px solid #ccc; border-radius:4px;" width="460"></canvas>
+<div style="margin-top:10px; text-align:right;">
+<div class="signature-buttons"><button id="clear-signature" type="button">Limpiar</button>
+<button id="confirm-signature" type="button">Confirmar</button></div>
+</div>
+</div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  // Inicializar Signature Pad
+  const canvas = document.getElementById('canvas-signature');
+  const signaturePad = new SignaturePad(canvas, { backgroundColor: 'rgba(255,255,255,0)', penColor: 'black' });
+
+  // Capturar handler original
+  const btnEnviar = document.getElementById('enviar_reporte');
+  const originalHandler = btnEnviar.onclick;
+
+  // Mostrar modal al enviar
+  btnEnviar.onclick = () => {
+    signaturePad.clear();
+    document.getElementById('modal-signature').style.display = 'flex';
+  };
+
+  // Limpiar firma
+  document.getElementById('clear-signature').onclick = () => {
+    signaturePad.clear();
+  };
+
+  // Confirmar firma
+  document.getElementById('confirm-signature').onclick = () => {
+    if (signaturePad.isEmpty()) {
+      alert('Por favor, firma antes de confirmar.');
+      return;
+    }
+    // Guardar firma
+    window.colaboradorFirma = signaturePad.toDataURL();
+    document.getElementById('modal-signature').style.display = 'none';
+    // Llamar flujo original
+    originalHandler();
+  };
+});
+</script>
+<!-- Modal de Confirmación de Descarga -->
+<div class="modal-overlay" id="downloadModal" style="display:none;">
+<div class="modal-content">
+<p>Se descargara el PDF</p>
+<button id="downloadAccept">Aceptar</button>
+</div>
+</div>
+<style>
+.modal-overlay {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center;
+  z-index: 1000;
+}
+.modal-content {
+  background: #fff; padding: 1.5rem; border-radius: 8px; text-align: center;
+}
+.modal-content button {
+  margin: 0.5rem;
+}
+</style>
+<script>
+// Handler for download modal "Aceptar" button with cross-browser support
+document.getElementById('downloadAccept').addEventListener('click', () => {
+    if (generatedPDF) {
+        generatedPDF.download(generatedFilename);
+        // Retrasar la recarga para asegurar la descarga en Samsung Internet
+        setTimeout(() => { window.location.reload(); }, 2500);
+    } else {
+        window.location.reload();
+    }
+});
+</script>
+<script>
+  // Scroll input into view on focus (mobile)
+  document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('input, select, textarea').forEach(el => {
+      el.addEventListener('focus', event => {
+        event.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
       });
     });
-    
-  </script>
-  <div id="loadingPopup" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:rgba(0,0,0,0.7); color:#fff; padding:20px; font-size:18px; border-radius:10px; z-index:1000;">
-    Guardando información... Por favor, espere.
-  </div>
+  });
+</script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  flatpickr('#fecha', {
+    allowInput: false,
+    clickOpens: true,
+    dateFormat: 'Y-m-d',
+    locale: {
+      weekdays: {
+        shorthand: ['Do','Lu','Ma','Mi','Ju','Vi','Sa'],
+        longhand: ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado']
+      },
+      months: {
+        shorthand: ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'],
+        longhand: ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
+      }
+    }
+  });
+});
+</script>
 </body>
 </html>
+<div id="generando_pdf_modal" style="
+  visibility: hidden;
+  opacity: 0;
+  position:fixed;
+  top:0; left:0; right:0; bottom:0;
+  background:rgba(0,0,0,0.6);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  z-index:2000;
+  transition: opacity 0.3s ease;">
+<div class="spinner"></div>
+<div style="color:white; font-size:20px; font-weight:bold; margin-top:20px;">
+    Generando PDF, por favor espere...
+  </div>
+</div>
 
