@@ -2859,17 +2859,14 @@ document.getElementById("btnAceptarPago").addEventListener("click", async functi
 
 <script>
 function resetRevisionUI() {
-  // Reset select and inputs
   try {
     const s = document.getElementById("filtroSector");  if (s) s.value = "";
     const e = document.getElementById("filtroEstado");  if (e) e.value = "";
     const n = document.getElementById("filtroNumeroFactura"); if (n) n.value = "";
   } catch(_) {}
 
-  // Clear date range picker
   try { if (window.flatpickrRevision) window.flatpickrRevision.clear(); } catch(_) {}
 
-  // Clear Tabulator table state (filters, sorts, selection, grouping)
   try {
     if (window.tableRevision) {
       window.tableRevision.clearFilter(true);
@@ -2879,13 +2876,11 @@ function resetRevisionUI() {
     }
   } catch(_) {}
 
-  // Hide mass actions in revision
   try {
     const cont = document.getElementById("accionesMasivas");
     if (cont) cont.style.display = "none";
   } catch(_) {}
 
-  // Reset counters to zero; they will be recalculated on data render as needed
   try {
     const cR = document.getElementById("counterRegistradas");
     const cV = document.getElementById("counterRevisadas");
@@ -2895,6 +2890,64 @@ function resetRevisionUI() {
     if (cA) cA.textContent = "0";
   } catch(_) {}
 }
+</script>
+<script>
+// --- Dynamic refresh of "Estado" filter options in Revisión ---
+(function(){
+  function updateEstadoFilterOptionsFromTable(){
+    try{
+      if(!window.tableRevision) return;
+      var data = window.tableRevision.getData(); // full data set
+      var estados = Array.from(new Set((data || []).map(function(r){ return r && r.Estado; })
+        .filter(function(v){ return v && String(v).trim().length; }))).sort();
+
+      var selEstado = document.getElementById("filtroEstado");
+      if(!selEstado) return;
+
+      // Keep current selection if still valid
+      var prev = selEstado.value || "";
+
+      // Rebuild options: first empty (Todos)
+      while (selEstado.options.length > 0) selEstado.remove(0);
+      var opt0 = document.createElement("option");
+      opt0.value = "";
+      opt0.text = "Todos";
+      selEstado.add(opt0);
+
+      estados.forEach(function(e){
+        var opt = document.createElement("option");
+        opt.value = e;
+        opt.text  = e;
+        selEstado.add(opt);
+      });
+
+      // Restore selection if still present, else leave in "Todos"
+      var canRestore = (estados.indexOf(prev) !== -1) || (prev === "");
+      selEstado.value = canRestore ? prev : "";
+    }catch(err){
+      // fail silently
+    }
+  }
+
+  // Expose for other scripts
+  window.updateEstadoFilterOptionsFromTable = updateEstadoFilterOptionsFromTable;
+
+  // Hook Tabulator events
+  document.addEventListener("DOMContentLoaded", function(){
+    if (window.tableRevision){
+      window.tableRevision.on("cellEdited", function(cell){
+        try{
+          if (cell && cell.getField && cell.getField() === "Estado"){
+            updateEstadoFilterOptionsFromTable();
+          }
+        }catch(_){}
+      });
+      window.tableRevision.on("dataChanged", function(){
+        updateEstadoFilterOptionsFromTable();
+      });
+    }
+  });
+})();
 </script>
 </body>
 </html>
