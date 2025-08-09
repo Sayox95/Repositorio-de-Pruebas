@@ -74,7 +74,7 @@
 <script>
   const urlGuardarAnticipo = "/api/GuardarAnti";
   const urlLeerAnticipos = "/api/Anticipos";
-  const urlGuardarFactura = "https://repositorio-de-pruebas.pages.dev/api/guardar";
+  const urlGuardarFactura = "/api/guardar";
   const Envio_Correos = 'https://script.google.com/macros/s/AKfycbyxu18kQ-oUAXu188swhZUlOc7tgcmdJHsDoxnVTfJ3if-4rxaW1HUI2o4YYIh_Rql6/exec';
 </script>
 <!-- ==== unload listener interception Patch v26 ==== -->
@@ -1543,7 +1543,7 @@ document.getElementById('exportExcelBtn').addEventListener('click', function() {
 <script>
   // Endpoints
   const urlLeerFacturas   = "https://repositorio-de-pruebas.pages.dev/api/leer";
-  const urlGuardarReporte = "https://repositorio-de-pruebas.pages.dev/api/guardar";
+  const urlGuardarReporte = "/api/guardar";
 
   document.addEventListener("DOMContentLoaded", function () {
     // === Tabla Revisión de Facturas ===
@@ -1588,7 +1588,7 @@ document.getElementById('exportExcelBtn').addEventListener('click', function() {
           cellEdited:function(cell){
             var d = cell.getRow().getData();
             if (typeof actualizarEstadoIndividual === "function"){
-              actualizarEstadoIndividual(d.fila, cell.getValue());
+            actualizarEstadoIndividual(d.fila ?? d._fila, cell.getValue());
             }
           }
         },
