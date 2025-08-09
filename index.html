@@ -1431,7 +1431,7 @@ table.on("rowSelectionChanged", function (data, rows) {
     fetch(urlGuardarFactura, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+      body: JSON.stringify({accion: "actualizarEstado", 
         fila:         fila,
         nuevoEstado:  nuevoEstado,
         fondoPeriodo: fondoPeriodo,
@@ -1588,7 +1588,7 @@ document.getElementById('exportExcelBtn').addEventListener('click', function() {
           cellEdited:function(cell){
             var d = cell.getRow().getData();
             if (typeof actualizarEstadoIndividual === "function"){
-              actualizarEstadoIndividual(d.fila, cell.getValue());
+              actualizarEstadoIndividual(d.fila ?? d._fila, cell.getValue());
             }
           }
         },
@@ -2857,79 +2857,3 @@ document.getElementById("btnAceptarPago").addEventListener("click", async functi
 
 </body>
 </html>
-
-<!-- ===== FIX: endpoints & update helpers override ===== -->
-<script>
-  // Fuerza endpoints absolutos (evita rutas relativas que el SW reescribe)
-  window.urlGuardarReporte = "https://repositorio-de-pruebas.pages.dev/api/guardar";
-  window.urlGuardarFactura = "https://repositorio-de-pruebas.pages.dev/api/guardar";
-  const ENDPOINT = window.urlGuardarReporte;
-
-  async function actualizarEstadoIndividual(fila, nuevoEstado){
-    const ov = document.getElementById("overlayCambios");
-    if(ov) ov.style.display = "flex";
-    try{
-      const resp = await fetch(ENDPOINT, {
-        method: "POST",
-        body: JSON.stringify({ actualizarEstado:true, fila, nuevoEstado })
-      });
-      const result = await resp.json().catch(()=>({status:"ERROR"}));
-      if(result.status !== "OK"){
-        alert("Error al actualizar estado: " + (result.message || ""));
-        return;
-      }
-      // Sincronizar tabla Revisión si existe
-      try{
-        const tab = Tabulator.findTable("#tablaRevisionFacturas")[0];
-        if (tab){
-          const row = tab.getRow(fila);
-          if (row){ await row.update({Estado:nuevoEstado}); }
-        }
-      }catch(_e){}
-      // También refrescar tabla de Pago si la tienes
-      try{
-        if (typeof cargarFacturasPago === "function") await cargarFacturasPago();
-      }catch(_e){}
-    }catch(err){
-      console.error("Actualizar individual:", err);
-      alert("No se pudo guardar el cambio.");
-    }finally{
-      if(ov) ov.style.display = "none";
-    }
-  }
-
-  async function actualizarEstadoSeleccionados(nuevoEstado){
-    const tab = Tabulator.findTable("#tablaRevisionFacturas")[0];
-    if(!tab){ alert("Tabla no disponible"); return; }
-    const rows = tab.getSelectedRows();
-    if(rows.length < 2){
-      alert("Selecciona al menos 2 facturas.");
-      return;
-    }
-
-    const ov = document.getElementById("overlayCambios");
-    if(ov) ov.style.display = "flex";
-
-    try{
-      for (const r of rows){
-        const d = r.getData();
-        const fila = d.fila || d._fila;
-        const resp = await fetch(ENDPOINT, {
-          method: "POST",
-          body: JSON.stringify({ actualizarEstado:true, fila, nuevoEstado })
-        });
-        const json = await resp.json().catch(()=>({status:"ERROR"}));
-        if (json.status !== "OK"){
-          throw new Error(json.message || ("Error al actualizar fila " + fila));
-        }
-        await r.update({Estado:nuevoEstado});
-      }
-      tab.deselectRow();
-    }catch(err){
-      console.error("Masivo:", err);
-      alert("Error en actualización masiva: " + err.message);
-    }finally{
-      if(ov) ov.style.display = "none";
-    }
-  }
-</script>
