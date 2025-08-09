@@ -74,7 +74,7 @@
 <script>
   const urlGuardarAnticipo = "/api/GuardarAnti";
   const urlLeerAnticipos = "/api/Anticipos";
-  const urlGuardarFactura = "https://repositorio-de-pruebas.pages.dev/api/guardar";
+  const urlGuardarFactura = "/api/guardar";
   const Envio_Correos = 'https://script.google.com/macros/s/AKfycbyxu18kQ-oUAXu188swhZUlOc7tgcmdJHsDoxnVTfJ3if-4rxaW1HUI2o4YYIh_Rql6/exec';
 </script>
 <!-- ==== unload listener interception Patch v26 ==== -->
@@ -1428,7 +1428,9 @@ table.on("rowSelectionChanged", function (data, rows) {
   window.actualizarEstadoMultiple = async function(filas, nuevoEstado, fondoPeriodo, fechaPago) {
   // Envía en paralelo todas las peticiones de pago con todos los datos
   await Promise.all(filas.map(fila =>
-    fetch(urlGuardarFactura, { method: "POST",
+    fetch(urlGuardarFactura, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         fila:         fila,
         nuevoEstado:  nuevoEstado,
@@ -1541,7 +1543,7 @@ document.getElementById('exportExcelBtn').addEventListener('click', function() {
 <script>
   // Endpoints
   const urlLeerFacturas   = "https://repositorio-de-pruebas.pages.dev/api/leer";
-  const urlGuardarReporte = "https://repositorio-de-pruebas.pages.dev/api/guardar";
+  const urlGuardarReporte = "/api/guardar";
 
   document.addEventListener("DOMContentLoaded", function () {
     // === Tabla Revisión de Facturas ===
@@ -1968,7 +1970,9 @@ document.addEventListener("DOMContentLoaded", function(){
     const overlay = document.getElementById("overlayCambios");
     if(overlay) overlay.style.display = "flex";
     try{
-      const resp = await fetch(ENDPOINT, { method: "POST",
+      const resp = await fetch(ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ actualizarEstado: true, fila: fila, nuevoEstado: nuevoEstado })
       });
       const result = await resp.json().catch(()=>({status:"ERROR"}));
@@ -2026,7 +2030,9 @@ document.addEventListener("DOMContentLoaded", function(){
       await Promise.all(rows.map(r => {
         const d = r.getData();
         const fila = d.fila ?? d._fila;
-        return fetch(ENDPOINT, { method: "POST",
+        return fetch(ENDPOINT, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ actualizarEstado:true, fila, nuevoEstado })
         })
         .then(res => res.json())
@@ -2762,7 +2768,9 @@ document.getElementById("btnAceptarPago").addEventListener("click", async functi
       // Pago individual
       const rowComp = currentPagoRow;
       const fila    = rowComp.getData().fila;
-      await fetch(urlGuardarFactura, { method: "POST",
+      await fetch(urlGuardarFactura, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
         body:    JSON.stringify({ fila, fondoPeriodo, fechaPago })
       })
       .then(r => r.json())
@@ -2849,3 +2857,79 @@ document.getElementById("btnAceptarPago").addEventListener("click", async functi
 
 </body>
 </html>
+
+<!-- ===== FIX: endpoints & update helpers override ===== -->
+<script>
+  // Fuerza endpoints absolutos (evita rutas relativas que el SW reescribe)
+  window.urlGuardarReporte = "https://repositorio-de-pruebas.pages.dev/api/guardar";
+  window.urlGuardarFactura = "https://repositorio-de-pruebas.pages.dev/api/guardar";
+  const ENDPOINT = window.urlGuardarReporte;
+
+  async function actualizarEstadoIndividual(fila, nuevoEstado){
+    const ov = document.getElementById("overlayCambios");
+    if(ov) ov.style.display = "flex";
+    try{
+      const resp = await fetch(ENDPOINT, {
+        method: "POST",
+        body: JSON.stringify({ actualizarEstado:true, fila, nuevoEstado })
+      });
+      const result = await resp.json().catch(()=>({status:"ERROR"}));
+      if(result.status !== "OK"){
+        alert("Error al actualizar estado: " + (result.message || ""));
+        return;
+      }
+      // Sincronizar tabla Revisión si existe
+      try{
+        const tab = Tabulator.findTable("#tablaRevisionFacturas")[0];
+        if (tab){
+          const row = tab.getRow(fila);
+          if (row){ await row.update({Estado:nuevoEstado}); }
+        }
+      }catch(_e){}
+      // También refrescar tabla de Pago si la tienes
+      try{
+        if (typeof cargarFacturasPago === "function") await cargarFacturasPago();
+      }catch(_e){}
+    }catch(err){
+      console.error("Actualizar individual:", err);
+      alert("No se pudo guardar el cambio.");
+    }finally{
+      if(ov) ov.style.display = "none";
+    }
+  }
+
+  async function actualizarEstadoSeleccionados(nuevoEstado){
+    const tab = Tabulator.findTable("#tablaRevisionFacturas")[0];
+    if(!tab){ alert("Tabla no disponible"); return; }
+    const rows = tab.getSelectedRows();
+    if(rows.length < 2){
+      alert("Selecciona al menos 2 facturas.");
+      return;
+    }
+
+    const ov = document.getElementById("overlayCambios");
+    if(ov) ov.style.display = "flex";
+
+    try{
+      for (const r of rows){
+        const d = r.getData();
+        const fila = d.fila || d._fila;
+        const resp = await fetch(ENDPOINT, {
+          method: "POST",
+          body: JSON.stringify({ actualizarEstado:true, fila, nuevoEstado })
+        });
+        const json = await resp.json().catch(()=>({status:"ERROR"}));
+        if (json.status !== "OK"){
+          throw new Error(json.message || ("Error al actualizar fila " + fila));
+        }
+        await r.update({Estado:nuevoEstado});
+      }
+      tab.deselectRow();
+    }catch(err){
+      console.error("Masivo:", err);
+      alert("Error en actualización masiva: " + err.message);
+    }finally{
+      if(ov) ov.style.display = "none";
+    }
+  }
+</script>
