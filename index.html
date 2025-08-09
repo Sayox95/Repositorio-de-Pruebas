@@ -1677,21 +1677,21 @@ document.getElementById('exportExcelBtn').addEventListener('click', function() {
     // Filtro por rango de fechas (flatpickr)
     var rangoInput = document.getElementById("rangoFechas");
     if (rangoInput && typeof flatpickr !== "undefined"){
-      flatpickr("#rangoFechas", {
-        mode: "range",
-        dateFormat: "Y-m-d",
-        locale: flatpickr.l10ns.es,
-        onClose: function(selectedDates){
-          tableRevision.clearFilter(true);
-          if (selectedDates.length === 2){
-            var start = selectedDates[0].toISOString().split("T")[0];
-            var end   = selectedDates[1].toISOString().split("T")[0];
-            tableRevision.addFilter("Fecha", ">=", start);
-            tableRevision.addFilter("Fecha", "<=", end);
-          }
-        }
-      });
+flatpickr("#rangoFechas", {
+  mode: "range",
+  dateFormat: "Y-m-d",
+  locale: flatpickr.l10ns.es,
+  onClose: function(selectedDates){
+    tableRevision.clearFilter(true);
+    if (selectedDates.length === 2){
+      var start = selectedDates[0].toISOString().split("T")[0];
+      var end   = selectedDates[1].toISOString().split("T")[0];
+      tableRevision.addFilter("Fecha", ">=", start);
+      tableRevision.addFilter("Fecha", "<=", end);
     }
+  }
+});
+
 
     // === Toggle: Agrupar por Colaborador (Identidad como clave) ===
     const btnGroup = document.getElementById("btnGroupColab");
@@ -2250,6 +2250,33 @@ function updateCountersRevision(){
 // Botón o evento para entrar a sección
 function cargarRevisionFacturas(){
   mostrarSeccion('revisionFacturas');
+  // Reset visual de inputs
+const fs = document.getElementById("filtroSector");
+const fe = document.getElementById("filtroEstado");
+const fn = document.getElementById("filtroNumeroFactura");
+
+if (fs) fs.value = "";        // "Todos"
+if (fe) fe.value = "";        // "Todas"
+if (fn) fn.value = "";        // limpiar texto
+
+// Reset del rango de fechas
+if (window.flatpickrRevision) {
+  window.flatpickrRevision.clear();          // limpia fechas seleccionadas
+} else {
+  const r = document.getElementById("rangoFechas");
+  if (r) r.value = "";                       // por si acaso
+}
+
+// MUY IMPORTANTE: limpiar filtros internos de Tabulator
+if (window.tableRevision) {
+  tableRevision.clearFilter(true);
+  tableRevision.deselectRow();
+}
+
+// Ocultar acciones masivas
+const acc = document.getElementById("accionesMasivas");
+if (acc) acc.style.display = "none";
+
   const overlay = document.getElementById('overlayRevision');
   const textEl = document.getElementById('overlayTextRevision');
   textEl.textContent = window.isFirstLoadRevisionFacturas ? "Cargando información" : "Actualizando información";
