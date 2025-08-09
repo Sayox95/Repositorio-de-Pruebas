@@ -2250,58 +2250,50 @@ function updateCountersRevision(){
 // Botón o evento para entrar a sección
 function cargarRevisionFacturas(){
   mostrarSeccion('revisionFacturas');
-  // Reset visual de inputs
-const fs = document.getElementById("filtroSector");
-const fe = document.getElementById("filtroEstado");
-const fn = document.getElementById("filtroNumeroFactura");
 
-if (fs) fs.value = "";        // "Todos"
-if (fe) fe.value = "";        // "Todas"
-if (fn) fn.value = "";        // limpiar texto
+  // helpers
+  const $ = id => document.getElementById(id);
+  const t = window.tableRevision;
 
-// Reset del rango de fechas
-if (window.flatpickrRevision) {
-  window.flatpickrRevision.clear();          // limpia fechas seleccionadas
-} else {
-  const r = document.getElementById("rangoFechas");
-  if (r) r.value = "";                       // por si acaso
-}
+  // 1) Reset UI de filtros (una sola vez, con guards)
+  const fs = $('filtroSector');        if (fs) fs.value = '';
+  const fe = $('filtroEstado');        if (fe) fe.value = '';
+  const fn = $('filtroNumeroFactura'); if (fn) fn.value = '';
+  if (window.flatpickrRevision) window.flatpickrRevision.clear(); else {
+    const r = $('rangoFechas'); if (r) r.value = '';
+  }
 
-// MUY IMPORTANTE: limpiar filtros internos de Tabulator
-if (window.tableRevision) {
-  tableRevision.clearFilter(true);
-  tableRevision.deselectRow();
-}
+  // 2) Reset Tabulator: filtros, orden, selección y agrupación
+  if (t){
+    try{
+      t.clearFilter(true);
+      t.clearSort();
+      t.deselectRow();
+      t.setGroupBy(false);
+      t._groupedByIdentidad = false; // nuestro flag
+    }catch(e){ console.warn(e); }
+  }
+  // Ocultar acciones masivas y resetear texto del botón de agrupar
+  const acc = $('accionesMasivas'); if (acc) acc.style.display = 'none';
+  const btnG = $('btnGroupColab');  if (btnG) btnG.textContent = 'Agrupar por Colaborador';
 
-// Ocultar acciones masivas
-const acc = document.getElementById("accionesMasivas");
-if (acc) acc.style.display = "none";
-
-  const overlay = document.getElementById('overlayRevision');
-  const textEl = document.getElementById('overlayTextRevision');
-  textEl.textContent = window.isFirstLoadRevisionFacturas ? "Cargando información" : "Actualizando información";
-  overlay.style.display = 'flex';
+  // 3) Overlay
+  const overlay = $('overlayRevision');
+  const textEl  = $('overlayTextRevision');
+  if (textEl) textEl.textContent = window.isFirstLoadRevisionFacturas ? 'Cargando información' : 'Actualizando información';
+  if (overlay) overlay.style.display = 'flex';
   window.isFirstLoadRevisionFacturas = false;
 
-  
-  // Limpiar datos previos en la tabla de revisión
-  if(window.tableRevision){ window.tableRevision.clearData(); }
-// Reset filtros
-  document.getElementById('filtroSector').value = '';
-  document.getElementById('filtroEstado').value = '';
-  document.getElementById('filtroNumeroFactura').value = '';
-  if(window.flatpickrRevision) flatpickrRevision.clear();
+  // 4) Limpieza de tabla y contadores
+  if (t) t.clearData();
+  const cReg = $('counterRegistradas'); if (cReg) cReg.textContent = '0';
+  const cRev = $('counterRevisadas');   if (cRev) cRev.textContent   = '0';
+  const cAnu = $('counterAnuladas');    if (cAnu) cAnu.textContent   = '0';
 
-  // Reset contadores
-  document.getElementById('counterRegistradas').textContent = '0';
-  document.getElementById('counterRevisadas').textContent = '0';
-  document.getElementById('counterAnuladas').textContent = '0';
-
+  // 5) Cargar datos
   loadDataRevisionFacturas()
-    .catch(function(err){ console.error('Error al cargar revisión de facturas:', err); })
-    .finally(function(){
-      overlay.style.display = 'none';
-    });
+    .catch(err => console.error('Error al cargar revisión de facturas:', err))
+    .finally(() => { if (overlay) overlay.style.display = 'none'; });
 }
 
 // Ocultar overlay cuando datos renderizados (Tabulator event)
