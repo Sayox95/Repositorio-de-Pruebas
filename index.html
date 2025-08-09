@@ -74,7 +74,7 @@
 <script>
   const urlGuardarAnticipo = "/api/GuardarAnti";
   const urlLeerAnticipos = "/api/Anticipos";
-  const urlGuardarFactura = "/api/guardar";
+  const urlGuardarFactura = "https://repositorio-de-pruebas.pages.dev/api/guardar";
   const Envio_Correos = 'https://script.google.com/macros/s/AKfycbyxu18kQ-oUAXu188swhZUlOc7tgcmdJHsDoxnVTfJ3if-4rxaW1HUI2o4YYIh_Rql6/exec';
 </script>
 <!-- ==== unload listener interception Patch v26 ==== -->
@@ -1543,23 +1543,7 @@ document.getElementById('exportExcelBtn').addEventListener('click', function() {
 <script>
   // Endpoints
   const urlLeerFacturas   = "https://repositorio-de-pruebas.pages.dev/api/leer";
-  const urlGuardarReporte = "/api/guardar";
-
-<script>
-(function(){
-  try{
-    // If there's a global urlGuardarReporte already, keep it.
-    if (typeof window.urlGuardarReporte === "undefined" && typeof window.urlLeerFacturas === "string") {
-      const m = window.urlLeerFacturas.match(/^(https?:\/\/[^\/]+)/i);
-      if (m && m[1]) {
-        window.urlGuardarReporte = m[1] + "/api/guardar";
-        console.log("[Patch] urlGuardarReporte derivado de urlLeerFacturas:", window.urlGuardarReporte);
-      }
-    }
-  }catch(e){}
-})();
-</script>
-
+  const urlGuardarReporte = "https://repositorio-de-pruebas.pages.dev/api/guardar";
 
   document.addEventListener("DOMContentLoaded", function () {
     // === Tabla Revisión de Facturas ===
@@ -1604,7 +1588,7 @@ document.getElementById('exportExcelBtn').addEventListener('click', function() {
           cellEdited:function(cell){
             var d = cell.getRow().getData();
             if (typeof actualizarEstadoIndividual === "function"){
-              actualizarEstadoIndividual(d.fila ?? d._fila, cell.getValue(), d.Placa ?? d.placa ?? d.PLACA ?? '');
+              actualizarEstadoIndividual(d.fila, cell.getValue());
             }
           }
         },
@@ -1982,14 +1966,14 @@ document.addEventListener("DOMContentLoaded", function(){
 
   const ENDPOINT = typeof urlGuardarReporte !== "undefined" ? urlGuardarReporte : "/api/guardar";
 
-  async function actualizarEstadoIndividual(fila, nuevoEstado, placa){
+  async function actualizarEstadoIndividual(fila, nuevoEstado){
     const overlay = document.getElementById("overlayCambios");
     if(overlay) overlay.style.display = "flex";
     try{
       const resp = await fetch(ENDPOINT, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ actualizarEstado: true, fila: fila, nuevoEstado: nuevoEstado, placa: placa })
+        body: JSON.stringify({ actualizarEstado: true, fila: fila, nuevoEstado: nuevoEstado })
       });
       const result = await resp.json().catch(()=>({status:"ERROR"}));
       console.log("Respuesta actualización", result);
@@ -2049,7 +2033,7 @@ document.addEventListener("DOMContentLoaded", function(){
         return fetch(ENDPOINT, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ actualizarEstado: true, fila, nuevoEstado, placa: (d && (d.Placa ?? d.placa ?? d.PLACA ?? "")) })
+          body: JSON.stringify({ actualizarEstado:true, fila, nuevoEstado })
         })
         .then(res => res.json())
         .then(result => {
