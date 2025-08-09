@@ -792,12 +792,14 @@
       } else if (nombre === 'revisionFacturas') {
         // Reset de filtros al entrar
         const filtroSectorElem = document.getElementById("filtroSector");
-        if (filtroSectorElem) filtroSectorElem.value = "Todos";
+        if (filtroSectorElem) filtroSectorElem.value = "";
         const filtroEstadoElem = document.getElementById("filtroEstado");
-        if (filtroEstadoElem) filtroEstadoElem.value = "Todas";
+        if (filtroEstadoElem) filtroEstadoElem.value = "";
 
         // Mostrar sección y recargar datos
         document.getElementById('seccionRevisionFacturas').style.display = 'block';
+    // Limpieza dura al entrar
+    if (typeof resetRevisionUI === "function") resetRevisionUI();
         
       } else if (nombre === 'registrarAnticipo') {
         document.getElementById('registrarAnticipo').style.display = 'block';
@@ -1677,21 +1679,21 @@ document.getElementById('exportExcelBtn').addEventListener('click', function() {
     // Filtro por rango de fechas (flatpickr)
     var rangoInput = document.getElementById("rangoFechas");
     if (rangoInput && typeof flatpickr !== "undefined"){
-window.flatpickrRevision = flatpickr("#rangoFechas", {
-  mode: "range",
-  dateFormat: "Y-m-d",
-  locale: flatpickr.l10ns.es,
-  onClose: function(selectedDates){
-    tableRevision.clearFilter(true);
-    if (selectedDates.length === 2){
-      var start = selectedDates[0].toISOString().split("T")[0];
-      var end   = selectedDates[1].toISOString().split("T")[0];
-      tableRevision.addFilter("Fecha", ">=", start);
-      tableRevision.addFilter("Fecha", "<=", end);
+      window.flatpickrRevision = flatpickr("#rangoFechas", {
+        mode: "range",
+        dateFormat: "Y-m-d",
+        locale: flatpickr.l10ns.es,
+        onClose: function(selectedDates){
+          tableRevision.clearFilter(true);
+          if (selectedDates.length === 2){
+            var start = selectedDates[0].toISOString().split("T")[0];
+            var end   = selectedDates[1].toISOString().split("T")[0];
+            tableRevision.addFilter("Fecha", ">=", start);
+            tableRevision.addFilter("Fecha", "<=", end);
+          }
+        }
+      });
     }
-  }
-});
-
 
     // === Toggle: Agrupar por Colaborador (Identidad como clave) ===
     const btnGroup = document.getElementById("btnGroupColab");
@@ -2250,52 +2252,42 @@ function updateCountersRevision(){
 // Botón o evento para entrar a sección
 function cargarRevisionFacturas(){
   mostrarSeccion('revisionFacturas');
-
-  // helpers
-  const $ = id => document.getElementById(id);
-  const t = window.tableRevision;
-
-  // 1) Reset UI de filtros (una sola vez, con guards)
-  const fs = $('filtroSector');        if (fs) fs.value = '';
-  const fe = $('filtroEstado');        if (fe) fe.value = '';
-  const fn = $('filtroNumeroFactura'); if (fn) fn.value = '';
-  if (window.flatpickrRevision) window.flatpickrRevision.clear(); else {
-    const r = $('rangoFechas'); if (r) r.value = '';
-  }
-
-  // 2) Reset Tabulator: filtros, orden, selección y agrupación
-  if (t){
-    try{
-      t.clearFilter(true);
-      t.clearSort();
-      t.deselectRow();
-      t.setGroupBy(false);
-      t._groupedByIdentidad = false; // nuestro flag
-    }catch(e){ console.warn(e); }
-  }
-  // Ocultar acciones masivas y resetear texto del botón de agrupar
-  const acc = $('accionesMasivas'); if (acc) acc.style.display = 'none';
-  const btnG = $('btnGroupColab');  if (btnG) btnG.textContent = 'Agrupar por Colaborador';
-
-  // 3) Overlay
-  const overlay = $('overlayRevision');
-  const textEl  = $('overlayTextRevision');
-  if (textEl) textEl.textContent = window.isFirstLoadRevisionFacturas ? 'Cargando información' : 'Actualizando información';
-  if (overlay) overlay.style.display = 'flex';
+  const overlay = document.getElementById('overlayRevision');
+  const textEl = document.getElementById('overlayTextRevision');
+  textEl.textContent = window.isFirstLoadRevisionFacturas ? "Cargando información" : "Actualizando información";
+  overlay.style.display = 'flex';
   window.isFirstLoadRevisionFacturas = false;
 
-  // 4) Limpieza de tabla y contadores
-  if (t) t.clearData();
-  const cReg = $('counterRegistradas'); if (cReg) cReg.textContent = '0';
-  const cRev = $('counterRevisadas');   if (cRev) cRev.textContent   = '0';
-  const cAnu = $('counterAnuladas');    if (cAnu) cAnu.textContent   = '0';
+  
+  // Limpiar datos previos en la tabla de revisión
+  if(window.tableRevision){ window.tableRevision.clearData(); }
+// Reset filtros
+  document.getElementById('filtroSector').value = '';
+  document.getElementById('filtroEstado').value = '';
+  document.getElementById('filtroNumeroFactura').value = '';
+  if(window.flatpickrRevision) flatpickrRevision.clear();
 
-  // 5) Cargar datos
+  // Reset contadores
+  document.getElementById('counterRegistradas').textContent = '0';
+  document.getElementById('counterRevisadas').textContent = '0';
+  document.getElementById('counterAnuladas').textContent = '0';
+
   loadDataRevisionFacturas()
-    .catch(err => console.error('Error al cargar revisión de facturas:', err))
-    .finally(() => { if (overlay) overlay.style.display = 'none'; });
+    .catch(function(err){ console.error('Error al cargar revisión de facturas:', err); })
+    .finally(function(){
+      overlay.style.display = 'none';
+    });
 }
 
+// Ocultar overlay cuando datos renderizados (Tabulator event)
+document.addEventListener('DOMContentLoaded', function(){
+  if(window.tableRevision){
+    tableRevision.on("dataRendered", function(){
+      var overlay = document.getElementById('overlayRevision');
+      if(overlay) overlay.style.display = 'none';
+    });
+  }
+});
 </script>
 
 
@@ -2865,5 +2857,44 @@ document.getElementById("btnAceptarPago").addEventListener("click", async functi
 
 </script>
 
+<script>
+function resetRevisionUI() {
+  // Reset select and inputs
+  try {
+    const s = document.getElementById("filtroSector");  if (s) s.value = "";
+    const e = document.getElementById("filtroEstado");  if (e) e.value = "";
+    const n = document.getElementById("filtroNumeroFactura"); if (n) n.value = "";
+  } catch(_) {}
+
+  // Clear date range picker
+  try { if (window.flatpickrRevision) window.flatpickrRevision.clear(); } catch(_) {}
+
+  // Clear Tabulator table state (filters, sorts, selection, grouping)
+  try {
+    if (window.tableRevision) {
+      window.tableRevision.clearFilter(true);
+      window.tableRevision.clearSort();
+      window.tableRevision.deselectRow();
+      try { window.tableRevision.setGroupBy(false); } catch(_) {}
+    }
+  } catch(_) {}
+
+  // Hide mass actions in revision
+  try {
+    const cont = document.getElementById("accionesMasivas");
+    if (cont) cont.style.display = "none";
+  } catch(_) {}
+
+  // Reset counters to zero; they will be recalculated on data render as needed
+  try {
+    const cR = document.getElementById("counterRegistradas");
+    const cV = document.getElementById("counterRevisadas");
+    const cA = document.getElementById("counterAnuladas");
+    if (cR) cR.textContent = "0";
+    if (cV) cV.textContent = "0";
+    if (cA) cA.textContent = "0";
+  } catch(_) {}
+}
+</script>
 </body>
 </html>
