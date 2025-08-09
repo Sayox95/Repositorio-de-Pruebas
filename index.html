@@ -1079,7 +1079,7 @@ mostrarSeccion('seccionPagoFacturas');
 
   spinner.style.display = "block";
   tabla.style.display = "table";
-  fetch("https://repositorio-de-pruebas.pages.dev/api/leer")
+  fetch(urlLeerFacturas)
     .then(response => {
       if (!response.ok) throw new Error("HTTP " + response.status);
       return response.json();
@@ -1431,7 +1431,7 @@ table.on("rowSelectionChanged", function (data, rows) {
     fetch(urlGuardarFactura, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({accion: "actualizarEstado", 
+      body: JSON.stringify({
         fila:         fila,
         nuevoEstado:  nuevoEstado,
         fondoPeriodo: fondoPeriodo,
@@ -1542,7 +1542,7 @@ document.getElementById('exportExcelBtn').addEventListener('click', function() {
 </script>
 <script>
   // Endpoints
-  const urlLeerFacturas   = "https://repositorio-de-pruebas.pages.dev/api/leer";
+  const urlLeerFacturas   = "/api/leer";
   const urlGuardarReporte = "/api/guardar";
 
   document.addEventListener("DOMContentLoaded", function () {
@@ -1588,7 +1588,7 @@ document.getElementById('exportExcelBtn').addEventListener('click', function() {
           cellEdited:function(cell){
             var d = cell.getRow().getData();
             if (typeof actualizarEstadoIndividual === "function"){
-              actualizarEstadoIndividual(d.fila ?? d._fila, cell.getValue());
+              actualizarEstadoIndividual(d.fila, cell.getValue());
             }
           }
         },
