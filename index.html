@@ -1428,7 +1428,7 @@ table.on("rowSelectionChanged", function (data, rows) {
   window.actualizarEstadoMultiple = async function(filas, nuevoEstado, fondoPeriodo, fechaPago) {
   // Envía en paralelo todas las peticiones de pago con todos los datos
   await Promise.all(filas.map(fila =>
-    fetch(urlGuardarFactura, {
+    fetch(getGuardarEndpoint(), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -1541,11 +1541,20 @@ document.getElementById('exportExcelBtn').addEventListener('click', function() {
 });
 </script>
 <script>
-  // Endpoints
-  const urlLeerFacturas   = "https://repositorio-de-pruebas.pages.dev/api/leer";
-  const urlGuardarReporte = "https://repositorio-de-pruebas.pages.dev/api/guardar";
+  // Endpoints UNIFICADOS
+  window.API_BASE = "https://repositorio-de-pruebas.pages.dev/api";
+  window.urlLeerFacturas   = window.API_BASE + "/leer";
+  window.urlGuardarReporte = window.API_BASE + "/guardar";
+  window.urlGuardarFactura = window.urlGuardarReporte;
+  window.getGuardarEndpoint = function(){
+    return (
+      window.urlGuardarReporte ||
+      window.urlGuardarFactura ||
+      (window.API_BASE ? window.API_BASE + "/guardar" : "/api/guardar")
+    );
+  };
 
-  document.addEventListener("DOMContentLoaded", function () {
+document.addEventListener("DOMContentLoaded", function () {
     // === Tabla Revisión de Facturas ===
     var tableRevision = window.tableRevision = new Tabulator("#tablaRevisionFacturas", {
       layout: "fitColumns",
@@ -1970,7 +1979,7 @@ document.addEventListener("DOMContentLoaded", function(){
     const overlay = document.getElementById("overlayCambios");
     if(overlay) overlay.style.display = "flex";
     try{
-      const resp = await fetch(ENDPOINT, {
+      const resp = await fetch(getGuardarEndpoint(), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ actualizarEstado: true, fila: fila, nuevoEstado: nuevoEstado })
@@ -2010,9 +2019,6 @@ document.addEventListener("DOMContentLoaded", function(){
 <script>
 (function(){
   // Usa el mismo endpoint que el patch v34
-  const ENDPOINT = (typeof urlGuardarReporte !== "undefined")
-      ? urlGuardarReporte : "/api/guardar";
-
   async function actualizarEstadoSeleccionados(nuevoEstado){
     const tab = Tabulator.findTable("#tablaRevisionFacturas")[0];
     if(!tab){ alert("Tabla no disponible"); return; }
@@ -2030,7 +2036,7 @@ document.addEventListener("DOMContentLoaded", function(){
       await Promise.all(rows.map(r => {
         const d = r.getData();
         const fila = d.fila ?? d._fila;
-        return fetch(ENDPOINT, {
+        return fetch(getGuardarEndpoint(), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ actualizarEstado:true, fila, nuevoEstado })
@@ -2768,7 +2774,7 @@ document.getElementById("btnAceptarPago").addEventListener("click", async functi
       // Pago individual
       const rowComp = currentPagoRow;
       const fila    = rowComp.getData().fila;
-      await fetch(urlGuardarFactura, {
+      await fetch(getGuardarEndpoint(), {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
         body:    JSON.stringify({ fila, fondoPeriodo, fechaPago })
