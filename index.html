@@ -860,6 +860,9 @@
 </select>
 <label for="filtroNumeroFactura">Filtrar Nº de Factura:</label>
 <input id="filtroNumeroFactura" placeholder="Buscar factura…" style="padding:0.5rem;" type="text"/>
+
+<label for="filtroPlaca">Filtrar Placa:</label>
+<input id="filtroPlaca" type="text" placeholder="Buscar placa…" style="padding:0.5rem;" />
 <label for="rangoFechas">Filtrar por rango de fechas:</label>
 <input id="rangoFechas" placeholder="Desde - Hasta" readonly="" style="padding:0.5rem;" type="text"/>
 </div>
@@ -1674,7 +1677,10 @@ document.getElementById('exportExcelBtn').addEventListener('click', function() {
 
       // Limpiar filtro de número al recargar
       if (filtroNum) filtroNum.value = "";
-    });
+    
+      var filtroPl = document.getElementById("filtroPlaca");
+      if (filtroPl) filtroPl.value = "";
+});
 
     // Filtro por rango de fechas (flatpickr)
     var rangoInput = document.getElementById("rangoFechas");
@@ -1864,7 +1870,12 @@ document.addEventListener("DOMContentLoaded", function(){
       var num = (document.getElementById("filtroNumeroFactura")||{}).value || "";
       if(num) filters.push({field:"Numero de Factura", type:"like", value:num.trim()});
 
-      // Fecha
+      
+      // Placa
+      var placa = (document.getElementById("filtroPlaca")||{}).value || "";
+      if(placa) filters.push({field:"Placa", type:"like", value:placa.trim()});
+
+// Fecha
       var dr = window.flatpickrRevision ? window.flatpickrRevision.selectedDates : [];
       if(dr && dr.length){
          var start = flatpickr.formatDate(dr[0],"Y-m-d");
@@ -1933,7 +1944,15 @@ document.addEventListener("DOMContentLoaded", function(){
     });
   }
 
-  function init(){
+  
+  var placaEl = document.getElementById("filtroPlaca");
+  if(placaEl){
+     placaEl.addEventListener("input", function(e){
+       e.stopImmediatePropagation();
+       applyFiltersRevision();
+     }, true);
+  }
+function init(){
     const tab = Tabulator.findTable("#tablaRevisionFacturas")[0];
     if(!tab){
       setTimeout(init, 300);
