@@ -837,6 +837,10 @@
 <h2 style="margin-bottom: 1rem;">📄 Revisión de Facturas</h2>
 <div id="countersRow">
 <div class="counter-box">
+  <span class="label">Facturas Totales</span><br>
+  <span class="value" id="counterTotales">0</span>
+</div>
+<div class="counter-box">
 <span class="label">Registradas</span><br>
 <span class="value" id="counterRegistradas">0</span>
 </br></div>
@@ -888,6 +892,14 @@
            cursor:pointer; white-space:nowrap;">
     Exportar Excel
   </button>
+<button id="btnRefreshRev"
+  style="display:inline-flex;align-items:center;justify-content:center;
+         height:1.8rem !important; line-height:1.8rem !important;
+         padding:0 0.7rem !important; font-size:0.8rem !important;
+         background:#10b981; color:#fff; border:0; border-radius:.25rem;
+         cursor:pointer; white-space:nowrap;">
+  🔄 Actualizar
+</button>
 
   <!-- Botones masivos (ocultos hasta que haya ≥2 seleccionadas) -->
   <div id="accionesMasivas" style="display:none; gap:.6rem; align-items:center;">
@@ -1588,7 +1600,9 @@ document.getElementById('exportExcelBtn').addEventListener('click', function() {
             var v = cell.getValue();
             return v ? '<a href="'+v+'" target="_blank">📄</a>' : "";
           } },
-        { title:"Estado", field:"Estado",
+                { title:"Km Actual", field:"Km Actual", sorter:"number", hozAlign:"right", formatter:"money", formatterParams:{ precision:false, thousand:",", decimal:"." } },
+        { title:"Litros Consumidos", field:"Litros Consumidos", sorter:"number", hozAlign:"right" },
+{ title:"Estado", field:"Estado",
           editor:"list", editorParams:{ values:["Registrada","Revisada","Anulada"], autocomplete:true },
           cellEdited:function(cell){
             var d = cell.getRow().getData();
@@ -1610,7 +1624,8 @@ document.getElementById('exportExcelBtn').addEventListener('click', function() {
     tableRevision.on("rowSelectionChanged", function(data, rows){
       var cont = document.getElementById("accionesMasivas");
       if (!cont) return;
-      cont.style.display = (rows && rows.length >= 2) ? "flex" : "none";
+      var hasPagada = Array.isArray(data) && data.some(function(r){ return String((r && r.Estado) || "").trim() === "Pagada"; });
+      cont.style.display = (rows && rows.length >= 2 && !hasPagada) ? "flex" : "none";
     });
 
     // --- Filtros (Estado / Sector / Número / Rango fechas) ---
@@ -1660,7 +1675,36 @@ document.getElementById('exportExcelBtn').addEventListener('click', function() {
           var opt = document.createElement("option");
           opt.value = s; opt.text = s;
           selSector.add(opt);
-        });
+        
+      var cTot = document.getElementById("counterTotales");
+      if (cTot) cTot.textContent = (Array.isArray(data) ? data.length : 0);
+
+      // === Reset de filtros UI y limpieza de filtros activos en la tabla ===
+      try {
+        // Limpiar inputs de texto
+        var fNum = document.getElementById("filtroNumeroFactura");
+        if (fNum) fNum.value = "";
+        var fPlc = document.getElementById("filtroPlaca");
+        if (fPlc) fPlc.value = "";
+        // Reset selects
+        var fSec = document.getElementById("filtroSector");
+        if (fSec) fSec.value = "";
+        var fEst = document.getElementById("filtroEstado");
+        if (fEst) fEst.value = "";
+        // Reset rango de fechas (flatpickr)
+        if (window.flatpickrRevision && typeof window.flatpickrRevision.clear === "function"){
+          window.flatpickrRevision.clear();
+        } else {
+          var dateInput = document.getElementById("rangoFechas");
+          if (dateInput) dateInput.value = "";
+        }
+        // MUY IMPORTANTE: limpiar filtros activos en Tabulator
+        if (window.tableRevision && typeof window.tableRevision.clearFilter === "function"){
+          window.tableRevision.clearFilter(true);
+        }
+      } catch(_) {}
+    
+});
       }
 
       // Poblar Estado
@@ -2229,16 +2273,25 @@ window.isFirstLoadRevisionFacturas = true;
 
 // Carga datos (fetch + setData) replicando lógica de sección Pago
 function loadDataRevisionFacturas(){
- return fetch(urlLeerFacturas)
+  return fetch(urlLeerFacturas)
     .then(r => r.json())
     .then(function(data){
-      // Solo facturas que NO estén pagadas
+      // Incluir todas (incluye Pagadas); excluir solo filas totalmente vacías
       var rows = data.filter(function(f){
-        return (f.Estado || "").toLowerCase().trim() !== "pagada";
+        var v = f || {};
+        var vacia = !(
+          (v["Numero de Factura"] && String(v["Numero de Factura"]).trim()) ||
+          (v.Fecha && String(v.Fecha).trim()) ||
+          (v.Sector && String(v.Sector).trim()) ||
+          (v.Placa && String(v.Placa).trim()) ||
+          (v.Proceso && String(v.Proceso).trim()) ||
+          (v.Nombre && String(v.Nombre).trim()) ||
+          (v.Identidad && String(v.Identidad).trim()) ||
+          (v["Total Gastado"] && String(v["Total Gastado"]).trim())
+        );
+        return !vacia;
       });
-      // Guarda en global si lo necesitas
       window.revisionFacturasGlobal = rows;
-      // Carga en tabla
       if(window.tableRevision && window.window.tableRevision.setData){
         return window.tableRevision.setData(rows).then(updateCountersRevision);
       }
@@ -2968,5 +3021,96 @@ function resetRevisionUI() {
   });
 })();
 </script>
+<script>
+// Botón "Actualizar" para Revisión de Facturas
+(function(){
+  const btn = document.getElementById("btnRefreshRev");
+  if (!btn) return;
+  btn.addEventListener("click", async function(){
+    try {
+      // Mostrar overlay si existe
+      const overlay = document.getElementById("overlayRevision");
+      const txt = document.getElementById("overlayTextRevision");
+      if (overlay) {
+        if (txt) txt.textContent = "Actualizando información";
+        overlay.style.display = "flex";
+      }
+
+      // 1) Si el proyecto define una función específica, úsala
+      if (typeof window.loadDataRevision === "function") {
+        await window.loadDataRevision();
+      } else if (window.tableRevision) {
+        // 2) fallback: recargar datos desde el endpoint global
+        if (typeof urlLeerFacturas === "string" && urlLeerFacturas) {
+          const resp = await fetch(urlLeerFacturas);
+          if (!resp.ok) throw new Error("HTTP " + resp.status);
+          const data = await resp.json();
+          // Si necesitas filtrar aquí, se puede ajustar. Por defecto cargamos todo.
+          await window.tableRevision.setData(data);
+        } else if (typeof window.tableRevision.getAjaxUrl === "function" && window.tableRevision.getAjaxUrl()) {
+          // 3) Si Tabulator tiene ajaxURL configurado, usar setData() para recargar
+          await window.tableRevision.setData();
+        } else {
+          // 4) Sin fuente definida: forzamos un re-render para disparar hooks/counters
+          const current = window.tableRevision.getData();
+          await window.tableRevision.setData(current);
+        }
+      }
+    } catch (err) {
+      console.error("Error al actualizar Revisión:", err);
+      alert("❌ Error al actualizar: " + (err && err.message ? err.message : err));
+    } finally {
+      // Ocultar overlay
+      const overlay = document.getElementById("overlayRevision");
+      if (overlay) overlay.style.display = "none";
+    }
+  });
+})();
+</script>
+<script>
+// Helper para actualizar contador de Facturas Totales desde datos activos de Tabulator (por si se requiere)
+window.updateCounterTotalesRevision = function(){
+  try{
+    var el = document.getElementById("counterTotales");
+    if(!el) return;
+    var t = window.tableRevision;
+    if (!t || typeof t.getData !== "function") return;
+    // Total cargado (no filtrado por estado): usamos el data store original
+    var dataAll = t.getData(); // getData() devuelve data filtrada si se pasa "active"; sin args trae dataset base
+    el.textContent = Array.isArray(dataAll) ? dataAll.length : 0;
+  }catch(e){ /* no-op */ }
+};
+</script>
+
+<script>
+// Patch: bloquear edición de Estado = "Pagada" en Revisión y mantener editor de lista para el resto
+document.addEventListener("DOMContentLoaded", function(){
+  function applyRevisionEstadoPatch(){
+    try{
+      var table = window.tableRevision;
+      if (!table && window.Tabulator) {
+        var found = Tabulator.findTable("#tablaRevisionFacturas");
+        if (found && found.length) table = found[0];
+      }
+      if (!table || typeof table.updateColumnDefinition !== "function") return false;
+      table.updateColumnDefinition("Estado", {
+        hozAlign: "center",
+        editor: function(cell){
+          var v = String((cell.getRow().getData().Estado || "")).trim();
+          if (v === "Pagada") return false; // bloquear si es Pagada
+          return "list";
+        },
+        editorParams: { values:["Registrada","Revisada","Anulada"], autocomplete:true }
+      });
+      return true;
+    }catch(e){ return false; }
+  }
+  var tries = 0;
+  var iv = setInterval(function(){
+    if (applyRevisionEstadoPatch() || (++tries > 60)) clearInterval(iv);
+  }, 120);
+});
+</script>
+
 </body>
 </html>
