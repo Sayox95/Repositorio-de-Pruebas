@@ -903,6 +903,16 @@
 
   <!-- Botones masivos (ocultos hasta que haya ≥2 seleccionadas) -->
   <div id="accionesMasivas" style="display:none; gap:.6rem; align-items:center;">
+
+    <button id="btnDescargarZip"
+      style="display:inline-flex;align-items:center;justify-content:center;
+             height:1.8rem !important; line-height:1.8rem !important;
+             padding:0 0.7rem !important; font-size:0.8rem !important;
+             background:#374151; color:#fff; border:0; border-radius:.25rem;
+             cursor:pointer; white-space:nowrap;"
+      title="Descargar PDFs seleccionados en un ZIP">
+      ⬇️ Descargar Facturas (ZIP)
+    </button>
     <button onclick="actualizarEstadoSeleccionados('Revisada')"
       style="display:inline-flex;align-items:center;justify-content:center;
              height:1.8rem !important; line-height:1.8rem !important;
@@ -3112,5 +3122,112 @@ document.addEventListener("DOMContentLoaded", function(){
 });
 </script>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script>
+// === Descargar Facturas seleccionadas como ZIP ===
+
+// Normaliza URLs de Google Drive públicas a descarga directa
+function toDirectDriveUrl(url) {
+  try {
+    const u = new URL(url);
+    if (u.hostname.includes('drive.google.com')) {
+      const m = u.pathname.match(/\/file\/d\/([^\/]+)/);
+      if (m && m[1]) return `https://drive.google.com/uc?export=download&id=${m[1]}`;
+      const id = u.searchParams.get('id');
+      if (id) return `https://drive.google.com/uc?export=download&id=${id}`;
+    }
+  } catch (e) {}
+  return url;
+}
+
+async function fetchAsBlob(url, tries = 2) {
+  let lastErr;
+  for (let i = 0; i < tries; i++) {
+    try {
+      const res = await fetch(url, { mode: 'cors' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.blob();
+    } catch (e) {
+      lastErr = e;
+      await new Promise(r => setTimeout(r, 600));
+    }
+  }
+  throw lastErr || new Error('No se pudo descargar el archivo');
+}
+
+function showOverlayRevision(text = "Descargando facturas…") {
+  const ov = document.getElementById("overlayRevision");
+  const tx = document.getElementById("overlayTextRevision");
+  if (tx) tx.textContent = text;
+  if (ov) ov.style.display = "flex";
+}
+function hideOverlayRevision() {
+  const ov = document.getElementById("overlayRevision");
+  if (ov) ov.style.display = "none";
+}
+
+function makePdfName(row, i) {
+  const numero = (row["Numero de Factura"] || `factura_${i+1}`).toString().replace(/[^\w\-]+/g,'_');
+  const placa  = (row["Placa"] || "").toString().replace(/[^\w\-]+/g,'_');
+  const fecha  = (row["Fecha"] || "").toString().slice(0,10);
+  return `${fecha || 'fecha'}_${placa || 'placa'}_${numero}.pdf`;
+}
+
+async function descargarFacturasSeleccionadas() {
+  try {
+    if (!window.tableRevision) {
+      alert("No se encontró la tabla de Revisión.");
+      return;
+    }
+    const rows = window.tableRevision.getSelectedData();
+    const elegibles = rows.map((r,i)=>({ row:r, idx:i, url: r["Enlace PDF"] ? toDirectDriveUrl(r["Enlace PDF"]) : null})).filter(x=>!!x.url);
+
+    if (elegibles.length === 0) {
+      alert("No hay facturas seleccionadas con enlace PDF.");
+      return;
+    }
+
+    showOverlayRevision(`Descargando ${elegibles.length} PDF…`);
+
+    const zip = new JSZip();
+    let ok = 0, fail = 0;
+
+    for (let i = 0; i < elegibles.length; i++) {
+      const { row, idx, url } = elegibles[i];
+      const name = makePdfName(row, idx);
+      try {
+        const blob = await fetchAsBlob(url, 2);
+        zip.file(name, blob);
+        ok++;
+        showOverlayRevision(`Descargados ${ok}/${elegibles.length}…`);
+      } catch (e) {
+        console.warn("Fallo al descargar:", url, e);
+        fail++;
+      }
+    }
+
+    showOverlayRevision("Empaquetando ZIP…");
+    const zipBlob = await zip.generateAsync({ type: "blob" });
+    const fechaStamp = new Date().toISOString().slice(0,10);
+    saveAs(zipBlob, `facturas_${fechaStamp}.zip`);
+
+    hideOverlayRevision();
+
+    if (fail > 0) {
+      alert(`Listo: ${ok} descargadas. ${fail} no se pudieron descargar (posible CORS o enlace inválido).`);
+    }
+  } catch (err) {
+    hideOverlayRevision();
+    console.error(err);
+    alert("Ocurrió un error al descargar el ZIP.");
+  }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  const btn = document.getElementById("btnDescargarZip");
+  if (btn) btn.addEventListener("click", descargarFacturasSeleccionadas);
+});
+</script>
 </body>
 </html>
