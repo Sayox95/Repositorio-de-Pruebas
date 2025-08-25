@@ -3150,7 +3150,7 @@ function toDirectDriveUrl(url) {
 // Pasa por el proxy para evitar CORS (el proxy debe agregar Access-Control-Allow-Origin:*)
 function proxied(url) {
   const origin = (window.CORS_PROXY_ORIGIN || "").replace(/\/+$/,"");
-  return `${origin}/?url=${encodeURIComponent(url)}`;
+  return `${origin}/proxy?url=${encodeURIComponent(url)}`;
 }
 
 async function fetchAsBlobViaProxy(url, tries = 2) {
@@ -3177,6 +3177,31 @@ function showOverlayRevision(text="Descargando…"){
   if (tx) tx.textContent = text;
   if (ov) ov.style.display = "flex";
 }
+
+
+async function fetchWithMeta(url, tries = 2) {
+  let lastErr;
+  for (let i=0;i<tries;i++) {
+    try {
+      const res = await fetch(proxied(url));
+      const headers = {};
+      res.headers.forEach((v,k)=> headers[k.toLowerCase()] = v);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const buf = await res.arrayBuffer();
+      const blob = new Blob([buf], { type: headers["content-type"] || "application/pdf" });
+      return { blob, headers, status: res.status };
+    } catch(e) {
+      lastErr = e;
+      await new Promise(r=>setTimeout(r, 600));
+    }
+  }
+  throw lastErr || new Error("No se pudo descargar");
+}
+
+function looksLikePdf(blob) {
+  return blob.slice(0,5).text().then(t => t === "%PDF-");
+}
+
 function hideOverlayRevision(){
   const ov = document.getElementById("overlayRevision");
   if (ov) ov.style.display = "none";
@@ -3220,6 +3245,7 @@ async function descargarFacturasSeleccionadas() {
 
     showOverlayRevision(`Descargando ${elegibles.length} PDF…`);
     const zip = new JSZip();
+    const reportLines = [];
     let ok=0, fail=0;
 
     for (let i=0;i<elegibles.length;i++){
@@ -3227,6 +3253,7 @@ async function descargarFacturasSeleccionadas() {
       const name = makePdfName(row, idx);
       try {
         const blob = await fetchAsBlobViaProxy(url, 2);
+        if (!(await looksLikePdf(blob))) { console.warn("No es PDF (se omite):", url); fail++; continue; }
         zip.file(name, blob);
         ok++;
         showOverlayRevision(`Descargados ${ok}/${elegibles.length}…`);
@@ -3249,6 +3276,168 @@ async function descargarFacturasSeleccionadas() {
     alert("Error al descargar el ZIP. Revisa el proxy CORS.");
   }
 }
+</script>
+
+
+<!-- === Botón Descargar Facturas (ZIP) — Sección: Pago de Facturas === -->
+<script>
+(function(){
+  function ensurePagoZipButton(){
+    // Contenedor cercano a botones masivos en Pago
+    var wrapper = document.getElementById("tablaPagoWrapper");
+    if(!wrapper) return null;
+
+    // Intentar colocar junto al botón "Pagar Facturas"
+    var pagarBtn = document.getElementById("btn-pagar-facturas");
+    if (document.getElementById("btn-descargar-pago-zip")) return pagarBtn; // ya existe
+
+    var btn = document.createElement("button");
+    btn.id = "btn-descargar-pago-zip";
+    btn.type = "button";
+    btn.textContent = "⬇️ Descargar Facturas";
+    // Mismo formato que el botón de Revisión
+    btn.style.cssText = "display:none; margin-left:10px; margin-bottom:10px; font-size:0.8rem !important; padding:2px 6px !important; height:24px !important; line-height:1 !important; background:#374151; color:#fff; border:0; border-radius:.25rem; cursor:pointer; white-space:nowrap;";
+    btn.addEventListener("click", descargarFacturasPagoSeleccionadas);
+
+    if (pagarBtn && pagarBtn.parentNode){
+      pagarBtn.parentNode.insertBefore(btn, pagarBtn.nextSibling);
+      return pagarBtn;
+    } else {
+      // Fallback: añadir al wrapper
+      wrapper.insertBefore(btn, wrapper.firstChild);
+      return null;
+    }
+  }
+
+  function showOverlayPago(text){
+    var ov = document.getElementById("overlayPago");
+    var tx = document.getElementById("overlayTextPago");
+    if (tx) tx.textContent = text || "Descargando…";
+    if (ov) ov.style.display = "flex";
+  }
+  function hideOverlayPago(){
+    var ov = document.getElementById("overlayPago");
+    if (ov) ov.style.display = "none";
+  }
+
+  function getSelectedPagoRows(){
+    // Tabulator en Pago
+    try{
+      if (window.tabulatorTable && typeof window.tabulatorTable.getSelectedData === "function"){
+        var data = window.tabulatorTable.getSelectedData() || [];
+        return Array.isArray(data) ? data : [];
+      }
+    }catch(_){}
+    // Fallback por tabla HTML
+    var out = [];
+    var tbody = document.querySelector("#tablaPagoFacturas tbody");
+    if (tbody){
+      tbody.querySelectorAll("tr").forEach(function(tr, i){
+        var chk = tr.querySelector('input[type="checkbox"]:checked');
+        if (!chk) return;
+        var link = tr.querySelector('a[href^="http"]');
+        out.push({
+          "Fecha": tr.children[8]?.textContent?.trim() || "",
+          "Placa": tr.children[3]?.textContent?.trim() || "",
+          "Numero de Factura": tr.children[9]?.textContent?.trim() || tr.children[9]?.innerText?.trim() || "",
+          "Enlace PDF": link ? link.href : ""
+        });
+      });
+    }
+    return out;
+  }
+
+  function togglePagoZipVisibility(count){
+    var btn = document.getElementById("btn-descargar-pago-zip");
+    if (!btn) return;
+    // Requisito: visible solo con 2 o más seleccionadas
+    btn.style.display = (count >= 2) ? "inline-block" : "none";
+  }
+
+  async function descargarFacturasPagoSeleccionadas(){
+    try{
+      var rows = getSelectedPagoRows();
+      var elegibles = rows.map(function(r,i){
+        var url = r["Enlace PDF"] || "";
+        return { row:r, idx:i, url: url ? toDirectDriveUrl(url) : null };
+      }).filter(function(x){ return !!x.url; });
+
+      if (!elegibles.length){
+        alert("No hay facturas seleccionadas con Enlace PDF en Pago.");
+        return;
+      }
+
+      showOverlayPago("Descargando " + elegibles.length + " PDF…");
+      var zip = new JSZip();
+      var ok=0, fail=0;
+
+      for (var i=0;i<elegibles.length;i++){
+        var item = elegibles[i];
+        // Reutilizamos el mismo nombre que en Revisión
+        var name = (function makeName(row, idx){
+          var numero = (row && (row["Numero de Factura"]||row["Número de Factura"])) || ("factura_" + (idx+1));
+          var placa  = row ? (row["Placa"] || "") : "";
+          var fecha  = row ? (row["Fecha"] || "") : "";
+          var safe = function(s){ return String(s||"").replace(/[^\w\-]+/g,'_'); };
+          return ( (fecha||"fecha").slice(0,10) + "_" + safe(placa||"placa") + "_" + safe(numero) + ".pdf");
+        })(item.row, item.idx);
+
+        try{
+          var blob = await fetchAsBlobViaProxy(item.url, 2);
+          // Validación igual que en Revisión
+          var head = await blob.slice(0,5).text();
+          if (head !== "%PDF-" || blob.size < 1024){
+            fail++;
+            continue;
+          }
+          zip.file(name, blob);
+          ok++;
+          showOverlayPago("Descargados " + ok + "/" + elegibles.length + "…");
+        }catch(e){
+          console.warn("Fallo al descargar (Pago):", item.url, e);
+          fail++;
+        }
+      }
+
+      showOverlayPago("Empaquetando ZIP…");
+      var zipBlob = await zip.generateAsync({type:"blob"});
+      var fechaStamp = new Date().toISOString().slice(0,10);
+      saveAs(zipBlob, "facturas_pago_" + fechaStamp + ".zip");
+      hideOverlayPago();
+      if (fail>0) alert("Descarga finalizada en Pago: " + ok + " ok, " + fail + " omitidas/erróneas.");
+    }catch(err){
+      console.error(err);
+      hideOverlayPago();
+      alert("Ocurrió un error al descargar el ZIP de Pago.");
+    }
+  }
+
+  // Esperar a que Tabulator de Pago exista para enganchar la visibilidad del botón
+  function hookSelectionListener(){
+    var pagarBtn = ensurePagoZipButton();
+    if (window.tabulatorTable && typeof window.tabulatorTable.on === "function"){
+      window.tabulatorTable.on("rowSelectionChanged", function(data, rows){
+        var count = (rows && rows.length) ? rows.length : (data ? data.length : 0);
+        togglePagoZipVisibility(count);
+      });
+      // Estado inicial
+      try {
+        var initial = window.tabulatorTable.getSelectedRows ? window.tabulatorTable.getSelectedRows().length : 0;
+        togglePagoZipVisibility(initial || 0);
+      } catch(_){ togglePagoZipVisibility(0); }
+      return true;
+    }
+    return false;
+  }
+
+  // Intentar varias veces post-DOM-ready
+  document.addEventListener("DOMContentLoaded", function(){
+    var tries = 0;
+    var iv = setInterval(function(){
+      if (hookSelectionListener() || (++tries > 60)) clearInterval(iv);
+    }, 150);
+  });
+})();
 </script>
 
 </body>
