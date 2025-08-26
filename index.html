@@ -1836,26 +1836,29 @@ document.getElementById('exportExcelBtn').addEventListener('click', function() {
         // Hoja de Detalle
 const headers = [
   "Sector","Placa","Proceso","Nombre","Identidad",
-  "Total Gastado","Fecha","Nombre del comercio","Numero de Factura","Enlace PDF","Estado"
+  "Total Gastado","Fecha","Nombre del comercio","Numero de Factura","Enlace PDF",
+  "Km Actual","Litros Consumidos","Estado"
 ];
 
-        const detalle = rows.map(r => ({
-          "Sector":            r.Sector ?? "",
-          "Placa":             r.Placa ?? "",
-          "Proceso":           r.Proceso ?? "",
-          "Nombre":            r.Nombre ?? "",
-          "Identidad":         r.Identidad ?? "",
-          "Total Gastado":     Number(r["Total Gastado"] ?? r.Total ?? r.Monto ?? 0),
-		  "Fecha": r.Fecha
-  ? (typeof r.Fecha === "string"
-      ? r.Fecha.slice(0,10)                       // "2025-06-06T..." -> "2025-06-06"
-      : new Date(r.Fecha).toISOString().slice(0,10)) // Date -> "2025-06-06"
-  : "",
-          "Nombre del comercio": r["Nombre del comercio"] ?? "",
-		  "Numero de Factura": r["Numero de Factura"] ?? "",
-          "Enlace PDF":        r["Enlace PDF"] ?? "",
-          "Estado":            r.Estado ?? ""
-        }));
+const detalle = rows.map(r => ({
+  "Sector":            r.Sector ?? "",
+  "Placa":             r.Placa ?? "",
+  "Proceso":           r.Proceso ?? "",
+  "Nombre":            r.Nombre ?? "",
+  "Identidad":         r.Identidad ?? "",
+  "Total Gastado":     Number(r["Total Gastado"] ?? r.Total ?? r.Monto ?? 0),
+  "Fecha":             r.Fecha
+                         ? (typeof r.Fecha === "string"
+                              ? r.Fecha.slice(0,10)
+                              : new Date(r.Fecha).toISOString().slice(0,10))
+                         : "",
+  "Nombre del comercio": r["Nombre del comercio"] ?? "",
+  "Numero de Factura":   r["Numero de Factura"] ?? "",
+  "Enlace PDF":          r["Enlace PDF"] ?? "",
+  "Km Actual":           r["Km Actual"] ?? "",        // <-- NUEVA
+  "Litros Consumidos":   r["Litros Consumidos"] ?? "",// <-- NUEVA
+  "Estado":              r.Estado ?? ""
+}));
         const wsDet = XLSX.utils.json_to_sheet(detalle, { header: headers });
         XLSX.utils.book_append_sheet(wb, wsDet, "Detalle");
 
