@@ -1400,16 +1400,17 @@ groupHeader:function(value, count, data, group){
           var v = cell.getValue();
           return v?`<a href="${v}" target="_blank">📄</a>`:"";
       }},
-{ title:"Estado", field:"Estado",
-  editor:"select",
-  editorParams:{ values:["Registrada","Revisada","Anulada","Pagada"] },
-  editable:function(cell){ return String(cell.getValue()||"").trim() !== "Pagada"; },
-  cellEdited:function(cell){
-    var d = cell.getRow().getData();
-    if (typeof actualizarEstadoIndividual === "function"){
-      actualizarEstadoIndividual(d.fila, cell.getValue());
-    }
- 
+        {title:"Estado", field:"Estado", hozAlign:"center",
+            formatter:function(cell){
+              var v = (cell.getValue()||"").toLowerCase();
+              return v==="pagada" ? "Pagado" : '<button class="btn-pagar">Pagar</button>';
+            },
+            cellClick:function(e, cell){
+              var v = (cell.getValue()||"").toLowerCase();
+              if(v === "pagada"){
+                // Ya pagada: no permitir acción
+                return;
+              }
                 // Forzar modo INDIVIDUAL: limpiar arreglo masivo antes de abrir modal.
  // Limpia cualquier selección múltiple
  selectedPagoRows = [];
@@ -3085,29 +3086,32 @@ window.updateCounterTotalesRevision = function(){
 </script>
 
 <script>
-// Patch (fixed): bloquear edición de Estado = "Pagada" en Revisión y mantener editor de lista para el resto
+// Patch: bloquear edición de Estado = "Pagada" en Revisión y mantener editor de lista para el resto
 document.addEventListener("DOMContentLoaded", function(){
-  function applyRevisionEstadoPatchFixed(){
+  function applyRevisionEstadoPatch(){
     try{
-      var table = window.tableRevision || window.table;
+      var table = window.tableRevision;
+      if (!table && window.Tabulator) {
+        var found = Tabulator.findTable("#tablaRevisionFacturas");
+        if (found && found.length) table = found[0];
+      }
       if (!table || typeof table.updateColumnDefinition !== "function") return false;
       table.updateColumnDefinition("Estado", {
         hozAlign: "center",
-        editor: "list",
-        editorParams: { values:["Registrada","Revisada","Anulada"], autocomplete:true },
-        editable: function(cell){
-          var v = String(cell.getValue() || "").trim();
-          return v !== "Pagada";
-        }
+        editor: function(cell){
+          var v = String((cell.getRow().getData().Estado || "")).trim();
+          if (v === "Pagada") return false; // bloquear si es Pagada
+          return "list";
+        },
+        editorParams: { values:["Registrada","Revisada","Anulada"], autocomplete:true }
       });
       return true;
     }catch(e){ return false; }
   }
   var tries = 0;
   var iv = setInterval(function(){
-    tries++;
-    if (applyRevisionEstadoPatchFixed() || tries > 20) clearInterval(iv);
-  }, 250);
+    if (applyRevisionEstadoPatch() || (++tries > 60)) clearInterval(iv);
+  }, 120);
 });
 </script>
 
@@ -3440,36 +3444,70 @@ async function descargarFacturasSeleccionadas() {
 </script>
 
 
-<!-- === Patch: Fix Tabulator editor for "Estado" and lock when Pagada === -->
+<!-- === Patch: Migrar "select" -> "list" y Estado bloqueado cuando "Pagada" === -->
 <script>
-(function(){
-  function applyEstadoFix(){
-    try {
-      if (window.table && typeof table.updateColumnDefinition === "function") {
+document.addEventListener("DOMContentLoaded", function(){
+  function migrateEditorsOn(table){
+    try{
+      var cols = table.getColumns();
+      cols.forEach(function(col){
+        var def = col.getDefinition ? col.getDefinition() : null;
+        if (!def) return;
+        // Detecta uso del editor "select" deprecado (string o función nombrada)
+        var isSelectName = def.editor === "select" ||
+          (typeof def.editor === "function" && (def.editor.name||"").toLowerCase() === "select");
+        if (isSelectName){
+          var field = col.getField ? col.getField() : (def.field || def.title);
+          var params = Object.assign({}, def.editorParams || {});
+          if (params.autocomplete === undefined) params.autocomplete = false; // evita escritura
+          // Aplica conversión a "list"
+          table.updateColumnDefinition(field, {
+            editor: "list",
+            editorParams: params
+          });
+        }
+      });
+
+      // Reglas específicas para "Estado" en Revisión: lista pura y bloqueo si "Pagada"
+      var estadoParams = { values:["Registrada","Revisada","Anulada"], autocomplete:false };
+      try{
         table.updateColumnDefinition("Estado", {
           editor: "list",
-          editorParams: { values:["Registrada","Revisada","Anulada"], autocomplete:true },
+          editorParams: estadoParams,
           editable: function(cell){
             var v = String(cell.getValue() || "").trim();
             return v !== "Pagada";
           }
         });
-      }
-    } catch (e) {
-      console.warn("Estado fix patch failed:", e);
+      }catch(e){ /* si no existe la columna, ignorar */ }
+    }catch(e){
+      console.warn("Editor migration error:", e);
     }
   }
-  // Run soon after load; also retry once in case table is created later.
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", function(){
-      applyEstadoFix();
-      setTimeout(applyEstadoFix, 500);
-    });
-  } else {
-    applyEstadoFix();
-    setTimeout(applyEstadoFix, 500);
-  }
-})();
+
+  // Busca tablas y aplica migración, con reintentos por si se crean tarde
+  var attempts = 0;
+  var iv = setInterval(function(){
+    try{
+      var applied = false;
+      if (window.tableRevision && typeof window.tableRevision.updateColumnDefinition === "function"){
+        migrateEditorsOn(window.tableRevision); applied = true;
+      }
+      if (window.Tabulator && typeof Tabulator.findTable === "function"){
+        var all = Tabulator.findTable && Tabulator.findTable("#tablaRevisionFacturas");
+        if (all && all.length){ migrateEditorsOn(all[0]); applied = true; }
+      }
+      // Si hay otras tablas globales conocidas, puedes añadirlas aquí:
+      if (window.table && typeof window.table.updateColumnDefinition === "function"){
+        migrateEditorsOn(window.table); applied = true;
+      }
+      if (applied || ++attempts > 40){ clearInterval(iv); }
+    }catch(e){
+      clearInterval(iv);
+      console.warn("Patch fatal:", e);
+    }
+  }, 250);
+});
 </script>
 </body>
 </html>
