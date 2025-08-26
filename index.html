@@ -1401,8 +1401,8 @@ groupHeader:function(value, count, data, group){
           return v?`<a href="${v}" target="_blank">📄</a>`:"";
       }},
 { title:"Estado", field:"Estado",
-  editor:"list",
-  editorParams:{ autocomplete:true,  values:["Registrada","Revisada","Anulada","Pagada"] },
+  editor:"select",
+  editorParams:{ values:["Registrada","Revisada","Anulada","Pagada"] },
   editable:function(cell){ return String(cell.getValue()||"").trim() !== "Pagada"; },
   cellEdited:function(cell){
     var d = cell.getRow().getData();
@@ -2205,7 +2205,7 @@ document.addEventListener('DOMContentLoaded',()=>{
           {title:'Fondo',field:'Fondo'},
           {title:'Deposito',field:'Deposito',formatter:'money',formatterParams:{symbol:'L ',precision:2}},
           {title:'Periodo',field:'Periodo'},
-          {title:'Estado',field:'Estado',editor:'list',editorParams:{ autocomplete:true, values:['Vigente','Aplicado','Anulado']},
+          {title:'Estado',field:'Estado',editor:'list',editorParams:{values:['Vigente','Aplicado','Anulado']},
             cellEdited:c=>{const r=c.getRow().getData();actualizarEstado(r.fila||r._fila,c.getValue());}}
         ]});
       }
@@ -3085,32 +3085,29 @@ window.updateCounterTotalesRevision = function(){
 </script>
 
 <script>
-// Patch: bloquear edición de Estado = "Pagada" en Revisión y mantener editor de lista para el resto
+// Patch (fixed): bloquear edición de Estado = "Pagada" en Revisión y mantener editor de lista para el resto
 document.addEventListener("DOMContentLoaded", function(){
-  function applyRevisionEstadoPatch(){
+  function applyRevisionEstadoPatchFixed(){
     try{
-      var table = window.tableRevision;
-      if (!table && window.Tabulator) {
-        var found = Tabulator.findTable("#tablaRevisionFacturas");
-        if (found && found.length) table = found[0];
-      }
+      var table = window.tableRevision || window.table;
       if (!table || typeof table.updateColumnDefinition !== "function") return false;
       table.updateColumnDefinition("Estado", {
         hozAlign: "center",
-        editor: function(cell){
-          var v = String((cell.getRow().getData().Estado || "")).trim();
-          if (v === "Pagada") return false; // bloquear si es Pagada
-          return "list";
-        },
-        editorParams: { values:["Registrada","Revisada","Anulada"], autocomplete:true }
+        editor: "list",
+        editorParams: { values:["Registrada","Revisada","Anulada"], autocomplete:true },
+        editable: function(cell){
+          var v = String(cell.getValue() || "").trim();
+          return v !== "Pagada";
+        }
       });
       return true;
     }catch(e){ return false; }
   }
   var tries = 0;
   var iv = setInterval(function(){
-    if (applyRevisionEstadoPatch() || (++tries > 60)) clearInterval(iv);
-  }, 120);
+    tries++;
+    if (applyRevisionEstadoPatchFixed() || tries > 20) clearInterval(iv);
+  }, 250);
 });
 </script>
 
@@ -3443,48 +3440,36 @@ async function descargarFacturasSeleccionadas() {
 </script>
 
 
-<!-- === Hotfix: Estado (Revisión) con editor select y bloqueo si es Pagada === -->
+<!-- === Patch: Fix Tabulator editor for "Estado" and lock when Pagada === -->
 <script>
-(function () {
-  function applyEstadoPatch() {
-    if (!window.tableRevision || typeof window.tableRevision.getColumn !== "function") return false;
-
-    const col = window.tableRevision.getColumn("Estado");
-    if (!col) return true; // Tabla existe pero sin columna Estado (no hay nada que hacer)
-
-    const def = col.getDefinition ? (col.getDefinition() || {}) : {};
-    const prevCellEdited = def.cellEdited;
-
-    col.updateDefinition({
-      editor:"list",
-      editorParams:{ autocomplete:true,  values: ["Registrada","Revisada","Anulada","Pagada"] },
-      editable: function (cell) {
-        return String(cell.getValue() || "").trim().toLowerCase() !== "pagada";
-      },
-      cellEdited: function (cell) {
-        // Ejecuta primero la lógica original si existía
-        try { if (typeof prevCellEdited === "function") prevCellEdited(cell); } catch (e) {}
-        // Persistencia como antes
-        const d = cell.getRow().getData();
-        if (typeof actualizarEstadoIndividual === "function") {
-          actualizarEstadoIndividual(d.fila, cell.getValue());
-        }
+(function(){
+  function applyEstadoFix(){
+    try {
+      if (window.table && typeof table.updateColumnDefinition === "function") {
+        table.updateColumnDefinition("Estado", {
+          editor: "list",
+          editorParams: { values:["Registrada","Revisada","Anulada"], autocomplete:true },
+          editable: function(cell){
+            var v = String(cell.getValue() || "").trim();
+            return v !== "Pagada";
+          }
+        });
       }
-    });
-
-    // Opcional: si había un formatter con botones, lo quitamos para permitir editar
-    try { col.updateDefinition({ formatter: undefined, cellClick: undefined }); } catch (e) {}
-    return true;
+    } catch (e) {
+      console.warn("Estado fix patch failed:", e);
+    }
   }
-
-  document.addEventListener("DOMContentLoaded", function () {
-    let tries = 0;
-    const iv = setInterval(function () {
-      if (applyEstadoPatch() || ++tries > 100) clearInterval(iv);
-    }, 150);
-  });
+  // Run soon after load; also retry once in case table is created later.
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", function(){
+      applyEstadoFix();
+      setTimeout(applyEstadoFix, 500);
+    });
+  } else {
+    applyEstadoFix();
+    setTimeout(applyEstadoFix, 500);
+  }
 })();
 </script>
-
 </body>
 </html>
