@@ -1503,7 +1503,11 @@ document.getElementById("btn-pagar-facturas").addEventListener("click", function
     var s = document.getElementById("filtroSectorPago").value;
     if(s!="Todos") filters.push({field:"Sector",type:"=",value:s});
     var e = document.getElementById("filtroEstadoPago").value;
-    if(e!="Todos") filters.push({field:"Estado",type:"=",value:e});
+    if(e!="Todos") filters.push({field:"Estado",type:"=",value:e, editable:function(cell){
+    var v = String(cell.getValue()||"").trim().toLowerCase();
+    return v !== "pagada" && v !== "pagado";
+  }
+});
     var n = document.getElementById("filtroNumeroPago").value;
     if(n) filters.push({field:"Numero de Factura",type:"like",value:n});
     var d = flatpickrPago.selectedDates || [];
@@ -1602,15 +1606,17 @@ document.getElementById('exportExcelBtn').addEventListener('click', function() {
           } },
                 { title:"Km Actual", field:"Km Actual", sorter:"number", hozAlign:"right", formatter:"money", formatterParams:{ precision:false, thousand:",", decimal:"." } },
         { title:"Litros Consumidos", field:"Litros Consumidos", sorter:"number", hozAlign:"right" },
-{ title:"Estado", field:"Estado",
-          editor:"list", editorParams:{ values:["Registrada","Revisada","Anulada"], autocomplete:true },
-          cellEdited:function(cell){
-            var d = cell.getRow().getData();
-            if (typeof actualizarEstadoIndividual === "function"){
-              actualizarEstadoIndividual(d.fila, cell.getValue());
-            }
-          }
-        },
+{ title:"Estado", field:"Estado", hozAlign:"center",
+  editor:"list",
+  editorParams:{ values:["Registrada","Revisada","Anulada"], autocomplete:false },
+  editable:function(cell){ var v=String(cell.getValue()||"").trim(); return v!=="Pagada"; },
+  cellEdited:function(cell){
+    var d = cell.getRow().getData();
+    if (typeof actualizarEstadoIndividual === "function"){
+      actualizarEstadoIndividual(d.fila, cell.getValue());
+    }
+  }
+},
       ],
     });
 
@@ -1911,7 +1917,8 @@ document.addEventListener("DOMContentLoaded", function(){
 
       // Estado
       var estado = (document.getElementById("filtroEstado")||{}).value || "";
-      if(estado && estado !== "Todos") filters.push({field:"Estado", type:"=", value:estado});
+      if(estado && estado !== "Todos") filters.push({field:"Estado", type:"=", value:estado, editable:function(cell){var v=String(cell.getValue()||"").trim();return v!=="Pagada";}
+});
 
       // Numero Factura
       var num = (document.getElementById("filtroNumeroFactura")||{}).value || "";
@@ -2206,7 +2213,7 @@ document.addEventListener('DOMContentLoaded',()=>{
           {title:'Fondo',field:'Fondo'},
           {title:'Deposito',field:'Deposito',formatter:'money',formatterParams:{symbol:'L ',precision:2}},
           {title:'Periodo',field:'Periodo'},
-          {title:'Estado',field:'Estado',editor:'list',editorParams:{values:['Vigente','Aplicado','Anulado']},
+          {title:'Estado',field:'Estado',editor:'list',editorParams:{autocomplete:false},editorParams:{autocomplete:false,values:['Vigente','Aplicado','Anulado']},
             cellEdited:c=>{const r=c.getRow().getData();actualizarEstado(r.fila||r._fila,c.getValue());}}
         ]});
       }
@@ -3096,15 +3103,7 @@ document.addEventListener("DOMContentLoaded", function(){
         if (found && found.length) table = found[0];
       }
       if (!table || typeof table.updateColumnDefinition !== "function") return false;
-      table.updateColumnDefinition("Estado", {
-        hozAlign: "center",
-        editor: function(cell){
-          var v = String((cell.getRow().getData().Estado || "")).trim();
-          if (v === "Pagada") return false; // bloquear si es Pagada
-          return "list";
-        },
-        editorParams: { values:["Registrada","Revisada","Anulada"], autocomplete:true }
-      });
+      table.updateColumnDefinition("Estado", { editor:"list", editorParams:{ values:["Registrada","Revisada","Anulada"], autocomplete:false }, editable:function(cell){ var v=String(cell.getValue()||"").trim().toLowerCase(); return v!=="pagada" && v!=="pagado"; } });
       return true;
     }catch(e){ return false; }
   }
@@ -3443,71 +3442,5 @@ async function descargarFacturasSeleccionadas() {
 })();
 </script>
 
-
-<!-- === Patch: Migrar "select" -> "list" y Estado bloqueado cuando "Pagada" === -->
-<script>
-document.addEventListener("DOMContentLoaded", function(){
-  function migrateEditorsOn(table){
-    try{
-      var cols = table.getColumns();
-      cols.forEach(function(col){
-        var def = col.getDefinition ? col.getDefinition() : null;
-        if (!def) return;
-        // Detecta uso del editor "select" deprecado (string o función nombrada)
-        var isSelectName = def.editor === "select" ||
-          (typeof def.editor === "function" && (def.editor.name||"").toLowerCase() === "select");
-        if (isSelectName){
-          var field = col.getField ? col.getField() : (def.field || def.title);
-          var params = Object.assign({}, def.editorParams || {});
-          if (params.autocomplete === undefined) params.autocomplete = false; // evita escritura
-          // Aplica conversión a "list"
-          table.updateColumnDefinition(field, {
-            editor: "list",
-            editorParams: params
-          });
-        }
-      });
-
-      // Reglas específicas para "Estado" en Revisión: lista pura y bloqueo si "Pagada"
-      var estadoParams = { values:["Registrada","Revisada","Anulada"], autocomplete:false };
-      try{
-        table.updateColumnDefinition("Estado", {
-          editor: "list",
-          editorParams: estadoParams,
-          editable: function(cell){
-            var v = String(cell.getValue() || "").trim();
-            return v !== "Pagada";
-          }
-        });
-      }catch(e){ /* si no existe la columna, ignorar */ }
-    }catch(e){
-      console.warn("Editor migration error:", e);
-    }
-  }
-
-  // Busca tablas y aplica migración, con reintentos por si se crean tarde
-  var attempts = 0;
-  var iv = setInterval(function(){
-    try{
-      var applied = false;
-      if (window.tableRevision && typeof window.tableRevision.updateColumnDefinition === "function"){
-        migrateEditorsOn(window.tableRevision); applied = true;
-      }
-      if (window.Tabulator && typeof Tabulator.findTable === "function"){
-        var all = Tabulator.findTable && Tabulator.findTable("#tablaRevisionFacturas");
-        if (all && all.length){ migrateEditorsOn(all[0]); applied = true; }
-      }
-      // Si hay otras tablas globales conocidas, puedes añadirlas aquí:
-      if (window.table && typeof window.table.updateColumnDefinition === "function"){
-        migrateEditorsOn(window.table); applied = true;
-      }
-      if (applied || ++attempts > 40){ clearInterval(iv); }
-    }catch(e){
-      clearInterval(iv);
-      console.warn("Patch fatal:", e);
-    }
-  }, 250);
-});
-</script>
 </body>
 </html>
