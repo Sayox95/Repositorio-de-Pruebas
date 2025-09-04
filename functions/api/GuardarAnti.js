@@ -1,6 +1,6 @@
 // POST  /api/GuardarAnti  →  Proxy a Apps Script (registrar o actualizar)
 const GAS_URL =
-  "https://script.google.com/macros/s/AKfycbz1cq35rauGnov1RaxhOgtRSoBhraLM4BCe4eHC6jUsSKR_xPKVDVKtSKuwQwy-jW0C/exec";
+  "https://script.google.com/macros/s/AKfycbzihNcwIOKVBGJsmbqakLGY5f7Ul5NHgLm4riUm8xGbXCu0hhHZy-T8BZ4YiVaxZfLMsw/exec";
 
 export async function onRequestPost({ request }) {
   const origin = request.headers.get("Origin") || "*";
