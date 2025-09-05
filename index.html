@@ -948,7 +948,22 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 </script>
 
+<script>
+function regresarAlMenu() {
+  // Oculta ambas secciones y muestra menú principal
+  document.getElementById('seccionRevisionFacturas').style.display = 'none';
+  document.getElementById('menuPrincipal').style.display = 'flex';
+  // Limpia tablas y formularios
+  const encabezado = document.getElementById('encabezadoTabla');
+  const cuerpo = document.getElementById('cuerpoTabla');
+  if (encabezado) encabezado.innerHTML = '';
+  if (cuerpo) cuerpo.innerHTML = '';
+  const form = document.getElementById('formulario_contenido');
+  if (form) form.style.display = 'none';
 
+  try { navigateTo('/'); } catch(e) {}
+}
+</script>
 <script>
 function actualizarVisibilidadBotonesMasivos() {
   // contenedor de los botones masivos en Revisión
@@ -1663,7 +1678,7 @@ document.getElementById('exportExcelBtn').addEventListener('click', function() {
         if (window.tableRevision && typeof window.tableRevision.clearFilter === "function"){
           window.tableRevision.clearFilter(true);
         }
-      } catch(_) {}
+      } catch(e) {}
     
 });
       }
@@ -2900,23 +2915,23 @@ function resetRevisionUI() {
     const s = document.getElementById("filtroSector");  if (s) s.value = "";
     const e = document.getElementById("filtroEstado");  if (e) e.value = "";
     const n = document.getElementById("filtroNumeroFactura"); if (n) n.value = "";
-  } catch(_) {}
+  } catch(e) {}
 
-  try { if (window.flatpickrRevision) window.flatpickrRevision.clear(); } catch(_) {}
+  try { if (window.flatpickrRevision) window.flatpickrRevision.clear(); } catch(e) {}
 
   try {
     if (window.tableRevision) {
       window.tableRevision.clearFilter(true);
       window.tableRevision.clearSort();
       window.tableRevision.deselectRow();
-      try { window.tableRevision.setGroupBy(false); } catch(_) {}
+      try { window.tableRevision.setGroupBy(false); } catch(e) {}
     }
-  } catch(_) {}
+  } catch(e) {}
 
   try {
     const cont = document.getElementById("accionesMasivas");
     if (cont) cont.style.display = "none";
-  } catch(_) {}
+  } catch(e) {}
 
   try {
     const cR = document.getElementById("counterRegistradas");
@@ -2925,7 +2940,7 @@ function resetRevisionUI() {
     if (cR) cR.textContent = "0";
     if (cV) cV.textContent = "0";
     if (cA) cA.textContent = "0";
-  } catch(_) {}
+  } catch(e) {}
 }
 </script>
 <script>
@@ -2977,7 +2992,7 @@ function resetRevisionUI() {
           if (cell && cell.getField && cell.getField() === "Estado"){
             updateEstadoFilterOptionsFromTable();
           }
-        }catch(_){}
+        }catch(e){}
       });
       window.tableRevision.on("dataChanged", function(){
         updateEstadoFilterOptionsFromTable();
@@ -3284,7 +3299,7 @@ async function descargarFacturasSeleccionadas() {
         var data = window.tabulatorTable.getSelectedData() || [];
         return Array.isArray(data) ? data : [];
       }
-    }catch(_){}
+    }catch(e){}
     // Fallback por tabla HTML
     var out = [];
     var tbody = document.querySelector("#tablaPagoFacturas tbody");
@@ -3381,7 +3396,7 @@ async function descargarFacturasSeleccionadas() {
       try {
         var initial = window.tabulatorTable.getSelectedRows ? window.tabulatorTable.getSelectedRows().length : 0;
         togglePagoZipVisibility(initial || 0);
-      } catch(_){ togglePagoZipVisibility(0); }
+      } catch(e){ togglePagoZipVisibility(0); }
       return true;
     }
     return false;
@@ -3461,76 +3476,126 @@ async function descargarFacturasSeleccionadas() {
 })();
 </script>
 
+</body>
+</html>
 
-<!-- === Router Resets + Enter Hooks (safe append) === -->
+
+<!-- === Centralized resets + router enter hooks (non-invasive overrides) === -->
 <script>
 (function(){
-  // Centralized resets
-  function resetRevision(){
-    ["filtroSector","filtroEstado","filtroNumeroFactura","filtroPlaca"].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=""; });
-    if (window.flatpickr && window.flatpickr.l10ns && document.getElementById("rangoFechas")) {
-      try { flatpickr("#rangoFechas").clear(); } catch(_){}
-    }
-    ["counterTotales","counterRegistradas","counterRevisadas","counterAnuladas"].forEach(id=>{ const el=document.getElementById(id); if(el) el.textContent = (id==="counterTotales"?"L 0.00":"0"); });
-    if (window.tableRevision){ try{ tableRevision.clearFilter(true); tableRevision.clearSort(); tableRevision.clearData(); }catch(_){ } }
-    const mas = document.getElementById("accionesMasivas"); if (mas) mas.style.display = "none";
-    const ov  = document.getElementById("overlayRevision"); if (ov) ov.style.display = "none";
-  }
-  function resetPago(){
-    const s = document.getElementById("filtroSectorPago"); if (s) s.value = "Todos";
-    const e = document.getElementById("filtroEstadoPago"); if (e) e.value = "Todos";
-    const n = document.getElementById("filtroNumeroPago"); if (n) n.value = "";
-    try { if (window.flatpickrPago && typeof flatpickrPago.clear==="function") flatpickrPago.clear(); } catch(_){}
-    const map = { contadorPendientes:"0", contadorPagadas:"0", totalRevisada:"L 0.00", totalPagada:"L 0.00" };
-    Object.entries(map).forEach(([id,val])=>{ const el=document.getElementById(id); if(el) el.textContent=val; });
-    if (window.tabulatorTable){ try{ window.tabulatorTable.clearFilter?.(true); window.tabulatorTable.clearSort?.(); window.tabulatorTable.clearData?.(); }catch(_){ } }
-    const ov = document.getElementById("overlayPago"); if (ov) ov.style.display = "none";
-    const ft = document.getElementById("facturas-table"); if (ft) ft.style.display = "block";
-  }
-  function resetAnticipos(){
-    ["filterSectorAnt","filterPeriodoAnt","antSector","antFondo","antDeposito","antPeriodo"].forEach(id=>{ const el=document.getElementById(id); if(!el) return; if(el.tagName==="INPUT") el.value=""; else el.value=""; });
-    const totals = { antTotal:"L 0.00", antSaldo:"L 0.00" };
-    Object.entries(totals).forEach(([id,val])=>{ const el=document.getElementById(id); if (el) el.textContent = val; });
-    if (window.tablaAnticipos){ try{ tablaAnticipos.clearData?.(); tablaAnticipos.clearFilter?.(true); tablaAnticipos.clearSort?.(); }catch(_){ } }
-    const ov = document.getElementById("overlayAnt"); if (ov) ov.style.display = "none";
-  }
-
-  // Helper to show only one section
-  function showOnly(selector){
-    const ids = ["#menuPrincipal","#seccionRevisionFacturas","#seccionPagoFacturas","#registrarAnticipo"];
-    ids.forEach(sel => {
-      const el = document.querySelector(sel);
-      if (!el) return;
-      el.style.display = (sel === selector) ? (sel==="#menuPrincipal"?"flex":"block") : "none";
+  // === Helpers ===
+  function qs(id){ return document.getElementById(id); }
+  function showOnly(sel){
+    var all = ["#menuPrincipal","#seccionRevisionFacturas","#seccionPagoFacturas","#registrarAnticipo"];
+    all.forEach(function(s){
+      var n = document.querySelector(s);
+      if (n) n.style.display = (s===sel) ? (s==="#menuPrincipal" ? "flex" : "block") : "none";
     });
   }
 
-  // Lightweight router config (non-destructive)
-  const routerConfig = {
-    "/":          { el:"#menuPrincipal",         enter: null },
+  // === Resets ===
+  function resetRevision(){
+    // Filtros
+    ["filtroSector","filtroEstado","filtroNumeroFactura","filtroPlaca"].forEach(function(id){
+      var el = qs(id); if (el) el.value = "";
+    });
+    if (window.flatpickr && window.flatpickr.l10ns && window.flatpickrRevision && typeof window.flatpickrRevision.clear==="function"){
+      try { window.flatpickrRevision.clear(); } catch(_){}
+    }
+    // Contadores
+    var counters = { counterTotales:"0", counterRegistradas:"0", counterRevisadas:"0", counterAnuladas:"0" };
+    Object.keys(counters).forEach(function(id){
+      var el = qs(id); if (el) el.textContent = counters[id];
+    });
+    // Tabla (Tabulator)
+    if (window.tableRevision){
+      try {
+        window.tableRevision.clearFilter(true);
+        window.tableRevision.clearSort();
+        window.tableRevision.clearData();
+      } catch(_){}
+    }
+    // Overlays/botones
+    var mas = qs("accionesMasivas"); if (mas) mas.style.display = "none";
+    var ov  = qs("overlayRevision"); if (ov) ov.style.display = "none";
+  }
+
+  function resetPago(){
+    var s = qs("filtroSectorPago"); if (s) s.value = "Todos";
+    var e = qs("filtroEstadoPago"); if (e) e.value = "Todos";
+    var n = qs("filtroNumeroPago"); if (n) n.value = "";
+    // Flatpickr
+    try {
+      if (window.flatpickrPago && typeof window.flatpickrPago.clear==="function") window.flatpickrPago.clear();
+    } catch(_){}
+    // Contadores
+    var counters = { contadorPendientes:"0", contadorPagadas:"0", totalRevisada:"L 0.00", totalPagada:"L 0.00" };
+    Object.keys(counters).forEach(function(id){
+      var el = qs(id); if (el) el.textContent = counters[id];
+    });
+    // Tabulator/tabla
+    if (window.tabulatorTable){
+      try{
+        window.tabulatorTable.clearFilter && window.tabulatorTable.clearFilter(true);
+        window.tabulatorTable.clearSort && window.tabulatorTable.clearSort();
+        window.tabulatorTable.clearData && window.tabulatorTable.clearData();
+      }catch(_){}
+    }
+    var ov = qs("overlayPago"); if (ov) ov.style.display = "none";
+    var ft = qs("facturas-table"); if (ft) ft.style.display = "block";
+  }
+
+  function resetAnticipos(){
+    ["filterSectorAnt","filterPeriodoAnt","antSector","antFondo","antDeposito","antPeriodo"].forEach(function(id){
+      var el = qs(id); if (!el) return;
+      if (el.tagName==="INPUT") el.value = ""; else el.value = "";
+    });
+    var totals = { antTotal:"L 0.00", antSaldo:"L 0.00" };
+    Object.keys(totals).forEach(function(id){
+      var el = qs(id); if (el) el.textContent = totals[id];
+    });
+    if (window.tablaAnticipos){
+      try{
+        window.tablaAnticipos.clearData && window.tablaAnticipos.clearData();
+        window.tablaAnticipos.clearFilter && window.tablaAnticipos.clearFilter(true);
+        window.tablaAnticipos.clearSort && window.tablaAnticipos.clearSort();
+      }catch(_){}
+    }
+    var ov = qs("overlayAnt"); if (ov) ov.style.display = "none";
+  }
+
+  // === Router (enter hooks) ===
+  var routes = {
+    "/":          { el:"#menuPrincipal",           enter: null },
     "/revision":  { el:"#seccionRevisionFacturas", enter: resetRevision },
     "/pago":      { el:"#seccionPagoFacturas",     enter: resetPago },
     "/anticipos": { el:"#registrarAnticipo",       enter: resetAnticipos },
   };
 
-  // Safe render override
-  const _render = function(){
-    const path = window.location && routerConfig[window.location.pathname] ? window.location.pathname : "/";
-    const route = routerConfig[path] || routerConfig["/"];
-    try { if (typeof route.enter === "function") route.enter(); } catch(err){ console.error("enter hook error:", err); }
+  function render(){
+    var path = routes[location.pathname] ? location.pathname : "/";
+    var route = routes[path];
+    if (route.enter) { try { route.enter(); } catch(e){ console.error("reset error", e); } }
     showOnly(route.el);
-  };
+  }
 
-  // Safe navigateTo override
+  // Override navigateTo (late-binding, after original definitions)
   window.navigateTo = function(path){
-    try { history.pushState({}, "", path); } catch(_) { window.location.assign(path); return; }
-    _render();
+    try { history.pushState({}, "", path); } catch(e){ location.hash = "#"+path; }
+    render();
   };
 
-  // popstate + initial mount
-  window.addEventListener("popstate", _render);
-  document.addEventListener("DOMContentLoaded", _render);
+  // Optional: override mostrarSeccion to route instead of manual DOM toggles (for consistency)
+  window.mostrarSeccion = function(nombre){
+    if (nombre === "menuPrincipal") return navigateTo("/");
+    if (nombre === "revisionFacturas") return navigateTo("/revision");
+    if (nombre === "seccionPagoFacturas" || nombre === "pago") return navigateTo("/pago");
+    if (nombre === "registrarAnticipo" || nombre === "anticipos") return navigateTo("/anticipos");
+    // fallback: just show by id
+    showOnly("#"+nombre);
+  };
+
+  window.addEventListener("popstate", render);
+  document.addEventListener("DOMContentLoaded", render);
 })();
 </script>
-</body>
-</html>
