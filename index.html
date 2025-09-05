@@ -103,7 +103,7 @@
 })();
 </script>
 <!-- ==== end unload interception Patch v26 ==== -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script defer>
 <style>
   /* Global button styles for mobile friendliness */
   button {
@@ -416,8 +416,8 @@
 </style>
 <div id="toast-alert">⚠️ Hay campos obligatorios sin completar.</div>
 <!-- ==== Registrar Anticipo ==== -->
-<section id="registrarAnticipo" style="display:none;flex-direction:column;gap:1rem;padding:1rem;align-items:center;">
-<button id="btnBackAnt" style="align-self:flex-start;" onclick="navigateTo('/')">←  Regresar al Menú Principal</button>
+<section id="registrarAnticipo"  hidden>
+<button id="btnBackAnt" style="align-self:flex-start;">← Volver</button>
 <h2>Registrar Anticipo</h2>
   <!-- Cortar desde aquí ↓↓ -->
   <div id="filtrosAnt" style="display:flex;gap:1rem;align-items:center;margin:1rem 0;">
@@ -525,8 +525,8 @@
   animation: fadeInDown 0.3s ease-out forwards;
 }
 </style>
-<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
-<script src="https://unpkg.com/blueimp-load-image/js/load-image.all.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js" defer></script defer>
+<script src="https://unpkg.com/blueimp-load-image/js/load-image.all.min.js" defer></script defer>
 <!-- Custom Header Styles -->
 <style>
     .custom-header {
@@ -581,11 +581,10 @@
 </style>
 <!-- flatpickr CSS & JS -->
 <link href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" rel="stylesheet"/>
-<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr" defer></script defer>
 <!-- Tabulator CSS & JS -->
 <link href="https://unpkg.com/tabulator-tables@5.5.0/dist/css/tabulator.min.css" rel="stylesheet"/>
-<script src="https://unpkg.com/tabulator-tables@5.5.0/dist/js/tabulator.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/es.js"></script>
+<script src="https://unpkg.com/tabulator-tables@5.5.0/dist/js/tabulator.min.js" defer></script defer>
 <style>
 @keyframes spinner {
   to { transform: rotate(360deg); }
@@ -723,6 +722,7 @@
   }
 </style>
 
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 </head>
 <body>
 <div id="overlayCambios">
@@ -731,10 +731,10 @@
 </div>
 <div id="menuPrincipal" style="display: flex; flex-direction: column; align-items: center; margin-top: 50px; gap:20px;">
 <h2>Seleccione una opción</h2>
-<button onclick="navigateTo('/revision')" style="width: 250px;  padding: 10px;">🔍 Revisión de Facturas</button>
-<button onclick="navigateTo('/pago')" style="width: 250px;  padding: 10px;">💳 Pago de Facturas</button>
-<button id="btnIrRegistrarAnticipo" style="width:250px;padding:10px; onclick="navigateTo('/anticipos')">💵 Registrar Anticipo</button></div><div id="seccionPagoFacturas" style="display: none;">
-<button onclick="navigateTo('/')" style="height:24px; line-height:1; padding: 0.25rem 0.5rem; display: flex; align-items: center; justify-content: center;"><span style="margin-right: 0.5rem;">←</span>Regresar al Menú Principal</button><h2>Pago de Facturas</h2>
+<button onclick="cargarRevisionFacturas()" style="width: 250px;  padding: 10px;">🔍 Revisión de Facturas</button>
+<button onclick="cargarPagoFacturas()" style="width: 250px;  padding: 10px;">💳 Pago de Facturas</button>
+<button id="btnIrRegistrarAnticipo" style="width:250px;padding:10px;">💵 Registrar Anticipo</button></div><div id="seccionPagoFacturas" style="display: none;">
+<button onclick="mostrarSeccion('menuPrincipal')" style="height:24px; line-height:1; padding: 0.25rem 0.5rem; display: flex; align-items: center; justify-content: center;"><span style="margin-right: 0.5rem;">←</span>Regresar al Menú Principal</button><h2>Pago de Facturas</h2>
 <div id="countersContainer">
 <div class="counter-box"><span class="label">Facturas Pendientes</span><span class="value" id="contadorPendientes">0</span></div>
 <div class="counter-box"><span class="label">Facturas Pagadas</span><span class="value" id="contadorPagadas">0</span></div>
@@ -831,8 +831,9 @@
   }
 </style>
 <div id="seccionRevisionFacturas" style="display: none; padding: 1rem;">
-<button class="btn btn-secondary mb-3" onclick="navigateTo('/')" type="button">
-    ←  Regresar al Menú Principal</button>
+<button class="btn btn-secondary mb-3" onclick="regresarAlMenu()" type="button">
+    ← Volver al Menú Principal
+  </button>
 <h2 style="margin-bottom: 1rem;">📄 Revisión de Facturas</h2>
 <div id="countersRow">
 <div class="counter-box">
@@ -960,8 +961,6 @@ function regresarAlMenu() {
   if (cuerpo) cuerpo.innerHTML = '';
   const form = document.getElementById('formulario_contenido');
   if (form) form.style.display = 'none';
-
-  try { navigateTo('/'); } catch(e) {}
 }
 </script>
 <script>
@@ -1017,12 +1016,51 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 <script>
+document.addEventListener("DOMContentLoaded", () => {
+  const btnRegresarPago = document.querySelector("#seccionPagoFacturas button");
+  if (btnRegresarPago && btnRegresarPago.textContent.includes("Regresar al Menú Principal")) {
+    btnRegresarPago.addEventListener("click", () => {
+
+      // Ocultar la sección de pago si sigue visible
+      const pagoSection = document.getElementById("seccionPagoFacturas");
+      if (pagoSection) {
+        pagoSection.style.display = "none";
+      }
+
+      // Ocultar cualquier otra sección activa
+      document.querySelectorAll(".seccion").forEach(seccion => {
+        if (seccion !== pagoSection) {
+          seccion.style.display = "none";
+        }
+      });
+
+      // Mostrar el menú y restaurar su formato visual
+      const menu = document.getElementById("menuPrincipal");
+      if (menu) {
+        menu.style.display = "flex";
+        menu.style.flexDirection = "column";
+        menu.style.alignItems = "center";
+        menu.style.justifyContent = "center";
+        menu.style.gap = "20px";
+      }
+    });
+  }
+});
+</script><script>
 function toggleAllPagoCheckboxes(source) {
   const checkboxes = document.querySelectorAll(".check-factura-pago");
   checkboxes.forEach(cb => cb.checked = source.checked);
 }
 
 function cargarPagoFacturas() {
+if (window.__enteredOnce && window.__enteredOnce['cargarPagoFacturas']) {
+  try { if (typeof window.updateCounters==='function') window.updateCounters(); } catch(_){
+  }
+  return;
+}
+window.__enteredOnce = window.__enteredOnce || Object.create(null);
+window.__enteredOnce['cargarPagoFacturas'] = true;
+
   // Mostrar overlay con texto según carga
   const overlay = document.getElementById("overlayPago");
   const textEl = document.getElementById("overlayTextPago");
@@ -1224,7 +1262,7 @@ function aplicarFiltrosPago() {
 }
 // Inicializar filtros y flatpickr
 document.addEventListener('DOMContentLoaded', () => {
-  window.flatpickrPago = flatpickr('#filtroFechaPago', { mode:'range', dateFormat:'d/m/Y', locale:flatpickr.l10ns.es, onChange: aplicarFiltrosPago });
+  window.flatpickrPago = flatpickr('#filtroFechaPago', { mode:'range', dateFormat:'d/m/Y', onChange: aplicarFiltrosPago });
   document.getElementById('filtroSectorPago').addEventListener('change', aplicarFiltrosPago);
   document.getElementById('filtroEstadoPago').addEventListener('change', aplicarFiltrosPago);
   document.getElementById('filtroNumeroPago').addEventListener('input', aplicarFiltrosPago);
@@ -1268,8 +1306,7 @@ document.addEventListener("DOMContentLoaded", function(){
 
   // Init flatpickr
   window.flatpickrPago = flatpickr("#filtroFechaPago", {
-    mode: "range", dateFormat: "Y-m-d", locale: flatpickr.l10ns.es,
-    onClose: function(){ window.applyFilters(); }
+    mode: "range", dateFormat: "Y-m-d", onClose: function(){ window.applyFilters(); }
   });
 
   // Create Tabulator
@@ -1500,17 +1537,9 @@ document.getElementById("btn-pagar-facturas").addEventListener("click", function
   };
 
   // Update counters
-  function updateCounters(){
-    var data = table.getData("active"), p=0, g=0, sp=0, sg=0;
-    data.forEach(r=>{
-      if(r.Estado==="Revisada"){p++; sp+=parseFloat(r["Total Gastado"]||0);}
-      if(r.Estado==="Pagada"){g++; sg+=parseFloat(r["Total Gastado"]||0);}
-    });
-    document.getElementById("contadorPendientes").textContent = p;
-    document.getElementById("contadorPagadas").textContent   = g;
-    document.getElementById("totalRevisada").textContent    = "L "+sp.toLocaleString("es-HN",{minimumFractionDigits:2});
-    document.getElementById("totalPagada").textContent      = "L "+sg.toLocaleString("es-HN",{minimumFractionDigits:2});
-  }
+ 
+/* Removed duplicate function updateCounters */
+
 
   // Hook filters
   ["filtroSectorPago","filtroEstadoPago"].forEach(id=>{
@@ -1678,7 +1707,7 @@ document.getElementById('exportExcelBtn').addEventListener('click', function() {
         if (window.tableRevision && typeof window.tableRevision.clearFilter === "function"){
           window.tableRevision.clearFilter(true);
         }
-      } catch(e) {}
+      } catch(_) {}
     
 });
       }
@@ -1708,7 +1737,6 @@ document.getElementById('exportExcelBtn').addEventListener('click', function() {
       window.flatpickrRevision = flatpickr("#rangoFechas", {
         mode: "range",
         dateFormat: "Y-m-d",
-        locale: flatpickr.l10ns.es,
         onClose: function(selectedDates){
           tableRevision.clearFilter(true);
           if (selectedDates.length === 2){
@@ -1869,7 +1897,6 @@ document.addEventListener("DOMContentLoaded", function(){
         window.flatpickrRevision = flatpickr(dateInput,{
           mode:"range",
           dateFormat:"Y-m-d",
-          locale: flatpickr.l10ns.es,
           onClose: function(){ applyFiltersRevision(); }
         });
     }else{
@@ -2303,6 +2330,14 @@ function updateCountersRevision(){
 }
 // Botón o evento para entrar a sección
 function cargarRevisionFacturas(){
+if (window.__enteredOnce && window.__enteredOnce['cargarRevisionFacturas']) {
+  try { if (typeof window.updateCounters==='function') window.updateCounters(); } catch(_){
+  }
+  return;
+}
+window.__enteredOnce = window.__enteredOnce || Object.create(null);
+window.__enteredOnce['cargarRevisionFacturas'] = true;
+
   mostrarSeccion('revisionFacturas');
   const overlay = document.getElementById('overlayRevision');
   const textEl = document.getElementById('overlayTextRevision');
@@ -2915,23 +2950,23 @@ function resetRevisionUI() {
     const s = document.getElementById("filtroSector");  if (s) s.value = "";
     const e = document.getElementById("filtroEstado");  if (e) e.value = "";
     const n = document.getElementById("filtroNumeroFactura"); if (n) n.value = "";
-  } catch(e) {}
+  } catch(_) {}
 
-  try { if (window.flatpickrRevision) window.flatpickrRevision.clear(); } catch(e) {}
+  try { if (window.flatpickrRevision) window.flatpickrRevision.clear(); } catch(_) {}
 
   try {
     if (window.tableRevision) {
       window.tableRevision.clearFilter(true);
       window.tableRevision.clearSort();
       window.tableRevision.deselectRow();
-      try { window.tableRevision.setGroupBy(false); } catch(e) {}
+      try { window.tableRevision.setGroupBy(false); } catch(_) {}
     }
-  } catch(e) {}
+  } catch(_) {}
 
   try {
     const cont = document.getElementById("accionesMasivas");
     if (cont) cont.style.display = "none";
-  } catch(e) {}
+  } catch(_) {}
 
   try {
     const cR = document.getElementById("counterRegistradas");
@@ -2940,7 +2975,7 @@ function resetRevisionUI() {
     if (cR) cR.textContent = "0";
     if (cV) cV.textContent = "0";
     if (cA) cA.textContent = "0";
-  } catch(e) {}
+  } catch(_) {}
 }
 </script>
 <script>
@@ -2992,7 +3027,7 @@ function resetRevisionUI() {
           if (cell && cell.getField && cell.getField() === "Estado"){
             updateEstadoFilterOptionsFromTable();
           }
-        }catch(e){}
+        }catch(_){}
       });
       window.tableRevision.on("dataChanged", function(){
         updateEstadoFilterOptionsFromTable();
@@ -3086,8 +3121,8 @@ document.addEventListener("DOMContentLoaded", function(){
 
 
 <!-- === Descargas ZIP con proxy CORS (JSZip + FileSaver) === -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" crossorigin="anonymous"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" crossorigin="anonymous" defer></script defer>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js" crossorigin="anonymous" defer></script defer>
 <script>
 // ====== CONFIGURA TU PROXY AQUÍ ======
 // Cambia esto por tu Worker de Cloudflare o Pages Function que reenvía con CORS permitido.
@@ -3299,7 +3334,7 @@ async function descargarFacturasSeleccionadas() {
         var data = window.tabulatorTable.getSelectedData() || [];
         return Array.isArray(data) ? data : [];
       }
-    }catch(e){}
+    }catch(_){}
     // Fallback por tabla HTML
     var out = [];
     var tbody = document.querySelector("#tablaPagoFacturas tbody");
@@ -3396,7 +3431,7 @@ async function descargarFacturasSeleccionadas() {
       try {
         var initial = window.tabulatorTable.getSelectedRows ? window.tabulatorTable.getSelectedRows().length : 0;
         togglePagoZipVisibility(initial || 0);
-      } catch(e){ togglePagoZipVisibility(0); }
+      } catch(_){ togglePagoZipVisibility(0); }
       return true;
     }
     return false;
@@ -3414,188 +3449,193 @@ async function descargarFacturasSeleccionadas() {
 
 
 <script>
-// ======= Minimal History API Router (no style changes) =======
 (function(){
-  const routes = {
-    "/": function(){ 
-      // Show menu only
-      showOnly("menuPrincipal");
-    },
-    "/revision": function(){
-      showOnly("seccionRevisionFacturas");
-      if (typeof cargarRevisionFacturas === "function") {
-        try { cargarRevisionFacturas(); } catch(e){ console.error(e); }
-      }
-    },
-    "/pago": function(){
-      showOnly("seccionPagoFacturas");
-      if (typeof cargarPagoFacturas === "function") {
-        try { cargarPagoFacturas(); } catch(e){ console.error(e); }
-      }
-    },
-    "/anticipos": function(){
-      showOnly("registrarAnticipo");
-      // Si tienes una función para cargar anticipos, ejecútala aquí.
-      // (dejamos el comportamiento actual tal cual)
-    }
+  const VIEWS = {
+    menu:            {el: '#menuPrincipal'},
+    revision:        {el: '#seccionRevision'},
+    pago:            {el: '#seccionPago'},
+    anticipo:        {el: '#registrarAnticipo'}
   };
-
-  function showOnly(id){
-    const ids = ["menuPrincipal","seccionRevisionFacturas","seccionPagoFacturas","registrarAnticipo"];
-    ids.forEach(x => {
-      const el = document.getElementById(x);
-      if (el) el.style.display = (x === id ? (x==="menuPrincipal"?"flex":"block") : "none");
-    });
-  }
-
-  window.navigateTo = function(path){
-    const p = path || "/";
-    if (window.location.pathname !== p){
-      window.history.pushState({}, "", p);
+  function q(sel){ return document.querySelector(sel); }
+  function show(view){
+    for (const k in VIEWS){
+      const el = q(VIEWS[k].el);
+      if (el) el.hidden = (k!==view);
     }
-    render();
-  };
-
-  function render(){
-    const p = window.location.pathname || "/";
-    (routes[p] || routes["/"])();
+    document.body.dataset.view = view;
+    const ev = new CustomEvent('view:enter', {detail:{view}});
+    window.dispatchEvent(ev);
   }
+  window.show = show;
 
-  // Handle back/forward
-  window.addEventListener("popstate", render);
-
-  // Initial render after DOM ready
-  document.addEventListener("DOMContentLoaded", function(){
-    // If the path is not one of our routes, normalize to "/"
-    const p = window.location.pathname;
-    if (!routes[p]) {
-      window.history.replaceState({}, "", "/");
+  document.addEventListener('DOMContentLoaded', function(){
+    // If any of the known sections exist, default to menu or first visible one
+    const exists = Object.values(VIEWS).some(v => q(v.el));
+    if (exists){
+      // If a view is already chosen (e.g., via hash), keep it; else go to menu
+      const hash = (location.hash||'').replace('#','');
+      if (hash && VIEWS[hash]) show(hash); else show('menu');
     }
-    render();
   });
+
+  // Example: unified metrics updater using Tabulator when available
+  window.updatePagoMetrics = function(table){
+    if (!table || typeof table.getData !== 'function') return;
+    const data = table.getData("active");
+    let pendientes=0, pagadas=0, sumPend=0, sumPag=0;
+    for (const f of data){
+      const monto = parseFloat((f['Total Gastado']??f.total??0)) || 0;
+      const estado = (f.Estado||f.estado||'').toString();
+      if (/Revisada/i.test(estado)){ pendientes++; sumPend += monto; }
+      else if (/Pagada/i.test(estado)){ pagadas++; sumPag += monto; }
+    }
+    const fmt = n => 'L ' + Number(n||0).toLocaleString('es-HN',{minimumFractionDigits:2, maximumFractionDigits:2});
+    const s = id => document.getElementById(id);
+    if (s('contadorPendientes')) s('contadorPendientes').textContent = pendientes;
+    if (s('contadorPagadas'))   s('contadorPagadas').textContent   = pagadas;
+    if (s('totalRevisada'))     s('totalRevisada').textContent     = fmt(sumPend);
+    if (s('totalPagada'))       s('totalPagada').textContent       = fmt(sumPag);
+  };
+
+  // Recommend using these Tabulator hooks somewhere after table init:
+  // table.on("dataProcessed", () => updatePagoMetrics(table));
+})();
+</script>
+
+
+<script>
+// --- Flatpickr locale guard/fallback ---
+var __fpGuardInstalled = false;
+// Evita "flatpickr: invalid locale undefined" cuando alguna init pasa locale no válido.
+(function(){
+  function installGuard(){
+    if (!window.flatpickr) { setTimeout(installGuard, 0); return; }
+    // Asegura que exista flatpickr.l10ns.es; si no, usa default como alias
+    try {
+      if (flatpickr.l10ns && !flatpickr.l10ns.es) {
+        flatpickr.l10ns.es = flatpickr.l10ns.default;
+      }
+    } catch(_) {}
+
+    // Envuelve constructor para limpiar locale inválido o undefined
+    var _orig = window.flatpickr;
+    function wrappedFlatpickr(elem, opts){
+      try{
+        if (opts && 'locale' in opts){
+          var loc = opts.locale;
+          var hasLocale = !!(flatpickr && flatpickr.l10ns && typeof loc === 'string' && flatpickr.l10ns[loc]);
+          if (!hasLocale) {
+            // Clonar y quitar locale inválido/undefined
+            var o = {};
+            for (var k in opts){ if (Object.prototype.hasOwnProperty.call(opts,k)) o[k]=opts[k]; }
+            delete o.locale;
+            return _orig(elem, o);
+          }
+        }
+      }catch(e){ /* fallback con opciones originales */ }
+      return _orig(elem, opts);
+    }
+    // Copia propiedades estáticas (plugins, l10ns, etc.)
+    for (var k in _orig){ try { wrappedFlatpickr[k] = _orig[k]; } catch(_){} }
+    window.flatpickr = wrappedFlatpickr;
+    __fpGuardInstalled = true;
+
+    // Si se quiere forzar español cuando no haya otro, localiza a default/es
+    try{
+      if (flatpickr && flatpickr.localize && flatpickr.l10ns){
+        flatpickr.localize(flatpickr.l10ns.es || flatpickr.l10ns.default);
+      }
+    }catch(_){}
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', installGuard, {once:true});
+  } else {
+    installGuard();
+  }
+})();
+</script>
+
+
+<script>
+// --- Re-entry wrappers to ensure navigation always occurs and heavy init runs once ---
+(function(){
+  function wrapOnce(fnName, view){
+    var orig = window[fnName];
+    if (typeof orig !== 'function') return;
+    var onceKey = "__initOnce_" + fnName;
+    window[fnName] = function(){
+      // Always navigate to the requested view on every call
+      try { if (typeof window.show === 'function') window.show(view); } catch(e){}
+      // Only run heavy init once
+      if (!window[onceKey]){
+        window[onceKey] = true;
+        try { return orig.apply(this, arguments); }
+        catch(e){ console.error(e); }
+        return;
+      }
+      // Light re-entry: quick refresh hooks only
+      try { if (typeof window.updateCounters === 'function') window.updateCounters(); } catch(_){}
+      return;
+    };
+  }
+
+  function install(){
+    for (var k in window){
+      if (!Object.prototype.hasOwnProperty.call(window, k)) continue;
+      if (/^cargarPago/.test(k) && typeof window[k] === 'function') wrapOnce(k, 'pago');
+      if (/^cargarRevi/.test(k) && typeof window[k] === 'function') wrapOnce(k, 'revision');
+      if (/^cargarAnti/.test(k) && typeof window[k] === 'function') wrapOnce(k, 'anticipo');
+      if (/^regresarAlMenu$/.test(k) && typeof window[k] === 'function'){
+        // Ensure regresarAlMenu goes to menu through router if available
+        (function(name){
+          var o = window[name];
+          window[name] = function(){
+            try { if (typeof window.show === 'function') window.show('menu'); } catch(e){}
+            try { return o.apply(this, arguments); } catch(e){ console.error(e); }
+          };
+        })('regresarAlMenu');
+      }
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', install, {once:true});
+  } else {
+    install();
+  }
 })();
 </script>
 
 </body>
 </html>
 
-
-<!-- === Centralized resets + router enter hooks (non-invasive overrides) === -->
 <script>
+// Canonical counters updater: prefer Tabulator active data, fallback to no-op
 (function(){
-  // === Helpers ===
-  function qs(id){ return document.getElementById(id); }
-  function showOnly(sel){
-    var all = ["#menuPrincipal","#seccionRevisionFacturas","#seccionPagoFacturas","#registrarAnticipo"];
-    all.forEach(function(s){
-      var n = document.querySelector(s);
-      if (n) n.style.display = (s===sel) ? (s==="#menuPrincipal" ? "flex" : "block") : "none";
-    });
-  }
-
-  // === Resets ===
-  function resetRevision(){
-    // Filtros
-    ["filtroSector","filtroEstado","filtroNumeroFactura","filtroPlaca"].forEach(function(id){
-      var el = qs(id); if (el) el.value = "";
-    });
-    if (window.flatpickr && window.flatpickr.l10ns && window.flatpickrRevision && typeof window.flatpickrRevision.clear==="function"){
-      try { window.flatpickrRevision.clear(); } catch(_){}
-    }
-    // Contadores
-    var counters = { counterTotales:"0", counterRegistradas:"0", counterRevisadas:"0", counterAnuladas:"0" };
-    Object.keys(counters).forEach(function(id){
-      var el = qs(id); if (el) el.textContent = counters[id];
-    });
-    // Tabla (Tabulator)
-    if (window.tableRevision){
-      try {
-        window.tableRevision.clearFilter(true);
-        window.tableRevision.clearSort();
-        window.tableRevision.clearData();
-      } catch(_){}
-    }
-    // Overlays/botones
-    var mas = qs("accionesMasivas"); if (mas) mas.style.display = "none";
-    var ov  = qs("overlayRevision"); if (ov) ov.style.display = "none";
-  }
-
-  function resetPago(){
-    var s = qs("filtroSectorPago"); if (s) s.value = "Todos";
-    var e = qs("filtroEstadoPago"); if (e) e.value = "Todos";
-    var n = qs("filtroNumeroPago"); if (n) n.value = "";
-    // Flatpickr
+  function fmtL(n){ return 'L ' + Number(n||0).toLocaleString('es-HN',{minimumFractionDigits:2, maximumFractionDigits:2}); }
+  window.updateCounters = function(){
     try {
-      if (window.flatpickrPago && typeof window.flatpickrPago.clear==="function") window.flatpickrPago.clear();
-    } catch(_){}
-    // Contadores
-    var counters = { contadorPendientes:"0", contadorPagadas:"0", totalRevisada:"L 0.00", totalPagada:"L 0.00" };
-    Object.keys(counters).forEach(function(id){
-      var el = qs(id); if (el) el.textContent = counters[id];
-    });
-    // Tabulator/tabla
-    if (window.tabulatorTable){
-      try{
-        window.tabulatorTable.clearFilter && window.tabulatorTable.clearFilter(true);
-        window.tabulatorTable.clearSort && window.tabulatorTable.clearSort();
-        window.tabulatorTable.clearData && window.tabulatorTable.clearData();
-      }catch(_){}
-    }
-    var ov = qs("overlayPago"); if (ov) ov.style.display = "none";
-    var ft = qs("facturas-table"); if (ft) ft.style.display = "block";
-  }
-
-  function resetAnticipos(){
-    ["filterSectorAnt","filterPeriodoAnt","antSector","antFondo","antDeposito","antPeriodo"].forEach(function(id){
-      var el = qs(id); if (!el) return;
-      if (el.tagName==="INPUT") el.value = ""; else el.value = "";
-    });
-    var totals = { antTotal:"L 0.00", antSaldo:"L 0.00" };
-    Object.keys(totals).forEach(function(id){
-      var el = qs(id); if (el) el.textContent = totals[id];
-    });
-    if (window.tablaAnticipos){
-      try{
-        window.tablaAnticipos.clearData && window.tablaAnticipos.clearData();
-        window.tablaAnticipos.clearFilter && window.tablaAnticipos.clearFilter(true);
-        window.tablaAnticipos.clearSort && window.tablaAnticipos.clearSort();
-      }catch(_){}
-    }
-    var ov = qs("overlayAnt"); if (ov) ov.style.display = "none";
-  }
-
-  // === Router (enter hooks) ===
-  var routes = {
-    "/":          { el:"#menuPrincipal",           enter: null },
-    "/revision":  { el:"#seccionRevisionFacturas", enter: resetRevision },
-    "/pago":      { el:"#seccionPagoFacturas",     enter: resetPago },
-    "/anticipos": { el:"#registrarAnticipo",       enter: resetAnticipos },
+      var table = window.tabulatorTable || window.pagoTable || null;
+      if (table && typeof table.getData === 'function'){
+        var data = table.getData("active");
+        var pendientes=0, pagadas=0, sumPend=0, sumPag=0;
+        for (var i=0;i<data.length;i++){
+          var r = data[i];
+          var estado = (r.Estado||r.estado||'').toString();
+          var monto = parseFloat(r['Total Gastado']||r.total||0) || 0;
+          if (/^Revisada/i.test(estado)) { pendientes++; sumPend += monto; }
+          else if (/^Pagada/i.test(estado)) { pagadas++; sumPag += monto; }
+        }
+        var gp = function(id){ return document.getElementById(id); };
+        if (gp('contadorPendientes')) gp('contadorPendientes').textContent = pendientes;
+        if (gp('contadorPagadas'))   gp('contadorPagadas').textContent   = pagadas;
+        if (gp('totalRevisada'))     gp('totalRevisada').textContent     = fmtL(sumPend);
+        if (gp('totalPagada'))       gp('totalPagada').textContent       = fmtL(sumPag);
+        return;
+      }
+    } catch(e){}
+    // fallback: do nothing (legacy DOM counters removidos)
   };
-
-  function render(){
-    var path = routes[location.pathname] ? location.pathname : "/";
-    var route = routes[path];
-    if (route.enter) { try { route.enter(); } catch(e){ console.error("reset error", e); } }
-    showOnly(route.el);
-  }
-
-  // Override navigateTo (late-binding, after original definitions)
-  window.navigateTo = function(path){
-    try { history.pushState({}, "", path); } catch(e){ location.hash = "#"+path; }
-    render();
-  };
-
-  // Optional: override mostrarSeccion to route instead of manual DOM toggles (for consistency)
-  window.mostrarSeccion = function(nombre){
-    if (nombre === "menuPrincipal") return navigateTo("/");
-    if (nombre === "revisionFacturas") return navigateTo("/revision");
-    if (nombre === "seccionPagoFacturas" || nombre === "pago") return navigateTo("/pago");
-    if (nombre === "registrarAnticipo" || nombre === "anticipos") return navigateTo("/anticipos");
-    // fallback: just show by id
-    showOnly("#"+nombre);
-  };
-
-  window.addEventListener("popstate", render);
-  document.addEventListener("DOMContentLoaded", render);
 })();
 </script>
