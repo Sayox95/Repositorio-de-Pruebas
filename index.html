@@ -103,7 +103,7 @@
 })();
 </script>
 <!-- ==== end unload interception Patch v26 ==== -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script defer>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   /* Global button styles for mobile friendliness */
   button {
@@ -416,7 +416,7 @@
 </style>
 <div id="toast-alert">⚠️ Hay campos obligatorios sin completar.</div>
 <!-- ==== Registrar Anticipo ==== -->
-<section id="registrarAnticipo"  hidden>
+<section id="registrarAnticipo" style="display:none;flex-direction:column;gap:1rem;padding:1rem;align-items:center;">
 <button id="btnBackAnt" style="align-self:flex-start;">← Volver</button>
 <h2>Registrar Anticipo</h2>
   <!-- Cortar desde aquí ↓↓ -->
@@ -525,8 +525,8 @@
   animation: fadeInDown 0.3s ease-out forwards;
 }
 </style>
-<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js" defer></script defer>
-<script src="https://unpkg.com/blueimp-load-image/js/load-image.all.min.js" defer></script defer>
+<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
+<script src="https://unpkg.com/blueimp-load-image/js/load-image.all.min.js"></script>
 <!-- Custom Header Styles -->
 <style>
     .custom-header {
@@ -581,10 +581,11 @@
 </style>
 <!-- flatpickr CSS & JS -->
 <link href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" rel="stylesheet"/>
-<script src="https://cdn.jsdelivr.net/npm/flatpickr" defer></script defer>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <!-- Tabulator CSS & JS -->
 <link href="https://unpkg.com/tabulator-tables@5.5.0/dist/css/tabulator.min.css" rel="stylesheet"/>
-<script src="https://unpkg.com/tabulator-tables@5.5.0/dist/js/tabulator.min.js" defer></script defer>
+<script src="https://unpkg.com/tabulator-tables@5.5.0/dist/js/tabulator.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/es.js"></script>
 <style>
 @keyframes spinner {
   to { transform: rotate(360deg); }
@@ -722,7 +723,6 @@
   }
 </style>
 
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 </head>
 <body>
 <div id="overlayCambios">
@@ -1053,14 +1053,6 @@ function toggleAllPagoCheckboxes(source) {
 }
 
 function cargarPagoFacturas() {
-if (window.__enteredOnce && window.__enteredOnce['cargarPagoFacturas']) {
-  try { if (typeof window.updateCounters==='function') window.updateCounters(); } catch(_){
-  }
-  return;
-}
-window.__enteredOnce = window.__enteredOnce || Object.create(null);
-window.__enteredOnce['cargarPagoFacturas'] = true;
-
   // Mostrar overlay con texto según carga
   const overlay = document.getElementById("overlayPago");
   const textEl = document.getElementById("overlayTextPago");
@@ -1262,7 +1254,7 @@ function aplicarFiltrosPago() {
 }
 // Inicializar filtros y flatpickr
 document.addEventListener('DOMContentLoaded', () => {
-  window.flatpickrPago = flatpickr('#filtroFechaPago', { mode:'range', dateFormat:'d/m/Y', onChange: aplicarFiltrosPago });
+  window.flatpickrPago = flatpickr('#filtroFechaPago', { mode:'range', dateFormat:'d/m/Y', locale:flatpickr.l10ns.es, onChange: aplicarFiltrosPago });
   document.getElementById('filtroSectorPago').addEventListener('change', aplicarFiltrosPago);
   document.getElementById('filtroEstadoPago').addEventListener('change', aplicarFiltrosPago);
   document.getElementById('filtroNumeroPago').addEventListener('input', aplicarFiltrosPago);
@@ -1306,7 +1298,8 @@ document.addEventListener("DOMContentLoaded", function(){
 
   // Init flatpickr
   window.flatpickrPago = flatpickr("#filtroFechaPago", {
-    mode: "range", dateFormat: "Y-m-d", onClose: function(){ window.applyFilters(); }
+    mode: "range", dateFormat: "Y-m-d", locale: flatpickr.l10ns.es,
+    onClose: function(){ window.applyFilters(); }
   });
 
   // Create Tabulator
@@ -1537,9 +1530,17 @@ document.getElementById("btn-pagar-facturas").addEventListener("click", function
   };
 
   // Update counters
- 
-/* Removed duplicate function updateCounters */
-
+  function updateCounters(){
+    var data = table.getData("active"), p=0, g=0, sp=0, sg=0;
+    data.forEach(r=>{
+      if(r.Estado==="Revisada"){p++; sp+=parseFloat(r["Total Gastado"]||0);}
+      if(r.Estado==="Pagada"){g++; sg+=parseFloat(r["Total Gastado"]||0);}
+    });
+    document.getElementById("contadorPendientes").textContent = p;
+    document.getElementById("contadorPagadas").textContent   = g;
+    document.getElementById("totalRevisada").textContent    = "L "+sp.toLocaleString("es-HN",{minimumFractionDigits:2});
+    document.getElementById("totalPagada").textContent      = "L "+sg.toLocaleString("es-HN",{minimumFractionDigits:2});
+  }
 
   // Hook filters
   ["filtroSectorPago","filtroEstadoPago"].forEach(id=>{
@@ -1737,6 +1738,7 @@ document.getElementById('exportExcelBtn').addEventListener('click', function() {
       window.flatpickrRevision = flatpickr("#rangoFechas", {
         mode: "range",
         dateFormat: "Y-m-d",
+        locale: flatpickr.l10ns.es,
         onClose: function(selectedDates){
           tableRevision.clearFilter(true);
           if (selectedDates.length === 2){
@@ -1897,6 +1899,7 @@ document.addEventListener("DOMContentLoaded", function(){
         window.flatpickrRevision = flatpickr(dateInput,{
           mode:"range",
           dateFormat:"Y-m-d",
+          locale: flatpickr.l10ns.es,
           onClose: function(){ applyFiltersRevision(); }
         });
     }else{
@@ -2330,14 +2333,6 @@ function updateCountersRevision(){
 }
 // Botón o evento para entrar a sección
 function cargarRevisionFacturas(){
-if (window.__enteredOnce && window.__enteredOnce['cargarRevisionFacturas']) {
-  try { if (typeof window.updateCounters==='function') window.updateCounters(); } catch(_){
-  }
-  return;
-}
-window.__enteredOnce = window.__enteredOnce || Object.create(null);
-window.__enteredOnce['cargarRevisionFacturas'] = true;
-
   mostrarSeccion('revisionFacturas');
   const overlay = document.getElementById('overlayRevision');
   const textEl = document.getElementById('overlayTextRevision');
@@ -3121,8 +3116,8 @@ document.addEventListener("DOMContentLoaded", function(){
 
 
 <!-- === Descargas ZIP con proxy CORS (JSZip + FileSaver) === -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" crossorigin="anonymous" defer></script defer>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js" crossorigin="anonymous" defer></script defer>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js" crossorigin="anonymous"></script>
 <script>
 // ====== CONFIGURA TU PROXY AQUÍ ======
 // Cambia esto por tu Worker de Cloudflare o Pages Function que reenvía con CORS permitido.
@@ -3447,195 +3442,5 @@ async function descargarFacturasSeleccionadas() {
 })();
 </script>
 
-
-<script>
-(function(){
-  const VIEWS = {
-    menu:            {el: '#menuPrincipal'},
-    revision:        {el: '#seccionRevision'},
-    pago:            {el: '#seccionPago'},
-    anticipo:        {el: '#registrarAnticipo'}
-  };
-  function q(sel){ return document.querySelector(sel); }
-  function show(view){
-    for (const k in VIEWS){
-      const el = q(VIEWS[k].el);
-      if (el) el.hidden = (k!==view);
-    }
-    document.body.dataset.view = view;
-    const ev = new CustomEvent('view:enter', {detail:{view}});
-    window.dispatchEvent(ev);
-  }
-  window.show = show;
-
-  document.addEventListener('DOMContentLoaded', function(){
-    // If any of the known sections exist, default to menu or first visible one
-    const exists = Object.values(VIEWS).some(v => q(v.el));
-    if (exists){
-      // If a view is already chosen (e.g., via hash), keep it; else go to menu
-      const hash = (location.hash||'').replace('#','');
-      if (hash && VIEWS[hash]) show(hash); else show('menu');
-    }
-  });
-
-  // Example: unified metrics updater using Tabulator when available
-  window.updatePagoMetrics = function(table){
-    if (!table || typeof table.getData !== 'function') return;
-    const data = table.getData("active");
-    let pendientes=0, pagadas=0, sumPend=0, sumPag=0;
-    for (const f of data){
-      const monto = parseFloat((f['Total Gastado']??f.total??0)) || 0;
-      const estado = (f.Estado||f.estado||'').toString();
-      if (/Revisada/i.test(estado)){ pendientes++; sumPend += monto; }
-      else if (/Pagada/i.test(estado)){ pagadas++; sumPag += monto; }
-    }
-    const fmt = n => 'L ' + Number(n||0).toLocaleString('es-HN',{minimumFractionDigits:2, maximumFractionDigits:2});
-    const s = id => document.getElementById(id);
-    if (s('contadorPendientes')) s('contadorPendientes').textContent = pendientes;
-    if (s('contadorPagadas'))   s('contadorPagadas').textContent   = pagadas;
-    if (s('totalRevisada'))     s('totalRevisada').textContent     = fmt(sumPend);
-    if (s('totalPagada'))       s('totalPagada').textContent       = fmt(sumPag);
-  };
-
-  // Recommend using these Tabulator hooks somewhere after table init:
-  // table.on("dataProcessed", () => updatePagoMetrics(table));
-})();
-</script>
-
-
-<script>
-// --- Flatpickr locale guard/fallback ---
-var __fpGuardInstalled = false;
-// Evita "flatpickr: invalid locale undefined" cuando alguna init pasa locale no válido.
-(function(){
-  function installGuard(){
-    if (!window.flatpickr) { setTimeout(installGuard, 0); return; }
-    // Asegura que exista flatpickr.l10ns.es; si no, usa default como alias
-    try {
-      if (flatpickr.l10ns && !flatpickr.l10ns.es) {
-        flatpickr.l10ns.es = flatpickr.l10ns.default;
-      }
-    } catch(_) {}
-
-    // Envuelve constructor para limpiar locale inválido o undefined
-    var _orig = window.flatpickr;
-    function wrappedFlatpickr(elem, opts){
-      try{
-        if (opts && 'locale' in opts){
-          var loc = opts.locale;
-          var hasLocale = !!(flatpickr && flatpickr.l10ns && typeof loc === 'string' && flatpickr.l10ns[loc]);
-          if (!hasLocale) {
-            // Clonar y quitar locale inválido/undefined
-            var o = {};
-            for (var k in opts){ if (Object.prototype.hasOwnProperty.call(opts,k)) o[k]=opts[k]; }
-            delete o.locale;
-            return _orig(elem, o);
-          }
-        }
-      }catch(e){ /* fallback con opciones originales */ }
-      return _orig(elem, opts);
-    }
-    // Copia propiedades estáticas (plugins, l10ns, etc.)
-    for (var k in _orig){ try { wrappedFlatpickr[k] = _orig[k]; } catch(_){} }
-    window.flatpickr = wrappedFlatpickr;
-    __fpGuardInstalled = true;
-
-    // Si se quiere forzar español cuando no haya otro, localiza a default/es
-    try{
-      if (flatpickr && flatpickr.localize && flatpickr.l10ns){
-        flatpickr.localize(flatpickr.l10ns.es || flatpickr.l10ns.default);
-      }
-    }catch(_){}
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', installGuard, {once:true});
-  } else {
-    installGuard();
-  }
-})();
-</script>
-
-
-<script>
-// --- Re-entry wrappers to ensure navigation always occurs and heavy init runs once ---
-(function(){
-  function wrapOnce(fnName, view){
-    var orig = window[fnName];
-    if (typeof orig !== 'function') return;
-    var onceKey = "__initOnce_" + fnName;
-    window[fnName] = function(){
-      // Always navigate to the requested view on every call
-      try { if (typeof window.show === 'function') window.show(view); } catch(e){}
-      // Only run heavy init once
-      if (!window[onceKey]){
-        window[onceKey] = true;
-        try { return orig.apply(this, arguments); }
-        catch(e){ console.error(e); }
-        return;
-      }
-      // Light re-entry: quick refresh hooks only
-      try { if (typeof window.updateCounters === 'function') window.updateCounters(); } catch(_){}
-      return;
-    };
-  }
-
-  function install(){
-    for (var k in window){
-      if (!Object.prototype.hasOwnProperty.call(window, k)) continue;
-      if (/^cargarPago/.test(k) && typeof window[k] === 'function') wrapOnce(k, 'pago');
-      if (/^cargarRevi/.test(k) && typeof window[k] === 'function') wrapOnce(k, 'revision');
-      if (/^cargarAnti/.test(k) && typeof window[k] === 'function') wrapOnce(k, 'anticipo');
-      if (/^regresarAlMenu$/.test(k) && typeof window[k] === 'function'){
-        // Ensure regresarAlMenu goes to menu through router if available
-        (function(name){
-          var o = window[name];
-          window[name] = function(){
-            try { if (typeof window.show === 'function') window.show('menu'); } catch(e){}
-            try { return o.apply(this, arguments); } catch(e){ console.error(e); }
-          };
-        })('regresarAlMenu');
-      }
-    }
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', install, {once:true});
-  } else {
-    install();
-  }
-})();
-</script>
-
 </body>
 </html>
-
-<script>
-// Canonical counters updater: prefer Tabulator active data, fallback to no-op
-(function(){
-  function fmtL(n){ return 'L ' + Number(n||0).toLocaleString('es-HN',{minimumFractionDigits:2, maximumFractionDigits:2}); }
-  window.updateCounters = function(){
-    try {
-      var table = window.tabulatorTable || window.pagoTable || null;
-      if (table && typeof table.getData === 'function'){
-        var data = table.getData("active");
-        var pendientes=0, pagadas=0, sumPend=0, sumPag=0;
-        for (var i=0;i<data.length;i++){
-          var r = data[i];
-          var estado = (r.Estado||r.estado||'').toString();
-          var monto = parseFloat(r['Total Gastado']||r.total||0) || 0;
-          if (/^Revisada/i.test(estado)) { pendientes++; sumPend += monto; }
-          else if (/^Pagada/i.test(estado)) { pagadas++; sumPag += monto; }
-        }
-        var gp = function(id){ return document.getElementById(id); };
-        if (gp('contadorPendientes')) gp('contadorPendientes').textContent = pendientes;
-        if (gp('contadorPagadas'))   gp('contadorPagadas').textContent   = pagadas;
-        if (gp('totalRevisada'))     gp('totalRevisada').textContent     = fmtL(sumPend);
-        if (gp('totalPagada'))       gp('totalPagada').textContent       = fmtL(sumPag);
-        return;
-      }
-    } catch(e){}
-    // fallback: do nothing (legacy DOM counters removidos)
-  };
-})();
-</script>
