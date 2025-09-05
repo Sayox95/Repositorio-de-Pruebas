@@ -417,7 +417,7 @@
 <div id="toast-alert">⚠️ Hay campos obligatorios sin completar.</div>
 <!-- ==== Registrar Anticipo ==== -->
 <section id="registrarAnticipo" style="display:none;flex-direction:column;gap:1rem;padding:1rem;align-items:center;">
-<button id="btnBackAnt" onclick="return backToInicioAnt(event)"  style="align-self:flex-start;">← Volver</button>
+<button id="btnBackAnt" onclick="return backToInicioAnt(event)"  style="align-self:flex-start;">←  Regresar al Menú Principa</button>
 <h2>Registrar Anticipo</h2>
   <!-- Cortar desde aquí ↓↓ -->
   <div id="filtrosAnt" style="display:flex;gap:1rem;align-items:center;margin:1rem 0;">
@@ -734,7 +734,7 @@
 <button onclick="cargarRevisionFacturas()" style="width: 250px;  padding: 10px;">🔍 Revisión de Facturas</button>
 <button onclick="cargarPagoFacturas()" style="width: 250px;  padding: 10px;">💳 Pago de Facturas</button>
 <button id="btnIrRegistrarAnticipo" style="width:250px;padding:10px;">💵 Registrar Anticipo</button></div><div id="seccionPagoFacturas" style="display: none;">
-<button onclick="location.hash='#/inicio'" style="height:24px; line-height:1; padding: 0.25rem 0.5rem; display: flex; align-items: center; justify-content: center;"><span style="margin-right: 0.5rem;">←</span>Regresar al Menú Principal</button><h2>Pago de Facturas</h2>
+<button onclick="location.hash='#/inicio'" style="height:24px; line-height:1; padding: 0.25rem 0.5rem; display: flex; align-items: center; justify-content: center;">←  Regresar al Menú Principa</button><h2>Pago de Facturas</h2>
 <div id="countersContainer">
 <div class="counter-box"><span class="label">Facturas Pendientes</span><span class="value" id="contadorPendientes">0</span></div>
 <div class="counter-box"><span class="label">Facturas Pagadas</span><span class="value" id="contadorPagadas">0</span></div>
@@ -831,9 +831,7 @@
   }
 </style>
 <div id="seccionRevisionFacturas" style="display: none; padding: 1rem;">
-<button class="btn btn-secondary mb-3" onclick="regresarAlMenu()" type="button">
-    ← Volver al Menú Principal
-  </button>
+<button class="btn btn-secondary mb-3" onclick="regresarAlMenu()" type="button">←  Regresar al Menú Principa</button>
 <h2 style="margin-bottom: 1rem;">📄 Revisión de Facturas</h2>
 <div id="countersRow">
 <div class="counter-box">
@@ -3549,6 +3547,143 @@ async function descargarFacturasSeleccionadas() {
   setTimeout(wrapAnt, 1000);
 })();
 </script>
+
+
+<!-- === History Router (with hash fallback bridge) === -->
+<script>
+(function(){
+  // Helper to show sections using your existing function or data-section
+  function showSection(id){
+    try { if (typeof window.mostrarSeccion === 'function') return window.mostrarSeccion(id); } catch(e){}
+    try {
+      var sections = document.querySelectorAll('[data-section]');
+      sections.forEach(function(el){ el.style.display = 'none'; });
+      var target = document.querySelector('[data-section="'+id+'"]');
+      if (target) target.style.display = '';
+    } catch(e){}
+  }
+
+  var routes = {
+    "/inicio": function(){
+      showSection('menuPrincipal');
+      showSection('inicio');
+    },
+    "/revision": function(){
+      showSection('revisionFacturas');
+      if (typeof window.cargarRevisionFacturas === "function") {
+        try { window.cargarRevisionFacturas(); } catch(e){ console.warn(e); }
+      }
+    },
+    "/pago": function(){
+      showSection('seccionPagoFacturas');
+      if (typeof window.cargarPagoFacturas === "function") {
+        try { window.cargarPagoFacturas(); } catch(e){ console.warn(e); }
+      }
+    },
+    "/anticipos": function(){
+      showSection('registrarAnticipo');
+      if (typeof window.cargarAnticipos === "function") {
+        try { window.cargarAnticipos(); } catch(e){ console.warn(e); }
+      }
+    }
+  };
+
+  function runRoute(){
+    var path = location.pathname;
+    if (path === "/") path = "/inicio";
+    (routes[path] || routes["/inicio"])();
+    // Optional: set title
+    try {
+      var titles = {"/inicio":"Inicio","/revision":"Revisión","/pago":"Pago","/anticipos":"Anticipos"};
+      document.title = "App Facturas — " + (titles[path] || "Inicio");
+    } catch(e){}
+  }
+
+  function navigateTo(url){
+    if (location.pathname !== url) history.pushState(null, "", url);
+    runRoute();
+  }
+
+  // Intercept clicks on links with data-link (recommended for menu)
+  document.addEventListener("click", function(e){
+    var a = e.target.closest("a[data-link]");
+    if (!a) return;
+    var href = a.getAttribute("href");
+    if (!href || href.indexOf("http") === 0 || href.indexOf("mailto:") === 0) return;
+    e.preventDefault();
+    navigateTo(href);
+  });
+
+  // Support legacy buttons that use data-go or location.hash
+  document.addEventListener("click", function(e){
+    var el = e.target.closest("[data-go]");
+    if (!el) return;
+    var dest = el.getAttribute("data-go");
+    if (!dest) return;
+    // translate hash destinations to pretty URLs
+    var map = {"#/inicio":"/inicio","#/revision":"/revision","#/pago":"/pago","#/anticipos":"/anticipos"};
+    var url = map[dest] || dest;
+    e.preventDefault();
+    navigateTo(url);
+  });
+
+  // Bridge: if some code sets location.hash (legacy), convert to pretty URL
+  window.addEventListener("hashchange", function(){
+    var map = {"#/inicio":"/inicio","#/revision":"/revision","#/pago":"/pago","#/anticipos":"/anticipos"};
+    var dest = map[location.hash];
+    if (dest){
+      history.replaceState(null, "", dest);
+      // clear the hash to avoid confusion
+      setTimeout(function(){ try { history.replaceState(null,"",dest); } catch(e){} }, 0);
+      runRoute();
+    }
+  });
+
+  // Wrap legacy nav functions to use pretty URLs
+  function wrapNav(){
+    if (typeof window.cargarRevisionFacturas === "function" && !window.cargarRevisionFacturas.__histWrapped){
+      var _old = window.cargarRevisionFacturas;
+      window.cargarRevisionFacturas = function(){
+        navigateTo("/revision");
+        return _old.apply(this, arguments);
+      };
+      window.cargarRevisionFacturas.__histWrapped = true;
+    }
+    if (typeof window.cargarPagoFacturas === "function" && !window.cargarPagoFacturas.__histWrapped){
+      var _old2 = window.cargarPagoFacturas;
+      window.cargarPagoFacturas = function(){
+        navigateTo("/pago");
+        return _old2.apply(this, arguments);
+      };
+      window.cargarPagoFacturas.__histWrapped = true;
+    }
+    if (typeof window.cargarAnticipos === "function" && !window.cargarAnticipos.__histWrapped){
+      var _old3 = window.cargarAnticipos;
+      window.cargarAnticipos = function(){
+        navigateTo("/anticipos");
+        return _old3.apply(this, arguments);
+      };
+      window.cargarAnticipos.__histWrapped = true;
+    }
+    // Back-to-menu helpers commonly used
+    if (typeof window.regresarAlMenu === "function" && !window.regresarAlMenu.__histWrapped){
+      var _oldBack = window.regresarAlMenu;
+      window.regresarAlMenu = function(){
+        navigateTo("/inicio");
+        try { return _oldBack.apply(this, arguments); } catch(e){}
+      };
+      window.regresarAlMenu.__histWrapped = true;
+    }
+  }
+
+  window.addEventListener("popstate", runRoute);
+  window.addEventListener("DOMContentLoaded", function(){
+    wrapNav();
+    runRoute();
+  });
+})();
+</script>
+<!-- === End History Router === -->
 
 </body>
 </html>
