@@ -733,7 +733,7 @@
 <h2>Seleccione una opción</h2>
 <button onclick="navigateTo('/revision')" style="width: 250px;  padding: 10px;">🔍 Revisión de Facturas</button>
 <button onclick="navigateTo('/pago')" style="width: 250px;  padding: 10px;">💳 Pago de Facturas</button>
-<button id="btnIrRegistrarAnticipo" style="width:250px;padding:10px;/anticipos' onclick="navigateTo(")">💵 Registrar Anticipo</button></div><div id="seccionPagoFacturas" style="display: none;">
+<button id="btnIrRegistrarAnticipo" style="width:250px;padding:10px onclick="navigateTo('/anticipos')">💵 Registrar Anticipo</button></div><div id="seccionPagoFacturas" style="display: none;">
 <button onclick="navigateTo('/')" style="height:24px; line-height:1; padding: 0.25rem 0.5rem; display: flex; align-items: center; justify-content: center;"><span style="margin-right: 0.5rem;">←</span>Regresar al Menú Principal</button><h2>Pago de Facturas</h2>
 <div id="countersContainer">
 <div class="counter-box"><span class="label">Facturas Pendientes</span><span class="value" id="contadorPendientes">0</span></div>
@@ -780,189 +780,16 @@
 </style>
 <script>
     function mostrarSeccion(nombre) {
-      // Ocultar todas las secciones
-      document.getElementById('menuPrincipal').style.display = 'none';
-      document.getElementById('seccionRevisionFacturas').style.display = 'none';
-      document.getElementById('registrarAnticipo').style.display = 'none';
-      document.getElementById('seccionPagoFacturas').style.display = 'none';
-
-      // Mostrar la sección solicitada
-      if (nombre === 'menuPrincipal') {
-        document.getElementById('menuPrincipal').style.display = 'flex';
-      } else if (nombre === 'revisionFacturas') {
-        // Reset de filtros al entrar
-        const filtroSectorElem = document.getElementById("filtroSector");
-        if (filtroSectorElem) filtroSectorElem.value = "";
-        const filtroEstadoElem = document.getElementById("filtroEstado");
-        if (filtroEstadoElem) filtroEstadoElem.value = "";
-
-        // Mostrar sección y recargar datos
-        document.getElementById('seccionRevisionFacturas').style.display = 'block';
-    // Limpieza dura al entrar
-    if (typeof resetRevisionUI === "function") resetRevisionUI();
-        
-      } else if (nombre === 'registrarAnticipo') {
-        document.getElementById('registrarAnticipo').style.display = 'block';
-      }
-    }
-
-  </script>
-<!-- Revisión de Facturas ACTIVA -->
-<style>
-  .tabla-responsive {
-    overflow-x: auto;
-    max-width: 100%;
-  }
-  table {
-    border-collapse: collapse;
-    width: 100%;
-    font-family: Arial, sans-serif;
-    font-size: 14px;
-  }
-  th {
-    background-color: #f0f0f0;
-    font-weight: bold;
-  }
-  th, td {
-    padding: 8px 12px;
-    border: 1px solid #ccc;
-    text-align: left;
-    white-space: nowrap;
-  }
-</style>
-<div id="seccionRevisionFacturas" style="display: none; padding: 1rem;">
-<button class="btn btn-secondary mb-3" onclick="regresarAlMenu()" type="button">
-    ←  Regresar al Menú Principal</button>
-<h2 style="margin-bottom: 1rem;">📄 Revisión de Facturas</h2>
-<div id="countersRow">
-<div class="counter-box">
-  <span class="label">Facturas Totales</span><br>
-  <span class="value" id="counterTotales">0</span>
-</div>
-<div class="counter-box">
-<span class="label">Registradas</span><br>
-<span class="value" id="counterRegistradas">0</span>
-</br></div>
-<div class="counter-box">
-<span class="label">Revisadas</span><br>
-<span class="value" id="counterRevisadas">0</span>
-</br></div>
-<div class="counter-box">
-<span class="label">Anuladas</span><br>
-<span class="value" id="counterAnuladas">0</span>
-</br></div>
-</div>
-<div id="filtersRow">
-<label for="filtroSector">Filtrar por sector:</label>
-<select id="filtroSector" style="padding:0.5rem;">
-<option value="">Todos</option>
-</select>
-<label for="filtroEstado">Filtrar por estado:</label>
-<select id="filtroEstado" style="padding:0.5rem;">
-<option value="">Todos</option>
-</select>
-<label for="filtroNumeroFactura">Filtrar Nº de Factura:</label>
-<input id="filtroNumeroFactura" placeholder="Buscar factura…" style="padding:0.5rem;" type="text"/>
-
-<label for="filtroPlaca">Filtrar Placa:</label>
-<input id="filtroPlaca" type="text" placeholder="Buscar placa…" style="padding:0.5rem;" />
-<label for="rangoFechas">Filtrar por rango de fechas:</label>
-<input id="rangoFechas" placeholder="Desde - Hasta" readonly="" style="padding:0.5rem;" type="text"/>
-</div>
-<div id="toolbarRevision"
-     style="display:flex;gap:.6rem;align-items:center;margin:.4rem 0 .8rem;">
-
-  <!-- Botón visible: Agrupar / Desagrupar -->
-  <button id="btnGroupColab"
-    style="display:inline-flex;align-items:center;justify-content:center;
-           height:1.8rem !important; line-height:1.8rem !important;
-           padding:0 0.7rem !important; font-size:0.8rem !important;
-           background:#6b7280; color:#fff; border:0; border-radius:.25rem;
-           cursor:pointer; white-space:nowrap;">
-    Agrupar por Colaborador
-  </button>
-
-  <!-- NUEVO: Exportar Excel (Revisión) -->
-  <button id="btnExportRev"
-    style="display:inline-flex;align-items:center;justify-content:center;
-           height:1.8rem !important; line-height:1.8rem !important;
-           padding:0 0.7rem !important; font-size:0.8rem !important;
-           background:#217346; color:#fff; border:0; border-radius:.25rem;
-           cursor:pointer; white-space:nowrap;">
-    Exportar Excel
-  </button>
-<button id="btnRefreshRev"
-  style="display:inline-flex;align-items:center;justify-content:center;
-         height:1.8rem !important; line-height:1.8rem !important;
-         padding:0 0.7rem !important; font-size:0.8rem !important;
-         background:#10b981; color:#fff; border:0; border-radius:.25rem;
-         cursor:pointer; white-space:nowrap;">
-  🔄 Actualizar
-</button>
-
-  <!-- Botones masivos (ocultos hasta que haya ≥2 seleccionadas) -->
-  <div id="accionesMasivas" style="display:none; gap:.6rem; align-items:center;">
-    <button onclick="actualizarEstadoSeleccionados('Revisada')"
-      style="display:inline-flex;align-items:center;justify-content:center;
-             height:1.8rem !important; line-height:1.8rem !important;
-             padding:0 0.7rem !important; font-size:0.8rem !important;
-             background:#0b6fff; color:#fff; border:0; border-radius:.25rem;
-             cursor:pointer; white-space:nowrap;">
-      ✓ Marcar como Revisada
-    </button>
-    <button onclick="actualizarEstadoSeleccionados('Anulada')"
-      style="display:inline-flex;align-items:center;justify-content:center;
-             height:1.8rem !important; line-height:1.8rem !important;
-             padding:0 0.7rem !important; font-size:0.8rem !important;
-             background:#d32f2f; color:#fff; border:0; border-radius:.25rem;
-             cursor:pointer; white-space:nowrap;">
-      ✖ Marcar como Anulada
-    </button>
-  </div>
-</div>
-
-
-<div class="tabla-responsive" style="border: 1px solid #ccc; border-radius: 8px; overflow-x: auto; max-height: 60vh; padding: 1rem;">
-<div id="tablaRevisionWrapper" style="position:relative;"><div id="tablaRevisionFacturas"></div><div id="overlayRevision"><span id="overlayTextRevision">Cargando información</span></div></div>
-</div> <!-- Fin de contenedor scroll de tabla -->
-</div>
-
-<script>
-document.addEventListener("DOMContentLoaded", () => {
-  const tablaRev = document.getElementById("tablaRevisionFacturas");
-  if (!tablaRev) return;
-
-  // Mostrar/ocultar los botones masivos SOLO en revisión
-  function actualizarVisibilidadBotonesMasivosRevision() {
-    const n = tablaRev.querySelectorAll('input[type="checkbox"]:checked').length;
-    const cont = document.getElementById("accionesMasivas");
-    if (cont) cont.style.display = (n >= 2) ? "block" : "none";
-  }
-
-  // Delegación: cualquier checkbox dentro de la tabla
-  tablaRev.addEventListener("change", (e) => {
-    if (e.target && e.target.matches('input[type="checkbox"]')) {
-      actualizarVisibilidadBotonesMasivosRevision();
-    }
-  });
-});
-</script>
-
-<script>
-function regresarAlMenu() {
-  // Oculta ambas secciones y muestra menú principal
-  document.getElementById('seccionRevisionFacturas').style.display = 'none';
-  document.getElementById('menuPrincipal').style.display = 'flex';
-  // Limpia tablas y formularios
-  const encabezado = document.getElementById('encabezadoTabla');
-  const cuerpo = document.getElementById('cuerpoTabla');
-  if (encabezado) encabezado.innerHTML = '';
-  if (cuerpo) cuerpo.innerHTML = '';
-  const form = document.getElementById('formulario_contenido');
-  if (form) form.style.display = 'none';
-
-  try { navigateTo('/'); } catch(e) {}
-}
+  try {
+    const map = {
+      'revisionFacturas': '/revision',
+      'seccionPagoFacturas': '/pago',
+      'pagoFacturas': '/pago',
+      'registrarAnticipo': '/anticipos'
+    };
+    if (map[nombre]) { navigateTo(map[nombre]); return; }
+  } catch(e) {}
+  // fallback: no-op to avoid double-visibility control; router drives UI
 </script>
 <script>
 function actualizarVisibilidadBotonesMasivos() {
@@ -1054,6 +881,8 @@ function toggleAllPagoCheckboxes(source) {
 }
 
 function cargarPagoFacturas() {
+  if (window._pagoBound) return; 
+  window._pagoBound = true;
   // Mostrar overlay con texto según carga
   const overlay = document.getElementById("overlayPago");
   const textEl = document.getElementById("overlayTextPago");
@@ -2333,7 +2162,9 @@ function updateCountersRevision(){
   document.getElementById('counterAnuladas').textContent = anuladas;
 }
 // Botón o evento para entrar a sección
-function cargarRevisionFacturas(){
+function cargarRevisionFacturas() {
+  if (window._revisionBound) return; 
+  window._revisionBound = true;
   mostrarSeccion('revisionFacturas');
   const overlay = document.getElementById('overlayRevision');
   const textEl = document.getElementById('overlayTextRevision');
@@ -3110,7 +2941,7 @@ document.addEventListener("DOMContentLoaded", function(){
   }
   var tries = 0;
   var iv = setInterval(function(){
-    if (applyRevisionEstadoPatch() || (++tries > 1)) clearInterval(iv);
+    if (applyRevisionEstadoPatch() || (++tries > 60)) clearInterval(iv);
   }, 120);
 });
 </script>
@@ -3437,7 +3268,7 @@ async function descargarFacturasSeleccionadas() {
   document.addEventListener("DOMContentLoaded", function(){
     var tries = 0;
     var iv = setInterval(function(){
-      if (hookSelectionListener() || (++tries > 1)) clearInterval(iv);
+      if (hookSelectionListener() || (++tries > 60)) clearInterval(iv);
     }, 150);
   });
 })();
@@ -3454,38 +3285,40 @@ async function descargarFacturasSeleccionadas() {
     },
     "/revision": function(){
       showOnly("seccionRevisionFacturas");
-      // Init once
-      if (!window._revInit && typeof initRevision === "function") {
-        try { initRevision(); } catch(e){ console.error(e); }
-        window._revInit = true;
-      }
-      // Fetch only if dirty (default true first time)
-      if (window._revDirty !== false && typeof cargarRevisionFacturas === "function") {
+      if (typeof cargarRevisionFacturas === "function") {
         try { cargarRevisionFacturas(); } catch(e){ console.error(e); }
-        window._revDirty = false;
       }
-},
+    },
     "/pago": function(){
       showOnly("seccionPagoFacturas");
-      // Init once
-      if (!window._pagoInit && typeof initPago === "function") {
-        try { initPago(); } catch(e){ console.error(e); }
-        window._pagoInit = true;
-      }
-      // Fetch only if dirty (default true first time)
-      if (window._pagoDirty !== false && typeof cargarPagoFacturas === "function") {
+      if (typeof cargarPagoFacturas === "function") {
         try { cargarPagoFacturas(); } catch(e){ console.error(e); }
-        window._pagoDirty = false;
-      } else if (typeof reapplyPagoFilters === "function") {
-        try { reapplyPagoFilters(window.__pagoFiltros__); } catch(e){}
       }
-},
+    },
     "/anticipos": function(){
       showOnly("registrarAnticipo");
       // Si tienes una función para cargar anticipos, ejecútala aquí.
       // (dejamos el comportamiento actual tal cual)
     }
   };
+// === Router normalization helpers (injected) ===
+function __normalizePath(p) {
+  try {
+    if (typeof p !== 'string') return '/';
+    // remove trailing slash except root
+    if (p.length > 1 && p.endsWith('/')) p = p.slice(0, -1);
+    return p || '/';
+  } catch (e) { return '/'; }
+}
+function __resolveRoute(p) {
+  p = __normalizePath(p || __resolveRoute(location.pathname));
+  if (!routes[p]) return '/';
+  return p;
+}
+// Expose helpers
+try { window.__resolveRoute = __resolveRoute; window.__normalizePath = __normalizePath; } catch(e) {}
+
+
 
   function showOnly(id){
     const ids = ["menuPrincipal","seccionRevisionFacturas","seccionPagoFacturas","registrarAnticipo"];
@@ -3497,14 +3330,14 @@ async function descargarFacturasSeleccionadas() {
 
   window.navigateTo = function(path){
     const p = path || "/";
-    if (window.location.pathname !== p){
+    if (window.__resolveRoute(location.pathname) !== p){
       window.history.pushState({}, "", p);
     }
     render();
   };
 
   function render(){
-    const p = window.location.pathname || "/";
+    const p = window.__resolveRoute(location.pathname) || "/";
     (routes[p] || routes["/"])();
   }
 
@@ -3514,7 +3347,7 @@ async function descargarFacturasSeleccionadas() {
   // Initial render after DOM ready
   document.addEventListener("DOMContentLoaded", function(){
     // If the path is not one of our routes, normalize to "/"
-    const p = window.location.pathname;
+    const p = window.__resolveRoute(location.pathname);
     if (!routes[p]) {
       window.history.replaceState({}, "", "/");
     }
@@ -3522,53 +3355,6 @@ async function descargarFacturasSeleccionadas() {
   });
 })();
 </script>
-<script>
-// Helpers to mark data as outdated and trigger reload on next entry
-window.markPagoDirty = function(){ window._pagoDirty = true; };
-window.markRevisionDirty = function(){ window._revDirty = true; };
-</script>
 
-
-
-<script>
-// Inject Pago toolbar if missing
-document.addEventListener("DOMContentLoaded", function(){
-  try {
-    var section = document.querySelector("#seccionPagoFacturas");
-    if (!section) return;
-    if (!document.getElementById("btnPagoActualizar")) {
-      var bar = document.createElement("div");
-      bar.id = "toolbarPagoAuto";
-      bar.style.display = "flex";
-      bar.style.gap = "8px";
-      bar.style.margin = "8px 0";
-      var btnUpd = document.createElement("button");
-      btnUpd.id = "btnPagoActualizar";
-      btnUpd.textContent = "Actualizar";
-      btnUpd.addEventListener("click", function(){
-        window._pagoDirty = true;
-        if (typeof cargarPagoFacturas === "function") {
-          try { cargarPagoFacturas(); } catch(e){ console.error(e); }
-        }
-        window._pagoDirty = false;
-      });
-      var btnClear = document.createElement("button");
-      btnClear.id = "btnPagoLimpiarFiltros";
-      btnClear.textContent = "Limpiar filtros";
-      btnClear.addEventListener("click", function(){
-        try {
-          if (window.tabulatorTable && typeof window.tabulatorTable.clearFilter === "function") {
-            window.tabulatorTable.clearFilter();
-            window.__pagoFiltros__ = null;
-          }
-        } catch(e){ console.error(e); }
-      });
-      bar.appendChild(btnUpd);
-      bar.appendChild(btnClear);
-      section.insertBefore(bar, section.firstChild);
-    }
-  } catch (e) { /* ignore */ }
-});
-</script>
 </body>
 </html>
