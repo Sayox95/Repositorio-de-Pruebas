@@ -100,6 +100,68 @@
     get: function(){ return null; },
     configurable: true
   });
+  // === Loaders al entrar (cada ingreso a la sección) ===
+  async function loadRevisionOnEnter(){
+    const overlay = document.getElementById("overlayRevision");
+    const txt = document.getElementById("overlayTextRevision");
+    try {
+      if (overlay) { if (txt) txt.textContent = "Cargando información"; overlay.style.display = "flex"; }
+      if (typeof window.loadDataRevision === "function") {
+        await window.loadDataRevision();
+      } else if (typeof window.loadDataRevisionFacturas === "function") {
+        await window.loadDataRevisionFacturas();
+      } else if (window.tableRevision) {
+        // Fallback: Tabulator ajax o setData
+        if (typeof window.urlLeerFacturas === "string" && window.urlLeerFacturas) {
+          const resp = await fetch(window.urlLeerFacturas);
+          if (!resp.ok) throw new Error("HTTP " + resp.status);
+          const data = await resp.json();
+          await window.tableRevision.setData(data);
+        } else if (typeof window.tableRevision.setData === "function") {
+          await window.tableRevision.setData();
+        }
+      }
+    } catch (e) {
+      console.error("Error al cargar Revisión:", e);
+      alert("❌ Error al cargar Revisión: " + (e && e.message ? e.message : e));
+    } finally {
+      if (overlay) overlay.style.display = "none";
+    }
+  }
+
+  async function loadPagoOnEnter(){
+    const overlay = document.getElementById("overlayPago");
+    const txt = document.getElementById("overlayTextPago");
+    try {
+      if (overlay) { if (txt) txt.textContent = "Cargando información"; overlay.style.display = "flex"; }
+      if (typeof window.loadDataPagoFacturas === "function") {
+        await window.loadDataPagoFacturas();
+      } else if (window.tabulatorTable && typeof window.tabulatorTable.setData === "function" && window.urlLeerFacturas) {
+        // Si tienes una URL de lectura común, úsala
+        const resp = await fetch(window.urlLeerFacturas);
+        if (!resp.ok) throw new Error("HTTP " + resp.status);
+        const data = await resp.json();
+        await window.tabulatorTable.setData(data);
+      } else {
+        // Fallback DOM-based table (si existe una tabla manual en Pago)
+        const tabla = document.getElementById("facturas-table");
+        if (!tabla) return;
+        const tbody = tabla.querySelector("tbody");
+        if (!tbody) return;
+        // Si tu proyecto define una función para leer pago: window.leerPagoBasico()
+        if (typeof window.leerPagoBasico === "function") {
+          const rows = await window.leerPagoBasico();
+          tbody.innerHTML = rows || "";
+        }
+      }
+    } catch (e) {
+      console.error("Error al cargar Pago:", e);
+      alert("❌ Error al cargar Pago: " + (e && e.message ? e.message : e));
+    } finally {
+      if (overlay) overlay.style.display = "none";
+    }
+  }
+
 })();
 </script>
 <!-- ==== end unload interception Patch v26 ==== -->
