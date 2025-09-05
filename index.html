@@ -2072,7 +2072,9 @@ function init(){
     }catch(err){
       console.error("Falló la actualización de estado", err);
       alert("No se pudo guardar el cambio. Intenta nuevamente.");
-    }finally{
+    }finally {
+      btn.disabled = false;
+      btn.innerHTML = prevHTML;
       if(overlay) overlay.style.display = "none";
       if(typeof updateCountersRevision === "function") updateCountersRevision();
     }
@@ -3022,9 +3024,10 @@ function resetRevisionUI() {
           if (cell && cell.getField && cell.getField() === "Estado"){
             updateEstadoFilterOptionsFromTable();
           }
-        }catch(_){}
+        }catch(e){}
       });
-      window.tableRevision.on("dataChanged"erOptionsFromTable();
+      window.tableRevision.on("dataChanged", function(){
+        updateEstadoFilterOptionsFromTable();
       });
     }
   });
@@ -3074,16 +3077,18 @@ function resetRevisionUI() {
     } finally {
       btn.disabled = false;
       btn.innerHTML = prevHTML;
-// Ocultar overlay
+      // Ocultar overlay
       const overlay = document.getElementById("overlayRevision");
       if (overlay) overlay.style.display = "none";
-    
     }
   });
 })();
 </script>
 <script>
-// Helper para actualizar contador de Facturas Totales desde datos activos de Tabulator (por si se requierr el = document.getElementById("counterTotales");
+// Helper para actualizar contador de Facturas Totales desde datos activos de Tabulator (por si se requiere)
+window.updateCounterTotalesRevision = function(){
+  try{
+    var el = document.getElementById("counterTotales");
     if(!el) return;
     var t = window.tableRevision;
     if (!t || typeof t.getData !== "function") return;
@@ -3331,7 +3336,7 @@ async function descargarFacturasSeleccionadas() {
         var data = window.tabulatorTable.getSelectedData() || [];
         return Array.isArray(data) ? data : [];
       }
-    }catch(_){}
+    }catch(e){}
     // Fallback por tabla HTML
     var out = [];
     var tbody = document.querySelector("#tablaPagoFacturas tbody");
@@ -3428,7 +3433,7 @@ async function descargarFacturasSeleccionadas() {
       try {
         var initial = window.tabulatorTable.getSelectedRows ? window.tabulatorTable.getSelectedRows().length : 0;
         togglePagoZipVisibility(initial || 0);
-      } catch(_){ togglePagoZipVisibility(0); }
+      } catch(e){ togglePagoZipVisibility(0); }
       return true;
     }
     return false;
