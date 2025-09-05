@@ -733,7 +733,7 @@
 <h2>Seleccione una opción</h2>
 <button onclick="navigateTo('/revision')" style="width: 250px;  padding: 10px;">🔍 Revisión de Facturas</button>
 <button onclick="navigateTo('/pago')" style="width: 250px;  padding: 10px;">💳 Pago de Facturas</button>
-<button id="btnIrRegistrarAnticipo" style="width:250px;padding:10px; " onclick="navigateTo('/anticipos')">💵 Registrar Anticipo</button></div><div id="seccionPagoFacturas" style="display: none;">
+<button id="btnIrRegistrarAnticipo" style="width:250px;padding:10px; onclick="navigateTo('/anticipos')">💵 Registrar Anticipo</button></div><div id=" onclick="navigateTo(\'/anticipos\')"seccionPagoFacturas" style="display: none;">
 <button onclick="navigateTo('/')" style="height:24px; line-height:1; padding: 0.25rem 0.5rem; display: flex; align-items: center; justify-content: center;"><span style="margin-right: 0.5rem;">←</span>Regresar al Menú Principal</button><h2>Pago de Facturas</h2>
 <div id="countersContainer">
 <div class="counter-box"><span class="label">Facturas Pendientes</span><span class="value" id="contadorPendientes">0</span></div>
@@ -797,11 +797,7 @@
         if (filtroEstadoElem) filtroEstadoElem.value = "";
 
         // Mostrar sección y recargar datos
-        document.getElementById('seccionRevisionFacturas').style.display = 'block';
-    // Limpieza dura al entrar
-    if (typeof resetRevisionUI === "function") resetRevisionUI();
-        
-      } else if (nombre === 'registrarAnticipo') {
+        document.getElementById('seccionRevisionFacturas').style.display = 'block';} else if (nombre === 'registrarAnticipo') {
         document.getElementById('registrarAnticipo').style.display = 'block';
       }
     }
@@ -831,7 +827,7 @@
   }
 </style>
 <div id="seccionRevisionFacturas" style="display: none; padding: 1rem;">
-<button class="btn btn-secondary mb-3" onclick="regresarAlMenu()" type="button">
+<button class="btn btn-secondary mb-3" onclick="navigateTo(\'/\')" type="button">
     ←  Regresar al Menú Principal</button>
 <h2 style="margin-bottom: 1rem;">📄 Revisión de Facturas</h2>
 <div id="countersRow">
@@ -948,22 +944,7 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 </script>
 
-<script>
-function regresarAlMenu() {
-  // Oculta ambas secciones y muestra menú principal
-  document.getElementById('seccionRevisionFacturas').style.display = 'none';
-  document.getElementById('menuPrincipal').style.display = 'flex';
-  // Limpia tablas y formularios
-  const encabezado = document.getElementById('encabezadoTabla');
-  const cuerpo = document.getElementById('cuerpoTabla');
-  if (encabezado) encabezado.innerHTML = '';
-  if (cuerpo) cuerpo.innerHTML = '';
-  const form = document.getElementById('formulario_contenido');
-  if (form) form.style.display = 'none';
 
-  try { navigateTo('/'); } catch(e) {}
-}
-</script>
 <script>
 function actualizarVisibilidadBotonesMasivos() {
   // contenedor de los botones masivos en Revisión
@@ -1017,37 +998,6 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 <script>
-document.addEventListener("DOMContentLoaded", () => {
-  const btnRegresarPago = document.querySelector("#seccionPagoFacturas button");
-  if (btnRegresarPago && btnRegresarPago.textContent.includes("Regresar al Menú Principal")) {
-    btnRegresarPago.addEventListener("click", () => {
-
-      // Ocultar la sección de pago si sigue visible
-      const pagoSection = document.getElementById("seccionPagoFacturas");
-      if (pagoSection) {
-        pagoSection.style.display = "none";
-      }
-
-      // Ocultar cualquier otra sección activa
-      document.querySelectorAll(".seccion").forEach(seccion => {
-        if (seccion !== pagoSection) {
-          seccion.style.display = "none";
-        }
-      });
-
-      // Mostrar el menú y restaurar su formato visual
-      const menu = document.getElementById("menuPrincipal");
-      if (menu) {
-        menu.style.display = "flex";
-        menu.style.flexDirection = "column";
-        menu.style.alignItems = "center";
-        menu.style.justifyContent = "center";
-        menu.style.gap = "20px";
-      }
-    });
-  }
-});
-</script><script>
 function toggleAllPagoCheckboxes(source) {
   const checkboxes = document.querySelectorAll(".check-factura-pago");
   checkboxes.forEach(cb => cb.checked = source.checked);
@@ -2072,9 +2022,7 @@ function init(){
     }catch(err){
       console.error("Falló la actualización de estado", err);
       alert("No se pudo guardar el cambio. Intenta nuevamente.");
-    }finally {
-      btn.disabled = false;
-      btn.innerHTML = prevHTML;
+    }finally{
       if(overlay) overlay.style.display = "none";
       if(typeof updateCountersRevision === "function") updateCountersRevision();
     }
@@ -2336,6 +2284,7 @@ function updateCountersRevision(){
 }
 // Botón o evento para entrar a sección
 function cargarRevisionFacturas(){
+  mostrarSeccion('revisionFacturas');
   const overlay = document.getElementById('overlayRevision');
   const textEl = document.getElementById('overlayTextRevision');
   textEl.textContent = window.isFirstLoadRevisionFacturas ? "Cargando información" : "Actualizando información";
@@ -3024,7 +2973,7 @@ function resetRevisionUI() {
           if (cell && cell.getField && cell.getField() === "Estado"){
             updateEstadoFilterOptionsFromTable();
           }
-        }catch(e){}
+        }catch(_){}
       });
       window.tableRevision.on("dataChanged", function(){
         updateEstadoFilterOptionsFromTable();
@@ -3040,9 +2989,6 @@ function resetRevisionUI() {
   if (!btn) return;
   btn.addEventListener("click", async function(){
     try {
-      const prevHTML = btn.innerHTML;
-      btn.disabled = true;
-      btn.innerHTML = "Actualizando…";
       // Mostrar overlay si existe
       const overlay = document.getElementById("overlayRevision");
       const txt = document.getElementById("overlayTextRevision");
@@ -3075,8 +3021,6 @@ function resetRevisionUI() {
       console.error("Error al actualizar Revisión:", err);
       alert("❌ Error al actualizar: " + (err && err.message ? err.message : err));
     } finally {
-      btn.disabled = false;
-      btn.innerHTML = prevHTML;
       // Ocultar overlay
       const overlay = document.getElementById("overlayRevision");
       if (overlay) overlay.style.display = "none";
@@ -3336,7 +3280,7 @@ async function descargarFacturasSeleccionadas() {
         var data = window.tabulatorTable.getSelectedData() || [];
         return Array.isArray(data) ? data : [];
       }
-    }catch(e){}
+    }catch(_){}
     // Fallback por tabla HTML
     var out = [];
     var tbody = document.querySelector("#tablaPagoFacturas tbody");
@@ -3433,7 +3377,7 @@ async function descargarFacturasSeleccionadas() {
       try {
         var initial = window.tabulatorTable.getSelectedRows ? window.tabulatorTable.getSelectedRows().length : 0;
         togglePagoZipVisibility(initial || 0);
-      } catch(e){ togglePagoZipVisibility(0); }
+      } catch(_){ togglePagoZipVisibility(0); }
       return true;
     }
     return false;
