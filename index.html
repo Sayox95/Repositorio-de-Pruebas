@@ -417,7 +417,7 @@
 <div id="toast-alert">⚠️ Hay campos obligatorios sin completar.</div>
 <!-- ==== Registrar Anticipo ==== -->
 <section id="registrarAnticipo" style="display:none;flex-direction:column;gap:1rem;padding:1rem;align-items:center;">
-<button id="btnBackAnt" style="align-self:flex-start;">← Volver</button>
+<button id="btnBackAnt" onclick="return backToInicioAnt(event)"  style="align-self:flex-start;">← Volver</button>
 <h2>Registrar Anticipo</h2>
   <!-- Cortar desde aquí ↓↓ -->
   <div id="filtrosAnt" style="display:flex;gap:1rem;align-items:center;margin:1rem 0;">
@@ -734,7 +734,7 @@
 <button onclick="cargarRevisionFacturas()" style="width: 250px;  padding: 10px;">🔍 Revisión de Facturas</button>
 <button onclick="cargarPagoFacturas()" style="width: 250px;  padding: 10px;">💳 Pago de Facturas</button>
 <button id="btnIrRegistrarAnticipo" style="width:250px;padding:10px;">💵 Registrar Anticipo</button></div><div id="seccionPagoFacturas" style="display: none;">
-<button onclick="mostrarSeccion('menuPrincipal')" style="height:24px; line-height:1; padding: 0.25rem 0.5rem; display: flex; align-items: center; justify-content: center;"><span style="margin-right: 0.5rem;">←</span>Regresar al Menú Principal</button><h2>Pago de Facturas</h2>
+<button onclick="location.hash='#/inicio'" style="height:24px; line-height:1; padding: 0.25rem 0.5rem; display: flex; align-items: center; justify-content: center;"><span style="margin-right: 0.5rem;">←</span>Regresar al Menú Principal</button><h2>Pago de Facturas</h2>
 <div id="countersContainer">
 <div class="counter-box"><span class="label">Facturas Pendientes</span><span class="value" id="contadorPendientes">0</span></div>
 <div class="counter-box"><span class="label">Facturas Pagadas</span><span class="value" id="contadorPagadas">0</span></div>
@@ -951,17 +951,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
 <script>
 function regresarAlMenu() {
-  // Oculta ambas secciones y muestra menú principal
-  document.getElementById('seccionRevisionFacturas').style.display = 'none';
-  document.getElementById('menuPrincipal').style.display = 'flex';
-  // Limpia tablas y formularios
-  const encabezado = document.getElementById('encabezadoTabla');
-  const cuerpo = document.getElementById('cuerpoTabla');
-  if (encabezado) encabezado.innerHTML = '';
-  if (cuerpo) cuerpo.innerHTML = '';
-  const form = document.getElementById('formulario_contenido');
-  if (form) form.style.display = 'none';
+  if (location.hash !== '#/inicio') location.hash = '#/inicio';
 }
+
 </script>
 <script>
 function actualizarVisibilidadBotonesMasivos() {
@@ -3439,6 +3431,122 @@ async function descargarFacturasSeleccionadas() {
       if (hookSelectionListener() || (++tries > 60)) clearInterval(iv);
     }, 150);
   });
+})();
+</script>
+
+
+<!-- === Simple Hash Router (non-invasive) === -->
+<script>
+(function(){
+  // Map hash path to actions
+  const routes = {
+    "/inicio": function(){
+      // mostrar menú principal
+      try { mostrarSeccion('menuPrincipal'); } catch(e){}
+      // opcional: limpiar otras vistas si hace falta
+    },
+    "/revision": function(){
+      if (typeof cargarRevisionFacturas === "function") {
+        try { cargarRevisionFacturas(); } catch(e){ console.warn(e); }
+      } else {
+        // fallback: mostrar sección a mano si existe
+        try { mostrarSeccion('revisionFacturas'); } catch(e){}
+      }
+    },
+    "/pago": function(){
+      if (typeof cargarPagoFacturas === "function") {
+        try { cargarPagoFacturas(); } catch(e){ console.warn(e); }
+      } else {
+        try { mostrarSeccion('seccionPagoFacturas'); } catch(e){}
+      }
+    },
+    "/anticipos": function(){
+      // Mostrar la sección y cargar anticipos si existe la función
+      try { mostrarSeccion('registrarAnticipo'); } catch(e){}
+      if (typeof cargarAnticipos === "function") {
+        try { cargarAnticipos(); } catch(e){ console.warn(e); }
+      }
+    }
+  };
+
+  function runRoute(){
+    var hash = window.location.hash || "#/inicio";
+    var path = hash.replace(/^#/, "");
+    (routes[path] || routes["/inicio"])();
+  }
+
+  // Monkey-patch para que los botones actuales también actualicen la URL
+  window.addEventListener('DOMContentLoaded', function(){
+    // Wrap cargarRevisionFacturas
+    if (typeof window.cargarRevisionFacturas === "function") {
+      const _old = window.cargarRevisionFacturas;
+      window.cargarRevisionFacturas = function(){
+        if (location.hash !== "#/revision") location.hash = "#/revision";
+        return _old.apply(this, arguments);
+      };
+    }
+    // Wrap cargarPagoFacturas
+    if (typeof window.cargarPagoFacturas === "function") {
+      const _old = window.cargarPagoFacturas;
+      window.cargarPagoFacturas = function(){
+        if (location.hash !== "#/pago") location.hash = "#/pago";
+        return _old.apply(this, arguments);
+      };
+    }
+    // Botón de anticipos por ID conocido
+    var btnAnt = document.getElementById('btnIrRegistrarAnticipo');
+    if (btnAnt) {
+      btnAnt.addEventListener('click', function(){
+        if (location.hash !== "#/anticipos") location.hash = "#/anticipos";
+        // si ya tienes handler preexistente no lo interferimos; solo cambiamos hash
+      });
+    }
+    runRoute(); // en carga inicial, navega según hash
+  });
+
+  window.addEventListener('hashchange', runRoute);
+})();
+</script>
+<!-- === End Hash Router === -->
+
+<script>
+(function(){
+  // Guard to avoid hash being re-forced to #/anticipos when returning to menu
+  window.__suppressAntHash = false;
+
+  // Define back handler for anticipos
+  window.backToInicioAnt = function(ev){
+    try {
+      if (ev && typeof ev.preventDefault === 'function') ev.preventDefault();
+      if (ev && typeof ev.stopPropagation === 'function') ev.stopPropagation();
+    } catch (e) {}
+    window.__suppressAntHash = true;
+    // Navigate to menu
+    if (location.hash !== '#/inicio') location.hash = '#/inicio';
+    return false;
+  };
+
+  // If cargarAnticipos exists, wrap it to respect the guard
+  function wrapAnt(){
+    if (typeof window.cargarAnticipos === 'function' && !window.cargarAnticipos.__guardWrapped){
+      const _orig = window.cargarAnticipos;
+      const wrapped = function(){
+        if (window.__suppressAntHash === true){
+          // Just run original without touching routing; then reset the flag
+          try { return _orig.apply(this, arguments); }
+          finally { window.__suppressAntHash = false; }
+        }
+        // Otherwise behave normally
+        return _orig.apply(this, arguments);
+      };
+      wrapped.__guardWrapped = true;
+      window.cargarAnticipos = wrapped;
+    }
+  }
+
+  // Try on DOMContentLoaded; also try a bit later in case script loads late
+  document.addEventListener('DOMContentLoaded', wrapAnt);
+  setTimeout(wrapAnt, 1000);
 })();
 </script>
 
