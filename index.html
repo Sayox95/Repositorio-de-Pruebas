@@ -733,7 +733,7 @@
 <h2>Seleccione una opción</h2>
 <button onclick="navigateTo('/revision')" style="width: 250px;  padding: 10px;">🔍 Revisión de Facturas</button>
 <button onclick="navigateTo('/pago')" style="width: 250px;  padding: 10px;">💳 Pago de Facturas</button>
-<button id="btnIrRegistrarAnticipo" style="width:250px;padding:10px; onclick="navigateTo('/anticipos')">💵 Registrar Anticipo</button></div><div id=" onclick="navigateTo(\'/anticipos\')"seccionPagoFacturas" style="display: none;">
+<button id="btnIrRegistrarAnticipo" style="width:250px;padding:10px; onclick="navigateTo('/anticipos')">💵 Registrar Anticipo</button></div><div id="seccionPagoFacturas" style="display: none;">
 <button onclick="navigateTo('/')" style="height:24px; line-height:1; padding: 0.25rem 0.5rem; display: flex; align-items: center; justify-content: center;"><span style="margin-right: 0.5rem;">←</span>Regresar al Menú Principal</button><h2>Pago de Facturas</h2>
 <div id="countersContainer">
 <div class="counter-box"><span class="label">Facturas Pendientes</span><span class="value" id="contadorPendientes">0</span></div>
@@ -797,7 +797,11 @@
         if (filtroEstadoElem) filtroEstadoElem.value = "";
 
         // Mostrar sección y recargar datos
-        document.getElementById('seccionRevisionFacturas').style.display = 'block';} else if (nombre === 'registrarAnticipo') {
+        document.getElementById('seccionRevisionFacturas').style.display = 'block';
+    // Limpieza dura al entrar
+    if (typeof resetRevisionUI === "function") resetRevisionUI();
+        
+      } else if (nombre === 'registrarAnticipo') {
         document.getElementById('registrarAnticipo').style.display = 'block';
       }
     }
@@ -827,7 +831,7 @@
   }
 </style>
 <div id="seccionRevisionFacturas" style="display: none; padding: 1rem;">
-<button class="btn btn-secondary mb-3" onclick="navigateTo(\'/\')" type="button">
+<button class="btn btn-secondary mb-3" onclick="navigateTo('/')" type="button">
     ←  Regresar al Menú Principal</button>
 <h2 style="margin-bottom: 1rem;">📄 Revisión de Facturas</h2>
 <div id="countersRow">
@@ -3457,5 +3461,76 @@ async function descargarFacturasSeleccionadas() {
 })();
 </script>
 
+
+<!-- === Router Resets + Enter Hooks (safe append) === -->
+<script>
+(function(){
+  // Centralized resets
+  function resetRevision(){
+    ["filtroSector","filtroEstado","filtroNumeroFactura","filtroPlaca"].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=""; });
+    if (window.flatpickr && window.flatpickr.l10ns && document.getElementById("rangoFechas")) {
+      try { flatpickr("#rangoFechas").clear(); } catch(_){}
+    }
+    ["counterTotales","counterRegistradas","counterRevisadas","counterAnuladas"].forEach(id=>{ const el=document.getElementById(id); if(el) el.textContent = (id==="counterTotales"?"L 0.00":"0"); });
+    if (window.tableRevision){ try{ tableRevision.clearFilter(true); tableRevision.clearSort(); tableRevision.clearData(); }catch(_){ } }
+    const mas = document.getElementById("accionesMasivas"); if (mas) mas.style.display = "none";
+    const ov  = document.getElementById("overlayRevision"); if (ov) ov.style.display = "none";
+  }
+  function resetPago(){
+    const s = document.getElementById("filtroSectorPago"); if (s) s.value = "Todos";
+    const e = document.getElementById("filtroEstadoPago"); if (e) e.value = "Todos";
+    const n = document.getElementById("filtroNumeroPago"); if (n) n.value = "";
+    try { if (window.flatpickrPago && typeof flatpickrPago.clear==="function") flatpickrPago.clear(); } catch(_){}
+    const map = { contadorPendientes:"0", contadorPagadas:"0", totalRevisada:"L 0.00", totalPagada:"L 0.00" };
+    Object.entries(map).forEach(([id,val])=>{ const el=document.getElementById(id); if(el) el.textContent=val; });
+    if (window.tabulatorTable){ try{ window.tabulatorTable.clearFilter?.(true); window.tabulatorTable.clearSort?.(); window.tabulatorTable.clearData?.(); }catch(_){ } }
+    const ov = document.getElementById("overlayPago"); if (ov) ov.style.display = "none";
+    const ft = document.getElementById("facturas-table"); if (ft) ft.style.display = "block";
+  }
+  function resetAnticipos(){
+    ["filterSectorAnt","filterPeriodoAnt","antSector","antFondo","antDeposito","antPeriodo"].forEach(id=>{ const el=document.getElementById(id); if(!el) return; if(el.tagName==="INPUT") el.value=""; else el.value=""; });
+    const totals = { antTotal:"L 0.00", antSaldo:"L 0.00" };
+    Object.entries(totals).forEach(([id,val])=>{ const el=document.getElementById(id); if (el) el.textContent = val; });
+    if (window.tablaAnticipos){ try{ tablaAnticipos.clearData?.(); tablaAnticipos.clearFilter?.(true); tablaAnticipos.clearSort?.(); }catch(_){ } }
+    const ov = document.getElementById("overlayAnt"); if (ov) ov.style.display = "none";
+  }
+
+  // Helper to show only one section
+  function showOnly(selector){
+    const ids = ["#menuPrincipal","#seccionRevisionFacturas","#seccionPagoFacturas","#registrarAnticipo"];
+    ids.forEach(sel => {
+      const el = document.querySelector(sel);
+      if (!el) return;
+      el.style.display = (sel === selector) ? (sel==="#menuPrincipal"?"flex":"block") : "none";
+    });
+  }
+
+  // Lightweight router config (non-destructive)
+  const routerConfig = {
+    "/":          { el:"#menuPrincipal",         enter: null },
+    "/revision":  { el:"#seccionRevisionFacturas", enter: resetRevision },
+    "/pago":      { el:"#seccionPagoFacturas",     enter: resetPago },
+    "/anticipos": { el:"#registrarAnticipo",       enter: resetAnticipos },
+  };
+
+  // Safe render override
+  const _render = function(){
+    const path = window.location && routerConfig[window.location.pathname] ? window.location.pathname : "/";
+    const route = routerConfig[path] || routerConfig["/"];
+    try { if (typeof route.enter === "function") route.enter(); } catch(err){ console.error("enter hook error:", err); }
+    showOnly(route.el);
+  };
+
+  // Safe navigateTo override
+  window.navigateTo = function(path){
+    try { history.pushState({}, "", path); } catch(_) { window.location.assign(path); return; }
+    _render();
+  };
+
+  // popstate + initial mount
+  window.addEventListener("popstate", _render);
+  document.addEventListener("DOMContentLoaded", _render);
+})();
+</script>
 </body>
 </html>
