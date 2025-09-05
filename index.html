@@ -733,7 +733,7 @@
 <h2>Seleccione una opción</h2>
 <button onclick="navigateTo('/revision')" style="width: 250px;  padding: 10px;">🔍 Revisión de Facturas</button>
 <button onclick="navigateTo('/pago')" style="width: 250px;  padding: 10px;">💳 Pago de Facturas</button>
-<button id="btnIrRegistrarAnticipo" style="width:250px;padding:10px; onclick="navigateTo('/anticipos')">💵 Registrar Anticipo</button></div><div id="seccionPagoFacturas" style="display: none;">
+<button id="btnIrRegistrarAnticipo" style="width:250px;padding:10px; " onclick="navigateTo('/anticipos')">💵 Registrar Anticipo</button></div><div id="seccionPagoFacturas" style="display: none;">
 <button onclick="navigateTo('/')" style="height:24px; line-height:1; padding: 0.25rem 0.5rem; display: flex; align-items: center; justify-content: center;"><span style="margin-right: 0.5rem;">←</span>Regresar al Menú Principal</button><h2>Pago de Facturas</h2>
 <div id="countersContainer">
 <div class="counter-box"><span class="label">Facturas Pendientes</span><span class="value" id="contadorPendientes">0</span></div>
@@ -2334,7 +2334,6 @@ function updateCountersRevision(){
 }
 // Botón o evento para entrar a sección
 function cargarRevisionFacturas(){
-  mostrarSeccion('revisionFacturas');
   const overlay = document.getElementById('overlayRevision');
   const textEl = document.getElementById('overlayTextRevision');
   textEl.textContent = window.isFirstLoadRevisionFacturas ? "Cargando información" : "Actualizando información";
@@ -3025,8 +3024,7 @@ function resetRevisionUI() {
           }
         }catch(_){}
       });
-      window.tableRevision.on("dataChanged", function(){
-        updateEstadoFilterOptionsFromTable();
+      window.tableRevision.on("dataChanged"erOptionsFromTable();
       });
     }
   });
@@ -3039,6 +3037,9 @@ function resetRevisionUI() {
   if (!btn) return;
   btn.addEventListener("click", async function(){
     try {
+      const prevHTML = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = "Actualizando…";
       // Mostrar overlay si existe
       const overlay = document.getElementById("overlayRevision");
       const txt = document.getElementById("overlayTextRevision");
@@ -3071,18 +3072,18 @@ function resetRevisionUI() {
       console.error("Error al actualizar Revisión:", err);
       alert("❌ Error al actualizar: " + (err && err.message ? err.message : err));
     } finally {
-      // Ocultar overlay
+      btn.disabled = false;
+      btn.innerHTML = prevHTML;
+// Ocultar overlay
       const overlay = document.getElementById("overlayRevision");
       if (overlay) overlay.style.display = "none";
+    
     }
   });
 })();
 </script>
 <script>
-// Helper para actualizar contador de Facturas Totales desde datos activos de Tabulator (por si se requiere)
-window.updateCounterTotalesRevision = function(){
-  try{
-    var el = document.getElementById("counterTotales");
+// Helper para actualizar contador de Facturas Totales desde datos activos de Tabulator (por si se requierr el = document.getElementById("counterTotales");
     if(!el) return;
     var t = window.tableRevision;
     if (!t || typeof t.getData !== "function") return;
@@ -3507,31 +3508,5 @@ async function descargarFacturasSeleccionadas() {
 })();
 </script>
 
-
-<script>
-// Helper to refresh current section without reloading the whole page
-function routerReload(){
-  try {
-    const p = (window.location.pathname || '/').replace(/\/+$/, '') || '/';
-    if (p === '/revision' && typeof cargarRevisionFacturas === 'function'){
-      cargarRevisionFacturas(true); // true => force reload if your fn supports it
-      return;
-    }
-    if (p === '/pago' && typeof cargarPagoFacturas === 'function'){
-      cargarPagoFacturas(true);
-      return;
-    }
-    if (p === '/anticipos' && typeof cargarAnticipos === 'function'){
-      cargarAnticipos(true);
-      return;
-    }
-    // Default: go to same path to re-run route init
-    if (typeof navigateTo === 'function') navigateTo(p || '/');
-  } catch (e){
-    console.warn('routerReload fallback:', e);
-    if (typeof navigateTo === 'function') navigateTo('/');
-  }
-}
-</script>
-
-</body></html>
+</body>
+</html>
