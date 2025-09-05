@@ -417,7 +417,7 @@
 <div id="toast-alert">⚠️ Hay campos obligatorios sin completar.</div>
 <!-- ==== Registrar Anticipo ==== -->
 <section id="registrarAnticipo" style="display:none;flex-direction:column;gap:1rem;padding:1rem;align-items:center;">
-<button id="btnBackAnt" style="align-self:flex-start;">←  Regresar al Menú Principal</button>
+<button id="btnBackAnt" style="align-self:flex-start;" onclick="navigateTo('/')">←  Regresar al Menú Principal</button>
 <h2>Registrar Anticipo</h2>
   <!-- Cortar desde aquí ↓↓ -->
   <div id="filtrosAnt" style="display:flex;gap:1rem;align-items:center;margin:1rem 0;">
@@ -731,10 +731,10 @@
 </div>
 <div id="menuPrincipal" style="display: flex; flex-direction: column; align-items: center; margin-top: 50px; gap:20px;">
 <h2>Seleccione una opción</h2>
-<button onclick="cargarRevisionFacturas()" style="width: 250px;  padding: 10px;">🔍 Revisión de Facturas</button>
-<button onclick="cargarPagoFacturas()" style="width: 250px;  padding: 10px;">💳 Pago de Facturas</button>
-<button id="btnIrRegistrarAnticipo" style="width:250px;padding:10px;">💵 Registrar Anticipo</button></div><div id="seccionPagoFacturas" style="display: none;">
-<button onclick="mostrarSeccion('menuPrincipal')" style="height:24px; line-height:1; padding: 0.25rem 0.5rem; display: flex; align-items: center; justify-content: center;"><span style="margin-right: 0.5rem;">←</span>Regresar al Menú Principal</button><h2>Pago de Facturas</h2>
+<button onclick="navigateTo('/revision')" style="width: 250px;  padding: 10px;">🔍 Revisión de Facturas</button>
+<button onclick="navigateTo('/pago')" style="width: 250px;  padding: 10px;">💳 Pago de Facturas</button>
+<button id="btnIrRegistrarAnticipo" style="width:250px;padding:10px; onclick="navigateTo('/anticipos')">💵 Registrar Anticipo</button></div><div id="seccionPagoFacturas" style="display: none;">
+<button onclick="navigateTo('/')" style="height:24px; line-height:1; padding: 0.25rem 0.5rem; display: flex; align-items: center; justify-content: center;"><span style="margin-right: 0.5rem;">←</span>Regresar al Menú Principal</button><h2>Pago de Facturas</h2>
 <div id="countersContainer">
 <div class="counter-box"><span class="label">Facturas Pendientes</span><span class="value" id="contadorPendientes">0</span></div>
 <div class="counter-box"><span class="label">Facturas Pagadas</span><span class="value" id="contadorPagadas">0</span></div>
@@ -831,7 +831,8 @@
   }
 </style>
 <div id="seccionRevisionFacturas" style="display: none; padding: 1rem;">
-<button class="btn btn-secondary mb-3" onclick="regresarAlMenu()" type="button">←  Regresar al Menú Principal</button>
+<button class="btn btn-secondary mb-3" onclick="regresarAlMenu()" type="button">
+    ←  Regresar al Menú Principal</button>
 <h2 style="margin-bottom: 1rem;">📄 Revisión de Facturas</h2>
 <div id="countersRow">
 <div class="counter-box">
@@ -959,6 +960,8 @@ function regresarAlMenu() {
   if (cuerpo) cuerpo.innerHTML = '';
   const form = document.getElementById('formulario_contenido');
   if (form) form.style.display = 'none';
+
+  try { navigateTo('/'); } catch(e) {}
 }
 </script>
 <script>
@@ -3442,89 +3445,65 @@ async function descargarFacturasSeleccionadas() {
 
 
 <script>
-(() => {
-  // --- History API Router ---
+// ======= Minimal History API Router (no style changes) =======
+(function(){
   const routes = {
-    "/": "menuPrincipal",
-    "/inicio": "menuPrincipal",
-    "/revision": "seccionRevisionFacturas",
-    "/pago": "seccionPagoFacturas",
-    "/anticipos": "anticipo" // container id for anticipos section
+    "/": function(){ 
+      // Show menu only
+      showOnly("menuPrincipal");
+    },
+    "/revision": function(){
+      showOnly("seccionRevisionFacturas");
+      if (typeof cargarRevisionFacturas === "function") {
+        try { cargarRevisionFacturas(); } catch(e){ console.error(e); }
+      }
+    },
+    "/pago": function(){
+      showOnly("seccionPagoFacturas");
+      if (typeof cargarPagoFacturas === "function") {
+        try { cargarPagoFacturas(); } catch(e){ console.error(e); }
+      }
+    },
+    "/anticipos": function(){
+      showOnly("registrarAnticipo");
+      // Si tienes una función para cargar anticipos, ejecútala aquí.
+      // (dejamos el comportamiento actual tal cual)
+    }
   };
 
-  const hasLoaded = { revision:false, pago:false, anticipos:false };
-
-  function showOnly(id) {
-    const ids = Object.values(routes).filter((v, i, a) => a.indexOf(v) === i);
-    ids.forEach(secId => {
-      const el = document.getElementById(secId);
-      if (el) el.style.display = (secId === id) ? "" : "none";
+  function showOnly(id){
+    const ids = ["menuPrincipal","seccionRevisionFacturas","seccionPagoFacturas","registrarAnticipo"];
+    ids.forEach(x => {
+      const el = document.getElementById(x);
+      if (el) el.style.display = (x === id ? (x==="menuPrincipal"?"flex":"block") : "none");
     });
   }
 
-  function runOnEnter(id) {
-    try {
-      if (id === "seccionRevisionFacturas" && !hasLoaded.revision) {
-        hasLoaded.revision = true;
-        if (typeof cargarRevisionFacturas === "function") cargarRevisionFacturas();
-      } else if (id === "seccionPagoFacturas" && !hasLoaded.pago) {
-        hasLoaded.pago = true;
-        if (typeof cargarPagoFacturas === "function") cargarPagoFacturas();
-      } else if (id === "anticipo" && !hasLoaded.anticipos) {
-        hasLoaded.anticipos = true;
-        if (typeof cargarAnticipos === "function") cargarAnticipos();
-      }
-    } catch (e) {
-      console.error("Error en runOnEnter:", e);
+  window.navigateTo = function(path){
+    const p = path || "/";
+    if (window.location.pathname !== p){
+      window.history.pushState({}, "", p);
     }
+    render();
+  };
+
+  function render(){
+    const p = window.location.pathname || "/";
+    (routes[p] || routes["/"])();
   }
 
-  function navigateTo(path) {
-    const secId = routes[path] || "menuPrincipal";
-    if (location.pathname !== path) {
-      window.history.pushState({ path }, "", path);
+  // Handle back/forward
+  window.addEventListener("popstate", render);
+
+  // Initial render after DOM ready
+  document.addEventListener("DOMContentLoaded", function(){
+    // If the path is not one of our routes, normalize to "/"
+    const p = window.location.pathname;
+    if (!routes[p]) {
+      window.history.replaceState({}, "", "/");
     }
-    showOnly(secId);
-    runOnEnter(secId);
-  }
-
-  // Expose a global for back buttons
-  window.navigateTo = navigateTo;
-
-  // Intercept clicks on elements with data-route
-  document.addEventListener("click", (ev) => {
-    const a = ev.target.closest("[data-route]");
-    if (a) {
-      ev.preventDefault();
-      const path = a.getAttribute("data-route");
-      navigateTo(path);
-    }
+    render();
   });
-
-  window.addEventListener("popstate", () => {
-    const secId = routes[location.pathname] || "menuPrincipal";
-    showOnly(secId);
-    runOnEnter(secId);
-  });
-
-  // Initial render
-  document.addEventListener("DOMContentLoaded", () => {
-    const path = location.pathname.replace(/\/+$/, "") || "/";
-    navigateTo(path);
-  });
-
-  // Replace any old back helpers to use navigateTo("/")
-  window.regresarAlMenu = () => navigateTo("/");
-  window.mostrarSeccion = (id) => {
-    // legacy: map ids to paths
-    const reverse = {
-      "menuPrincipal": "/",
-      "seccionRevisionFacturas": "/revision",
-      "seccionPagoFacturas": "/pago",
-      "anticipo": "/anticipos"
-    };
-    navigateTo(reverse[id] || "/");
-  }
 })();
 </script>
 
