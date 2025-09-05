@@ -3507,5 +3507,31 @@ async function descargarFacturasSeleccionadas() {
 })();
 </script>
 
-</body>
-</html>
+
+<script>
+// Helper to refresh current section without reloading the whole page
+function routerReload(){
+  try {
+    const p = (window.location.pathname || '/').replace(/\/+$/, '') || '/';
+    if (p === '/revision' && typeof cargarRevisionFacturas === 'function'){
+      cargarRevisionFacturas(true); // true => force reload if your fn supports it
+      return;
+    }
+    if (p === '/pago' && typeof cargarPagoFacturas === 'function'){
+      cargarPagoFacturas(true);
+      return;
+    }
+    if (p === '/anticipos' && typeof cargarAnticipos === 'function'){
+      cargarAnticipos(true);
+      return;
+    }
+    // Default: go to same path to re-run route init
+    if (typeof navigateTo === 'function') navigateTo(p || '/');
+  } catch (e){
+    console.warn('routerReload fallback:', e);
+    if (typeof navigateTo === 'function') navigateTo('/');
+  }
+}
+</script>
+
+</body></html>
