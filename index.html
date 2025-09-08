@@ -2,355 +2,750 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Revisión de Facturas</title>
-
-  <!-- Tabulator CSS -->
-  <link href="https://unpkg.com/tabulator-tables@5.6.2/dist/css/tabulator.min.css" rel="stylesheet" />
-
-  <!-- Flatpickr CSS -->
-  <link href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" rel="stylesheet" />
-
-  <!-- Font Awesome (official CDNJS snippet with SRI) -->
-  <link rel="stylesheet"
-        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
-        integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A=="
-        crossorigin="anonymous" referrerpolicy="no-referrer" />
-
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>UTCD · Revisión de Facturas</title>
+  <!-- Tabulator -->
+  <link href="https://unpkg.com/tabulator-tables@6.2.5/dist/css/tabulator.min.css" rel="stylesheet">
+  <script src="https://unpkg.com/tabulator-tables@6.2.5/dist/js/tabulator.min.js"></script>
+  <!-- Flatpickr -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <!-- JSZip + FileSaver -->
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+  <!-- Icons -->
+  <link rel="stylesheet" href="https://unpkg.com/lucide-static@0.453.0/font/lucide.css">
   <style>
     :root{
-      --bg:#0f172a;            /* sidebar */
-      --bg-2:#111827;          /* sidebar hover */
-      --text:#e5e7eb;          /* sidebar text */
-      --primary:#14b8a6;       /* teal */
-      --accent:#f59e0b;        /* amber */
-      --danger:#ef4444;        /* red */
-      --card:#ffffff;          /* content cards */
-      --muted:#6b7280;         /* gray */
-      --content:#f3f4f6;       /* content bg */
-      --border:#e5e7eb;        /* light border */
+      --sidebar-bg:#0F1B2D;
+      --sidebar-hover:#122239;
+      --primary:#0FA47E;
+      --primary-600:#0b8466;
+      --surface:#F3F5F7;
+      --card:#FFFFFF;
+      --text:#0b1220;
+      --muted:#6b7280;
+      --ring:rgba(15,164,126,.35);
+      --danger:#dc2626;
     }
     *{box-sizing:border-box}
-    html,body{height:100%;margin:0;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,"Helvetica Neue",Arial}
-
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family: ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,"Noto Sans",sans-serif;
+      color:var(--text);
+      background:var(--surface);
+    }
     /* Layout */
-    .app{display:flex;min-height:100vh;background:var(--content)}
-    .sidebar{width:260px;background:var(--bg);color:var(--text);display:flex;flex-direction:column}
-    .brand{display:flex;align-items:center;gap:.75rem;padding:1rem 1.25rem;border-bottom:1px solid rgba(255,255,255,.08)}
-    .brand img{height:36px}
-    .brand span{font-weight:700;letter-spacing:.4px}
+    .app{
+      display:grid;
+      grid-template-columns: 260px 1fr;
+      grid-template-rows: 100vh;
+      gap:0;
+    }
+    .sidebar{
+      background:var(--sidebar-bg);
+      color:#dbeafe;
+      display:flex;
+      flex-direction:column;
+      padding:18px 14px;
+    }
+    .brand{
+      display:flex;align-items:center;gap:10px;
+      background:#0FA47E10; border:1px solid #0FA47E40;
+      color:#d1fae5; padding:8px 10px; border-radius:12px; font-weight:700;
+      letter-spacing:.2px;
+    }
+    .brand .logo{
+      width:46px;height:28px;border-radius:8px;
+      background:linear-gradient(135deg,#11c29a,#0e9e79);
+      display:grid;place-items:center;color:white; font-weight:800;
+    }
+    .brand .caption{display:flex;flex-direction:column;line-height:1}
+    .brand small{opacity:.8; font-weight:600}
+    nav{margin-top:18px;display:flex;flex-direction:column;gap:6px}
+    .nav-btn{
+      color:#dbeafe; border-radius:10px; padding:10px 12px;
+      display:flex;align-items:center;gap:10px; text-decoration:none;
+      transition: background .15s ease;
+    }
+    .nav-btn:hover{background:var(--sidebar-hover)}
+    .nav-btn.active{background:#ffffff10; border:1px solid #ffffff1f}
+    .spacer{flex:1}
+    .copyright{font-size:12px; color:#93a3b8; opacity:.7}
 
-    .nav{display:flex;flex-direction:column;padding:.5rem}
-    .nav a{display:flex;align-items:center;gap:.75rem;color:var(--text);text-decoration:none;padding:.75rem 1rem;border-radius:.5rem}
-    .nav a:hover{background:var(--bg-2)}
-    .nav .active{background:rgba(20,184,166,.18);color:#d1faf5}
+    /* Main */
+    .main{
+      padding:22px 24px;
+      overflow:auto;
+    }
+    .toolbar{
+      display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:16px;
+    }
+    .toolbar h1{font-size:22px; margin:0}
+    .actions{display:flex; gap:10px}
+    .btn{
+      display:inline-flex; align-items:center; gap:8px;
+      padding:10px 12px; border-radius:12px; border:1px solid #e5e7eb;
+      background:var(--card); cursor:pointer; font-weight:600;
+      box-shadow: 0 1px 0 rgba(15,23,42,.03);
+    }
+    .btn:focus{outline:2px solid var(--ring); outline-offset:2px}
+    .btn-primary{ background:var(--primary); color:white; border-color:transparent}
+    .btn-primary:hover{ background:var(--primary-600)}
+    .btn-ghost{ background:transparent; border-color:#e5e7eb}
+    .btn-danger{ background:var(--danger); color:white; border-color:transparent }
+    /* Grid */
+    .grid{
+      display:grid; gap:14px;
+    }
+    .grid.cols-3{ grid-template-columns: repeat(3, minmax(0,1fr)); }
+    .card{
+      background:var(--card); border:1px solid #e5e7eb; border-radius:14px; padding:16px;
+    }
+    .kpi{
+      display:flex; flex-direction:column; gap:4px;
+    }
+    .kpi .label{ color:var(--muted); font-size:13px; font-weight:600}
+    .kpi .value{ font-size:28px; font-weight:800}
+    .filters{
+      display:grid; grid-template-columns: 180px 180px 1fr 220px auto; gap:10px; align-items:center;
+      margin-top:10px;
+    }
+    .input, select,.choices__inner{
+      width:100%; border:1px solid #e5e7eb; border-radius:12px; padding:10px 12px; background:white;
+      font-size:14px;
+    }
+    .input:focus, select:focus{ outline:2px solid var(--ring); outline-offset:2px}
+    .choices.is-open .choices__inner{ border-color: var(--ring); box-shadow: 0 0 0 2px var(--ring); }
+    .table-wrap{ margin-top:8px }
+    .tabulator{ border-radius:14px; border:1px solid #e5e7eb }
+    .muted{ color:var(--muted) }
 
-    .content{flex:1;display:flex;flex-direction:column;min-width:0}
-    .topbar{display:flex;justify-content:space-between;align-items:center;padding:1rem 1.25rem;background:#fff;border-bottom:1px solid var(--border)}
-    .title{font-size:1.1rem;font-weight:700;color:#111827}
+    /* MultiSelect (checkbox dropdown) */
+    /* Estado editor (inline dropdown) */
+    .status-pill{ display:inline-flex; align-items:center; gap:6px; padding:4px 8px; border-radius:999px; font-weight:700; cursor:pointer; border:1px solid #e5e7eb; background:#fff; }
+    .status-pill .dot{ width:8px; height:8px; border-radius:50% }
+    .status-menu{
+      position:absolute; z-index:60; background:#fff; border:1px solid #e5e7eb; border-radius:10px; box-shadow:0 12px 24px rgba(2,8,23,.18);
+      padding:6px; display:none; min-width:180px;
+    }
+    .status-menu.open{ display:block }
+    .status-item{ display:flex; align-items:center; gap:8px; padding:8px 8px; border-radius:8px; cursor:pointer; }
+    .status-item:hover{ background:#f3f4f6 }
+    .status-item .dot{ width:8px; height:8px; border-radius:50% }
 
-    .page{padding:1rem;display:flex;flex-direction:column;gap:1rem}
+    .msel{ position:relative; }
+    .msel-toggle{
+      width:100%; border:1px solid #e5e7eb; border-radius:12px; padding:10px 12px; background:white;
+      display:flex; align-items:center; justify-content:space-between; gap:8px; cursor:pointer; font-size:14px;
+    }
+    .msel-toggle .label{ color:#9ca3af }
+    .msel-toggle .value{ color:var(--text) }
+    .msel.open .msel-toggle{ outline:2px solid var(--ring); outline-offset:2px }
+    .msel-panel{
+      position:absolute; top:calc(100% + 6px); left:0; right:0; z-index:40;
+      background:white; border:1px solid #e5e7eb; border-radius:12px; box-shadow:0 12px 24px rgba(2,8,23,.18);
+      padding:8px; max-height:240px; overflow:auto; display:none;
+    }
+    .msel.open .msel-panel{ display:block }
+    .msel-option{ display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:8px; user-select:none; }
+    .msel-option:hover{ background:#f3f4f6 }
+    .msel-option input{ width:16px; height:16px }
 
-    /* KPI cards */
-    .kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem}
-    .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:1rem}
-    .card h3{margin:.25rem 0 .5rem;font-size:.95rem;color:#111827}
-    .kpi{font-size:1.4rem;font-weight:800}
-
-    .filters{display:flex;flex-wrap:wrap;align-items:end;gap:.75rem;background:#fff;border:1px solid var(--border);border-radius:14px;padding:1rem}
-    .field{display:flex;flex-direction:column;gap:.35rem}
-    .field label{font-size:.8rem;color:var(--muted)}
-    .field select,.field input{height:38px;padding:.4rem .6rem;border:1px solid var(--border);border-radius:.5rem;background:#fff;min-width:180px}
-
-    .actions{margin-left:auto;display:flex;gap:.5rem}
-    .btn{height:38px;display:inline-flex;align-items:center;gap:.5rem;padding:0 .9rem;border-radius:.6rem;border:1px solid var(--border);background:#fff;color:#111827;cursor:pointer}
-    .btn.primary{background:var(--primary);border-color:var(--primary);color:#022c22}
-    .btn.outline{background:transparent;color:#111827}
-
-    /* Table */
-    .table-card{background:#fff;border:1px solid var(--border);border-radius:14px;padding:1rem}
-    #tablaRevision{width:100%}
-
-    /* Overlays */
-    .overlay{position:fixed;inset:0;background:rgba(17,24,39,.35);display:none;align-items:center;justify-content:center;z-index:50}
-    .overlay.show{display:flex}
-    .spinner{background:#fff;border-radius:12px;padding:1rem 1.25rem;display:flex;align-items:center;gap:.75rem;border:1px solid var(--border)}
-    .spinner i{animation:spin 1s linear infinite}
-    @keyframes spin{to{transform:rotate(360deg)}}
-
-    /* Responsive */
-    @media (max-width: 1024px){
-      .sidebar{width:220px}
-      .kpis{grid-template-columns:1fr}
+    /* Overlay */
+    .overlay{
+      position: fixed; inset:0; display:none; place-items:center; background:rgba(15, 18, 30, .35); z-index:50;
+    }
+    .overlay .bubble{
+      background:white; border-radius:12px; border:1px solid #e5e7eb; padding:10px 14px;
+      display:flex; align-items:center; gap:10px; font-weight:600;
+      box-shadow: 0 10px 20px rgba(2,8,23,.20);
+    }
+    .spinner{ width:16px;height:16px;border:2px solid #e5e7eb;border-top-color:#0FA47E;border-radius:50%; animation:spin .9s linear infinite }
+    @keyframes spin{ to{ transform: rotate(360deg) } }
+    /* Utilities */
+    .hidden{ display:none !important }
+    @media (max-width:1024px){
+      .app{ grid-template-columns: 82px 1fr}
+      .brand .caption{display:none}
+      .nav-btn span{ display:none }
+      .filters{ grid-template-columns: 1fr 1fr; }
     }
   </style>
 </head>
 <body>
-<div class="app">
-  <!-- Sidebar -->
-  <aside class="sidebar">
-    <div class="brand">
-      <img src="https://dummyimage.com/120x36/14b8a6/ffffff&text=UTCD" alt="UTCD"/>
-      <span>Aplicativo de Facturas</span>
-    </div>
-    <nav class="nav">
-      <a href="#" class="active"><i class="fa-solid fa-file-invoice"></i><span>Revisión de Facturas</span></a>
-      <a href="#pago"><i class="fa-solid fa-money-bill-wave"></i><span>Pago</span></a>
-      <a href="#anticipos"><i class="fa-solid fa-sack-dollar"></i><span>Anticipos</span></a>
-    </nav>
-    <div style="margin-top:auto;padding:.75rem 1rem;color:#94a3b8;font-size:.8rem">© UTCD 2025</div>
-  </aside>
-
-  <!-- Content -->
-  <main class="content">
-    <div class="topbar">
-      <div class="title">Revisión de Facturas</div>
-      <div class="actions">
-        <button id="btnRefresh" class="btn" aria-label="Actualizar"><i class="fa-solid fa-rotate"></i>Actualizar</button>
-        <button id="btnZip" class="btn primary" aria-label="Descargar PDFs seleccionados"><i class="fa-solid fa-file-zipper"></i>Descargar PDFs</button>
-      </div>
-    </div>
-
-    <section class="page">
-      <!-- KPIs -->
-      <div class="kpis">
-        <div class="card"><h3>Registradas</h3><div id="kpi-registradas" class="kpi">0</div></div>
-        <div class="card"><h3>Revisadas</h3><div id="kpi-revisadas" class="kpi">0</div></div>
-        <div class="card"><h3>Anuladas</h3><div id="kpi-anuladas" class="kpi">0</div></div>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="logo">UTCD</div>
+        <div class="caption">
+          <span>Aplicativo</span>
+          <small>de Facturas</small>
+        </div>
       </div>
 
-      <!-- Filtros -->
-      <div class="filters">
-        <div class="field">
-          <label for="f-sector">Sector</label>
-          <select id="f-sector"><option value="">Todos</option></select>
-        </div>
-        <div class="field">
-          <label for="f-estado">Estado</label>
-          <select id="f-estado">
-            <option value="">Todos</option>
-            <option>Registrada</option>
-            <option>Revisada</option>
-            <option>Anulada</option>
-            <option>Pagada</option>
-          </select>
-        </div>
-        <div class="field">
-          <label for="f-numero">Nº Factura</label>
-          <input id="f-numero" type="text" placeholder="Buscar..." />
-        </div>
-        <div class="field">
-          <label for="f-fecha">Fecha</label>
-          <input id="f-fecha" type="text" placeholder="Rango" />
-        </div>
+      <nav>
+        <a class="nav-btn active" href="#revision"><i class="lucide-list"></i><span>Revisión de Facturas</span></a>
+        <a class="nav-btn" href="#pago"><i class="lucide-wallet"></i><span>Pago</span></a>
+        <a class="nav-btn" href="#anticipos"><i class="lucide-coins"></i><span>Anticipos</span></a>
+      </nav>
+      <div class="spacer"></div>
+      <div class="copyright">© UTCD 2025</div>
+    </aside>
+
+    <main class="main">
+      <div class="toolbar">
+        <h1>Revisión de Facturas</h1>
         <div class="actions">
-          <button id="btnLimpiar" class="btn outline" aria-label="Limpiar filtros"><i class="fa-solid fa-eraser"></i>Limpiar</button>
+          <button id="btnActualizar" class="btn"><i class="lucide-rotate-cw"></i> Actualizar</button>
+          <button id="btnDescargar" class="btn btn-primary"><i class="lucide-file-down"></i> Descargar PDFs</button>
         </div>
       </div>
 
-      <!-- Tabla -->
-      <div class="table-card">
-        <div id="tablaRevision"></div>
+      <div class="grid cols-3">
+        <div class="card kpi">
+          <span class="label">Registradas</span>
+          <span id="kpiRegistradas" class="value">0</span>
+        </div>
+        <div class="card kpi">
+          <span class="label">Revisadas</span>
+          <span id="kpiRevisadas" class="value">0</span>
+        </div>
+        <div class="card kpi">
+          <span class="label">Anuladas</span>
+          <span id="kpiAnuladas" class="value">0</span>
+        </div>
       </div>
-    </section>
-  </main>
-</div>
 
-<!-- Overlays -->
-<div id="ovl" class="overlay"><div class="spinner"><i class="fa-solid fa-circle-notch"></i><span id="ovl-text">Cargando…</span></div></div>
+      <div class="card" style="margin-top:10px;">
+        <div class="filters">
+          <div id="msSector" class="msel" data-placeholder="Sector"></div>
+          <div id="msEstado" class="msel" data-placeholder="Estado"></div>
+          <input id="fNumero" class="input" placeholder="Nº Factura…"/>
+          <input id="fFecha" class="input" placeholder="Rango de fechas"/>
+          <button id="btnLimpiar" class="btn btn-ghost"><i class="lucide-broom"></i> Limpiar</button>
+        </div>
+        <div class="table-wrap">
+          <div id="tablaRevision"></div>
+        </div>
+      </div>
 
-<!-- Libs (defer) -->
-<script defer src="https://unpkg.com/tabulator-tables@5.6.2/dist/js/tabulator.min.js"></script>
-<script defer src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-<script defer src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-<script defer src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+      <p class="muted" style="margin-top:10px;">Consejo: usa los filtros para reducir el conjunto y luego “Descargar PDFs”.</p>
+    </main>
+  </div>
 
-<!-- App -->
-<script defer>
-/******************************* CONFIG *******************************/
-const API_ORIGIN = "https://repositorio-de-pruebas.pages.dev/api"; // ajusta si cambia
-const urlLeerFacturas = API_ORIGIN + "/leer";
-const urlGuardarFactura = API_ORIGIN + "/guardar";
-const CORS_PROXY = API_ORIGIN + "/proxy?url="; // para PDFs
+  <div id="overlay" class="overlay">
+    <div class="bubble"><div class="spinner"></div><span id="overlayMsg">Cargando facturas…</span></div>
+  </div>
 
-/****************************** HELPERS UI ****************************/ 
-const $ = (s)=>document.querySelector(s);
-const showOvl = (msg="Cargando…")=>{ document.getElementById('ovl-text').textContent=msg; document.getElementById('ovl').classList.add('show'); document.body.style.cursor='progress'; };
-const hideOvl = ()=>{ document.getElementById('ovl').classList.remove('show'); document.body.style.cursor='default'; };
-
-/******************************* ESTADO *******************************/
-let tabla;             // instancia Tabulator
-let datos = [];        // fuente de verdad en memoria
-
-/***************************** SERVICIOS ******************************/
-async function getJSON(url, opts={}){
-  // cache-busting + abort support opcional
-  const q = (url.includes('?') ? '&' : '?') + 't=' + Date.now();
-  const r = await fetch(url + q, { headers: { 'cache-control': 'no-store' }, ...opts });
-  if(!r.ok) throw new Error(`Error ${r.status}`);
-  return r.json();
-}
-async function postJSON(url, body){
-  const r = await fetch(url,{ method:'POST', headers:{ 'content-type':'application/json' }, body:JSON.stringify(body) });
-  if(!r.ok) throw new Error('No se pudo guardar');
-  return r.json();
-}
-
-/******************************* CARGA *******************************/
-async function cargarInicial(){
-  showOvl('Cargando facturas…');
-  datos = await getJSON(urlLeerFacturas);
-  poblarSectorSelect(datos);
-  renderTabla();
-  actualizarKpis();
-  hideOvl();
-}
-function poblarSectorSelect(list){
-  const sectores = Array.from(new Set(list.map(x=>x.Sector).filter(Boolean))).sort();
-  const sel = document.getElementById('f-sector');
-  sel.innerHTML = '';
-  const def = document.createElement('option'); def.value=''; def.textContent='Todos'; sel.appendChild(def);
-  for(const s of sectores){ const o=document.createElement('option'); o.value=s; o.textContent=s; sel.appendChild(o); }
-}
-
-/******************************* TABLA *******************************/
-function renderTabla(){
-  if(tabla){ tabla.setData(datos); return; }
-  tabla = new Tabulator('#tablaRevision',{
-    data: datos,
-    layout: 'fitDataStretch',
-    height: '70vh',
-    selectable: true,
-    columns:[
-      {title:"Sector", field:"Sector", width:140, headerFilter:true},
-      {title:"Placa", field:"Placa", width:100},
-      {title:"Proceso", field:"Proceso", width:110},
-      {title:"Nombre", field:"Nombre", minWidth:180},
-      {title:"Identidad", field:"Identidad", width:130},
-      {title:"Total", field:"Total", hozAlign:"right", formatter:"money", formatterParams:{decimal:",",thousand:".",symbol:"L ",precision:2}, width:140},
-      {title:"Fecha", field:"Fecha", width:120},
-      {title:"Comercio", field:"Comercio", minWidth:160},
-      {title:"# Factura", field:"Numero", width:120, headerFilter:true},
-      {title:"Estado", field:"Estado", width:120, editor:"select", editorParams:{values:["Registrada","Revisada","Anulada","Pagada"]}},
-      {title:"PDF", field:"PDF", width:90, formatter: pdfBtn, hozAlign:'center', headerSort:false},
-    ],
-    rowUpdated: actualizarKpis,
-    dataFiltered: actualizarKpis,
-    dataLoaded: actualizarKpis,
-    cellEdited: onCellEdited,
-  });
-}
-function pdfBtn(cell){
-  const url = cell.getValue();
-  if(!url) return "";
-  const enc = encodeURIComponent(url);
-  return `<button class="btn" style="height:28px" title="Descargar PDF" onclick="descargarPDF('${enc}')"><i class='fa-solid fa-download'></i></button>`;
-}
-// Exponer para el onclick del formatter
-window.descargarPDF = async function(encUrl){
-  const url = CORS_PROXY + encUrl; // proxy CORS
-  const r = await fetch(url);
-  const blob = await r.blob();
-  const nombre = decodeURIComponent(encUrl).split('/').pop().split('?')[0] || 'factura.pdf';
-  saveAs(blob, nombre);
+<script>
+/** =========================
+ *  Configuración
+ *  ========================= */
+const Config = {
+  // Ajusta estas URLs a tu despliegue (coinciden con tu arquitectura actual)
+  api: {
+    leerFacturas: "https://repositorio-de-pruebas.pages.dev/api/leer",
+    guardar: "/api/guardar",
+    anticipos: "/api/Anticipos",
+    guardarAnti: "/api/GuardarAnti",
+    // Proxy para PDFs
+    proxyBase: "https://repositorio-de-pruebas.pages.dev/api",
+  },
+  tablaHeight: "560px",
 };
 
-/****************************** ACCIONES *****************************/
-async function onCellEdited(cell){
-  if(cell.getField() !== 'Estado') return;
+/** =========================
+ *  Utilidades de UI
+ *  ========================= */
+const $ = (sel)=>document.querySelector(sel);
+const overlay = {
+  show(msg="Cargando…"){ $("#overlayMsg").textContent = msg; $("#overlay").style.display="grid"; },
+  hide(){ $("#overlay").style.display="none"; }
+};
+const fmt = {
+  money(v){ const n=Number(v||0); return "L " + n.toLocaleString("es-HN",{minimumFractionDigits:2, maximumFractionDigits:2}); },
+  dateISO(d){ const x = new Date(d); if(isNaN(x)) return ""; return x.toISOString().slice(0,10); },
+};
+
+/** Mapea alias de campos al esquema esperado por la tabla */
+function normalizeRow(src){
+  if(!src || typeof src!=="object") return null;
+  const g = (keys, fallback="")=>{
+    for(const k of keys){
+      if(src[k]!=null && src[k]!=="" ) return src[k];
+    }
+    return fallback;
+  };
+  const row = {
+    Sector:    g(["Sector","SECTOR","sector"]),
+    Placa:     g(["Placa","PLACA","placa","Dato Placa","DatoPlaca"]),
+    Proceso:   g(["Proceso","PROCESO","proceso"]),
+    Nombre:    g(["Nombre","NOMBRE","nombre"]),
+    Identidad: g(["Identidad","IDENTIDAD","DNI","Cedula","Documento","NIT"]),
+    Fecha:     g(["Fecha","Fecha Factura","FECHA","fecha"]),
+    "Nº Factura": g(["Nº Factura","NoFactura","No Factura","Numero","NroFactura","Nro Factura","Factura","No_Factura"]),
+    "Numero de Factura": g(["Numero de Factura","Número de Factura","N° Factura","Nº Factura","NoFactura","Factura"]),
+    "Nombre del comercio": g(["Nombre del comercio","Comercio","Proveedor","Razon Social","RazonSocial"]),
+    "Enlace PDF": g(["Enlace PDF","Enlace","URL","Pdf","PDF","Link","Archivo","Ruta","Documento","DocumentoURL"]),
+    Enlace:    g(["Enlace","URL","Pdf","PDF","Link","Archivo","Ruta","Documento","DocumentoURL"]),
+    PDF:       g(["PDF","pdf","EnlacePDF","DocumentoPDF"]),
+    "Km Actual": g(["Km Actual","KM","Km","Kilometraje"]),
+    "Litros Consumidos": g(["Litros Consumidos","Litros","Consumo (L)","ConsumoL"]),
+    Total:     g(["Total Gastado","Total","TOTAL","VALOR","Valor","Importe","Monto"], 0),
+    Estado:    g(["Estado","ESTADO","estado"], "Registrada"),
+  };
+  return row;
+}
+
+/** =========================
+ *  Capa de datos (API)
+ *  ========================= */
+const API = {
+  async getFacturas(){
+    const res = await fetch(Config.api.leerFacturas, {cache:"no-store", mode:"cors"});
+    if(!res.ok) throw new Error("No se pudo leer facturas");
+    const data = await res.json();
+    const arr = Array.isArray(data)? data : [];
+    console.log("Facturas recibidas:", arr.length);
+    return arr.map(normalizeRow).filter(r=>r); // no filtramos por nº factura todavía
+  },
+  proxied(url){
+    const base = Config.api.proxyBase.replace(/\/$/,"");
+    const u = encodeURIComponent(url);
+    return `${base}/proxy?url=${u}`;
+  },
+  async updateEstado(rowData, nuevoEstado){
+    // Construye un payload genérico usando campos comunes; ajusta aquí si tu API requiere otros nombres
+    const payload = {
+      Estado: nuevoEstado,
+      Numero: rowData["Nº Factura"] || rowData["Numero de Factura"] || rowData.NoFactura || "",
+      Placa: rowData.Placa || "",
+      Sector: rowData.Sector || "",
+      Fecha: rowData.Fecha || ""
+    };
+    const res = await fetch(Config.api.guardar, {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify(payload),
+    });
+    if(!res.ok){
+      const txt = await res.text().catch(()=>"");
+      throw new Error("Error guardando estado: "+res.status+" "+txt);
+    }
+    return await res.json().catch(()=>({ok:true}));
+  },
+  async fetchPdfBlob(url){
+    // Intenta por proxy, valida header %PDF
+    const tryFetch = async (u)=>{
+      const r = await fetch(u);
+      if(!r.ok) throw new Error("HTTP "+r.status);
+      const b = await r.blob();
+      // Chequeo básico de PDF
+      const head = await b.slice(0,5).text().catch(()=>null);
+      if(head && head.startsWith("%PDF")) return b;
+      // Si el content-type ya es application/pdf, también lo aceptamos
+      const ctype = r.headers.get("content-type")||"";
+      if(ctype.includes("application/pdf")) return b;
+      throw new Error("El recurso no parece ser un PDF");
+    };
+    try{
+      return await tryFetch(API.proxied(url));
+    }catch(e){
+      console.warn("Proxy falló, intentando directo:", e);
+      return await tryFetch(url);
+    }
+  }
+};
+
+
+/** ========= MultiSelect ========= */
+function createMultiSelect(selector, placeholder="Seleccione…", onChange=()=>{}){
+  const root = document.querySelector(selector);
+  root.classList.add("msel");
+  const toggle = document.createElement("button");
+  toggle.type = "button";
+  toggle.className = "msel-toggle";
+  toggle.innerHTML = `<span class="label">${placeholder}</span><i class="lucide-chevron-down"></i>`;
+  const panel = document.createElement("div");
+  panel.className = "msel-panel";
+  root.appendChild(toggle);
+  root.appendChild(panel);
+
+  let items = [];
+  const selected = new Set();
+
+  function render(){
+    // Update toggle text
+    if(selected.size === 0){
+      toggle.innerHTML = `<span class="label">${placeholder}</span><i class="lucide-chevron-down"></i>`;
+    }else{
+      const vals = Array.from(selected);
+      const summary = vals.length<=2 ? vals.join(", ") : `${vals.length} seleccionados`;
+      toggle.innerHTML = `<span class="value">${summary}</span><i class="lucide-chevron-down"></i>`;
+    }
+    // Render options
+    panel.innerHTML = "";
+    for(const val of items){
+      const id = `${selector.replace('#','')}_${val}`.replace(/\s+/g,'_');
+      const lab = document.createElement("label");
+      lab.className = "msel-option";
+      lab.htmlFor = id;
+      lab.innerHTML = `<input id="${id}" type="checkbox" value="${val}"> <span>${val}</span>`;
+      const input = lab.querySelector("input");
+      input.checked = selected.has(val);
+      input.addEventListener("change", ()=>{
+        if(input.checked) selected.add(val); else selected.delete(val);
+        render();
+        onChange();
+      });
+      panel.appendChild(lab);
+    }
+  }
+
+  function open(){ root.classList.add("open"); }
+  function close(){ root.classList.remove("open"); }
+  toggle.addEventListener("click", ()=>{
+    if(root.classList.contains("open")) close(); else open();
+  });
+  document.addEventListener("click", (e)=>{
+    if(!root.contains(e.target)) close();
+  });
+
+  return {
+    setItems(arr){
+      items = Array.from(new Set((arr||[]).filter(Boolean)));
+      // si una selección previa ya no existe, la removemos
+      for(const v of Array.from(selected)){ if(!items.includes(v)) selected.delete(v); }
+      render();
+    },
+    getSelected(){ return Array.from(selected); },
+    clear(){ selected.clear(); render(); onChange(); },
+    select(vals=[]){ selected.clear(); (vals||[]).forEach(v=> items.includes(v)&&selected.add(v)); render(); onChange(); }
+  };
+}
+
+/** =========================
+ *  Estado
+ *  ========================= */
+const State = {
+  raw: [],
+  get filtered(){
+    const sVals = sectorMS? sectorMS.getSelected() : [];
+    const eVals = estadoMS? estadoMS.getSelected() : [];
+    const n = $("#fNumero").value.trim().toLowerCase();
+    const dr = $("#fFecha")._range || null;
+
+    return State.raw.filter(row=>{
+      const sector = (row.Sector||"").toString();
+      const estado = (row.Estado||"").toString();
+      const numero = (row["Nº Factura"]||row["Numero de Factura"]||row.NoFactura||"").toString();
+      const fecha  = (row.Fecha||row["Fecha Factura"]||row["FechaFactura"]||"").toString();
+
+      if(sVals.length && !sVals.includes(sector)) return false;
+      if(eVals.length && !eVals.includes(estado)) return false;
+      if(n && !numero.toLowerCase().includes(n)) return false;
+
+      if(dr){
+        const f = new Date(fecha);
+        if(isNaN(f)) return false;
+        if(f < dr[0] || f > dr[1]) return false;
+      }
+      return true;
+    });
+  }
+};
+
+
+/** Opciones de estado a partir de datos o valores por defecto */
+function getEstadoOptions(){
+  const vals = Array.from(new Set(State.raw.map(r=>r.Estado).filter(Boolean)));
+  // Orden sugerido
+  const def = ["Registrada","Revisada","Anulada"];
+  const full = def.concat(vals.filter(v=>!def.includes(v)));
+  return full;
+}
+function estadoColor(v){
+  if(v==="Anulada") return "var(--danger)";
+  if(v==="Revisada") return "#2563eb";
+  if(v==="Pagada") return "#0FA47E";
+  return "#111827";
+}
+
+/** =========================
+ *  Tabulator
+ *  ========================= */
+let table;
+let tableBuilt = false;
+
+function buildTable(){
+  if(table){ return; }
+  table = new Tabulator("#tablaRevision", {
+    height: Config.tablaHeight,
+    data: State.filtered,
+    layout:"fitColumns",
+    placeholder:"Sin datos",
+    selectable:true,
+    pagination:false,
+    reactiveData:false,
+    columns:[
+      { formatter:"rowSelection", titleFormatter:"rowSelection", hozAlign:"center", headerSort:false, width:40 },
+      { title:"Sector", field:"Sector", width:120 },
+      { title:"Placa", field:"Placa", width:110 },
+      { title:"Proceso", field:"Proceso", width:130 },
+      { title:"Nombre", field:"Nombre", width:180 },
+      { title:"Identidad", field:"Identidad", width:150 },
+      { title:"Total Gastado", field:"Total", hozAlign:"right", width:140, formatter:(c)=>fmt.money(c.getValue())},
+      { title:"Fecha", field:"Fecha", width:120, formatter:(c)=>{ const v=c.getValue(); return v? String(v).slice(0,10):""; } },
+      { title:"Nombre del comercio", field:"Nombre del comercio", width:220, tooltip:true, formatter:(cell)=>{
+          const v = String(cell.getValue() ?? ""); const max = 28; return v.length>max? v.slice(0,max)+"…": v;
+      }},
+      { title:"Número de Factura", field:"Numero de Factura", width:150 },
+      { title:"Enlace PDF", field:"Enlace PDF", width:110, formatter:(cell)=>{
+          const v = cell.getValue() || cell.getRow().getData().Enlace || cell.getRow().getData().PDF || "";
+          return v? `<a href="${API.proxied(v)}" target="_blank" title="Abrir PDF">📄</a>` : "";
+      }},
+      { title:"Km Actual", field:"Km Actual", width:110, hozAlign:"right" },
+      { title:"Litros Consumidos", field:"Litros Consumidos", width:160, hozAlign:"right" },
+      { title:"Estado", field:"Estado", width:150, formatter:(c)=>{
+          const v = c.getValue()||"Registrada";
+          const color = estadoColor(v);
+          return `<span class=\"status-pill\"><span class=\"dot\" style=\"background:${color}\"></span>${v}</span>`;
+      }, cellClick:(e,cell)=>{
+          openEstadoMenu(cell);
+      }}
+    ],
+    dataLoaded:updateKpis,
+    dataFiltered:updateKpis,
+    rowSelectionChanged:updateButtons,
+  });
+  table.on("tableBuilt", ()=>{
+    tableBuilt = true;
+    // Al construirse por primera vez, aseguramos KPIs y botones
+    updateKpis();
+    updateButtons();
+  });
+}
+
+
+let statusMenuEl;
+function ensureStatusMenu(){
+  if(statusMenuEl) return statusMenuEl;
+  statusMenuEl = document.createElement("div");
+  statusMenuEl.className = "status-menu";
+  document.body.appendChild(statusMenuEl);
+  document.addEventListener("click", (ev)=>{
+    if(!statusMenuEl.contains(ev.target)) statusMenuEl.classList.remove("open");
+  });
+  return statusMenuEl;
+}
+
+function openEstadoMenu(cell){
+  const menu = ensureStatusMenu();
+  const row = cell.getRow();
+  const data = row.getData();
+  const current = data.Estado || "Registrada";
+  const options = getEstadoOptions();
+  menu.innerHTML = "";
+  options.forEach(opt=>{
+    const div = document.createElement("div");
+    div.className = "status-item";
+    div.innerHTML = `<span class="dot" style="background:${estadoColor(opt)}"></span><span>${opt}</span>`;
+    div.addEventListener("click", async ()=>{
+      try{
+        overlay.show("Guardando estado...");
+        // Optimista
+        row.update({Estado: opt});
+        updateKpis();
+        await API.updateEstado(data, opt);
+      }catch(err){
+        console.error(err);
+        // rollback visual si falla
+        row.update({Estado: current});
+        updateKpis();
+        alert("No se pudo guardar el estado. Intenta de nuevo.");
+      }finally{
+        overlay.hide();
+        menu.classList.remove("open");
+      }
+    });
+    menu.appendChild(div);
+  });
+  // Posicionar junto a la celda
+  const rect = cell.getElement().getBoundingClientRect();
+  menu.style.top = (window.scrollY + rect.bottom + 6) + "px";
+  menu.style.left = (window.scrollX + rect.left) + "px";
+  menu.classList.add("open");
+}
+
+function updateButtons(){
+  // En esta vista descargamos por el conjunto filtrado; el botón siempre activo si hay filas
+  const hasRows = (table?.getDataCount()||0) > 0;
+  $("#btnDescargar").disabled = !hasRows;
+}
+
+function updateKpis(){
+  const rows = table? table.getData("active") : [];
+  const total = rows.length;
+  const revisadas = rows.filter(r=> (r.Estado||"") === "Revisada").length;
+  const anuladas  = rows.filter(r=> (r.Estado||"") === "Anulada").length;
+  $("#kpiRegistradas").textContent = total;
+  $("#kpiRevisadas").textContent = revisadas;
+  $("#kpiAnuladas").textContent  = anuladas;
+  updateButtons();
+}
+
+/** =========================
+ *  Filtros
+ *  ========================= */
+
+let sectorMS, estadoMS;
+
+function initFilters(){
+  // Flatpickr range
+  const fp = flatpickr("#fFecha", {
+    mode:"range",
+    dateFormat:"Y-m-d",
+    onChange(selectedDates){
+      if(selectedDates.length===2){
+        // normalizamos a extremos del día
+        selectedDates[0].setHours(0,0,0,0);
+        selectedDates[1].setHours(23,59,59,999);
+        $("#fFecha")._range = selectedDates;
+      }else{
+        $("#fFecha")._range = null;
+      }
+      applyFilters();
+    }
+  });
+  // MultiSelect con checkboxes
+  sectorMS = createMultiSelect("#msSector", "Sector", applyFilters);
+  estadoMS = createMultiSelect("#msEstado", "Estado", applyFilters);
+
+  const debouncedNumero = debounce(applyFilters, 250);
+  $("#fNumero").addEventListener("input", debouncedNumero);
+  $("#btnLimpiar").addEventListener("click", clearFilters);
+}
+
+function clearFilters(){
+  if(statusMenuEl){ statusMenuEl.classList.remove('open'); }
+  if(sectorMS){ sectorMS.clear(); }
+  if(estadoMS){ estadoMS.clear(); }
+  $("#fNumero").value = "";
+  $("#fFecha").value = "";
+  $("#fFecha")._range = null;
+  applyFilters();
+}
+
+function applyFilters(){
+  if(!table){ return; }
+  const doReplace = ()=>{
+    const maybePromise = table.replaceData(State.filtered);
+    if(maybePromise && typeof maybePromise.then === "function"){
+      maybePromise.then(()=>{ updateKpis(); updateButtons(); }).catch(()=>{ updateKpis(); updateButtons(); });
+    }else{
+      // fallback si la versión de Tabulator no retorna promesa
+      setTimeout(()=>{ updateKpis(); updateButtons(); }, 0);
+    }
+  };
+  if(!tableBuilt){
+    (function(){
+      const handler = ()=>{
+        try{ table.off("tableBuilt", handler); }catch(e){}
+        doReplace();
+      };
+      table.on("tableBuilt", handler);
+    })();
+    return;
+  }
+  doReplace();
+}
+
+/** =========================
+ *  Descarga de PDFs (ZIP)
+ *  ========================= */
+async function descargarZip(){
+  const rows = table? table.getData("active") : [];
+  if(!rows.length) return;
+
+  overlay.show("Descargando PDFs…");
+  const zip = new JSZip();
+
+  // Descargamos en serie-controlada para no saturar el proxy
+  const chunk = 5;
+  for(let i=0; i<rows.length; i+=chunk){
+    const slice = rows.slice(i,i+chunk);
+    await Promise.all(slice.map(async (r, idx)=>{
+      const url = r.Enlace || r.PDF;
+      if(!url) return;
+      try{
+        const blob = await API.fetchPdfBlob(url);
+        const fecha = (r.Fecha || "").toString().slice(0,10).replaceAll("/","-");
+        const placa = (r.Placa||"NA").toString().replace(/\s+/g,"");
+        const num   = (r["Nº Factura"]||r.NoFactura||"NA").toString().replace(/[^\w\-]/g,"");
+        const name  = `${fecha}_${placa}_${num}.pdf`;
+        zip.file(name, blob);
+      }catch(e){
+        console.warn("Fallo PDF para", url, e);
+      }
+    }));
+  }
+
+  const content = await zip.generateAsync({type:"blob"});
+  saveAs(content, `Facturas_UTCD_${new Date().toISOString().slice(0,10)}.zip`);
+  overlay.hide();
+}
+
+/** =========================
+ *  Helpers
+ *  ========================= */
+function debounce(fn, wait=200){
+  let t; return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn.apply(null,args), wait); };
+}
+
+/** =========================
+ *  Bootstrap
+ *  ========================= */
+async function bootstrap(){
+  initFilters();
+  $("#btnActualizar").addEventListener("click", loadData);
+  $("#btnDescargar").addEventListener("click", descargarZip);
+  overlay.show("Cargando facturas…");
+  await loadData();
+  overlay.hide();
+}
+
+async function loadData(){
+  overlay.show("Cargando facturas…");
   try{
-    const fila = cell.getRow().getData();
-    await postJSON(urlGuardarFactura, {accion:'actualizarEstado', id:fila.id, estado:fila.Estado});
+    const data = await API.getFacturas();
+    State.raw = data;
+    // poblar selects dinámicamente
+    const sectores = Array.from(new Set(data.map(r=>r.Sector).filter(Boolean))).sort();
+    const estados  = Array.from(new Set(data.map(r=>r.Estado||"Registrada"))).sort();
+    if(sectorMS){ sectorMS.setItems(sectores); }
+    if(estadoMS){ estadoMS.setItems(estados); }
+    buildTable();
+    if(tableBuilt){ applyFilters(); } else {
+      (function(){
+        const handler = ()=>{
+          try{ table.off("tableBuilt", handler); }catch(e){}
+          applyFilters();
+        };
+        table.on("tableBuilt", handler);
+      })();
+    }
+    console.log("Filas normalizadas:", State.raw.length);
   }catch(e){
     console.error(e);
-    alert('No se pudo actualizar el estado.');
-  }finally{ actualizarKpis(); }
-}
-function actualizarKpis(){
-  const f = tabla ? tabla.getData(true) : datos;
-  const cont = (estado)=> f.filter(x=>x.Estado===estado).length;
-  document.getElementById('kpi-registradas').textContent = cont('Registrada');
-  document.getElementById('kpi-revisadas').textContent  = cont('Revisada');
-  document.getElementById('kpi-anuladas').textContent   = cont('Anulada');
-}
-
-/****************************** FILTROS ******************************/
-let fp;
-function prepararFiltros(){
-  fp = flatpickr('#f-fecha', {mode:'range', dateFormat:'Y-m-d'});
-  const aplicar = () =>{
-    const filtros=[];
-    const s = document.getElementById('f-sector').value; if(s) filtros.push({field:'Sector', type:'=', value:s});
-    const e = document.getElementById('f-estado').value; if(e) filtros.push({field:'Estado', type:'=', value:e});
-    const n = document.getElementById('f-numero').value; if(n) filtros.push({field:'Numero', type:'like', value:n});
-    const rango = fp.selectedDates;
-    if(rango && rango.length){
-      const d1 = rango[0].toISOString().slice(0,10);
-      const test = (v)=> v && v >= d1 && (!rango[1] || v <= rango[1].toISOString().slice(0,10));
-      filtros.push({field:'Fecha', type:function(cellValue){return test(cellValue)}});
-    }
-    tabla.setFilter(filtros);
-    actualizarKpis();
-  };
-  document.getElementById('f-sector').onchange = aplicar;
-  document.getElementById('f-estado').onchange = aplicar;
-  document.getElementById('f-numero').oninput  = debounce(aplicar, 250);
-  document.getElementById('btnLimpiar').onclick = ()=>{ 
-    document.getElementById('f-sector').value=''; 
-    document.getElementById('f-estado').value=''; 
-    document.getElementById('f-numero').value=''; 
-    fp.clear(); 
-    tabla.clearFilter(); 
-    actualizarKpis();
-  };
-}
-
-/****************************** UTIL ********************************/ 
-function debounce(fn,ms){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms); }; }
-
-/****************************** ZIP PDFs *****************************/
-async function descargarZipSeleccion(){
-  const filas = tabla.getSelectedRows().map(r=>r.getData()).filter(f=>f.PDF);
-  if(!filas.length){ alert('Selecciona filas con PDF.'); return; }
-  showOvl('Preparando ZIP…');
-  const zip = new JSZip();
-  for(const f of filas){
-    try{
-      const r = await fetch(CORS_PROXY + encodeURIComponent(f.PDF));
-      const b = await r.blob();
-      const name = (f.Numero ? `Factura_${f.Numero}` : 'factura') + '.pdf';
-      zip.file(name, b);
-    }catch(e){ console.warn('PDF falló', f.PDF); }
+    alert("No fue posible cargar las facturas.");
+  }finally{
+    overlay.hide();
   }
-  const blob = await zip.generateAsync({type:'blob'});
-  saveAs(blob, `facturas_${Date.now()}.zip`);
-  hideOvl();
 }
 
-/****************************** REFRESH ******************************/
-let currentAbort;
-async function refrescar(){
-  currentAbort?.abort();
-  currentAbort = new AbortController();
-  showOvl('Actualizando…');
-  try{ 
-    datos = await getJSON(urlLeerFacturas, { signal: currentAbort.signal }); 
-    poblarSectorSelect(datos);
-    tabla.replaceData(datos); 
-    actualizarKpis(); 
-  }
-  catch(e){ if(e.name !== 'AbortError'){ console.error(e); alert('No se pudo actualizar.'); } }
-  finally{ hideOvl(); currentAbort = null; }
-}
-
-/****************************** INIT ********************************/
-// Nos aseguramos que todas las librerías defer se hayan ejecutado
-window.addEventListener('load', async()=>{
-  prepararFiltros();
-  await cargarInicial();
-  document.getElementById('btnRefresh').onclick = refrescar;
-  document.getElementById('btnZip').onclick = descargarZipSeleccion;
-});
+window.addEventListener("DOMContentLoaded", bootstrap);
 </script>
 </body>
 </html>
