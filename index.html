@@ -9,7 +9,7 @@
   <!-- Flatpickr -->
   <link href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" rel="stylesheet" />
   <!-- Icons -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" integrity="sha512-H+K7U5CnXl1h5ywQq8a4fQw6xk4YtI6bq5m8mGqf8jJYd1gQ8Jq6W8nA1GQqlqk9oMZb0n5fYQq5wZrj8Miv1A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" integrity="sha512-Avb2QiuDEEvB4bZJYdft2mNjVShBftLdPG8FJ0V7irTLQ8Uo0qcPxh4Plq7G5tGm0rU+1SPhVotteLpBERwTkw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
 
   <style>
     :root{
@@ -154,10 +154,10 @@
 <div id="ovl" class="overlay"><div class="spinner"><i class="fa-solid fa-circle-notch"></i><span id="ovl-text">Cargando…</span></div></div>
 
 <!-- Libs -->
-<script src="https://unpkg.com/tabulator-tables@5.6.2/dist/js/tabulator.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+<script defer src="https://unpkg.com/tabulator-tables@5.6.2/dist/js/tabulator.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 
 <script>
 /******************************* CONFIG *******************************/
@@ -317,12 +317,20 @@ async function refrescar(){
 }
 
 /****************************** INIT ********************************/
-window.addEventListener('DOMContentLoaded', async()=>{
+function whenTabulatorReady(cb){
+  const t0 = Date.now();
+  (function loop(){
+    if (window.Tabulator) return cb();
+    if (Date.now() - t0 > 15000){ console.error('Tabulator no cargó'); return; }
+    setTimeout(loop, 50);
+  })();
+}
+window.addEventListener('DOMContentLoaded', async()=>{ whenTabulatorReady(async ()=>{
   prepararFiltros();
   await cargarInicial();
   $('#btnRefresh').onclick = refrescar;
   $('#btnZip').onclick = descargarZipSeleccion;
-});
+}); });
 </script>
 </body>
 </html>
