@@ -9,7 +9,7 @@
   <!-- Flatpickr -->
   <link href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" rel="stylesheet" />
   <!-- Icons -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" integrity="sha512-H+K7U5CnXl1h5ywQq8a4fQw6xk4YtI6bq5m8mGqf8jJYd1gQ8Jq6W8nA1GQqlqk9oMZb0n5fYQq5wZrj8Miv1A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" referrerpolicy="no-referrer" />
 
   <style>
     :root{
@@ -85,7 +85,7 @@
   <aside class="sidebar">
     <div class="brand">
       <img src="https://dummyimage.com/120x36/14b8a6/ffffff&text=UTCD" alt="UTCD"/>
-      <span>Portal Cobro y Recaudo</span>
+      <span>Aplicativo de Facturas</span>
     </div>
     <nav class="nav">
       <a href="#" class="active"><i class="fa-solid fa-file-invoice"></i><span>Revisión de Facturas</span></a>
@@ -154,10 +154,10 @@
 <div id="ovl" class="overlay"><div class="spinner"><i class="fa-solid fa-circle-notch"></i><span id="ovl-text">Cargando…</span></div></div>
 
 <!-- Libs -->
-<script src="https://unpkg.com/tabulator-tables@5.6.2/dist/js/tabulator.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+<script defer src="https://unpkg.com/tabulator-tables@5.6.2/dist/js/tabulator.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 
 <script>
 /******************************* CONFIG *******************************/
@@ -178,7 +178,7 @@ let sectores = new Set();
 
 /***************************** SERVICIOS ******************************/
 async function getJSON(url, opts={}){
-  const r = await fetch(url, {headers:{'cache-control':'no-store'}, ...opts});
+  const r = await fetch(url + (url.includes('?') ? '&' : '?') + 't=' + Date.now(), opts);
   if(!r.ok) throw new Error(`Error ${r.status}`);
   return r.json();
 }
@@ -320,8 +320,8 @@ async function refrescar(){
 window.addEventListener('DOMContentLoaded', async()=>{
   prepararFiltros();
   await cargarInicial();
-  document.getElementById('btnRefresh').onclick = refrescar;
-  document.getElementById('btnZip').onclick = descargarZipSeleccion;
+  $('#btnRefresh').onclick = refrescar;
+  $('#btnZip').onclick = descargarZipSeleccion;
 });
 </script>
 </body>
