@@ -9,7 +9,7 @@
   <!-- Flatpickr -->
   <link href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" rel="stylesheet" />
   <!-- Icons -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" referrerpolicy="no-referrer" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" integrity="sha512-H+K7U5CnXl1h5ywQq8a4fQw6xk4YtI6bq5m8mGqf8jJYd1gQ8Jq6W8nA1GQqlqk9oMZb0n5fYQq5wZrj8Miv1A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
 
   <style>
     :root{
@@ -85,7 +85,7 @@
   <aside class="sidebar">
     <div class="brand">
       <img src="https://dummyimage.com/120x36/14b8a6/ffffff&text=UTCD" alt="UTCD"/>
-      <span>Aplicativo de Facturas</span>
+      <span>Portal Cobro y Recaudo</span>
     </div>
     <nav class="nav">
       <a href="#" class="active"><i class="fa-solid fa-file-invoice"></i><span>Revisión de Facturas</span></a>
@@ -168,8 +168,8 @@ const CORS_PROXY = API_ORIGIN + "/proxy?url="; // para PDFs
 
 /****************************** HELPERS UI ****************************/ 
 const $ = (s)=>document.querySelector(s);
-const showOvl = (msg="Cargando…")=>{ $('#ovl-text').textContent=msg; $('#ovl').classList.add('show'); };
-const hideOvl = ()=>$('#ovl').classList.remove('show');
+const showOvl = (msg="Cargando…")=>{ document.getElementById('ovl-text').textContent=msg; document.getElementById('ovl').classList.add('show'); };
+const hideOvl = ()=>document.getElementById('ovl').classList.remove('show');
 
 /******************************* ESTADO *******************************/
 let tabla;             // instancia Tabulator
@@ -178,7 +178,7 @@ let sectores = new Set();
 
 /***************************** SERVICIOS ******************************/
 async function getJSON(url, opts={}){
-  const r = await fetch(url + (url.includes('?') ? '&' : '?') + 't=' + Date.now(), opts);
+  const r = await fetch(url, {headers:{'cache-control':'no-store'}, ...opts});
   if(!r.ok) throw new Error(`Error ${r.status}`);
   return r.json();
 }
@@ -194,7 +194,11 @@ async function cargarInicial(){
   datos = await getJSON(urlLeerFacturas);
   // poblar sectores
   sectores = new Set(datos.map(x=>x.Sector).filter(Boolean));
-  const sel = $('#f-sector'); sel.innerHTML = '<option value="">Todos</option>' + [...sectores].sort().map(s=>`<option>${s}</option>`).join('');
+  const sel = document.getElementById('f-sector');
+  // construcción segura de opciones
+  sel.innerHTML = '';
+  const def = document.createElement('option'); def.value=''; def.textContent='Todos'; sel.appendChild(def);
+  [...sectores].sort().forEach(s=>{ const o=document.createElement('option'); o.value=s; o.textContent=s; sel.appendChild(o); });
   renderTabla();
   actualizarKpis();
   hideOvl();
@@ -257,9 +261,9 @@ async function onCellEdited(cell){
 function actualizarKpis(){
   const f = tabla ? tabla.getData(true) : datos;
   const cont = (estado)=> f.filter(x=>x.Estado===estado).length;
-  $('#kpi-registradas').textContent = cont('Registrada');
-  $('#kpi-revisadas').textContent  = cont('Revisada');
-  $('#kpi-anuladas').textContent   = cont('Anulada');
+  document.getElementById('kpi-registradas').textContent = cont('Registrada');
+  document.getElementById('kpi-revisadas').textContent  = cont('Revisada');
+  document.getElementById('kpi-anuladas').textContent   = cont('Anulada');
 }
 
 /****************************** FILTROS ******************************/
@@ -268,9 +272,9 @@ function prepararFiltros(){
   fp = flatpickr('#f-fecha', {mode:'range', dateFormat:'Y-m-d'});
   const aplicar = () =>{
     const filtros=[];
-    const s = $('#f-sector').value; if(s) filtros.push({field:'Sector', type:'=', value:s});
-    const e = $('#f-estado').value; if(e) filtros.push({field:'Estado', type:'=', value:e});
-    const n = $('#f-numero').value; if(n) filtros.push({field:'Numero', type:'like', value:n});
+    const s = document.getElementById('f-sector').value; if(s) filtros.push({field:'Sector', type:'=', value:s});
+    const e = document.getElementById('f-estado').value; if(e) filtros.push({field:'Estado', type:'=', value:e});
+    const n = document.getElementById('f-numero').value; if(n) filtros.push({field:'Numero', type:'like', value:n});
     // fecha: si hay uno o dos valores
     const rango = fp.selectedDates;
     if(rango && rango.length){
@@ -280,10 +284,16 @@ function prepararFiltros(){
     }
     tabla.setFilter(filtros);
   };
-  $('#f-sector').onchange = aplicar;
-  $('#f-estado').onchange = aplicar;
-  $('#f-numero').oninput  = debounce(aplicar, 250);
-  $('#btnLimpiar').onclick = ()=>{ $('#f-sector').value=''; $('#f-estado').value=''; $('#f-numero').value=''; fp.clear(); tabla.clearFilter(); };
+  document.getElementById('f-sector').onchange = aplicar;
+  document.getElementById('f-estado').onchange = aplicar;
+  document.getElementById('f-numero').oninput  = debounce(aplicar, 250);
+  document.getElementById('btnLimpiar').onclick = ()=>{ 
+    document.getElementById('f-sector').value=''; 
+    document.getElementById('f-estado').value=''; 
+    document.getElementById('f-numero').value=''; 
+    fp.clear(); 
+    tabla.clearFilter(); 
+  };
 }
 
 /****************************** UTIL ********************************/ 
@@ -317,11 +327,12 @@ async function refrescar(){
 }
 
 /****************************** INIT ********************************/
-window.addEventListener('DOMContentLoaded', async()=>{
+// Usamos 'load' para asegurar que las libs defer ya se cargaron/ejecutaron.
+window.addEventListener('load', async()=>{
   prepararFiltros();
   await cargarInicial();
-  $('#btnRefresh').onclick = refrescar;
-  $('#btnZip').onclick = descargarZipSeleccion;
+  document.getElementById('btnRefresh').onclick = refrescar;
+  document.getElementById('btnZip').onclick = descargarZipSeleccion;
 });
 </script>
 </body>
