@@ -513,6 +513,7 @@ function buildTable(){
           const color = estadoColor(v);
           return `<span class=\"status-pill\"><span class=\"dot\" style=\"background:${color}\"></span>${v}</span>`;
       }, cellClick:(e,cell)=>{
+          if(e && e.stopPropagation) e.stopPropagation();
           openEstadoMenu(cell);
       }}
     ],
@@ -529,6 +530,7 @@ function buildTable(){
       if(cellEl.getAttribute("tabulator-field") !== "Estado") return;
       try{
         // Fallback robusto: localizar el row component comparando elementos
+        if(ev && ev.stopPropagation) ev.stopPropagation();
         const rowEl = cellEl.closest(".tabulator-row");
         let rowComp = null;
         const rows = table.getRows ? table.getRows() : [];
@@ -551,12 +553,14 @@ function buildTable(){
 
 
 let statusMenuEl;
+let statusMenuJustOpened = false;
 function ensureStatusMenu(){
   if(statusMenuEl) return statusMenuEl;
   statusMenuEl = document.createElement("div");
   statusMenuEl.className = "status-menu";
   document.body.appendChild(statusMenuEl);
   document.addEventListener("click", (ev)=>{
+    if(statusMenuJustOpened){ statusMenuJustOpened = false; return; }
     if(!statusMenuEl.contains(ev.target)) statusMenuEl.classList.remove("open");
   });
   return statusMenuEl;
@@ -597,6 +601,7 @@ function openEstadoMenu(cell){
   const rect = cell.getElement().getBoundingClientRect();
   menu.style.top = (rect.bottom + 6) + "px";
   menu.style.left = (rect.left) + "px";
+  statusMenuJustOpened = true;
   menu.classList.add("open");
 }
 
