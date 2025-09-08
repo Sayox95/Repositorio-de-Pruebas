@@ -84,6 +84,13 @@
     }
     .toolbar h1{font-size:22px; margin:0}
     .actions{display:flex; gap:10px}
+
+    .last-updated{
+      font-size:12px; color:#6b7280; font-weight:600;
+      border:1px dashed #e5e7eb; border-radius:10px; padding:6px 8px;
+    }
+    .actions{ display:flex; gap:10px; align-items:center }
+
     .btn{
       display:inline-flex; align-items:center; gap:8px;
       padding:10px 12px; border-radius:12px; border:1px solid #e5e7eb;
@@ -152,7 +159,6 @@
     .msel-option{ display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:8px; user-select:none; }
     .msel-option:hover{ background:#f3f4f6 }
     .msel-option input{ width:16px; height:16px }
-
     /* Overlay */
     .overlay{
       position: fixed; inset:0; display:none; place-items:center; background:rgba(15, 18, 30, .35); z-index:50;
@@ -198,6 +204,7 @@
       <div class="toolbar">
         <h1>Revisión de Facturas</h1>
         <div class="actions">
+          <span id="lastUpdated" class="last-updated" title="Última actualización">—</span>
           <button id="btnActualizar" class="btn"><i class="lucide-rotate-cw"></i> Actualizar</button>
           <button id="btnDescargar" class="btn btn-primary"><i class="lucide-file-down"></i> Descargar PDFs</button>
         </div>
@@ -362,7 +369,6 @@ const API = {
   }
 };
 
-
 /** ========= MultiSelect ========= */
 function createMultiSelect(selector, placeholder="Seleccione…", onChange=()=>{}){
   const root = document.querySelector(selector);
@@ -460,7 +466,6 @@ const State = {
   }
 };
 
-
 /** Opciones de estado a partir de datos o valores por defecto */
 function getEstadoOptions(){
   const vals = Array.from(new Set(State.raw.map(r=>r.Estado).filter(Boolean)));
@@ -526,7 +531,6 @@ function buildTable(){
     const root = document.getElementById("tablaRevision");
     root.addEventListener("click", (ev)=>{
     // Cerrar menú al hacer scroll horizontal/vertical en la tabla
-    const holder = root.closest(".card") || root;
     const closeMenuIfOpen = ()=>{ if(statusMenuEl){ statusMenuEl.classList.remove("open"); } };
     const tableHolder = root.querySelector(".tabulator-tableholder");
     const tabScrollArea = tableHolder || root;
@@ -559,7 +563,6 @@ function buildTable(){
     updateButtons();
   });
 }
-
 
 let statusMenuEl;
 let statusMenuJustOpened = false;
@@ -747,15 +750,51 @@ function debounce(fn, wait=200){
   let t; return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn.apply(null,args), wait); };
 }
 
+function resetTableScroll(){
+  const root = document.getElementById("tablaRevision");
+  if(!root) return;
+  const holder = root.querySelector(".tabulator-tableholder");
+  if(holder){
+    holder.scrollTop = 0;
+    holder.scrollLeft = 0;
+  }
+}
+
+
+function setLastUpdatedNow(){
+  const el = document.getElementById("lastUpdated");
+  if(!el) return;
+  const now = new Date();
+  const yyyy = now.getFullYear();
+  const mm = String(now.getMonth()+1).padStart(2,"0");
+  const dd = String(now.getDate()).padStart(2,"0");
+  const hh = String(now.getHours()).padStart(2,"0");
+  const mi = String(now.getMinutes()).padStart(2,"0");
+  el.textContent = `Actualizado: ${yyyy}-${mm}-${dd} ${hh}:${mi}`;
+}
+
 /** =========================
  *  Bootstrap
  *  ========================= */
+async function hardRefresh(){
+  // Limpia filtros, recarga y resetea scroll; luego muestra hora de actualización
+  clearFilters();
+  await loadData();
+  resetTableScroll();
+  setLastUpdatedNow();
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2,"0");
+  const mm = String(now.getMinutes()).padStart(2,"0");
+  }
+
 async function bootstrap(){
   initFilters();
-  $("#btnActualizar").addEventListener("click", loadData);
+  $("#btnActualizar").addEventListener("click", hardRefresh);
   $("#btnDescargar").addEventListener("click", descargarZip);
   overlay.show("Cargando facturas…");
   await loadData();
+  resetTableScroll();
+  setLastUpdatedNow();
   overlay.hide();
 }
 
