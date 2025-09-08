@@ -240,16 +240,40 @@ const fmt = {
   dateISO(d){ const x = new Date(d); if(isNaN(x)) return ""; return x.toISOString().slice(0,10); },
 };
 
+/** Mapea alias de campos al esquema esperado por la tabla */
+function normalizeRow(src){
+  if(!src || typeof src!=="object") return null;
+  const g = (keys, fallback="")=>{
+    for(const k of keys){
+      if(src[k]!=null && src[k]!=="" ) return src[k];
+    }
+    return fallback;
+  };
+  const row = {
+    Sector:    g(["Sector","SECTOR","sector"]),
+    Placa:     g(["Placa","PLACA","placa","Dato Placa","DatoPlaca"]),
+    Fecha:     g(["Fecha","Fecha Factura","FECHA","fecha"]),
+    "Nº Factura": g(["Nº Factura","NoFactura","No Factura","Numero","NroFactura","Nro Factura","Factura","No_Factura"]),
+    Proveedor: g(["Proveedor","PROVEEDOR","proveedor","Razon Social","RazonSocial"]),
+    Total:     g(["Total","TOTAL","VALOR","Valor","Importe","Monto"], 0),
+    Estado:    g(["Estado","ESTADO","estado"], "Registrada"),
+    Enlace:    g(["Enlace","URL","Pdf","PDF","Link","Archivo","Ruta","Documento","DocumentoURL"]),
+    PDF:       g(["PDF","pdf","EnlacePDF","DocumentoPDF"]),
+  };
+  return row;
+}
+
 /** =========================
  *  Capa de datos (API)
  *  ========================= */
 const API = {
   async getFacturas(){
-    const res = await fetch(Config.api.leerFacturas, {cache:"no-store"});
+    const res = await fetch(Config.api.leerFacturas, {cache:"no-store", mode:"cors"});
     if(!res.ok) throw new Error("No se pudo leer facturas");
     const data = await res.json();
-    // Filtramos registros vacíos o sin nro factura
-    return (Array.isArray(data)?data:[]).filter(r=>r && (r["Nº Factura"]||r["NoFactura"]||r["NroFactura"]));
+    const arr = Array.isArray(data)? data : [];
+    console.log("Facturas recibidas:", arr.length);
+    return arr.map(normalizeRow).filter(r=>r); // no filtramos por nº factura todavía
   },
   proxied(url){
     const base = Config.api.proxyBase.replace(/\/$/,"");
@@ -314,9 +338,10 @@ const State = {
  *  Tabulator
  *  ========================= */
 let table;
+let tableBuilt = false;
 
 function buildTable(){
-  if(table){ table.setData(State.filtered); return; }
+  if(table){ return; }
   table = new Tabulator("#tablaRevision", {
     height: Config.tablaHeight,
     data: State.filtered,
@@ -346,6 +371,12 @@ function buildTable(){
     dataLoaded:updateKpis,
     dataFiltered:updateKpis,
     rowSelectionChanged:updateButtons,
+  });
+  table.on("tableBuilt", ()=>{
+    tableBuilt = true;
+    // Al construirse por primera vez, aseguramos KPIs y botones
+    updateKpis();
+    updateButtons();
   });
 }
 
@@ -405,7 +436,18 @@ function clearFilters(){
 
 function applyFilters(){
   if(!table){ return; }
-  table.setData(State.filtered);
+  if(!tableBuilt){
+    // Deferir hasta que la tabla esté lista
+    (function(){
+    const handler = ()=>{
+      try{ table.off("tableBuilt", handler); }catch(e){}
+      table.replaceData(State.filtered);
+    };
+    table.on("tableBuilt", handler);
+  })();
+    return;
+  }
+  table.replaceData(State.filtered);
 }
 
 /** =========================
@@ -473,7 +515,16 @@ async function loadData(){
     $("#fSector").innerHTML = '<option value="">Todos</option>' + sectores.map(s=>`<option>${s}</option>`).join("");
     $("#fEstado").innerHTML = '<option value="">Todos</option>' + estados.map(s=>`<option>${s}</option>`).join("");
     buildTable();
-    applyFilters();
+    if(tableBuilt){ applyFilters(); } else {
+      (function(){
+        const handler = ()=>{
+          try{ table.off("tableBuilt", handler); }catch(e){}
+          applyFilters();
+        };
+        table.on("tableBuilt", handler);
+      })();
+    }
+    console.log("Filas normalizadas:", State.raw.length);
   }catch(e){
     console.error(e);
     alert("No fue posible cargar las facturas.");
