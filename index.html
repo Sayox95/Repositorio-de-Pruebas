@@ -127,7 +127,7 @@
     .status-pill{ display:inline-flex; align-items:center; gap:6px; padding:4px 8px; border-radius:999px; font-weight:700; cursor:pointer; border:1px solid #e5e7eb; background:#fff; }
     .status-pill .dot{ width:8px; height:8px; border-radius:50% }
     .status-menu{
-      position:absolute; z-index:60; background:#fff; border:1px solid #e5e7eb; border-radius:10px; box-shadow:0 12px 24px rgba(2,8,23,.18);
+      position:absolute; z-index:2000; background:#fff; border:1px solid #e5e7eb; border-radius:10px; box-shadow:0 12px 24px rgba(2,8,23,.18);
       padding:6px; display:none; min-width:180px;
     }
     .status-menu.open{ display:block }
@@ -521,6 +521,27 @@ function buildTable(){
     rowSelectionChanged:updateButtons,
   });
   table.on("tableBuilt", ()=>{
+    // Fallback: delegado por si el cellClick no se dispara en algunos navegadores
+    const root = document.getElementById("tablaRevision");
+    root.addEventListener("click", (ev)=>{
+      const cellEl = ev.target.closest(".tabulator-cell");
+      if(!cellEl) return;
+      if(cellEl.getAttribute("tabulator-field") !== "Estado") return;
+      try{
+        // Fallback robusto: localizar el row component comparando elementos
+        const rowEl = cellEl.closest(".tabulator-row");
+        let rowComp = null;
+        const rows = table.getRows ? table.getRows() : [];
+        for(const r of rows){
+          if(r.getElement && r.getElement() === rowEl){ rowComp = r; break; }
+        }
+        if(!rowComp) throw new Error("Row no encontrado");
+        const cellComp = rowComp.getCell ? rowComp.getCell("Estado") : null;
+        if(!cellComp) throw new Error("Cell Estado no encontrado");
+        openEstadoMenu(cellComp);
+      }catch(e){ console.warn("No se pudo abrir menú de estado", e); }
+    });
+
     tableBuilt = true;
     // Al construirse por primera vez, aseguramos KPIs y botones
     updateKpis();
@@ -574,8 +595,8 @@ function openEstadoMenu(cell){
   });
   // Posicionar junto a la celda
   const rect = cell.getElement().getBoundingClientRect();
-  menu.style.top = (window.scrollY + rect.bottom + 6) + "px";
-  menu.style.left = (window.scrollX + rect.left) + "px";
+  menu.style.top = (rect.bottom + 6) + "px";
+  menu.style.left = (rect.left) + "px";
   menu.classList.add("open");
 }
 
