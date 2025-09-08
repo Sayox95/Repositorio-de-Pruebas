@@ -512,19 +512,25 @@ function buildTable(){
           const v = c.getValue()||"Registrada";
           const color = estadoColor(v);
           return `<span class=\"status-pill\"><span class=\"dot\" style=\"background:${color}\"></span>${v}</span>`;
-      }, cellClick:(e,cell)=>{
-          if(e && e.stopPropagation) e.stopPropagation();
-          openEstadoMenu(cell);
       }}
     ],
-    dataLoaded:updateKpis,
-    dataFiltered:updateKpis,
-    rowSelectionChanged:updateButtons,
+    dataLoaded:()=>{ updateKpis(); },
+    dataFiltered:()=>{ updateKpis(); },
+    rowSelectionChanged:()=>{ updateButtons(); },
   });
   table.on("tableBuilt", ()=>{
     // Fallback: delegado por si el cellClick no se dispara en algunos navegadores
     const root = document.getElementById("tablaRevision");
     root.addEventListener("click", (ev)=>{
+    // Cerrar menú al hacer scroll horizontal/vertical en la tabla
+    const holder = root.closest(".card") || root;
+    const closeMenuIfOpen = ()=>{ if(statusMenuEl){ statusMenuEl.classList.remove("open"); } };
+    const tableHolder = root.querySelector(".tabulator-tableholder");
+    const tabScrollArea = tableHolder || root;
+    tabScrollArea.addEventListener("scroll", closeMenuIfOpen, {passive:true});
+    window.addEventListener("scroll", closeMenuIfOpen, {passive:true});
+    window.addEventListener("resize", closeMenuIfOpen);
+
       const cellEl = ev.target.closest(".tabulator-cell");
       if(!cellEl) return;
       if(cellEl.getAttribute("tabulator-field") !== "Estado") return;
@@ -563,6 +569,9 @@ function ensureStatusMenu(){
     if(statusMenuJustOpened){ statusMenuJustOpened = false; return; }
     if(!statusMenuEl.contains(ev.target)) statusMenuEl.classList.remove("open");
   });
+  document.addEventListener("keydown", (ev)=>{
+    if(ev.key === "Escape" && statusMenuEl){ statusMenuEl.classList.remove("open"); }
+  });
   return statusMenuEl;
 }
 
@@ -599,8 +608,13 @@ function openEstadoMenu(cell){
   });
   // Posicionar junto a la celda
   const rect = cell.getElement().getBoundingClientRect();
-  menu.style.top = (rect.bottom + 6) + "px";
-  menu.style.left = (rect.left) + "px";
+  const vw = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
+  const menuWidth = 220;
+  let top = rect.bottom + 6;
+  let left = rect.left;
+  if(left + menuWidth > vw - 8){ left = Math.max(8, vw - menuWidth - 8); }
+  menu.style.top = top + "px";
+  menu.style.left = left + "px";
   statusMenuJustOpened = true;
   menu.classList.add("open");
 }
