@@ -13,6 +13,7 @@
   <!-- JSZip + FileSaver -->
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <!-- Icons -->
   <link rel="stylesheet" href="https://unpkg.com/lucide-static@0.453.0/font/lucide.css">
   <style>
@@ -107,6 +108,7 @@
       display:grid; gap:14px;
     }
     .grid.cols-3{ grid-template-columns: repeat(3, minmax(0,1fr)); }
+    .grid.cols-4{ grid-template-columns: repeat(4, minmax(0,1fr)); }
     .card{
       background:var(--card); border:1px solid #e5e7eb; border-radius:14px; padding:16px;
     }
@@ -116,7 +118,7 @@
     .kpi .label{ color:var(--muted); font-size:13px; font-weight:600}
     .kpi .value{ font-size:28px; font-weight:800}
     .filters{
-      display:grid; grid-template-columns: 180px 180px 1fr 220px auto; gap:10px; align-items:center;
+      display:grid; grid-template-columns: 180px 180px 160px 1fr 220px auto; gap:10px; align-items:center;
       margin-top:10px;
     }
     .input, select,.choices__inner{
@@ -132,6 +134,7 @@
     /* MultiSelect (checkbox dropdown) */
     /* Estado editor (inline dropdown) */
     .status-pill{ display:inline-flex; align-items:center; gap:6px; padding:4px 8px; border-radius:999px; font-weight:700; cursor:pointer; border:1px solid #e5e7eb; background:#fff; }
+    .status-pill.disabled{ opacity:.6; cursor:not-allowed; }
     .status-pill .dot{ width:8px; height:8px; border-radius:50% }
     .status-menu{
       position:absolute; z-index:2000; background:#fff; border:1px solid #e5e7eb; border-radius:10px; box-shadow:0 12px 24px rgba(2,8,23,.18);
@@ -205,12 +208,12 @@
         <h1>Revisión de Facturas</h1>
         <div class="actions">
           <span id="lastUpdated" class="last-updated" title="Última actualización">—</span>
-          <button id="btnActualizar" class="btn"><i class="lucide-rotate-cw"></i> Actualizar</button>
+          <button id="btnActualizar" class="btn"><i class="lucide-rotate-cw"></i> Actualizar</button>          <button id="btnExportXLSX" class="btn btn-ghost"><i class="lucide-download"></i> Excel</button>
           <button id="btnDescargar" class="btn btn-primary"><i class="lucide-file-down"></i> Descargar PDFs</button>
         </div>
       </div>
 
-      <div class="grid cols-3">
+      <div class="grid cols-4">
         <div class="card kpi">
           <span class="label">Registradas</span>
           <span id="kpiRegistradas" class="value">0</span>
@@ -222,6 +225,10 @@
         <div class="card kpi">
           <span class="label">Anuladas</span>
           <span id="kpiAnuladas" class="value">0</span>
+        </div>
+        <div class="card kpi">
+          <span class="label">Pagadas</span>
+          <span id="kpiPagadas" class="value">0</span>
         </div>
       </div>
 
@@ -443,6 +450,7 @@ const State = {
   get filtered(){
     const sVals = sectorMS? sectorMS.getSelected() : [];
     const eVals = estadoMS? estadoMS.getSelected() : [];
+    const p = ($("#fPlaca")?.value || "").trim().toLowerCase();
     const n = $("#fNumero").value.trim().toLowerCase();
     const dr = $("#fFecha")._range || null;
 
@@ -450,10 +458,12 @@ const State = {
       const sector = (row.Sector||"").toString();
       const estado = (row.Estado||"").toString();
       const numero = (row["Nº Factura"]||row["Numero de Factura"]||row.NoFactura||"").toString();
+      const placa  = (row.Placa||"").toString();
       const fecha  = (row.Fecha||row["Fecha Factura"]||row["FechaFactura"]||"").toString();
 
       if(sVals.length && !sVals.includes(sector)) return false;
       if(eVals.length && !eVals.includes(estado)) return false;
+      if(p && !placa.toLowerCase().includes(p)) return false;
       if(n && !numero.toLowerCase().includes(n)) return false;
 
       if(dr){
@@ -505,7 +515,7 @@ function buildTable(){
       { title:"Nombre", field:"Nombre", width:180 },
       { title:"Identidad", field:"Identidad", width:150 },
       { title:"Total Gastado", field:"Total", hozAlign:"right", width:140, formatter:(c)=>fmt.money(c.getValue())},
-      { title:"Fecha", field:"Fecha", width:120, formatter:(c)=>{ const v=c.getValue(); return v? String(v).slice(0,10):""; } },
+      { title:"Fecha", field:"Fecha", width:120, formatter:(c)=>{ const v=c.getValue(); return v? String(v).slice(0,10):""; }, accessorDownload:(value)=>{  if(!value) return "";  const s = String(value);  if(s.includes("T")) return s.slice(0,10);  try{ const d=new Date(value); if(!isNaN(d)) return d.toISOString().slice(0,10);}catch(e){}  return s.length>=10? s.slice(0,10): s; } },
       { title:"Nombre del comercio", field:"Nombre del comercio", width:220, tooltip:true, formatter:(cell)=>{
           const v = String(cell.getValue() ?? ""); const max = 28; return v.length>max? v.slice(0,max)+"…": v;
       }},
@@ -519,8 +529,11 @@ function buildTable(){
       { title:"Estado", field:"Estado", width:150, formatter:(c)=>{
           const v = c.getValue()||"Registrada";
           const color = estadoColor(v);
-          return `<span class=\"status-pill\"><span class=\"dot\" style=\"background:${color}\"></span>${v}</span>`;
-      }}
+          const disabled = (v === "Pagada");
+          const cls = disabled? "status-pill disabled" : "status-pill";
+          const title = disabled? "No editable cuando está Pagada" : "Cambiar estado";
+          return `<span class=\"${cls}\" title=\"${title}\"><span class=\"dot\" style=\"background:${color}\"></span>${v}</span>`;
+      } }
     ],
     dataLoaded:()=>{ updateKpis(); },
     dataFiltered:()=>{ updateKpis(); },
@@ -541,6 +554,14 @@ function buildTable(){
       const cellEl = ev.target.closest(".tabulator-cell");
       if(!cellEl) return;
       if(cellEl.getAttribute("tabulator-field") !== "Estado") return;
+      // Evitar abrir si la fila está Pagada
+      const rowEl = cellEl.closest(".tabulator-row");
+      const rowCompTmp = (function(){
+        const rows = table.getRows ? table.getRows() : [];
+        for(const r of rows){ if(r.getElement && r.getElement() === rowEl) return r; }
+        return null;
+      })();
+      if(rowCompTmp){ const d = rowCompTmp.getData ? rowCompTmp.getData() : {}; if((d.Estado||"") === "Pagada") return; }
       try{
         // Fallback robusto: localizar el row component comparando elementos
         if(ev && ev.stopPropagation) ev.stopPropagation();
@@ -586,6 +607,8 @@ function openEstadoMenu(cell){
   const row = cell.getRow();
   const data = row.getData();
   const current = data.Estado || "Registrada";
+  // No permitir edición si está Pagada
+  if(current === "Pagada"){ return; }
   const options = getEstadoOptions();
   menu.innerHTML = "";
   options.forEach(opt=>{
@@ -594,6 +617,8 @@ function openEstadoMenu(cell){
     div.innerHTML = `<span class="dot" style="background:${estadoColor(opt)}"></span><span>${opt}</span>`;
     div.addEventListener("click", async ()=>{
       try{
+        // Cerrar el menú inmediatamente al seleccionar
+        menu.classList.remove("open"); statusMenuAnchor = null;
         overlay.show("Guardando estado...");
         // Optimista
         row.update({Estado: opt});
@@ -635,9 +660,11 @@ function updateKpis(){
   const rows = table? table.getData("active") : [];
   const total = rows.length;
   const revisadas = rows.filter(r=> (r.Estado||"") === "Revisada").length;
+  const pagadas   = rows.filter(r=> (r.Estado||"") === "Pagada").length;
   const anuladas  = rows.filter(r=> (r.Estado||"") === "Anulada").length;
   $("#kpiRegistradas").textContent = total;
   $("#kpiRevisadas").textContent = revisadas;
+  $("#kpiPagadas").textContent   = pagadas;
   $("#kpiAnuladas").textContent  = anuladas;
   updateButtons();
 }
@@ -669,6 +696,24 @@ function initFilters(){
   sectorMS = createMultiSelect("#msSector", "Sector", applyFilters);
   estadoMS = createMultiSelect("#msEstado", "Estado", applyFilters);
 
+  // Asegurar input de Placa
+  const filtersRow = document.querySelector(".filters");
+  if(!document.getElementById("fPlaca") && filtersRow){
+    const placaEl = document.createElement("input");
+    placaEl.id = "fPlaca";
+    placaEl.className = "input";
+    placaEl.placeholder = "Placa…";
+    // Insertar antes del Nº Factura si existe
+    const numeroEl = document.getElementById("fNumero");
+    if(numeroEl && numeroEl.parentElement === filtersRow){
+      filtersRow.insertBefore(placaEl, numeroEl);
+    }else{
+      filtersRow.insertBefore(placaEl, filtersRow.children[2] || null);
+    }
+  }
+  const debouncedPlaca = debounce(applyFilters, 250);
+  const placaInput = document.getElementById("fPlaca");
+  if(placaInput){ placaInput.addEventListener("input", debouncedPlaca); }
   const debouncedNumero = debounce(applyFilters, 250);
   $("#fNumero").addEventListener("input", debouncedNumero);
   $("#btnLimpiar").addEventListener("click", clearFilters);
@@ -678,6 +723,7 @@ function clearFilters(){
   if(statusMenuEl){ statusMenuEl.classList.remove('open'); }
   if(sectorMS){ sectorMS.clear(); }
   if(estadoMS){ estadoMS.clear(); }
+  const placaInput = document.getElementById("fPlaca"); if(placaInput){ placaInput.value = ""; }
   $("#fNumero").value = "";
   $("#fFecha").value = "";
   $("#fFecha")._range = null;
@@ -706,6 +752,17 @@ function applyFilters(){
     return;
   }
   doReplace();
+}
+
+
+/** =========================
+ *  Exportaciones CSV/XLSX
+ *  ========================= */
+function exportXLSX(){
+  if(!table) return;
+  const fname = `Facturas_UTCD_${new Date().toISOString().slice(0,10)}.xlsx`;
+  // Usa el downloader nativo de Tabulator (requiere XLSX global)
+  table.download("xlsx", fname, { sheetName:"Revisión", rowRange:"active" });
 }
 
 /** =========================
@@ -790,7 +847,7 @@ async function hardRefresh(){
 async function bootstrap(){
   initFilters();
   $("#btnActualizar").addEventListener("click", hardRefresh);
-  $("#btnDescargar").addEventListener("click", descargarZip);
+  $("#btnDescargar").addEventListener("click", descargarZip);  $("#btnExportXLSX").addEventListener("click", exportXLSX);
   overlay.show("Cargando facturas…");
   await loadData();
   resetTableScroll();
