@@ -118,7 +118,7 @@
     .kpi .label{ color:var(--muted); font-size:13px; font-weight:600}
     .kpi .value{ font-size:28px; font-weight:800}
     .filters{
-      display:grid; grid-template-columns: 180px 180px 220px 160px 1fr 220px auto; gap:10px; align-items:center;
+      display:grid; grid-template-columns: 180px 180px 160px 1fr 220px auto; gap:10px; align-items:center;
       margin-top:10px;
     }
     .input, select,.choices__inner{
@@ -237,7 +237,6 @@
         <div class="filters">
           <div id="msSector" class="msel" data-placeholder="Sector"></div>
           <div id="msEstado" class="msel" data-placeholder="Estado"></div>
-          <input id="fNombre" class="input" placeholder="Nombre Colaborador…"/>
           <input id="fNumero" class="input" placeholder="Nº Factura…"/>
           <input id="fFecha" class="input" placeholder="Rango de fechas"/>
           <button id="btnLimpiar" class="btn btn-ghost"><i class="lucide-broom"></i> Limpiar</button>
@@ -315,6 +314,21 @@ function normalizeRow(src){
   };
   return row;
 }
+/** Convierte enlaces de Google Drive a descarga directa */
+function toDirectDriveUrl(url){
+  if(!url) return url;
+  try{
+    const u = String(url);
+    // https://drive.google.com/file/d/FILE_ID/view?usp=sharing
+    const m1 = u.match(/drive\.google\.com\/file\/d\/(.*?)(?:\/|\?|$)/);
+    if(m1 && m1[1]) return `https://drive.google.com/uc?export=download&id=${m1[1]}`;
+    // https://drive.google.com/open?id=FILE_ID
+    const m2 = u.match(/[?&]id=([\w-]+)/);
+    if(m2 && m2[1]) return `https://drive.google.com/uc?export=download&id=${m2[1]}`;
+    return url;
+  }catch(_){ return url; }
+}
+
 
 /** =========================
  *  Capa de datos (API)
@@ -444,15 +458,6 @@ function createMultiSelect(selector, placeholder="Seleccione…", onChange=()=>{
   };
 }
 
-
-// Normaliza texto para búsqueda flexible (sin acentos)
-function normalizeText(s){
-  return String(s||"")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")   // quita diacríticos
-    .toLowerCase();
-}
-
 /** =========================
  *  Estado
  *  ========================= */
@@ -461,7 +466,6 @@ const State = {
   get filtered(){
     const sVals = sectorMS? sectorMS.getSelected() : [];
     const eVals = estadoMS? estadoMS.getSelected() : [];
-    const nm = normalizeText(($("#fNombre")?.value || "").trim());
     const p = ($("#fPlaca")?.value || "").trim().toLowerCase();
     const n = $("#fNumero").value.trim().toLowerCase();
     const dr = $("#fFecha")._range || null;
@@ -469,14 +473,12 @@ const State = {
     return State.raw.filter(row=>{
       const sector = (row.Sector||"").toString();
       const estado = (row.Estado||"").toString();
-      const nombre = (row.Nombre||"").toString(); const nombreNorm = normalizeText(nombre);
       const numero = (row["Nº Factura"]||row["Numero de Factura"]||row.NoFactura||"").toString();
       const placa  = (row.Placa||"").toString();
       const fecha  = (row.Fecha||row["Fecha Factura"]||row["FechaFactura"]||"").toString();
 
       if(sVals.length && !sVals.includes(sector)) return false;
       if(eVals.length && !eVals.includes(estado)) return false;
-      if(nm && !nombreNorm.includes(nm)) return false;
       if(p && !placa.toLowerCase().includes(p)) return false;
       if(n && !numero.toLowerCase().includes(n)) return false;
 
@@ -742,8 +744,6 @@ function initFilters(){
   const debouncedPlaca = debounce(applyFilters, 250);
   const placaInput = document.getElementById("fPlaca");
   if(placaInput){ placaInput.addEventListener("input", debouncedPlaca); }
-  const debouncedNombre = debounce(applyFilters, 250);
-  $("#fNombre").addEventListener("input", debouncedNombre);
   const debouncedNumero = debounce(applyFilters, 250);
   $("#fNumero").addEventListener("input", debouncedNumero);
   $("#btnLimpiar").addEventListener("click", clearFilters);
@@ -753,7 +753,6 @@ function clearFilters(){
   if(statusMenuEl){ statusMenuEl.classList.remove('open'); }
   if(sectorMS){ sectorMS.clear(); }
   if(estadoMS){ estadoMS.clear(); }
-  const nombreInput = document.getElementById("fNombre"); if(nombreInput){ nombreInput.value = ""; }
   const placaInput = document.getElementById("fPlaca"); if(placaInput){ placaInput.value = ""; }
   $("#fNumero").value = "";
   $("#fFecha").value = "";
@@ -800,7 +799,8 @@ function exportXLSX(){
  *  Descarga de PDFs (ZIP)
  *  ========================= */
 async function descargarZip(){
-  const rows = table? table.getData("active") : [];
+  const sel = table? (table.getSelectedData? table.getSelectedData() : []) : [];
+  const rows = (sel && sel.length)? sel : (table? table.getData("active") : []);
   if(!rows.length) return;
 
   overlay.show("Descargando PDFs…");
@@ -811,7 +811,8 @@ async function descargarZip(){
   for(let i=0; i<rows.length; i+=chunk){
     const slice = rows.slice(i,i+chunk);
     await Promise.all(slice.map(async (r, idx)=>{
-      const url = r.Enlace || r.PDF;
+      const rawUrl = r.Enlace || r["Enlace PDF"] || r.PDF;
+      const url = toDirectDriveUrl(rawUrl);
       if(!url) return;
       try{
         const blob = await API.fetchPdfBlob(url);
