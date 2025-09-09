@@ -345,7 +345,7 @@ const Config = {
     guardarAnti: "/api/GuardarAnti",
     // Proxy para PDFs
     proxyBase: "https://repositorio-de-pruebas.pages.dev/api",
-      placas:  "/api/placas",
+      placas: "/api/placas",
 },
   tablaHeight: "560px",
 };
@@ -1019,7 +1019,7 @@ document.querySelectorAll('.sidebar .nav-btn').forEach(a=>{
     if(href==='#pago')     return navigateTo('secPago');
     if(href==='#anticipos')return navigateTo('secAnticipos');
     if(href==='#placas')   return navigateTo('secPlacas', async()=>{
-      if(!Placas._loaded){ await cargarPlacas(); Placas._loaded = true; }
+      await cargarPlacas();
     });
   });
 });
