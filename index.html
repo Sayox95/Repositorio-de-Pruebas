@@ -345,7 +345,7 @@ const Config = {
     guardarAnti: "/api/GuardarAnti",
     // Proxy para PDFs
     proxyBase: "https://repositorio-de-pruebas.pages.dev/api",
-      placas: "https://repositorio-de-pruebas.pages.dev/api/placas",
+      placas: "https://script.google.com/macros/s/AKfycbwk4HwFlBOunHVFga5EhxePmUA4SHDYAR3VsnFZeX66vCm211YurNHw_7iM7s1Wzh6RaQ/exec",
 },
   tablaHeight: "560px",
 };
@@ -1034,8 +1034,9 @@ async function cargarPlacas(){
     let rows = [];
     if(placasEndpointsReady()){
       const res = await fetch(Config.api.placas, { cache:"no-store" });
-      if(!res.ok) throw new Error("HTTP "+res.status);
-      rows = await res.json();
+      const text = await res.text();
+      if(!res.ok) throw new Error("HTTP "+res.status+" - "+ text.slice(0,200));
+      try { rows = JSON.parse(text); } catch(parseErr){ throw new Error("JSON inválido: "+ String(parseErr) +" | cuerpo: "+ text.slice(0,200)); }
     }
     Placas.data = rows.map(r=>({
       IDvehiculo: r.IDvehiculo || r.Id || "",
@@ -1086,7 +1087,8 @@ async function cargarPlacas(){
     actualizarKpisPlacas();
     document.getElementById("placasNotice").style.display = placasEndpointsReady()? "none":"inline-block";
   }catch(e){
-    alert("No fue posible cargar las placas.");
+    alert("No fue posible cargar las placas.\n\nDetalle: "+ e.message);
+    const n = document.getElementById("placasNotice"); if(n){ n.style.display="inline-block"; n.textContent="Error al cargar: "+ e.message; }
   }finally{
     overlay.hide();
   }
