@@ -118,7 +118,7 @@
     .kpi .label{ color:var(--muted); font-size:13px; font-weight:600}
     .kpi .value{ font-size:28px; font-weight:800}
     .filters{
-      display:grid; grid-template-columns: 180px 180px 160px 1fr 220px auto; gap:10px; align-items:center;
+      display:grid; grid-template-columns: 180px 180px 220px 160px 1fr 220px auto; gap:10px; align-items:center;
       margin-top:10px;
     }
     .input, select,.choices__inner{
@@ -208,7 +208,8 @@
         <h1>Revisión de Facturas</h1>
         <div class="actions">
           <span id="lastUpdated" class="last-updated" title="Última actualización">—</span>
-          <button id="btnActualizar" class="btn"><i class="lucide-rotate-cw"></i> Actualizar</button>          <button id="btnExportXLSX" class="btn btn-ghost"><i class="lucide-download"></i> Excel</button>
+          <button id="btnActualizar" class="btn"><i class="lucide-rotate-cw"></i> Actualizar</button>
+          <button id="btnAgrupar" class="btn btn-ghost"><i class="lucide-layers-2"></i> Agrupar por colaborador</button>          <button id="btnExportXLSX" class="btn btn-ghost"><i class="lucide-download"></i> Excel</button>
           <button id="btnDescargar" class="btn btn-primary"><i class="lucide-file-down"></i> Descargar PDFs</button>
         </div>
       </div>
@@ -236,6 +237,7 @@
         <div class="filters">
           <div id="msSector" class="msel" data-placeholder="Sector"></div>
           <div id="msEstado" class="msel" data-placeholder="Estado"></div>
+          <input id="fNombre" class="input" placeholder="Nombre Colaborador…"/>
           <input id="fNumero" class="input" placeholder="Nº Factura…"/>
           <input id="fFecha" class="input" placeholder="Rango de fechas"/>
           <button id="btnLimpiar" class="btn btn-ghost"><i class="lucide-broom"></i> Limpiar</button>
@@ -442,6 +444,15 @@ function createMultiSelect(selector, placeholder="Seleccione…", onChange=()=>{
   };
 }
 
+
+// Normaliza texto para búsqueda flexible (sin acentos)
+function normalizeText(s){
+  return String(s||"")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")   // quita diacríticos
+    .toLowerCase();
+}
+
 /** =========================
  *  Estado
  *  ========================= */
@@ -450,6 +461,7 @@ const State = {
   get filtered(){
     const sVals = sectorMS? sectorMS.getSelected() : [];
     const eVals = estadoMS? estadoMS.getSelected() : [];
+    const nm = normalizeText(($("#fNombre")?.value || "").trim());
     const p = ($("#fPlaca")?.value || "").trim().toLowerCase();
     const n = $("#fNumero").value.trim().toLowerCase();
     const dr = $("#fFecha")._range || null;
@@ -457,12 +469,14 @@ const State = {
     return State.raw.filter(row=>{
       const sector = (row.Sector||"").toString();
       const estado = (row.Estado||"").toString();
+      const nombre = (row.Nombre||"").toString(); const nombreNorm = normalizeText(nombre);
       const numero = (row["Nº Factura"]||row["Numero de Factura"]||row.NoFactura||"").toString();
       const placa  = (row.Placa||"").toString();
       const fecha  = (row.Fecha||row["Fecha Factura"]||row["FechaFactura"]||"").toString();
 
       if(sVals.length && !sVals.includes(sector)) return false;
       if(eVals.length && !eVals.includes(estado)) return false;
+      if(nm && !nombreNorm.includes(nm)) return false;
       if(p && !placa.toLowerCase().includes(p)) return false;
       if(n && !numero.toLowerCase().includes(n)) return false;
 
@@ -507,6 +521,20 @@ function buildTable(){
     selectable:true,
     pagination:false,
     reactiveData:false,
+    groupStartOpen:false,
+    groupHeader:function(value, count, data, group){
+      // value = Identidad
+      const nombre = (data && data[0] && (data[0].Nombre||data[0].Identidad)) || value;
+      const suma = (data||[]).reduce((acc,r)=> acc + (Number(r.Total)||0), 0);
+      const totalTxt = new Intl.NumberFormat("es-HN",{minimumFractionDigits:2, maximumFractionDigits:2}).format(suma);
+      // data-group-key: usamos value (Identidad) + un hash simple para evitar colisiones visuales
+      const key = String(value ?? "").replace(/"/g,"&quot;");
+      return `<label class="group-toggle">
+                <input type="checkbox" class="group-select" data-group-key="${key}">
+                <span>${nombre} (${count})</span>
+              </label>
+              <span class="kpi-mini">L ${totalTxt}</span>`;
+    },
     columns:[
       { formatter:"rowSelection", titleFormatter:"rowSelection", hozAlign:"center", headerSort:false, width:40 },
       { title:"Sector", field:"Sector", width:120 },
@@ -714,6 +742,8 @@ function initFilters(){
   const debouncedPlaca = debounce(applyFilters, 250);
   const placaInput = document.getElementById("fPlaca");
   if(placaInput){ placaInput.addEventListener("input", debouncedPlaca); }
+  const debouncedNombre = debounce(applyFilters, 250);
+  $("#fNombre").addEventListener("input", debouncedNombre);
   const debouncedNumero = debounce(applyFilters, 250);
   $("#fNumero").addEventListener("input", debouncedNumero);
   $("#btnLimpiar").addEventListener("click", clearFilters);
@@ -723,6 +753,7 @@ function clearFilters(){
   if(statusMenuEl){ statusMenuEl.classList.remove('open'); }
   if(sectorMS){ sectorMS.clear(); }
   if(estadoMS){ estadoMS.clear(); }
+  const nombreInput = document.getElementById("fNombre"); if(nombreInput){ nombreInput.value = ""; }
   const placaInput = document.getElementById("fPlaca"); if(placaInput){ placaInput.value = ""; }
   $("#fNumero").value = "";
   $("#fFecha").value = "";
@@ -830,6 +861,48 @@ function setLastUpdatedNow(){
   el.textContent = `Actualizado: ${yyyy}-${mm}-${dd} ${hh}:${mi}`;
 }
 
+
+let isGrouped = false;
+function toggleGrouping(){
+  if(!table) return;
+  isGrouped = !isGrouped;
+  if(isGrouped){
+    table.setGroupBy(["Identidad"]);
+    const btn = document.getElementById("btnAgrupar");
+    if(btn) btn.innerHTML = '<i class="lucide-layers-2"></i> Desagrupar';
+  }else{
+    table.setGroupBy(false);
+    const btn = document.getElementById("btnAgrupar");
+    if(btn) btn.innerHTML = '<i class="lucide-layers-2"></i> Agrupar por colaborador';
+  }
+}
+
+
+// Selección masiva por grupo (checkbox en header)
+document.addEventListener("change", (ev)=>{
+  const chk = ev.target.closest(".group-select");
+  if(!chk || !table) return;
+  const key = chk.getAttribute("data-group-key") || "";
+  // Encontrar el group component cuyo key (value) coincide
+  const groups = table.getGroups ? table.getGroups() : [];
+  let target = null;
+  for(const g of groups){
+    try{
+      if(String(g.getKey ? g.getKey() : g.key) === String(key)){ target = g; break; }
+    }catch(_){}
+  }
+  if(!target) return;
+
+  const rows = target.getRows ? target.getRows() : [];
+  if(chk.checked){
+    rows.forEach(r => { try{ r.select && r.select(); }catch(_){ } });
+  }else{
+    rows.forEach(r => { try{ r.deselect && r.deselect(); }catch(_){ } });
+  }
+  // refrescar botones por si depende de selección
+  try{ updateButtons(); }catch(_){}
+});
+
 /** =========================
  *  Bootstrap
  *  ========================= */
@@ -847,6 +920,7 @@ async function hardRefresh(){
 async function bootstrap(){
   initFilters();
   $("#btnActualizar").addEventListener("click", hardRefresh);
+  $("#btnAgrupar").addEventListener("click", toggleGrouping);
   $("#btnDescargar").addEventListener("click", descargarZip);  $("#btnExportXLSX").addEventListener("click", exportXLSX);
   overlay.show("Cargando facturas…");
   await loadData();
