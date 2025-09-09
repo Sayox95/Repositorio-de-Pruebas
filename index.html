@@ -860,7 +860,7 @@ async function descargarZip(){
         const blob = await API.fetchPdfBlob(url);
         const fecha = (r.Fecha || "").toString().slice(0,10).replaceAll("/","-");
         const placa = (r.Placa||"NA").toString().replace(/\s+/g,"_");
-        const num   = (r["Nº Factura"]||r.NoFactura||"NA").toString().replace(/[^\w\-]/g,"");
+        const num   = ((r["Numero de Factura"] ?? r["Número de Factura"]) ?? "NA").toString().trim().replace(/[^\w\-]/g,"");
         const name  = `${fecha}_${placa}_${num}.pdf`;
         zip.file(name, blob);
       }catch(e){
