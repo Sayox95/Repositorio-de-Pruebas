@@ -104,6 +104,7 @@
     .btn-ghost{ background:transparent; border-color:#e5e7eb}
     .btn-danger{ background:var(--danger); color:white; border-color:transparent }
     /* Grid */
+    .form-grid{ display:grid; grid-template-columns: 160px 1fr 1fr 1fr 1fr 140px auto auto; gap:10px; align-items:center }
     .grid{
       display:grid; gap:14px;
     }
@@ -204,12 +205,14 @@
         <a class="nav-btn active" href="#revision"><i class="lucide-list"></i><span>Revisión de Facturas</span></a>
         <a class="nav-btn" href="#pago"><i class="lucide-wallet"></i><span>Pago</span></a>
         <a class="nav-btn" href="#anticipos"><i class="lucide-coins"></i><span>Anticipos</span></a>
+        <a class="nav-btn" href="#placas"><i class="lucide-car"></i><span>Placas</span></a>
       </nav>
       <div class="spacer"></div>
       <div class="copyright">© UTCD 2025</div>
     </aside>
 
     <main class="main">
+  <section id="secRevision">
       <div class="toolbar">
         <h1>Revisión de Facturas</h1>
         <div class="actions">
@@ -253,6 +256,70 @@
       </div>
 
       <p class="muted" style="margin-top:10px;">Consejo: usa los filtros para reducir el conjunto y luego “Descargar PDFs”.</p>
+  </section>
+
+  <!-- ============== Sección Pago (placeholder) ============== -->
+  <section id="secPago" style="display:none;">
+    <div class="card"><h2>Pago</h2><p class="muted">Sección en preparación.</p></div>
+  </section>
+
+  <!-- ============== Sección Anticipos (placeholder) ============== -->
+  <section id="secAnticipos" style="display:none;">
+    <div class="card"><h2>Anticipos</h2><p class="muted">Sección en preparación.</p></div>
+  </section>
+
+  <!-- ============== Sección Placas ============== -->
+  <section id="secPlacas" style="display:none;">
+    <div class="header-row" style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;">
+      <h2 class="title" style="margin:0;display:flex;align-items:center;gap:8px;"><i class="lucide-car"></i> Placas</h2>
+      <div class="actions" style="display:flex;gap:10px;">
+        <button id="btnPlacasActualizar" class="btn"><i class="lucide-rotate-cw"></i> Actualizar</button>
+        <button id="btnPlacasActivar" class="btn btn-ghost"><i class="lucide-check-circle-2"></i> Activar</button>
+        <button id="btnPlacasInactivar" class="btn btn-ghost"><i class="lucide-x-circle"></i> Inactivar</button>
+        <button id="btnPlacasNueva" class="btn btn-primary"><i class="lucide-plus"></i> Nueva placa</button>
+      </div>
+    </div>
+
+    <div class="grid cols-3">
+      <div class="card kpi"><span class="label">Total</span><span id="kpiPlacasTotal" class="value">0</span></div>
+      <div class="card kpi"><span class="label">Activas</span><span id="kpiPlacasActivas" class="value">0</span></div>
+      <div class="card kpi"><span class="label">Inactivas</span><span id="kpiPlacasInactivas" class="value">0</span></div>
+    </div>
+
+    <div class="card" style="margin-top:10px;">
+      <div class="filters" style="grid-template-columns: 180px 1fr 1fr auto;">
+        <select id="fPlacasEstado">
+          <option value="">Estado</option>
+          <option value="Activa">Activa</option>
+          <option value="Inactiva">Inactiva</option>
+        </select>
+        <input id="fPlacasPlaca" class="input" placeholder="Placa…"/>
+        <input id="fPlacasNombre" class="input" placeholder="Nombre Colaborador…"/>
+        <div style="display:flex; gap:10px; align-items:center;">
+          <button id="btnPlacasLimpiar" class="btn btn-ghost"><i class="lucide-broom"></i> Limpiar</button>
+          <span id="placasNotice" class="muted" style="font-size:12px; display:none;">Configura Config.api.placas (un solo endpoint).</span>
+        </div>
+      </div>
+      <div id="tablaPlacas" class="tabulator" style="margin-top:8px;"></div>
+    </div>
+
+    <div id="placasFormWrap" class="card" style="margin-top:10px; display:none;">
+      <div class="form-grid">
+        <input id="npPlaca" class="input" placeholder="Placa (requerido)"/>
+        <input id="npNombre" class="input" placeholder="Nombre (Conductor)"/>
+        <input id="npSector" class="input" placeholder="Sector"/>
+        <input id="npProceso" class="input" placeholder="Proceso"/>
+        <input id="npDesignacion" class="input" placeholder="Designación (Cargo)"/>
+        <select id="npEstado">
+          <option value="Activa">Activa</option>
+          <option value="Inactiva">Inactiva</option>
+        </select>
+        <button id="btnPlacaGuardar" class="btn btn-primary"><i class="lucide-save"></i> Guardar</button>
+        <button id="btnPlacaCancelar" class="btn btn-ghost"><i class="lucide-x"></i> Cancelar</button>
+      </div>
+    </div>
+  </section>
+
     </main>
   </div>
 
@@ -278,7 +345,8 @@ const Config = {
     guardarAnti: "/api/GuardarAnti",
     // Proxy para PDFs
     proxyBase: "https://repositorio-de-pruebas.pages.dev/api",
-  },
+      placas: "https://script.google.com/macros/s/AKfycbwk4HwFlBOunHVFga5EhxePmUA4SHDYAR3VsnFZeX66vCm211YurNHw_7iM7s1Wzh6RaQ/exec",
+},
   tablaHeight: "560px",
 };
 
@@ -917,6 +985,187 @@ function toggleGrouping(){
     const btn = document.getElementById("btnAgrupar");
     if(btn) btn.innerHTML = '<i class="lucide-layers-2"></i> Agrupar por colaborador';
   }
+}
+
+
+/** =========================
+ *  Navegación (overlay al cambiar de sección)
+ *  ========================= */
+function showOnly(sectionId){
+  document.querySelectorAll('main > section').forEach(s => s.style.display='none');
+  const tgt = document.getElementById(sectionId);
+  if(tgt) tgt.style.display = 'block';
+  document.querySelectorAll('.sidebar .nav-btn').forEach(a=>a.classList.remove('active'));
+  const map = {secRevision:'#revision', secPago:'#pago', secAnticipos:'#anticipos', secPlacas:'#placas'};
+  const sel = map[sectionId]; if(sel){
+    const a = document.querySelector(`.sidebar .nav-btn[href="${sel}"]`);
+    if(a) a.classList.add('active');
+  }
+}
+async function navigateTo(sectionId, loader){
+  overlay.show("Cambiando de sección…");
+  try{
+    showOnly(sectionId);
+    if(typeof loader === 'function'){ await loader(); }
+  }finally{
+    overlay.hide();
+  }
+}
+document.querySelectorAll('.sidebar .nav-btn').forEach(a=>{
+  a.addEventListener('click', (ev)=>{
+    ev.preventDefault();
+    const href = a.getAttribute('href')||'';
+    if(href==='#revision') return navigateTo('secRevision');
+    if(href==='#pago')     return navigateTo('secPago');
+    if(href==='#anticipos')return navigateTo('secAnticipos');
+    if(href==='#placas')   return navigateTo('secPlacas', async()=>{
+      if(!Placas._loaded){ await cargarPlacas(); Placas._loaded = true; }
+    });
+  });
+});
+/** =========================
+ *  Placas (single endpoint)
+ *  ========================= */
+const Placas = { table:null, data:[], filtered:[], _loaded:false };
+function placasEndpointsReady(){ return !!Config.api.placas; }
+async function cargarPlacas(){
+  overlay.show("Cargando placas…");
+  try{
+    let rows = [];
+    if(placasEndpointsReady()){
+      const res = await fetch(Config.api.placas, { cache:"no-store" });
+      if(!res.ok) throw new Error("HTTP "+res.status);
+      rows = await res.json();
+    }
+    Placas.data = rows.map(r=>({
+      IDvehiculo: r.IDvehiculo || r.Id || "",
+      Estado: r.Estado || r.ESTADO || "Activa",
+      Placa: r.Placa || r.PLACA || "",
+      Sector: r.Sector || r.SECTOR || "",
+      Nombre: r.Nombre || r.CONDUCTOR || "",
+      Proceso: r.Proceso || r.PROCESO || "",
+      JefeInmediato: r.JefeInmediato || r["Jefe inmediato"] || r["JEFE INMEDIATO"] || "",
+      Designacion: r.Designacion || r["DESIGNACIÓN"] || r.DESIGNACION || "",
+      FechaAlta: r.FechaAlta || r.Fecha || r.FECHA || ""
+    }));
+    aplicarFiltrosPlacas();
+    if(Placas.table){ Placas.table.replaceData(Placas.filtered); }
+    else{
+      Placas.table = new Tabulator("#tablaPlacas", {
+        data: Placas.filtered,
+        selectable: true,
+        height: 520,
+        layout: "fitColumns",
+        columns: [
+          { title:"ID", field:"IDvehiculo", width:120 },
+          { title:"Placa", field:"Placa", width:140 },
+          { title:"Estado", field:"Estado", width:120, formatter:(c)=>{
+              const v = c.getValue() || "Activa";
+              return `<span class="status-pill ${v==="Activa"?"":"disabled"}"><span class="dot" style="background:${v==="Activa"?"#10b981":"#f59e0b"}"></span>${v}</span>`;
+            }},
+          { title:"Nombre", field:"Nombre" },
+          { title:"Sector", field:"Sector", width:140 },
+          { title:"Proceso", field:"Proceso", width:180 },
+          { title:"Jefe inmediato", field:"JefeInmediato", width:200 },
+          { title:"Designación", field:"Designacion", width:200 },
+          { title:"Fecha Alta", field:"FechaAlta", width:120, formatter:(c)=>{ const v=c.getValue(); return v? String(v).slice(0,10) : ""; } },
+        ]
+      });
+      // Eventos UI
+      document.getElementById("btnPlacasActualizar").addEventListener("click", cargarPlacas);
+      document.getElementById("btnPlacasActivar").addEventListener("click", ()=> cambiarEstadoPlacas("Activa"));
+      document.getElementById("btnPlacasInactivar").addEventListener("click", ()=> cambiarEstadoPlacas("Inactiva"));
+      document.getElementById("btnPlacasNueva").addEventListener("click", ()=> toggleFormPlaca(true));
+      document.getElementById("btnPlacaCancelar").addEventListener("click", ()=> toggleFormPlaca(false));
+      document.getElementById("btnPlacaGuardar").addEventListener("click", guardarNuevaPlaca);
+      document.getElementById("btnPlacasLimpiar").addEventListener("click", limpiarFiltrosPlacas);
+      document.getElementById("fPlacasEstado").addEventListener("change", ()=>{ aplicarFiltrosPlacas(); Placas.table.replaceData(Placas.filtered); actualizarKpisPlacas(); });
+      document.getElementById("fPlacasPlaca").addEventListener("input", ()=>{ aplicarFiltrosPlacas(); Placas.table.replaceData(Placas.filtered); actualizarKpisPlacas(); });
+      document.getElementById("fPlacasNombre").addEventListener("input", ()=>{ aplicarFiltrosPlacas(); Placas.table.replaceData(Placas.filtered); actualizarKpisPlacas(); });
+    }
+    actualizarKpisPlacas();
+    document.getElementById("placasNotice").style.display = placasEndpointsReady()? "none":"inline-block";
+  }catch(e){
+    alert("No fue posible cargar las placas.");
+  }finally{
+    overlay.hide();
+  }
+}
+function aplicarFiltrosPlacas(){
+  const est = (document.getElementById("fPlacasEstado")?.value || "").trim();
+  const placaQ = (document.getElementById("fPlacasPlaca")?.value || "").trim().toLowerCase();
+  const normalize = (s)=> String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+  const nombreQ = normalize(document.getElementById("fPlacasNombre")?.value || "");
+  Placas.filtered = Placas.data.filter(r=>{
+    if(est && r.Estado !== est) return false;
+    if(placaQ && !String(r.Placa||"").toLowerCase().includes(placaQ)) return false;
+    if(nombreQ && !normalize(r.Nombre).includes(nombreQ)) return false;
+    return true;
+  });
+}
+function actualizarKpisPlacas(){
+  const total = Placas.filtered.length;
+  const act = Placas.filtered.filter(r=> r.Estado==="Activa").length;
+  const ina = Placas.filtered.filter(r=> r.Estado==="Inactiva").length;
+  document.getElementById("kpiPlacasTotal").textContent = total;
+  document.getElementById("kpiPlacasActivas").textContent = act;
+  document.getElementById("kpiPlacasInactivas").textContent = ina;
+}
+function limpiarFiltrosPlacas(){
+  document.getElementById("fPlacasEstado").value = "";
+  document.getElementById("fPlacasPlaca").value = "";
+  document.getElementById("fPlacasNombre").value = "";
+  aplicarFiltrosPlacas();
+  if(Placas.table) Placas.table.replaceData(Placas.filtered);
+  actualizarKpisPlacas();
+}
+function toggleFormPlaca(show){ document.getElementById("placasFormWrap").style.display = show? "block":"none"; }
+async function guardarNuevaPlaca(){
+  const placa = document.getElementById("npPlaca").value.trim();
+  const nombre = document.getElementById("npNombre").value.trim();
+  const sector = document.getElementById("npSector").value.trim();
+  const proceso = document.getElementById("npProceso").value.trim();
+  const designacion = document.getElementById("npDesignacion").value.trim();
+  const estado = document.getElementById("npEstado").value;
+  if(!placa){ alert("La placa es obligatoria."); return; }
+  if(!placasEndpointsReady()){ alert("Configura el endpoint de Placas."); return; }
+  try{
+    overlay.show("Guardando placa…");
+    const res = await fetch(Config.api.placas, {
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({ action:"crear", placa, nombre, sector, proceso, designacion, estado })
+    });
+    if(!res.ok) throw new Error("HTTP "+res.status);
+    await cargarPlacas();
+    toggleFormPlaca(false);
+    document.getElementById("npPlaca").value="";
+    document.getElementById("npNombre").value="";
+    document.getElementById("npSector").value="";
+    document.getElementById("npProceso").value="";
+    document.getElementById("npDesignacion").value="";
+    document.getElementById("npEstado").value="Activa";
+  }catch(e){
+    alert("No fue posible guardar la placa.");
+  }finally{ overlay.hide(); }
+}
+async function cambiarEstadoPlacas(nuevoEstado){
+  if(!placasEndpointsReady()){ alert("Configura el endpoint de Placas."); return; }
+  const rows = Placas.table ? (Placas.table.getSelectedData ? Placas.table.getSelectedData() : []) : [];
+  if(!rows.length){ alert("Selecciona al menos una placa."); return; }
+  try{
+    overlay.show("Actualizando estado…");
+    const placas = rows.map(r=> r.Placa).filter(Boolean);
+    const res = await fetch(Config.api.placas, {
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({ action:"cambiarEstado", placas, estado: nuevoEstado })
+    });
+    if(!res.ok) throw new Error("HTTP "+res.status);
+    await cargarPlacas();
+  }catch(e){
+    alert("No fue posible actualizar el estado.");
+  }finally{ overlay.hide(); }
 }
 
 // Selección masiva por grupo (checkbox en header)
