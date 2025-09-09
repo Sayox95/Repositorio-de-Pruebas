@@ -286,13 +286,44 @@ const Config = {
  *  Utilidades de UI
  *  ========================= */
 const $ = (sel)=>document.querySelector(sel);
+
 const overlay = {
-  done:0, total:0,
-  show(msg="Cargando…"){ $("#overlayMsg").textContent = msg; $("#overlay").style.display="grid"; },
-  startProgress(total){ this.done=0; this.total=total||0; const c=$("#overlayCount"); const b=$("#overlayBar"); if(c) c.textContent=`0/${this.total}`; if(b) b.style.width="0%"; },
-  step(){ this.done++; const c=$("#overlayCount"); const b=$("#overlayBar"); const pct = this.total? Math.round(Math.min(100, (this.done/this.total)*100)) : 0; if(c) c.textContent=`${this.done}/${this.total}`; if(b) b.style.width=pct+"%"; },
-  hide(){ $("#overlay").style.display="none"; this.done=0; this.total=0; const c=$("#overlayCount"); const b=$("#overlayBar"); if(c) c.textContent="0/0"; if(b) b.style.width="0%"; }
+  done: 0, total: 0,
+  show(msg="Cargando…"){
+    $("#overlayMsg").textContent = msg;
+    $("#overlay").style.display = "grid";
+    const pw = document.getElementById("overlay")?.querySelector(".progress-wrap");
+    const b  = $("#overlayBar"); const c = $("#overlayCount");
+    if (pw) pw.style.display = "none";
+    if (b) b.style.width = "0%";
+    if (c) c.textContent = "0/0";
+  },
+  startProgress(total){
+    this.done = 0; this.total = total || 0;
+    const pw = document.getElementById("overlay")?.querySelector(".progress-wrap");
+    const b  = $("#overlayBar"); const c = $("#overlayCount");
+    if (pw) pw.style.display = "flex";
+    if (b) b.style.width = "0%";
+    if (c) c.textContent = `0/${this.total}`;
+  },
+  step(){
+    this.done++;
+    const b = $("#overlayBar"); const c = $("#overlayCount");
+    const pct = this.total ? Math.round(Math.min(100, (this.done/this.total)*100)) : 0;
+    if (b) b.style.width = pct + "%";
+    if (c) c.textContent = `${this.done}/${this.total}`;
+  },
+  hide(){
+    $("#overlay").style.display = "none";
+    this.done = 0; this.total = 0;
+    const pw = document.getElementById("overlay")?.querySelector(".progress-wrap");
+    const b  = $("#overlayBar"); const c = $("#overlayCount");
+    if (pw) pw.style.display = "none";
+    if (b) b.style.width = "0%";
+    if (c) c.textContent = "0/0";
+  }
 };
+
 const fmt = {
   money(v){ const n=Number(v||0); return "L " + n.toLocaleString("es-HN",{minimumFractionDigits:2, maximumFractionDigits:2}); },
   dateISO(d){ const x = new Date(d); if(isNaN(x)) return ""; return x.toISOString().slice(0,10); },
