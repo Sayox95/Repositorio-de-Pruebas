@@ -163,6 +163,12 @@
     .msel-option:hover{ background:#f3f4f6 }
     .msel-option input{ width:16px; height:16px }
     /* Overlay */
+    /* Progress in overlay */
+    .progress-wrap{ display:none; align-items:center; gap:10px; margin-left:8px; }
+    .progress{ width:240px; height:8px; background:#e5e7eb; border-radius:9999px; overflow:hidden; }
+    .progress .bar{ height:100%; width:0%; background:#2563eb; transition: width .15s ease; }
+    .progress-text{ font-size:12px; color:#6b7280; font-weight:700; }
+
     .overlay{
       position: fixed; inset:0; display:none; place-items:center; background:rgba(15, 18, 30, .35); z-index:50;
     }
@@ -251,7 +257,12 @@
   </div>
 
   <div id="overlay" class="overlay">
-    <div class="bubble"><div class="spinner"></div><span id="overlayMsg">Cargando facturas…</span></div>
+    <div class="bubble"><div class="spinner"></div><span id="overlayMsg">Cargando facturas…</span>
+      <div class="progress-wrap">
+        <div class="progress"><div id="overlayBar" class="bar"></div></div>
+        <div class="progress-text" id="overlayCount">0/0</div>
+      </div>
+    </div>
   </div>
 
 <script>
@@ -276,8 +287,11 @@ const Config = {
  *  ========================= */
 const $ = (sel)=>document.querySelector(sel);
 const overlay = {
+  done:0, total:0,
   show(msg="Cargando…"){ $("#overlayMsg").textContent = msg; $("#overlay").style.display="grid"; },
-  hide(){ $("#overlay").style.display="none"; }
+  startProgress(total){ this.done=0; this.total=total||0; const c=$("#overlayCount"); const b=$("#overlayBar"); if(c) c.textContent=`0/${this.total}`; if(b) b.style.width="0%"; },
+  step(){ this.done++; const c=$("#overlayCount"); const b=$("#overlayBar"); const pct = this.total? Math.round(Math.min(100, (this.done/this.total)*100)) : 0; if(c) c.textContent=`${this.done}/${this.total}`; if(b) b.style.width=pct+"%"; },
+  hide(){ $("#overlay").style.display="none"; this.done=0; this.total=0; const c=$("#overlayCount"); const b=$("#overlayBar"); if(c) c.textContent="0/0"; if(b) b.style.width="0%"; }
 };
 const fmt = {
   money(v){ const n=Number(v||0); return "L " + n.toLocaleString("es-HN",{minimumFractionDigits:2, maximumFractionDigits:2}); },
@@ -329,7 +343,6 @@ function toDirectDriveUrl(url){
   }catch(_){ return url; }
 }
 
-
 /** =========================
  *  Capa de datos (API)
  *  ========================= */
@@ -339,8 +352,7 @@ const API = {
     if(!res.ok) throw new Error("No se pudo leer facturas");
     const data = await res.json();
     const arr = Array.isArray(data)? data : [];
-    console.log("Facturas recibidas:", arr.length);
-    return arr.map(normalizeRow).filter(r=>r); // no filtramos por nº factura todavía
+return arr.map(normalizeRow).filter(r=>r); // no filtramos por nº factura todavía
   },
   proxied(url){
     const base = Config.api.proxyBase.replace(/\/$/,"");
@@ -386,8 +398,7 @@ const API = {
     try{
       return await tryFetch(API.proxied(url));
     }catch(e){
-      console.warn("Proxy falló, intentando directo:", e);
-      return await tryFetch(url);
+return await tryFetch(url);
     }
   }
 };
@@ -605,7 +616,8 @@ function buildTable(){
         const cellComp = rowComp.getCell ? rowComp.getCell("Estado") : null;
         if(!cellComp) throw new Error("Cell Estado no encontrado");
         openEstadoMenu(cellComp);
-      }catch(e){ console.warn("No se pudo abrir menú de estado", e); }
+      }catch(e){
+}
     });
 
     tableBuilt = true;
@@ -655,8 +667,7 @@ function openEstadoMenu(cell){
         updateKpis();
         await API.updateEstado(data, opt);
       }catch(err){
-        console.error(err);
-        // rollback visual si falla
+// rollback visual si falla
         row.update({Estado: current});
         updateKpis();
         alert("No se pudo guardar el estado. Intenta de nuevo.");
@@ -784,7 +795,6 @@ function applyFilters(){
   doReplace();
 }
 
-
 /** =========================
  *  Exportaciones CSV/XLSX
  *  ========================= */
@@ -804,6 +814,7 @@ async function descargarZip(){
   if(!rows.length) return;
 
   overlay.show("Descargando PDFs…");
+  overlay.startProgress(rows.length);
   const zip = new JSZip();
 
   // Descargamos en serie-controlada para no saturar el proxy
@@ -817,12 +828,13 @@ async function descargarZip(){
       try{
         const blob = await API.fetchPdfBlob(url);
         const fecha = (r.Fecha || "").toString().slice(0,10).replaceAll("/","-");
-        const placa = (r.Placa||"NA").toString().replace(/\s+/g,"");
+        const placa = (r.Placa||"NA").toString().replace(/\s+/g,"_");
         const num   = (r["Nº Factura"]||r.NoFactura||"NA").toString().replace(/[^\w\-]/g,"");
         const name  = `${fecha}_${placa}_${num}.pdf`;
         zip.file(name, blob);
       }catch(e){
-        console.warn("Fallo PDF para", url, e);
+} finally {
+        overlay.step();
       }
     }));
   }
@@ -849,7 +861,6 @@ function resetTableScroll(){
   }
 }
 
-
 function setLastUpdatedNow(){
   const el = document.getElementById("lastUpdated");
   if(!el) return;
@@ -861,7 +872,6 @@ function setLastUpdatedNow(){
   const mi = String(now.getMinutes()).padStart(2,"0");
   el.textContent = `Actualizado: ${yyyy}-${mm}-${dd} ${hh}:${mi}`;
 }
-
 
 let isGrouped = false;
 function toggleGrouping(){
@@ -877,7 +887,6 @@ function toggleGrouping(){
     if(btn) btn.innerHTML = '<i class="lucide-layers-2"></i> Agrupar por colaborador';
   }
 }
-
 
 // Selección masiva por grupo (checkbox en header)
 document.addEventListener("change", (ev)=>{
@@ -950,10 +959,8 @@ async function loadData(){
         table.on("tableBuilt", handler);
       })();
     }
-    console.log("Filas normalizadas:", State.raw.length);
-  }catch(e){
-    console.error(e);
-    alert("No fue posible cargar las facturas.");
+}catch(e){
+alert("No fue posible cargar las facturas.");
   }finally{
     overlay.hide();
   }
