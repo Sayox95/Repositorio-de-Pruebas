@@ -1,5 +1,5 @@
 // /api/placas -> proxyea a tu GAS
-const GAS_URL = "https://script.google.com/macros/s/AKfycbwWzaDHY7P-2tnR_OsIIbs-hptQY0o4RR-QkcBHMUwaazFrO9PrxHsEGUBt0QUJPePcNQ/exec";
+const GAS_URL = "https://script.google.com/macros/s/AKfycbzI6oER2k_lLvd_mW_cZ2nkjJI4BbG8zhIoMjx4PDyclu1rLyUzmYq6GR5xU5obEXb0zg/exec";
 
 export default {
   async fetch(request) {
