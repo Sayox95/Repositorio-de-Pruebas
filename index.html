@@ -286,7 +286,16 @@
       <div class="card kpi"><span class="label">Inactivas</span><span id="kpiPlacasInactivas" class="value">0</span></div>
     </div>
 
-    <div class="card" style="margin-top:10px;">
+
+    <div id="placasFormWrap" class="card" style="margin-top:10px; display:none;">
+      <div class="form-grid">
+        <div style="display:flex; flex-direction:column; gap:4px;">
+  <input id="npPlaca" class="input" placeholder="Placa o VIN (requerido)"/>
+  <small id="npPlacaHint" class="muted">Formato placa: <code>XXX_XXXX</code> · VIN: hasta 17 caracteres</small>
+  <small id="npPlacaDup" style="display:none;color:#b91c1c;font-weight:600;">Esta placa/VIN ya existe.</small>
+</div>
+        
+<div class="card" style="margin-top:10px;">
       <div class="filters" style="grid-template-columns: 180px 1fr 1fr auto;">
         <select id="fPlacasEstado">
           <option value="">Estado</option>
@@ -302,16 +311,7 @@
       </div>
       <div id="tablaPlacas" class="tabulator" style="margin-top:8px;"></div>
     </div>
-
-    <div id="placasFormWrap" class="card" style="margin-top:10px; display:none;">
-      <div class="form-grid">
-        <div style="display:flex; flex-direction:column; gap:4px;">
-  <small id="npPlacaLimit" class="muted">Hasta 17 caracteres</small>
-  <input id="npPlaca" class="input" placeholder="Placa o VIN (requerido)"/>
-  <small id="npPlacaHint" class="muted">Sin Guiones</small>
-  <small id="npPlacaDup" style="display:none;color:#b91c1c;font-weight:600;">Esta placa/VIN ya existe.</small>
-</div>
-        <input id="npNombre" class="input" placeholder="Nombre (Conductor)"/>
+<input id="npNombre" class="input" placeholder="Nombre (Conductor)"/>
         <select id="npSector" class="input"><option value="">Sector…</option></select>
         <select id="npProceso" class="input"><option value="">Proceso…</option></select>
         <input id="npDesignacion" class="input" placeholder="Designación (Cargo)"/>
