@@ -1195,7 +1195,7 @@ if (inpPlaca) { inpPlaca.setAttribute("maxlength","17"); }
       function isValidNow(cleanOnly){
         // VIN si > 8 ⇒ 17 exactos; Placa si ≤ 8 ⇒ 7 exactos
         if(cleanOnly.length === 0) return false;
-        if(cleanOnly.length > 8) return cleanOnly.length === 17;
+        if(cleanOnly.length >= 8) return cleanOnly.length === 17;
         return cleanOnly.length === 7;
       }
 
@@ -1209,7 +1209,7 @@ if (inpPlaca) { inpPlaca.setAttribute("maxlength","17"); }
         dupMsg.style.display = exists ? 'inline' : 'none';
 
         let ok = isValidNow(clean);
-        if(!ok){
+        if(clean.length>0 && !ok){
           hintErr.style.display = 'inline';
           hintErr.textContent = (clean.length > 8) ? 'VIN incompleto: 17 caracteres.' : 'Placa incompleta: 7 caracteres.';
         } else {
@@ -1228,7 +1228,7 @@ if (inpPlaca) { inpPlaca.setAttribute("maxlength","17"); }
           const before = inpPlaca.value;
           const clean = normalizeAlnum(before);
           let formatted = before;
-          if(clean.length > 8){
+          if(clean.length >= 8){
             formatted = clean.slice(0,17); // VIN
           } else {
             if(clean.length <= 3) formatted = clean;
