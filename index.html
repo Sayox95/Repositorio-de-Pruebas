@@ -1179,14 +1179,14 @@ if (inpPlaca) { inpPlaca.setAttribute("maxlength","17"); }
       document.getElementById("btnPlacaGuardar").addEventListener("click", guardarNuevaPlaca);
       document.getElementById("btnPlacasLimpiar").addEventListener("click", limpiarFiltrosPlacas);
       document.getElementById("fPlacasEstado").addEventListener("change", ()=>{ aplicarFiltrosPlacas(); Placas.table.replaceData(Placas.filtered); actualizarKpisPlacas();
-    try{ if(Placas.table){ const c=Placas.table.getColumn('Sector'); if(c){ c.updateDefinition({ editorParams:function(){ return {values:getUniqueSectors()}; } }); } } }catch(_){ } });
+    try{ if(Placas.table){ const cols=Placas.table.getColumns(); const col=(cols||[]).find(x=>x.getField && x.getField()==='Sector'); if(col){ col.updateDefinition({ editor:'list', editorParams:function(){ return {values:getUniqueSectors()}; }, cellEdited:onSectorEdited }); } } }catch(_){ } });
       document.getElementById("fPlacasPlaca").addEventListener("input", ()=>{ aplicarFiltrosPlacas(); Placas.table.replaceData(Placas.filtered); actualizarKpisPlacas();
-    try{ if(Placas.table){ const c=Placas.table.getColumn('Sector'); if(c){ c.updateDefinition({ editorParams:function(){ return {values:getUniqueSectors()}; } }); } } }catch(_){ } });
+    try{ if(Placas.table){ const cols=Placas.table.getColumns(); const col=(cols||[]).find(x=>x.getField && x.getField()==='Sector'); if(col){ col.updateDefinition({ editor:'list', editorParams:function(){ return {values:getUniqueSectors()}; }, cellEdited:onSectorEdited }); } } }catch(_){ } });
       document.getElementById("fPlacasNombre").addEventListener("input", ()=>{ aplicarFiltrosPlacas(); Placas.table.replaceData(Placas.filtered); actualizarKpisPlacas();
-    try{ if(Placas.table){ const c=Placas.table.getColumn('Sector'); if(c){ c.updateDefinition({ editorParams:function(){ return {values:getUniqueSectors()}; } }); } } }catch(_){ } });
+    try{ if(Placas.table){ const cols=Placas.table.getColumns(); const col=(cols||[]).find(x=>x.getField && x.getField()==='Sector'); if(col){ col.updateDefinition({ editor:'list', editorParams:function(){ return {values:getUniqueSectors()}; }, cellEdited:onSectorEdited }); } } }catch(_){ } });
     }
     actualizarKpisPlacas();
-    try{ if(Placas.table){ const c=Placas.table.getColumn('Sector'); if(c){ c.updateDefinition({ editorParams:function(){ return {values:getUniqueSectors()}; } }); } } }catch(_){ }
+    try{ if(Placas.table){ const cols=Placas.table.getColumns(); const col=(cols||[]).find(x=>x.getField && x.getField()==='Sector'); if(col){ col.updateDefinition({ editor:'list', editorParams:function(){ return {values:getUniqueSectors()}; }, cellEdited:onSectorEdited }); } } }catch(_){ }
     fillSectorOptions();
     document.getElementById("placasNotice").style.display = placasEndpointsReady()? "none":"inline-block";
   }catch(e){
@@ -1223,7 +1223,7 @@ function limpiarFiltrosPlacas(){
   aplicarFiltrosPlacas();
   if(Placas.table) Placas.table.replaceData(Placas.filtered);
   actualizarKpisPlacas();
-    try{ if(Placas.table){ const c=Placas.table.getColumn('Sector'); if(c){ c.updateDefinition({ editorParams:function(){ return {values:getUniqueSectors()}; } }); } } }catch(_){ }
+    try{ if(Placas.table){ const cols=Placas.table.getColumns(); const col=(cols||[]).find(x=>x.getField && x.getField()==='Sector'); if(col){ col.updateDefinition({ editor:'list', editorParams:function(){ return {values:getUniqueSectors()}; }, cellEdited:onSectorEdited }); } } }catch(_){ }
 }
 function toggleFormPlaca(show){ document.getElementById("placasFormWrap").style.display = show? "block":"none"; }
 async function guardarNuevaPlaca(){
@@ -1376,6 +1376,40 @@ async function onSectorEdited(cell){
     cell.restoreOldValue();
   }
 }
+
+
+// --- Fallback toast ---
+(function(){
+  if (!window.toast){
+    window.toast = function(msg, ms){
+      try{
+        ms = ms || 2000;
+        const id = "__mini_toast__";
+        let el = document.getElementById(id);
+        if(!el){
+          el = document.createElement("div");
+          el.id = id;
+          el.style.position="fixed";
+          el.style.right="16px";
+          el.style.bottom="16px";
+          el.style.maxWidth="60%";
+          el.style.padding="10px 14px";
+          el.style.background="rgba(17,24,39,0.95)";
+          el.style.color="#fff";
+          el.style.borderRadius="10px";
+          el.style.boxShadow="0 6px 20px rgba(0,0,0,.25)";
+          el.style.fontSize="14px";
+          el.style.zIndex="9999";
+          document.body.appendChild(el);
+        }
+        el.textContent = msg;
+        el.style.opacity="1";
+        clearTimeout(el.__t);
+        el.__t = setTimeout(()=>{ el.style.transition="opacity .3s"; el.style.opacity="0"; }, ms);
+      }catch(e){ console.log("toast:", msg); }
+    };
+  }
+})();
 
 async function bootstrap(){
   initFilters();
