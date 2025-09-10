@@ -1082,22 +1082,22 @@ async function cargarPlacas(){
       
       // === Formato y validación de Placa/VIN ===
       const inpPlaca = document.getElementById("npPlaca");
+if (inpPlaca) { inpPlaca.setAttribute("maxlength","17"); }
       const dupMsg = document.getElementById("npPlacaDup");
       const btnGuardar = document.getElementById("btnPlacaGuardar");
 
       function normalizeAlnum(str){ return String(str||"").toUpperCase().replace(/[^A-Z0-9]/g,""); }
       function formatPlacaOrVin(raw){
         let v = normalizeAlnum(raw);
-        // VIN si supera 8 caracteres (sin subrayado) o si el usuario pegó 9+ directamente
+        // VIN si supera 8 caracteres (sin subrayado)
         if(v.length > 8){
-          // VIN: máximo 17, sólo alfanumérico (sin underscore)
+          // VIN: máximo 17, sólo alfanumérico
           return v.slice(0,17);
-        }else{
-          // Placa: insertar "_" después de 3 chars si hay 4+ restantes
+        } else {
+          // Placa: insertar "_" después de 3; mostrar hasta 8 alfanuméricos (3 + "_" + hasta 4)
           if(v.length <= 3) return v;
-          // Para placas, máximo 7 alfanuméricos + "_" = 8 con guion bajo
           const left = v.slice(0,3);
-          const right = v.slice(3,7); // máximo 4
+          const right = v.slice(3, Math.min(v.length, 8));
           return left + "_" + right;
         }
       }
