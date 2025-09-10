@@ -118,7 +118,8 @@
     }
     .kpi .label{ color:var(--muted); font-size:13px; font-weight:600}
     .kpi .value{ font-size:28px; font-weight:800}
-    .filters{ display:grid; grid-template-columns: 180px 180px 220px 160px 1fr 220px auto; gap:10px; align-items:center;
+    .filters{
+      display:grid; grid-template-columns: 180px 180px 160px 1fr 220px auto; gap:10px; align-items:center;
       margin-top:10px;
     }
     .input, select,.choices__inner{
@@ -185,7 +186,7 @@
       .app{ grid-template-columns: 82px 1fr}
       .brand .caption{display:none}
       .nav-btn span{ display:none }
-      .filters{ display:grid; grid-template-columns: 180px 180px 220px 160px 1fr 220px auto; }
+      .filters{ grid-template-columns: 1fr 1fr; }
     }
   </style>
 </head>
@@ -200,9 +201,8 @@
         </div>
       </div>
 
-            <nav>
-        <a class="nav-btn active" href="#inicio"><i class="lucide-home"></i><span>Inicio</span></a>
-        <a class="nav-btn" href="#revision"><i class="lucide-list"></i><span>Revisión de Facturas</span></a>
+      <nav>
+        <a class="nav-btn active" href="#revision"><i class="lucide-list"></i><span>Revisión de Facturas</span></a>
         <a class="nav-btn" href="#pago"><i class="lucide-wallet"></i><span>Pago</span></a>
         <a class="nav-btn" href="#anticipos"><i class="lucide-coins"></i><span>Anticipos</span></a>
         <a class="nav-btn" href="#placas"><i class="lucide-car"></i><span>Placas</span></a>
@@ -212,13 +212,6 @@
     </aside>
 
     <main class="main">
-  <section id="secInicio" style="display:block;">
-    <div style="display:flex;align-items:center;justify-content:center;height:60vh;flex-direction:column;gap:12px;">
-      <div style="font-size:42px;opacity:.85;">¡Bienvenido!</div>
-      <div style="opacity:.7;">Selecciona una sección en el menú para comenzar.</div>
-    </div>
-  </section>
-
   <section id="secRevision">
       <div class="toolbar">
         <h1>Revisión de Facturas</h1>
@@ -253,7 +246,6 @@
         <div class="filters">
           <div id="msSector" class="msel" data-placeholder="Sector"></div>
           <div id="msEstado" class="msel" data-placeholder="Estado"></div>
-          <input id="fNombre" class="input" placeholder="Nombre Colaborador…"/>
           <input id="fNumero" class="input" placeholder="Nº Factura…"/>
           <input id="fFecha" class="input" placeholder="Rango de fechas"/>
           <button id="btnLimpiar" class="btn btn-ghost"><i class="lucide-broom"></i> Limpiar</button>
@@ -294,6 +286,7 @@
       <div class="card kpi"><span class="label">Inactivas</span><span id="kpiPlacasInactivas" class="value">0</span></div>
     </div>
 
+
     <div id="placasFormWrap" class="card" style="margin-top:10px; display:none;">
   <div class="form-grid">
     <div style="display:flex; flex-direction:column; gap:4px;">
@@ -316,14 +309,12 @@
 </div>
         
 <div class="card" style="margin-top:10px;">
-      <div class="filters" style="grid-template-columns: 180px 180px 1fr 1fr auto">
+      <div class="filters" style="grid-template-columns: 180px 1fr 1fr auto;">
         <select id="fPlacasEstado">
           <option value="">Estado</option>
           <option value="Activa">Activa</option>
           <option value="Inactiva">Inactiva</option>
         </select>
-        
-        <select id="fPlacasSector"><option value="">Sector</option></select>
         <input id="fPlacasPlaca" class="input" placeholder="Placa o VIN…"/>
         <input id="fPlacasNombre" class="input" placeholder="Nombre Colaborador…"/>
         <div style="display:flex; gap:10px; align-items:center;">
@@ -595,8 +586,6 @@ const State = {
     const p = ($("#fPlaca")?.value || "").trim().toLowerCase();
     const n = $("#fNumero").value.trim().toLowerCase();
     const dr = $("#fFecha")._range || null;
-    const _normalize = (s)=> String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
-    const nombreQ = _normalize(document.getElementById("fNombre")?.value || "");
 
     return State.raw.filter(row=>{
       const sector = (row.Sector||"").toString();
@@ -609,8 +598,6 @@ const State = {
       if(eVals.length && !eVals.includes(estado)) return false;
       if(p && !placa.toLowerCase().includes(p)) return false;
       if(n && !numero.toLowerCase().includes(n)) return false;
-      const nombreNorm = _normalize(row.Nombre||"");
-      if(nombreQ && !nombreNorm.includes(nombreQ)) return false;
 
       if(dr){
         const f = new Date(fecha);
@@ -874,23 +861,6 @@ function initFilters(){
   const debouncedPlaca = debounce(applyFilters, 250);
   const placaInput = document.getElementById("fPlaca");
   if(placaInput){ placaInput.addEventListener("input", debouncedPlaca); }
-  // Asegurar input de Nombre (acento-insensible)
-  if(!document.getElementById("fNombre") && filtersRow){
-    const nombreEl = document.createElement("input");
-    nombreEl.id = "fNombre";
-    nombreEl.className = "input";
-    nombreEl.placeholder = "Nombre Colaborador…";
-    const numeroEl = document.getElementById("fNumero");
-    if(numeroEl && numeroEl.parentElement === filtersRow){
-      filtersRow.insertBefore(nombreEl, numeroEl);
-    }else{
-      filtersRow.appendChild(nombreEl);
-    }
-  }
-  const debouncedNombre = debounce(applyFilters, 250);
-  const nombreInput = document.getElementById("fNombre");
-  if(nombreInput){ nombreInput.addEventListener("input", debouncedNombre); }
-
   const debouncedNumero = debounce(applyFilters, 250);
   $("#fNumero").addEventListener("input", debouncedNumero);
   $("#btnLimpiar").addEventListener("click", clearFilters);
@@ -1024,6 +994,7 @@ function toggleGrouping(){
   }
 }
 
+
 /** =========================
  *  Navegación (overlay al cambiar de sección)
  *  ========================= */
@@ -1032,25 +1003,26 @@ function showOnly(sectionId){
   const tgt = document.getElementById(sectionId);
   if(tgt) tgt.style.display = 'block';
   document.querySelectorAll('.sidebar .nav-btn').forEach(a=>a.classList.remove('active'));
-  const map = {secRevision:'#revision', secPago:'#pago', secAnticipos:'#anticipos', secPlacas:'#placas', secInicio:'#inicio'};
+  const map = {secRevision:'#revision', secPago:'#pago', secAnticipos:'#anticipos', secPlacas:'#placas'};
   const sel = map[sectionId]; if(sel){
     const a = document.querySelector(`.sidebar .nav-btn[href="${sel}"]`);
     if(a) a.classList.add('active');
   }
 }
 async function navigateTo(sectionId, loader){
+  overlay.show("Cambiando de sección…");
   try{
     showOnly(sectionId);
     if(typeof loader === 'function'){ await loader(); }
   }finally{
-    }
+    overlay.hide();
+  }
 }
 document.querySelectorAll('.sidebar .nav-btn').forEach(a=>{
   a.addEventListener('click', (ev)=>{
     ev.preventDefault();
     const href = a.getAttribute('href')||'';
-    if(href==='#inicio') return navigateTo('secInicio');
-    if(href==='#revision') return navigateTo('secRevision', async()=>{ await hardRefresh(); });
+    if(href==='#revision') return navigateTo('secRevision');
     if(href==='#pago')     return navigateTo('secPago');
     if(href==='#anticipos')return navigateTo('secAnticipos');
     if(href==='#placas')   return navigateTo('secPlacas', async()=>{ await cargarPlacas(); });
@@ -1072,15 +1044,6 @@ function fillSectorOptions(){
   // reponer selección si sigue existiendo
   if(sectors.includes(current)) sel.value = current;
 }
-function fillSectorFilterOptions(){
-  const sel = document.getElementById("fPlacasSector");
-  if(!sel) return;
-  const sectors = getUniqueSectors();
-  const current = sel.value;
-  sel.innerHTML = '<option value="">'+"Sector"+'</option>' + sectors.map(s => `<option value="${s}">${s}</option>`).join('');
-  if(sectors.includes(current)) sel.value = current;
-}
-
 
 async function loadProcesosOptions(){
   const sel = document.getElementById("npProceso");
@@ -1160,8 +1123,7 @@ async function cargarPlacas(){
       document.getElementById("btnPlacasActualizar").addEventListener("click", cargarPlacas);
       document.getElementById("btnPlacasActivar").addEventListener("click", ()=> cambiarEstadoPlacas("Activa"));
       document.getElementById("btnPlacasInactivar").addEventListener("click", ()=> cambiarEstadoPlacas("Inactiva"));
-      document.getElementById("btnPlacasNueva").addEventListener("click", async ()=> { toggleFormPlaca(true); fillSectorOptions();
-    fillSectorFilterOptions(); await loadProcesosOptions(); });
+      document.getElementById("btnPlacasNueva").addEventListener("click", async ()=> { toggleFormPlaca(true); fillSectorOptions(); await loadProcesosOptions(); });
       document.getElementById("btnPlacaCancelar").addEventListener("click", ()=> toggleFormPlaca(false));
       
       // === Formato y validación de Placa/VIN ===
@@ -1186,50 +1148,7 @@ if (inpPlaca) { inpPlaca.setAttribute("maxlength","17"); }
         }
       }
       function currentInputIsVIN(val){
-        const only = normalizeAln
-      // --- Validación visual e interacción de estado ---
-      const hint = document.getElementById("npPlacaHint");
-      const limit = document.getElementById("npPlacaLimit");
-
-      function assessPlacaState(raw){
-        const norm = normalizeAlnum(raw);
-        // Estado base
-        let ok = false;
-        if(!norm){
-          if(hint){ hint.textContent = "Ingresar Placa/VIN sin Guiones"; hint.style.color = ""; }
-          return { ok:false, type:"", clean:"" };
-        }
-        if(norm.length <= 8){
-          // Placa
-          if(norm.length < 8){
-            if(hint){ hint.textContent = "Placa incompleta: " + norm.length + " caracteres."; hint.style.color = "#b91c1c"; }
-            ok = false;
-          }else{
-            if(hint){ hint.textContent = "Placa válida"; hint.style.color = "#065f46"; }
-            ok = true;
-          }
-          return { ok, type:"placa", clean:norm };
-        }else{
-          // VIN
-          if(norm.length < 17){
-            if(hint){ hint.textContent = "VIN incompleto: 17 caracteres."; hint.style.color = "#b91c1c"; }
-            ok = false;
-          }else{
-            if(hint){ hint.textContent = "VIN válido"; hint.style.color = "#065f46"; }
-            ok = true;
-          }
-          return { ok, type:"vin", clean:norm.slice(0,17) };
-        }
-      }
-
-      // Hook de input: además de formato y duplicidad, pinta el estado
-      function refreshPlacaUI(){
-        const val = inpPlaca.value || "";
-        const st = assessPlacaState(val);
-        // botón guardar deshabilitado si no es válido aún
-        if(btnGuardar){ btnGuardar.disabled = !st.ok || checkDuplicate(val); }
-      }
-um(val);
+        const only = normalizeAlnum(val);
         return only.length > 8; // criterio pedido
       }
       function checkDuplicate(val){
@@ -1254,25 +1173,21 @@ um(val);
           inpPlaca.selectionStart = inpPlaca.selectionEnd = pos;
         }
         checkDuplicate(inpPlaca.value);
-        refreshPlacaUI();
       });
-      inpPlaca.addEventListener("blur", ()=> { checkDuplicate(inpPlaca.value);
-        refreshPlacaUI(); });
+      inpPlaca.addEventListener("blur", ()=> { checkDuplicate(inpPlaca.value); });
 
-      document.getElementById("btnPlacaGuardar").addEventListener("click", (e)=>{ refreshPlacaUI(); const st=assessPlacaState(inpPlaca.value); if(!st.ok || checkDuplicate(inpPlaca.value)){ e.preventDefault(); return; } guardarNuevaPlaca(); });
+      document.getElementById("btnPlacaGuardar").addEventListener("click", guardarNuevaPlaca);
       document.getElementById("btnPlacasLimpiar").addEventListener("click", limpiarFiltrosPlacas);
-      const selSec = document.getElementById("fPlacasSector"); if(selSec){ selSec.addEventListener("change", ()=>{ aplicarFiltrosPlacas(); if(Placas.table) Placas.table.replaceData(Placas.filtered); actualizarKpisPlacas(); }); }
       document.getElementById("fPlacasEstado").addEventListener("change", ()=>{ aplicarFiltrosPlacas(); Placas.table.replaceData(Placas.filtered); actualizarKpisPlacas();
-    try{ if(Placas.table){ const cols=Placas.table.getColumns(); const col=(cols||[]).find(c=>c.getField && c.getField()==='Sector'); if(col){ col.updateDefinition({ editor:'list', editorParams:function(){ return {values:getUniqueSectors()}; }, cellEdited:onSectorEdited }); } } }catch(_){ } });
+    try{ if(Placas.table){ const c=Placas.table.getColumn('Sector'); if(c){ c.updateDefinition({ editorParams:function(){ return {values:getUniqueSectors()}; } }); } } }catch(_){ } });
       document.getElementById("fPlacasPlaca").addEventListener("input", ()=>{ aplicarFiltrosPlacas(); Placas.table.replaceData(Placas.filtered); actualizarKpisPlacas();
-    try{ if(Placas.table){ const cols=Placas.table.getColumns(); const col=(cols||[]).find(c=>c.getField && c.getField()==='Sector'); if(col){ col.updateDefinition({ editor:'list', editorParams:function(){ return {values:getUniqueSectors()}; }, cellEdited:onSectorEdited }); } } }catch(_){ } });
+    try{ if(Placas.table){ const c=Placas.table.getColumn('Sector'); if(c){ c.updateDefinition({ editorParams:function(){ return {values:getUniqueSectors()}; } }); } } }catch(_){ } });
       document.getElementById("fPlacasNombre").addEventListener("input", ()=>{ aplicarFiltrosPlacas(); Placas.table.replaceData(Placas.filtered); actualizarKpisPlacas();
-    try{ if(Placas.table){ const cols=Placas.table.getColumns(); const col=(cols||[]).find(c=>c.getField && c.getField()==='Sector'); if(col){ col.updateDefinition({ editor:'list', editorParams:function(){ return {values:getUniqueSectors()}; }, cellEdited:onSectorEdited }); } } }catch(_){ } });
+    try{ if(Placas.table){ const c=Placas.table.getColumn('Sector'); if(c){ c.updateDefinition({ editorParams:function(){ return {values:getUniqueSectors()}; } }); } } }catch(_){ } });
     }
     actualizarKpisPlacas();
-    try{ if(Placas.table){ const cols=Placas.table.getColumns(); const col=(cols||[]).find(c=>c.getField && c.getField()==='Sector'); if(col){ col.updateDefinition({ editor:'list', editorParams:function(){ return {values:getUniqueSectors()}; }, cellEdited:onSectorEdited }); } } }catch(_){ }
+    try{ if(Placas.table){ const c=Placas.table.getColumn('Sector'); if(c){ c.updateDefinition({ editorParams:function(){ return {values:getUniqueSectors()}; } }); } } }catch(_){ }
     fillSectorOptions();
-    fillSectorFilterOptions();
     document.getElementById("placasNotice").style.display = placasEndpointsReady()? "none":"inline-block";
   }catch(e){
     alert("No fue posible cargar las placas.");
@@ -1282,13 +1197,11 @@ um(val);
   }
 }
 function aplicarFiltrosPlacas(){
-  const sec = (document.getElementById("fPlacasSector")?.value || "").trim();
-const est = (document.getElementById("fPlacasEstado")?.value || "").trim();
+  const est = (document.getElementById("fPlacasEstado")?.value || "").trim();
   const placaQ = (document.getElementById("fPlacasPlaca")?.value || "").trim().toLowerCase();
   const normalize = (s)=> String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
   const nombreQ = normalize(document.getElementById("fPlacasNombre")?.value || "");
   Placas.filtered = Placas.data.filter(r=>{
-    if(sec && String(r.Sector||"") !== sec) return false;
     if(est && r.Estado !== est) return false;
     if(placaQ && !String(r.Placa||"").toLowerCase().includes(placaQ)) return false;
     if(nombreQ && !normalize(r.Nombre).includes(nombreQ)) return false;
@@ -1304,14 +1217,13 @@ function actualizarKpisPlacas(){
   document.getElementById("kpiPlacasInactivas").textContent = ina;
 }
 function limpiarFiltrosPlacas(){
-  const ss = document.getElementById("fPlacasSector"); if(ss){ ss.value=""; }
-document.getElementById("fPlacasEstado").value = "";
+  document.getElementById("fPlacasEstado").value = "";
   document.getElementById("fPlacasPlaca").value = "";
   document.getElementById("fPlacasNombre").value = "";
   aplicarFiltrosPlacas();
   if(Placas.table) Placas.table.replaceData(Placas.filtered);
   actualizarKpisPlacas();
-    try{ if(Placas.table){ const cols=Placas.table.getColumns(); const col=(cols||[]).find(c=>c.getField && c.getField()==='Sector'); if(col){ col.updateDefinition({ editor:'list', editorParams:function(){ return {values:getUniqueSectors()}; }, cellEdited:onSectorEdited }); } } }catch(_){ }
+    try{ if(Placas.table){ const c=Placas.table.getColumn('Sector'); if(c){ c.updateDefinition({ editorParams:function(){ return {values:getUniqueSectors()}; } }); } } }catch(_){ }
 }
 function toggleFormPlaca(show){ document.getElementById("placasFormWrap").style.display = show? "block":"none"; }
 async function guardarNuevaPlaca(){
@@ -1415,9 +1327,26 @@ async function hardRefresh(){
   const mm = String(now.getMinutes()).padStart(2,"0");
   }
 
+
+function getUniqueSectors(){
+  const all = (Placas.data || [])
+    .map(r => String(r.Sector||"").trim())
+    .filter(Boolean);
+  return Array.from(new Set(all)).sort((a,b)=>a.localeCompare(b));
+}
+function getJefeBySector(sector){
+  const s = String(sector||"").trim().toUpperCase();
+  for(const r of (Placas.data||[])){
+    if(String(r.Sector||"").trim().toUpperCase() === s){
+      return r.JefeInmediato || r["Jefe inmediato"] || "";
+    }
+  }
+  return "";
+}
+
+
 async function onSectorEdited(cell){
   try{
-    toastLoading.show("Actualizando sector…");
     const newSector = cell.getValue();
     const rowData   = cell.getRow().getData();
     const placaKey  = rowData.Placa || rowData.PLACA;
@@ -1440,129 +1369,25 @@ async function onSectorEdited(cell){
     const idx = (Placas.data||[]).findIndex(r => (r.Placa||r.PLACA) === placaKey);
     if(idx>=0){ Placas.data[idx].Sector = newSector; if(jefe) Placas.data[idx].JefeInmediato = jefe; }
 
-    toastLoading.hide();
-    quickToast("Sector actualizado");
+    toast("Sector actualizado");
   }catch(err){
     console.error("No se pudo actualizar sector:", err);
-    toastLoading.hide();
     alert("No se pudo actualizar el sector: "+err.message);
     cell.restoreOldValue();
   }
 }
-
-function getUniqueSectors(){
-  const all = (Placas.data || [])
-    .map(r => String(r.Sector||"").trim())
-    .filter(Boolean);
-  return Array.from(new Set(all)).sort((a,b)=>a.localeCompare(b));
-}
-function getJefeBySector(sector){
-  const s = String(sector||"").trim().toUpperCase();
-  for(const r of (Placas.data||[])){
-    if(String(r.Sector||"").trim().toUpperCase() === s){
-      return r.JefeInmediato || r["Jefe inmediato"] || "";
-    }
-  }
-  return "";
-}
-
-/* ---- Toasts mejorados ---- */
-(function(){
-  // Contenedor común
-  let cont = document.getElementById("__toast_cont__");
-  if(!cont){
-    cont = document.createElement("div");
-    cont.id = "__toast_cont__";
-    cont.style.position = "fixed";
-    cont.style.right = "16px";
-    cont.style.bottom = "16px";
-    cont.style.display = "flex";
-    cont.style.flexDirection = "column";
-    cont.style.gap = "8px";
-    cont.style.zIndex = "9999";
-    document.body.appendChild(cont);
-  }
-
-  // Loading toast (persistente hasta hide)
-  const loadingId = "__toast_loading__";
-  function createLoading(msg){
-    const box = document.createElement("div");
-    box.id = loadingId;
-    box.style.display = "flex";
-    box.style.alignItems = "center";
-    box.style.gap = "10px";
-    box.style.padding = "10px 14px";
-    box.style.background = "rgba(17,24,39,0.95)";
-    box.style.color = "#fff";
-    box.style.borderRadius = "10px";
-    box.style.boxShadow = "0 6px 20px rgba(0,0,0,.25)";
-    box.style.fontSize = "14px";
-
-    const spinner = document.createElement("div");
-    spinner.style.width = "16px";
-    spinner.style.height = "16px";
-    spinner.style.border = "2px solid rgba(255,255,255,.25)";
-    spinner.style.borderTopColor = "#fff";
-    spinner.style.borderRadius = "50%";
-    spinner.style.animation = "spin1 0.8s linear infinite";
-
-    const text = document.createElement("span");
-    text.textContent = msg || "Actualizando sector…";
-
-    box.appendChild(spinner);
-    box.appendChild(text);
-    return box;
-  }
-
-  window.toastLoading = {
-    show(msg){
-      let el = document.getElementById(loadingId);
-      if(!el){
-        el = createLoading(msg || "Actualizando sector…");
-        cont.appendChild(el);
-      }else{
-        el.querySelector("span").textContent = msg || "Actualizando sector…";
-        el.style.display = "flex";
-      }
-    },
-    hide(){
-      const el = document.getElementById(loadingId);
-      if(el) el.remove();
-    }
-  };
-
-  // Quick toast (auto-desvanecer)
-  window.quickToast = function(msg, ms){
-    ms = ms || 1800;
-    const box = document.createElement("div");
-    box.style.padding = "10px 14px";
-    box.style.background = "rgba(17,24,39,0.95)";
-    box.style.color = "#fff";
-    box.style.borderRadius = "10px";
-    box.style.boxShadow = "0 6px 20px rgba(0,0,0,.25)";
-    box.style.fontSize = "14px";
-    box.style.opacity = "1";
-    box.textContent = msg;
-    cont.appendChild(box);
-    setTimeout(()=>{
-      box.style.transition = "opacity .3s ease";
-      box.style.opacity = "0";
-      setTimeout(()=> box.remove(), 320);
-    }, ms);
-  };
-
-  // keyframes del spinner
-  const st = document.createElement("style");
-  st.textContent = "@keyframes spin1{from{transform:rotate(0)}to{transform:rotate(360deg)}}";
-  document.head.appendChild(st);
-})();
 
 async function bootstrap(){
   initFilters();
   $("#btnActualizar").addEventListener("click", hardRefresh);
   $("#btnAgrupar").addEventListener("click", toggleGrouping);
   $("#btnDescargar").addEventListener("click", descargarZip);  $("#btnExportXLSX").addEventListener("click", exportXLSX);
-  navigateTo("secInicio");}
+  overlay.show("Cargando facturas…");
+  await loadData();
+  resetTableScroll();
+  setLastUpdatedNow();
+  overlay.hide();
+}
 
 async function loadData(){
   overlay.show("Cargando facturas…");
