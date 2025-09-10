@@ -294,6 +294,7 @@
       <input id="npPlaca" maxlength="17" class="input" placeholder="Placa o VIN (requerido)"/>
       <small id="npPlacaHint" class="muted">Ingresar Placa/VIN sin Guiones</small>
       <small id="npPlacaDup" style="display:none;color:#b91c1c;font-weight:600;">Esta placa/VIN ya existe.</small>
+<small id="npPlacaErr" style="display:none;color:#b45309;font-weight:600;">Valor incompleto.</small>
     </div>
     <input id="npNombre" class="input" placeholder="Nombre (Conductor)"/>
     <select id="npSector" class="input"><option value="">Sector…</option></select>
@@ -1176,10 +1177,85 @@ if (inpPlaca) { inpPlaca.setAttribute("maxlength","17"); }
       });
       inpPlaca.addEventListener("blur", ()=> { checkDuplicate(inpPlaca.value); });
 
+      
+      (function setupPlacaLive(){
+  if (window.__placaLiveWired) return; window.__placaLiveWired = true;
+// === Validación en vivo de Placa/VIN ===
+      const inpPlaca = document.getElementById("npPlaca");
+      const dupMsg = document.getElementById("npPlacaDup");
+      const btnGuardar = document.getElementById("btnPlacaGuardar");
+      const hintErr = document.getElementById("npPlacaErr") || (function(){
+        const s = document.createElement('small'); s.id='npPlacaErr'; s.style.display='none';
+        s.style.color='#b45309'; s.style.fontWeight='600'; s.textContent='Valor incompleto.';
+        inpPlaca?.parentElement?.appendChild(s); return s;
+      })();
+
+      function normalizeAlnum(s){ return String(s||"").toUpperCase().replace(/[^A-Z0-9]/g,''); }
+
+      function isValidNow(cleanOnly){
+        // VIN si > 8 ⇒ 17 exactos; Placa si ≤ 8 ⇒ 7 exactos
+        if(cleanOnly.length === 0) return false;
+        if(cleanOnly.length > 8) return cleanOnly.length === 17;
+        return cleanOnly.length === 7;
+      }
+
+      function updateLiveValidation(){
+        const raw = inpPlaca.value || "";
+        const clean = normalizeAlnum(raw);
+
+        // Duplicado (comparación normalizada: sheet guarda placa o vin en misma columna)
+        const exists = (Placas.data||[]).some(r => normalizeAlnum(String(r.Placa||r.PLACA||'').replace(/_/g,'')) === clean);
+
+        dupMsg.style.display = exists ? 'inline' : 'none';
+
+        let ok = isValidNow(clean);
+        if(!ok){
+          hintErr.style.display = 'inline';
+          hintErr.textContent = (clean.length > 8) ? 'VIN incompleto: 17 caracteres.' : 'Placa incompleta: 7 caracteres.';
+        } else {
+          hintErr.style.display = 'none';
+        }
+
+        btnGuardar.disabled = exists || !ok;
+        return !(exists || !ok);
+      }
+
+      // Formateo visual mientras escribe (no altera las reglas)
+      if(inpPlaca && !inpPlaca.getAttribute('data-wired')){
+        inpPlaca.setAttribute('data-wired','1');
+        inpPlaca.setAttribute('maxlength','17');
+        inpPlaca.addEventListener('input', ()=>{
+          const before = inpPlaca.value;
+          const clean = normalizeAlnum(before);
+          let formatted = before;
+          if(clean.length > 8){
+            formatted = clean.slice(0,17); // VIN
+          } else {
+            if(clean.length <= 3) formatted = clean;
+            else {
+              const left = clean.slice(0,3);
+              const right = clean.slice(3, Math.min(clean.length, 8));
+              formatted = left + '_' + right;
+            }
+          }
+          if(formatted !== before){
+            inpPlaca.value = formatted;
+            const end = formatted.length;
+            inpPlaca.setSelectionRange(end,end);
+          }
+          updateLiveValidation();
+        });
+        inpPlaca.addEventListener('blur', updateLiveValidation);
+        // Primera evaluación
+        updateLiveValidation();
+      }
+    
       document.getElementById("btnPlacaGuardar").addEventListener("click", guardarNuevaPlaca);
       document.getElementById("btnPlacasLimpiar").addEventListener("click", limpiarFiltrosPlacas);
       document.getElementById("fPlacasEstado").addEventListener("change", ()=>{ aplicarFiltrosPlacas(); Placas.table.replaceData(Placas.filtered); actualizarKpisPlacas(); });
-      document.getElementById("fPlacasPlaca").addEventListener("input", ()=>{ aplicarFiltrosPlacas(); Placas.table.replaceData(Placas.filtered); actualizarKpisPlacas(); });
+      
+})();
+document.getElementById("fPlacasPlaca").addEventListener("input", ()=>{ aplicarFiltrosPlacas(); Placas.table.replaceData(Placas.filtered); actualizarKpisPlacas(); });
       document.getElementById("fPlacasNombre").addEventListener("input", ()=>{ aplicarFiltrosPlacas(); Placas.table.replaceData(Placas.filtered); actualizarKpisPlacas(); });
     }
     actualizarKpisPlacas();
