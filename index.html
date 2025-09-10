@@ -288,12 +288,24 @@
 
 
     <div id="placasFormWrap" class="card" style="margin-top:10px; display:none;">
-      <div class="form-grid">
-        <div style="display:flex; flex-direction:column; gap:4px;">
-  <small id="npPlacaLimit" class="muted">Hasta 17 caracteres</small>
-  <input id="npPlaca" class="input" placeholder="Placa o VIN (requerido)"/>
-  <small id="npPlacaHint" class="muted">Ingresar Placa/VIN sin Guiones</small>
-  <small id="npPlacaDup" style="display:none;color:#b91c1c;font-weight:600;">Esta placa/VIN ya existe.</small>
+  <div class="form-grid">
+    <div style="display:flex; flex-direction:column; gap:4px;">
+      <small id="npPlacaLimit" class="muted">Hasta 17 caracteres</small>
+      <input id="npPlaca" class="input" placeholder="Placa o VIN (requerido)"/>
+      <small id="npPlacaHint" class="muted">Ingresar Placa/VIN sin Guiones</small>
+      <small id="npPlacaDup" style="display:none;color:#b91c1c;font-weight:600;">Esta placa/VIN ya existe.</small>
+    </div>
+    <input id="npNombre" class="input" placeholder="Nombre (Conductor)"/>
+    <select id="npSector" class="input"><option value="">Sector…</option></select>
+    <select id="npProceso" class="input"><option value="">Proceso…</option></select>
+    <input id="npDesignacion" class="input" placeholder="Designación (Cargo)"/>
+    <select id="npEstado" class="input">
+      <option value="Activa">Activa</option>
+      <option value="Inactiva">Inactiva</option>
+    </select>
+    <button id="btnPlacaGuardar" class="btn btn-primary"><i class="lucide-save"></i> Guardar</button>
+    <button id="btnPlacaCancelar" class="btn btn-ghost"><i class="lucide-x"></i> Cancelar</button>
+  </div>
 </div>
         
 <div class="card" style="margin-top:10px;">
@@ -311,8 +323,6 @@
         </div>
       </div>
       <div id="tablaPlacas" class="tabulator" style="margin-top:8px;"></div>
-    </div>
-</div>
     </div>
   </section>
 
