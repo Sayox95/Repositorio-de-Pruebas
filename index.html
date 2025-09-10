@@ -1034,6 +1034,20 @@ document.querySelectorAll('.sidebar .nav-btn').forEach(a=>{
 const Placas = { table:null, data:[], filtered:[], _loaded:false };
 function placasEndpointsReady(){ return !!Config.api.placas; }
 
+function wirePlacaFormKeys(){
+  const ids = ["npPlaca","npNombre","npSector","npProceso","npDesignacion","npEstado"];
+  ids.forEach(id=>{
+    const el = document.getElementById(id);
+    if(!el) return;
+    el.addEventListener("keydown", (ev)=>{
+      if(ev.key === "Enter"){
+        ev.preventDefault();
+        document.getElementById("btnPlacaGuardar")?.click();
+      }
+    });
+  });
+}
+
 function fillSectorOptions(){
   const sel = document.getElementById("npSector");
   if(!sel) return;
@@ -1124,6 +1138,7 @@ async function cargarPlacas(){
       document.getElementById("btnPlacasActivar").addEventListener("click", ()=> cambiarEstadoPlacas("Activa"));
       document.getElementById("btnPlacasInactivar").addEventListener("click", ()=> cambiarEstadoPlacas("Inactiva"));
       document.getElementById("btnPlacasNueva").addEventListener("click", async ()=> { toggleFormPlaca(true); fillSectorOptions(); await loadProcesosOptions(); });
+      wirePlacaFormKeys();
       document.getElementById("btnPlacaCancelar").addEventListener("click", ()=> toggleFormPlaca(false));
       
       // === Formato y validación de Placa/VIN ===
@@ -1228,6 +1243,7 @@ let placa = document.getElementById("npPlaca").value.trim();
   // Si es VIN (más de 8 alfanuméricos sin guion), quitar guion si lo tuviera
   const only = normOnly.replace(/_/g,"");
   if(only.length > 8){ placa = only.slice(0,17); 
+
 
 } else {
     const al = only.slice(0,7); // 3 + 4
