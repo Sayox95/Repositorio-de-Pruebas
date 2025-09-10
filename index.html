@@ -293,7 +293,7 @@
           <option value="Activa">Activa</option>
           <option value="Inactiva">Inactiva</option>
         </select>
-        <input id="fPlacasPlaca" class="input" placeholder="Placa…"/>
+        <input id="fPlacasPlaca" class="input" placeholder="Placa o VIN…"/>
         <input id="fPlacasNombre" class="input" placeholder="Nombre Colaborador…"/>
         <div style="display:flex; gap:10px; align-items:center;">
           <button id="btnPlacasLimpiar" class="btn btn-ghost"><i class="lucide-broom"></i> Limpiar</button>
@@ -305,7 +305,11 @@
 
     <div id="placasFormWrap" class="card" style="margin-top:10px; display:none;">
       <div class="form-grid">
-        <input id="npPlaca" class="input" placeholder="Placa (requerido)"/>
+        <div style="display:flex; flex-direction:column; gap:4px;">
+  <input id="npPlaca" class="input" placeholder="Placa o VIN (requerido)"/>
+  <small id="npPlacaHint" class="muted">Formato placa: <code>XXX_XXXX</code> · VIN: hasta 17 caracteres</small>
+  <small id="npPlacaDup" style="display:none;color:#b91c1c;font-weight:600;">Esta placa/VIN ya existe.</small>
+</div>
         <input id="npNombre" class="input" placeholder="Nombre (Conductor)"/>
         <input id="npSector" class="input" placeholder="Sector"/>
         <input id="npProceso" class="input" placeholder="Proceso"/>
@@ -1018,9 +1022,7 @@ document.querySelectorAll('.sidebar .nav-btn').forEach(a=>{
     if(href==='#revision') return navigateTo('secRevision');
     if(href==='#pago')     return navigateTo('secPago');
     if(href==='#anticipos')return navigateTo('secAnticipos');
-    if(href==='#placas')   return navigateTo('secPlacas', async()=>{
-      await cargarPlacas();
-    });
+    if(href==='#placas')   return navigateTo('secPlacas', async()=>{ await cargarPlacas(); });
   });
 });
 /** =========================
@@ -1034,9 +1036,8 @@ async function cargarPlacas(){
     let rows = [];
     if(placasEndpointsReady()){
       const res = await fetch(Config.api.placas, { cache:"no-store" });
-      const text = await res.text();
-      if(!res.ok) throw new Error("HTTP "+res.status+" - "+ text.slice(0,200));
-      try { rows = JSON.parse(text); } catch(parseErr){ throw new Error("JSON inválido: "+ String(parseErr) +" | cuerpo: "+ text.slice(0,200)); }
+      if(!res.ok) throw new Error("HTTP "+res.status);
+      rows = await res.json();
     }
     Placas.data = rows.map(r=>({
       IDvehiculo: r.IDvehiculo || r.Id || "",
@@ -1078,6 +1079,57 @@ async function cargarPlacas(){
       document.getElementById("btnPlacasInactivar").addEventListener("click", ()=> cambiarEstadoPlacas("Inactiva"));
       document.getElementById("btnPlacasNueva").addEventListener("click", ()=> toggleFormPlaca(true));
       document.getElementById("btnPlacaCancelar").addEventListener("click", ()=> toggleFormPlaca(false));
+      
+      // === Formato y validación de Placa/VIN ===
+      const inpPlaca = document.getElementById("npPlaca");
+      const dupMsg = document.getElementById("npPlacaDup");
+      const btnGuardar = document.getElementById("btnPlacaGuardar");
+
+      function normalizeAlnum(str){ return String(str||"").toUpperCase().replace(/[^A-Z0-9]/g,""); }
+      function formatPlacaOrVin(raw){
+        let v = normalizeAlnum(raw);
+        // VIN si supera 8 caracteres (sin subrayado) o si el usuario pegó 9+ directamente
+        if(v.length > 8){
+          // VIN: máximo 17, sólo alfanumérico (sin underscore)
+          return v.slice(0,17);
+        }else{
+          // Placa: insertar "_" después de 3 chars si hay 4+ restantes
+          if(v.length <= 3) return v;
+          // Para placas, máximo 7 alfanuméricos + "_" = 8 con guion bajo
+          const left = v.slice(0,3);
+          const right = v.slice(3,7); // máximo 4
+          return left + "_" + right;
+        }
+      }
+      function currentInputIsVIN(val){
+        const only = normalizeAlnum(val);
+        return only.length > 8; // criterio pedido
+      }
+      function checkDuplicate(val){
+        const norm = normalizeAlnum(val);
+        if(!norm) return false;
+        const exists = (Placas.data||[]).some(r=> normalizeAlnum(r.Placa||r.PLACA||"") === norm);
+        dupMsg.style.display = exists ? "inline" : "none";
+        btnGuardar.disabled = exists;
+        return exists;
+      }
+
+      inpPlaca.addEventListener("input", () => {
+        const pos = inpPlaca.selectionStart;
+        const before = inpPlaca.value;
+        const formatted = formatPlacaOrVin(before);
+        inpPlaca.value = formatted;
+        // Ajuste simple del cursor (no perfecto pero aceptable para este caso)
+        // Mover al final si hubo re-formateo drástico
+        if(inpPlaca.value !== before){
+          inpPlaca.selectionStart = inpPlaca.selectionEnd = inpPlaca.value.length;
+        }else{
+          inpPlaca.selectionStart = inpPlaca.selectionEnd = pos;
+        }
+        checkDuplicate(inpPlaca.value);
+      });
+      inpPlaca.addEventListener("blur", ()=> { checkDuplicate(inpPlaca.value); });
+
       document.getElementById("btnPlacaGuardar").addEventListener("click", guardarNuevaPlaca);
       document.getElementById("btnPlacasLimpiar").addEventListener("click", limpiarFiltrosPlacas);
       document.getElementById("fPlacasEstado").addEventListener("change", ()=>{ aplicarFiltrosPlacas(); Placas.table.replaceData(Placas.filtered); actualizarKpisPlacas(); });
@@ -1087,8 +1139,8 @@ async function cargarPlacas(){
     actualizarKpisPlacas();
     document.getElementById("placasNotice").style.display = placasEndpointsReady()? "none":"inline-block";
   }catch(e){
-    alert("No fue posible cargar las placas.\n\nDetalle: "+ e.message);
-    const n = document.getElementById("placasNotice"); if(n){ n.style.display="inline-block"; n.textContent="Error al cargar: "+ e.message; }
+    alert("No fue posible cargar las placas.");
+    const n = document.getElementById("placasNotice"); if(n){ n.style.display="inline-block"; n.textContent="No fue posible cargar las placas. Intenta nuevamente."; }
   }finally{
     overlay.hide();
   }
@@ -1123,7 +1175,19 @@ function limpiarFiltrosPlacas(){
 }
 function toggleFormPlaca(show){ document.getElementById("placasFormWrap").style.display = show? "block":"none"; }
 async function guardarNuevaPlaca(){
-  const placa = document.getElementById("npPlaca").value.trim();
+  let placa = document.getElementById("npPlaca").value.trim();
+  // Normalizar antes de enviar
+  const normOnly = placa.toUpperCase().replace(/[^A-Z0-9_]/g,"");
+  // Si es VIN (más de 8 alfanuméricos sin guion), quitar guion si lo tuviera
+  const only = normOnly.replace(/_/g,"");
+  if(only.length > 8){ placa = only.slice(0,17); } else {
+    const al = only.slice(0,7); // 3 + 4
+    const left = al.slice(0,3), right = al.slice(3,7);
+    placa = right ? (left + "_" + right) : left;
+  }
+  // Duplicados en cliente
+  const dupExists = (Placas.data||[]).some(r=> String((r.Placa||r.PLACA||"")).replace(/_/g,"").toUpperCase() === only.toUpperCase());
+  if(dupExists){ alert("La placa/VIN ya existe en el registro."); return; }
   const nombre = document.getElementById("npNombre").value.trim();
   const sector = document.getElementById("npSector").value.trim();
   const proceso = document.getElementById("npProceso").value.trim();
