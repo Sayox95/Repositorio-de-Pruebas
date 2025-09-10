@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
-<head> 
+<head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>UTCD · Revisión de Facturas</title>
@@ -290,8 +290,9 @@
     <div id="placasFormWrap" class="card" style="margin-top:10px; display:none;">
       <div class="form-grid">
         <div style="display:flex; flex-direction:column; gap:4px;">
+  <small id="npPlacaLimit" class="muted">Hasta 17 caracteres</small>
   <input id="npPlaca" class="input" placeholder="Placa o VIN (requerido)"/>
-  <small id="npPlacaHint" class="muted">Formato placa: <code>XXX_XXXX</code> · VIN: hasta 17 caracteres</small>
+  <small id="npPlacaHint" class="muted">Ingresar Placa/VIN sin Guiones</small>
   <small id="npPlacaDup" style="display:none;color:#b91c1c;font-weight:600;">Esta placa/VIN ya existe.</small>
 </div>
         
@@ -1227,6 +1228,7 @@ let placa = document.getElementById("npPlaca").value.trim();
   // Si es VIN (más de 8 alfanuméricos sin guion), quitar guion si lo tuviera
   const only = normOnly.replace(/_/g,"");
   if(only.length > 8){ placa = only.slice(0,17); 
+
 } else {
     const al = only.slice(0,7); // 3 + 4
     const left = al.slice(0,3), right = al.slice(3,7);
@@ -1330,7 +1332,7 @@ async function bootstrap(){
   resetTableScroll();
   setLastUpdatedNow();
   overlay.hide();
-} 
+}
 
 async function loadData(){
   overlay.show("Cargando facturas…");
