@@ -294,7 +294,6 @@
       <input id="npPlaca" class="input" placeholder="Placa o VIN (requerido)"/>
       <small id="npPlacaHint" class="muted">Ingresar Placa/VIN sin Guiones</small>
       <small id="npPlacaDup" style="display:none;color:#b91c1c;font-weight:600;">Esta placa/VIN ya existe.</small>
-<small id="npPlacaErr" style="display:none;color:#b45309;font-weight:600;">Valor incompleto.</small>
     </div>
     <input id="npNombre" class="input" placeholder="Nombre (Conductor)"/>
     <select id="npSector" class="input"><option value="">Sector…</option></select>
@@ -1035,20 +1034,6 @@ document.querySelectorAll('.sidebar .nav-btn').forEach(a=>{
 const Placas = { table:null, data:[], filtered:[], _loaded:false };
 function placasEndpointsReady(){ return !!Config.api.placas; }
 
-function wirePlacaFormKeys(){
-  const ids = ["npPlaca","npNombre","npSector","npProceso","npDesignacion","npEstado"];
-  ids.forEach(id=>{
-    const el = document.getElementById(id);
-    if(!el) return;
-    el.addEventListener("keydown", (ev)=>{
-      if(ev.key === "Enter"){
-        ev.preventDefault();
-        document.getElementById("btnPlacaGuardar")?.click();
-      }
-    });
-  });
-}
-
 function fillSectorOptions(){
   const sel = document.getElementById("npSector");
   if(!sel) return;
@@ -1139,75 +1124,58 @@ async function cargarPlacas(){
       document.getElementById("btnPlacasActivar").addEventListener("click", ()=> cambiarEstadoPlacas("Activa"));
       document.getElementById("btnPlacasInactivar").addEventListener("click", ()=> cambiarEstadoPlacas("Inactiva"));
       document.getElementById("btnPlacasNueva").addEventListener("click", async ()=> { toggleFormPlaca(true); fillSectorOptions(); await loadProcesosOptions(); });
-      wirePlacaFormKeys();
       document.getElementById("btnPlacaCancelar").addEventListener("click", ()=> toggleFormPlaca(false));
       
-      // --- Validación en vivo de Placa/VIN (longitud y duplicados) ---
+      // === Formato y validación de Placa/VIN ===
       const inpPlaca = document.getElementById("npPlaca");
+if (inpPlaca) { inpPlaca.setAttribute("maxlength","17"); }
       const dupMsg = document.getElementById("npPlacaDup");
-      const errMsg = document.getElementById("npPlacaErr");
       const btnGuardar = document.getElementById("btnPlacaGuardar");
 
-      function normalizeAlnum(s){ return String(s||"").toUpperCase().replace(/[^A-Z0-9]/g,""); }
-
-      function liveValidatePlacaVin(){
-        const raw = inpPlaca.value || "";
-        const clean = normalizeAlnum(raw);
-        const only = clean; // sin guión para la validación; live input ya mete '_' solo para mostrar
-
-        // Duplicados (comparación normalizada)
-        const exists = (Placas.data||[]).some(r => normalizeAlnum((r.Placa||r.PLACA||'').replace(/_/g,'')) === only);
-        dupMsg.style.display = exists ? "inline" : "none";
-
-        // Longitud: VIN > 8 -> 17 exactos; Placa <= 8 -> 7 exactos
-        let validLen = false, msg = "";
-        if (only.length === 0){
-          validLen = false; msg = "";
-        } else if (only.length > 8){
-          validLen = (only.length === 17);
-          msg = validLen ? "" : "VIN incompleto: deben ser 17 caracteres.";
+      function normalizeAlnum(str){ return String(str||"").toUpperCase().replace(/[^A-Z0-9]/g,""); }
+      function formatPlacaOrVin(raw){
+        let v = normalizeAlnum(raw);
+        // VIN si supera 8 caracteres (sin subrayado)
+        if(v.length > 8){
+          // VIN: máximo 17, sólo alfanumérico
+          return v.slice(0,17);
         } else {
-          validLen = (only.length === 7);
-          msg = validLen ? "" : "Placa incompleta: deben ser 7 caracteres.";
+          // Placa: insertar "_" después de 3; mostrar hasta 8 alfanuméricos (3 + "_" + hasta 4)
+          if(v.length <= 3) return v;
+          const left = v.slice(0,3);
+          const right = v.slice(3, Math.min(v.length, 8));
+          return left + "_" + right;
         }
-
-        errMsg.style.display = (!validLen && msg) ? "inline" : "none";
-        if(!validLen && msg) errMsg.textContent = msg;
-
-        // Habilitar botón sólo si pasa ambas validaciones
-        btnGuardar.disabled = exists || !validLen;
-        return validLen && !exists;
+      }
+      function currentInputIsVIN(val){
+        const only = normalizeAlnum(val);
+        return only.length > 8; // criterio pedido
+      }
+      function checkDuplicate(val){
+        const norm = normalizeAlnum(val);
+        if(!norm) return false;
+        const exists = (Placas.data||[]).some(r=> normalizeAlnum(r.Placa||r.PLACA||"") === norm);
+        dupMsg.style.display = exists ? "inline" : "none";
+        btnGuardar.disabled = exists;
+        return exists;
       }
 
-      // Formateo en vivo (conservando lo que tenías)
-      if (inpPlaca && !inpPlaca.getAttribute("data-wired")) {
-        inpPlaca.setAttribute("maxlength","17");
-        inpPlaca.setAttribute("data-wired","1");
-        inpPlaca.addEventListener("input", ()=>{
-          // formateo
-          const before = inpPlaca.value;
-          const clean = normalizeAlnum(before);
-          let formatted;
-          if (clean.length > 8){
-            formatted = clean.slice(0,17); // VIN
-          } else {
-            if (clean.length <= 3) { formatted = clean; }
-            else {
-              const left = clean.slice(0,3);
-              const right = clean.slice(3, Math.min(clean.length, 8));
-              formatted = left + "_" + right;
-            }
-          }
-          if(formatted !== before){
-            inpPlaca.value = formatted;
-            const end = formatted.length;
-            inpPlaca.setSelectionRange(end, end);
-          }
-          liveValidatePlacaVin();
-        });
-        inpPlaca.addEventListener("blur", liveValidatePlacaVin);
-      }
-    
+      inpPlaca.addEventListener("input", () => {
+        const pos = inpPlaca.selectionStart;
+        const before = inpPlaca.value;
+        const formatted = formatPlacaOrVin(before);
+        inpPlaca.value = formatted;
+        // Ajuste simple del cursor (no perfecto pero aceptable para este caso)
+        // Mover al final si hubo re-formateo drástico
+        if(inpPlaca.value !== before){
+          inpPlaca.selectionStart = inpPlaca.selectionEnd = inpPlaca.value.length;
+        }else{
+          inpPlaca.selectionStart = inpPlaca.selectionEnd = pos;
+        }
+        checkDuplicate(inpPlaca.value);
+      });
+      inpPlaca.addEventListener("blur", ()=> { checkDuplicate(inpPlaca.value); });
+
       document.getElementById("btnPlacaGuardar").addEventListener("click", guardarNuevaPlaca);
       document.getElementById("btnPlacasLimpiar").addEventListener("click", limpiarFiltrosPlacas);
       document.getElementById("fPlacasEstado").addEventListener("change", ()=>{ aplicarFiltrosPlacas(); Placas.table.replaceData(Placas.filtered); actualizarKpisPlacas(); });
@@ -1260,8 +1228,6 @@ let placa = document.getElementById("npPlaca").value.trim();
   // Si es VIN (más de 8 alfanuméricos sin guion), quitar guion si lo tuviera
   const only = normOnly.replace(/_/g,"");
   if(only.length > 8){ placa = only.slice(0,17); 
-
-
 
 } else {
     const al = only.slice(0,7); // 3 + 4
