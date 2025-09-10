@@ -1211,7 +1211,7 @@ if (inpPlaca) { inpPlaca.setAttribute("maxlength","17"); }
         let ok = isValidNow(clean);
         if(clean.length>0 && !ok){
           hintErr.style.display = 'inline';
-          hintErr.textContent = (clean.length > 8) ? 'VIN incompleto: 17 caracteres.' : 'Placa incompleta: 7 caracteres.';
+          hintErr.textContent = (clean.length >= 8) ? 'VIN incompleto: 17 caracteres.' : 'Placa incompleta: 7 caracteres.';
         } else {
           hintErr.style.display = 'none';
         }
