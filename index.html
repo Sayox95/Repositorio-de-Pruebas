@@ -293,6 +293,7 @@
       <small id="npPlacaLimit" class="muted">Hasta 17 caracteres</small>
       <input id="npPlaca" class="input" placeholder="Placa o VIN (requerido)"/>
       <small id="npPlacaHint" class="muted">Ingresar Placa/VIN sin Guiones</small>
+      <small id="npPlacaErr" style="display:none;color:#b45309;">Debe completar: 7 caracteres (placa) o 17 (VIN).</small>
       <small id="npPlacaDup" style="display:none;color:#b91c1c;font-weight:600;">Esta placa/VIN ya existe.</small>
     </div>
     <input id="npNombre" class="input" placeholder="Nombre (Conductor)"/>
@@ -1237,7 +1238,10 @@ function limpiarFiltrosPlacas(){
 }
 function toggleFormPlaca(show){ document.getElementById("placasFormWrap").style.display = show? "block":"none"; }
 async function guardarNuevaPlaca(){
-let placa = document.getElementById("npPlaca").value.trim();
+  // Validación final en cliente (placa/vin)
+  const vcheck = placaVinValidity(document.getElementById("npPlaca").value);
+  if(!vcheck.valid){ alert(vcheck.reason || "Complete placa o VIN"); document.getElementById("npPlaca").focus(); return; }
+  let placa = document.getElementById("npPlaca").value.trim();
   // Normalizar antes de enviar
   const normOnly = placa.toUpperCase().replace(/[^A-Z0-9_]/g,"");
   // Si es VIN (más de 8 alfanuméricos sin guion), quitar guion si lo tuviera
