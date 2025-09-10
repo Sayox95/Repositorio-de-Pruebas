@@ -291,7 +291,7 @@
   <div class="form-grid">
     <div style="display:flex; flex-direction:column; gap:4px;">
       <small id="npPlacaLimit" class="muted">Hasta 17 caracteres</small>
-      <input id="npPlaca" class="input" placeholder="Placa o VIN (requerido)"/>
+      <input id="npPlaca" maxlength="17" class="input" placeholder="Placa o VIN (requerido)"/>
       <small id="npPlacaHint" class="muted">Ingresar Placa/VIN sin Guiones</small>
       <small id="npPlacaDup" style="display:none;color:#b91c1c;font-weight:600;">Esta placa/VIN ya existe.</small>
     </div>
@@ -766,7 +766,7 @@ function openEstadoMenu(cell){
     div.addEventListener("click", async ()=>{
       try{
         // Cerrar el menú inmediatamente al seleccionar
-        menu.classList.remove("open"); statusMenuAnchor = null;
+        menu.classList.remove("open"); 
         overlay.show("Guardando estado...");
         // Optimista
         row.update({Estado: opt});
