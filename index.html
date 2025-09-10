@@ -118,7 +118,8 @@
     }
     .kpi .label{ color:var(--muted); font-size:13px; font-weight:600}
     .kpi .value{ font-size:28px; font-weight:800}
-    .filters{ display:grid; grid-template-columns: 180px 180px 220px 160px 1fr 220px auto; gap:10px; align-items:center;
+    .filters{
+      display:grid; grid-template-columns: 180px 180px 160px 1fr 220px auto; gap:10px; align-items:center;
       margin-top:10px;
     }
     .input, select,.choices__inner{
@@ -185,7 +186,7 @@
       .app{ grid-template-columns: 82px 1fr}
       .brand .caption{display:none}
       .nav-btn span{ display:none }
-      .filters{ display:grid; grid-template-columns: 180px 180px 220px 160px 1fr 220px auto; }
+      .filters{ grid-template-columns: 1fr 1fr; }
     }
   </style>
 </head>
@@ -253,7 +254,6 @@
         <div class="filters">
           <div id="msSector" class="msel" data-placeholder="Sector"></div>
           <div id="msEstado" class="msel" data-placeholder="Estado"></div>
-          <input id="fNombre" class="input" placeholder="Nombre Colaborador…"/>
           <input id="fNumero" class="input" placeholder="Nº Factura…"/>
           <input id="fFecha" class="input" placeholder="Rango de fechas"/>
           <button id="btnLimpiar" class="btn btn-ghost"><i class="lucide-broom"></i> Limpiar</button>
@@ -316,14 +316,12 @@
 </div>
         
 <div class="card" style="margin-top:10px;">
-      <div class="filters" style="grid-template-columns: 180px 180px 1fr 1fr auto">
+      <div class="filters" style="grid-template-columns: 180px 1fr 1fr auto;">
         <select id="fPlacasEstado">
           <option value="">Estado</option>
           <option value="Activa">Activa</option>
           <option value="Inactiva">Inactiva</option>
         </select>
-        
-        <select id="fPlacasSector"><option value="">Sector</option></select>
         <input id="fPlacasPlaca" class="input" placeholder="Placa o VIN…"/>
         <input id="fPlacasNombre" class="input" placeholder="Nombre Colaborador…"/>
         <div style="display:flex; gap:10px; align-items:center;">
@@ -595,8 +593,6 @@ const State = {
     const p = ($("#fPlaca")?.value || "").trim().toLowerCase();
     const n = $("#fNumero").value.trim().toLowerCase();
     const dr = $("#fFecha")._range || null;
-    const _normalize = (s)=> String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
-    const nombreQ = _normalize(document.getElementById("fNombre")?.value || "");
 
     return State.raw.filter(row=>{
       const sector = (row.Sector||"").toString();
@@ -609,8 +605,6 @@ const State = {
       if(eVals.length && !eVals.includes(estado)) return false;
       if(p && !placa.toLowerCase().includes(p)) return false;
       if(n && !numero.toLowerCase().includes(n)) return false;
-      const nombreNorm = _normalize(row.Nombre||"");
-      if(nombreQ && !nombreNorm.includes(nombreQ)) return false;
 
       if(dr){
         const f = new Date(fecha);
@@ -874,23 +868,6 @@ function initFilters(){
   const debouncedPlaca = debounce(applyFilters, 250);
   const placaInput = document.getElementById("fPlaca");
   if(placaInput){ placaInput.addEventListener("input", debouncedPlaca); }
-  // Asegurar input de Nombre (acento-insensible)
-  if(!document.getElementById("fNombre") && filtersRow){
-    const nombreEl = document.createElement("input");
-    nombreEl.id = "fNombre";
-    nombreEl.className = "input";
-    nombreEl.placeholder = "Nombre Colaborador…";
-    const numeroEl = document.getElementById("fNumero");
-    if(numeroEl && numeroEl.parentElement === filtersRow){
-      filtersRow.insertBefore(nombreEl, numeroEl);
-    }else{
-      filtersRow.appendChild(nombreEl);
-    }
-  }
-  const debouncedNombre = debounce(applyFilters, 250);
-  const nombreInput = document.getElementById("fNombre");
-  if(nombreInput){ nombreInput.addEventListener("input", debouncedNombre); }
-
   const debouncedNumero = debounce(applyFilters, 250);
   $("#fNumero").addEventListener("input", debouncedNumero);
   $("#btnLimpiar").addEventListener("click", clearFilters);
@@ -1072,15 +1049,6 @@ function fillSectorOptions(){
   // reponer selección si sigue existiendo
   if(sectors.includes(current)) sel.value = current;
 }
-function fillSectorFilterOptions(){
-  const sel = document.getElementById("fPlacasSector");
-  if(!sel) return;
-  const sectors = getUniqueSectors();
-  const current = sel.value;
-  sel.innerHTML = '<option value="">'+"Sector"+'</option>' + sectors.map(s => `<option value="${s}">${s}</option>`).join('');
-  if(sectors.includes(current)) sel.value = current;
-}
-
 
 async function loadProcesosOptions(){
   const sel = document.getElementById("npProceso");
@@ -1160,8 +1128,7 @@ async function cargarPlacas(){
       document.getElementById("btnPlacasActualizar").addEventListener("click", cargarPlacas);
       document.getElementById("btnPlacasActivar").addEventListener("click", ()=> cambiarEstadoPlacas("Activa"));
       document.getElementById("btnPlacasInactivar").addEventListener("click", ()=> cambiarEstadoPlacas("Inactiva"));
-      document.getElementById("btnPlacasNueva").addEventListener("click", async ()=> { toggleFormPlaca(true); fillSectorOptions();
-    fillSectorFilterOptions(); await loadProcesosOptions(); });
+      document.getElementById("btnPlacasNueva").addEventListener("click", async ()=> { toggleFormPlaca(true); fillSectorOptions(); await loadProcesosOptions(); });
       document.getElementById("btnPlacaCancelar").addEventListener("click", ()=> toggleFormPlaca(false));
       
       // === Formato y validación de Placa/VIN ===
@@ -1216,7 +1183,6 @@ if (inpPlaca) { inpPlaca.setAttribute("maxlength","17"); }
 
       document.getElementById("btnPlacaGuardar").addEventListener("click", guardarNuevaPlaca);
       document.getElementById("btnPlacasLimpiar").addEventListener("click", limpiarFiltrosPlacas);
-      const selSec = document.getElementById("fPlacasSector"); if(selSec){ selSec.addEventListener("change", ()=>{ aplicarFiltrosPlacas(); if(Placas.table) Placas.table.replaceData(Placas.filtered); actualizarKpisPlacas(); }); }
       document.getElementById("fPlacasEstado").addEventListener("change", ()=>{ aplicarFiltrosPlacas(); Placas.table.replaceData(Placas.filtered); actualizarKpisPlacas();
     try{ if(Placas.table){ const cols=Placas.table.getColumns(); const col=(cols||[]).find(c=>c.getField && c.getField()==='Sector'); if(col){ col.updateDefinition({ editor:'list', editorParams:function(){ return {values:getUniqueSectors()}; }, cellEdited:onSectorEdited }); } } }catch(_){ } });
       document.getElementById("fPlacasPlaca").addEventListener("input", ()=>{ aplicarFiltrosPlacas(); Placas.table.replaceData(Placas.filtered); actualizarKpisPlacas();
@@ -1227,7 +1193,6 @@ if (inpPlaca) { inpPlaca.setAttribute("maxlength","17"); }
     actualizarKpisPlacas();
     try{ if(Placas.table){ const cols=Placas.table.getColumns(); const col=(cols||[]).find(c=>c.getField && c.getField()==='Sector'); if(col){ col.updateDefinition({ editor:'list', editorParams:function(){ return {values:getUniqueSectors()}; }, cellEdited:onSectorEdited }); } } }catch(_){ }
     fillSectorOptions();
-    fillSectorFilterOptions();
     document.getElementById("placasNotice").style.display = placasEndpointsReady()? "none":"inline-block";
   }catch(e){
     alert("No fue posible cargar las placas.");
@@ -1237,13 +1202,11 @@ if (inpPlaca) { inpPlaca.setAttribute("maxlength","17"); }
   }
 }
 function aplicarFiltrosPlacas(){
-  const sec = (document.getElementById("fPlacasSector")?.value || "").trim();
-const est = (document.getElementById("fPlacasEstado")?.value || "").trim();
+  const est = (document.getElementById("fPlacasEstado")?.value || "").trim();
   const placaQ = (document.getElementById("fPlacasPlaca")?.value || "").trim().toLowerCase();
   const normalize = (s)=> String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
   const nombreQ = normalize(document.getElementById("fPlacasNombre")?.value || "");
   Placas.filtered = Placas.data.filter(r=>{
-    if(sec && String(r.Sector||"") !== sec) return false;
     if(est && r.Estado !== est) return false;
     if(placaQ && !String(r.Placa||"").toLowerCase().includes(placaQ)) return false;
     if(nombreQ && !normalize(r.Nombre).includes(nombreQ)) return false;
@@ -1259,8 +1222,7 @@ function actualizarKpisPlacas(){
   document.getElementById("kpiPlacasInactivas").textContent = ina;
 }
 function limpiarFiltrosPlacas(){
-  const ss = document.getElementById("fPlacasSector"); if(ss){ ss.value=""; }
-document.getElementById("fPlacasEstado").value = "";
+  document.getElementById("fPlacasEstado").value = "";
   document.getElementById("fPlacasPlaca").value = "";
   document.getElementById("fPlacasNombre").value = "";
   aplicarFiltrosPlacas();
