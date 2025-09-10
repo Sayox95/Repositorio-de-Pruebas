@@ -311,8 +311,8 @@
   <small id="npPlacaDup" style="display:none;color:#b91c1c;font-weight:600;">Esta placa/VIN ya existe.</small>
 </div>
         <input id="npNombre" class="input" placeholder="Nombre (Conductor)"/>
-        <input id="npSector" class="input" placeholder="Sector"/>
-        <input id="npProceso" class="input" placeholder="Proceso"/>
+        <select id="npSector" class="input"><option value="">Sector…</option></select>
+        <select id="npProceso" class="input"><option value="">Proceso…</option></select>
         <input id="npDesignacion" class="input" placeholder="Designación (Cargo)"/>
         <select id="npEstado">
           <option value="Activa">Activa</option>
@@ -1030,6 +1030,47 @@ document.querySelectorAll('.sidebar .nav-btn').forEach(a=>{
  *  ========================= */
 const Placas = { table:null, data:[], filtered:[], _loaded:false };
 function placasEndpointsReady(){ return !!Config.api.placas; }
+
+function fillSectorOptions(){
+  const sel = document.getElementById("npSector");
+  if(!sel) return;
+  // construir lista única de sectores desde los datos cargados
+  const sectors = Array.from(new Set((Placas.data||[]).map(r => String(r.Sector||"").trim()).filter(Boolean))).sort((a,b)=>a.localeCompare(b));
+  const current = sel.value;
+  sel.innerHTML = '<option value="">Sector…</option>' + sectors.map(s => `<option value="${s}">${s}</option>`).join('');
+  // reponer selección si sigue existiendo
+  if(sectors.includes(current)) sel.value = current;
+}
+
+async function loadProcesosOptions(){
+  const sel = document.getElementById("npProceso");
+  if(!sel) return;
+  try{
+    const res = await fetch(Config.api.procesos, { cache:"no-store" });
+    if(!res.ok) throw new Error("HTTP "+res.status);
+    const data = await res.json();
+    let procesos = [];
+    if(Array.isArray(data)){
+      procesos = data.map(item => {
+        if(typeof item === "string") return item;
+        if(item == null) return "";
+        return item.Proceso || item.proceso || item.Nombre || item.nombre || item.name || "";
+      }).filter(Boolean);
+    }else if(data && Array.isArray(data.procesos)){
+      procesos = data.procesos.filter(x=>typeof x==="string");
+    }
+    procesos = Array.from(new Set(procesos)).sort((a,b)=>a.localeCompare(b));
+    const current = sel.value;
+    sel.innerHTML = '<option value="">Proceso…</option>' + procesos.map(p => `<option value="${p}">${p}</option>`).join('');
+    if(procesos.includes(current)) sel.value = current;
+  }catch(e){
+    // si falla, dejamos el select con opción manual libre
+    sel.innerHTML = '<option value="">Proceso…</option>';
+    // Dejar posibilidad de teclear manualmente: convertimos a input fallback si deseas (por ahora no)
+    console.warn("No se pudo cargar procesos:", e);
+  }
+}
+
 async function cargarPlacas(){
   overlay.show("Cargando placas…");
   try{
@@ -1053,6 +1094,8 @@ async function cargarPlacas(){
     aplicarFiltrosPlacas();
     if(Placas.table){ Placas.table.replaceData(Placas.filtered); }
     else{
+      // intenta precargar procesos en paralelo (no bloqueante)
+      loadProcesosOptions().catch(()=>{});
       Placas.table = new Tabulator("#tablaPlacas", {
         data: Placas.filtered,
         selectable: true,
@@ -1077,7 +1120,7 @@ async function cargarPlacas(){
       document.getElementById("btnPlacasActualizar").addEventListener("click", cargarPlacas);
       document.getElementById("btnPlacasActivar").addEventListener("click", ()=> cambiarEstadoPlacas("Activa"));
       document.getElementById("btnPlacasInactivar").addEventListener("click", ()=> cambiarEstadoPlacas("Inactiva"));
-      document.getElementById("btnPlacasNueva").addEventListener("click", ()=> toggleFormPlaca(true));
+      document.getElementById("btnPlacasNueva").addEventListener("click", async ()=> { toggleFormPlaca(true); fillSectorOptions(); await loadProcesosOptions(); });
       document.getElementById("btnPlacaCancelar").addEventListener("click", ()=> toggleFormPlaca(false));
       
       // === Formato y validación de Placa/VIN ===
@@ -1137,6 +1180,7 @@ if (inpPlaca) { inpPlaca.setAttribute("maxlength","17"); }
       document.getElementById("fPlacasNombre").addEventListener("input", ()=>{ aplicarFiltrosPlacas(); Placas.table.replaceData(Placas.filtered); actualizarKpisPlacas(); });
     }
     actualizarKpisPlacas();
+    fillSectorOptions();
     document.getElementById("placasNotice").style.display = placasEndpointsReady()? "none":"inline-block";
   }catch(e){
     alert("No fue posible cargar las placas.");
