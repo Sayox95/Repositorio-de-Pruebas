@@ -291,9 +291,10 @@
   <div class="form-grid">
     <div style="display:flex; flex-direction:column; gap:4px;">
       <small id="npPlacaLimit" class="muted">Hasta 17 caracteres</small>
-      <input id="npPlaca" class="input" placeholder="Placa o VIN (requerido)"/>
+      <input id="npPlaca" maxlength="17" class="input" placeholder="Placa o VIN (requerido)"/>
       <small id="npPlacaHint" class="muted">Ingresar Placa/VIN sin Guiones</small>
       <small id="npPlacaDup" style="display:none;color:#b91c1c;font-weight:600;">Esta placa/VIN ya existe.</small>
+<small id="npPlacaErr" style="display:none;color:#b45309;font-weight:600;">Valor incompleto.</small>
     </div>
     <input id="npNombre" class="input" placeholder="Nombre (Conductor)"/>
     <select id="npSector" class="input"><option value="">Sector…</option></select>
@@ -766,7 +767,7 @@ function openEstadoMenu(cell){
     div.addEventListener("click", async ()=>{
       try{
         // Cerrar el menú inmediatamente al seleccionar
-        menu.classList.remove("open"); statusMenuAnchor = null;
+        menu.classList.remove("open"); 
         overlay.show("Guardando estado...");
         // Optimista
         row.update({Estado: opt});
@@ -1112,7 +1113,7 @@ async function cargarPlacas(){
               return `<span class="status-pill ${v==="Activa"?"":"disabled"}"><span class="dot" style="background:${v==="Activa"?"#10b981":"#f59e0b"}"></span>${v}</span>`;
             }},
           { title:"Nombre", field:"Nombre" },
-          { title:"Sector", field:"Sector", width:140 , editor:"list" , editorParams:function(){ return {values:getUniqueSectors()}; } , cellEdited:onSectorEdited },
+          { title:"Sector", field:"Sector", width:140 },
           { title:"Proceso", field:"Proceso", width:180 },
           { title:"Jefe inmediato", field:"JefeInmediato", width:200 },
           { title:"Designación", field:"Designacion", width:200 },
@@ -1176,17 +1177,88 @@ if (inpPlaca) { inpPlaca.setAttribute("maxlength","17"); }
       });
       inpPlaca.addEventListener("blur", ()=> { checkDuplicate(inpPlaca.value); });
 
+      
+      (function setupPlacaLive(){
+  if (window.__placaLiveWired) return; window.__placaLiveWired = true;
+// === Validación en vivo de Placa/VIN ===
+      const inpPlaca = document.getElementById("npPlaca");
+      const dupMsg = document.getElementById("npPlacaDup");
+      const btnGuardar = document.getElementById("btnPlacaGuardar");
+      const hintErr = document.getElementById("npPlacaErr") || (function(){
+        const s = document.createElement('small'); s.id='npPlacaErr'; s.style.display='none';
+        s.style.color='#b45309'; s.style.fontWeight='600'; s.textContent='Valor incompleto.';
+        inpPlaca?.parentElement?.appendChild(s); return s;
+      })();
+
+      function normalizeAlnum(s){ return String(s||"").toUpperCase().replace(/[^A-Z0-9]/g,''); }
+
+      function isValidNow(cleanOnly){
+        // VIN si > 8 ⇒ 17 exactos; Placa si ≤ 8 ⇒ 7 exactos
+        if(cleanOnly.length === 0) return false;
+        if(cleanOnly.length >= 8) return cleanOnly.length === 17;
+        return cleanOnly.length === 7;
+      }
+
+      function updateLiveValidation(){
+        const raw = inpPlaca.value || "";
+        const clean = normalizeAlnum(raw);
+
+        // Duplicado (comparación normalizada: sheet guarda placa o vin en misma columna)
+        const exists = (Placas.data||[]).some(r => normalizeAlnum(String(r.Placa||r.PLACA||'').replace(/_/g,'')) === clean);
+
+        dupMsg.style.display = exists ? 'inline' : 'none';
+
+        let ok = isValidNow(clean);
+        if(clean.length>0 && !ok){
+          hintErr.style.display = 'inline';
+          hintErr.textContent = (clean.length >= 8) ? 'VIN incompleto: 17 caracteres.' : 'Placa incompleta: 7 caracteres.';
+        } else {
+          hintErr.style.display = 'none';
+        }
+
+        btnGuardar.disabled = exists || !ok;
+        return !(exists || !ok);
+      }
+
+      // Formateo visual mientras escribe (no altera las reglas)
+      if(inpPlaca && !inpPlaca.getAttribute('data-wired')){
+        inpPlaca.setAttribute('data-wired','1');
+        inpPlaca.setAttribute('maxlength','17');
+        inpPlaca.addEventListener('input', ()=>{
+          const before = inpPlaca.value;
+          const clean = normalizeAlnum(before);
+          let formatted = before;
+          if(clean.length >= 8){
+            formatted = clean.slice(0,17); // VIN
+          } else {
+            if(clean.length <= 3) formatted = clean;
+            else {
+              const left = clean.slice(0,3);
+              const right = clean.slice(3, Math.min(clean.length, 8));
+              formatted = left + '_' + right;
+            }
+          }
+          if(formatted !== before){
+            inpPlaca.value = formatted;
+            const end = formatted.length;
+            inpPlaca.setSelectionRange(end,end);
+          }
+          updateLiveValidation();
+        });
+        inpPlaca.addEventListener('blur', updateLiveValidation);
+        // Primera evaluación
+        updateLiveValidation();
+      }
+    
       document.getElementById("btnPlacaGuardar").addEventListener("click", guardarNuevaPlaca);
       document.getElementById("btnPlacasLimpiar").addEventListener("click", limpiarFiltrosPlacas);
-      document.getElementById("fPlacasEstado").addEventListener("change", ()=>{ aplicarFiltrosPlacas(); Placas.table.replaceData(Placas.filtered); actualizarKpisPlacas();
-    try{ if(Placas.table){ const c=Placas.table.getColumn('Sector'); if(c){ c.updateDefinition({ editorParams:function(){ return {values:getUniqueSectors()}; } }); } } }catch(_){ } });
-      document.getElementById("fPlacasPlaca").addEventListener("input", ()=>{ aplicarFiltrosPlacas(); Placas.table.replaceData(Placas.filtered); actualizarKpisPlacas();
-    try{ if(Placas.table){ const c=Placas.table.getColumn('Sector'); if(c){ c.updateDefinition({ editorParams:function(){ return {values:getUniqueSectors()}; } }); } } }catch(_){ } });
-      document.getElementById("fPlacasNombre").addEventListener("input", ()=>{ aplicarFiltrosPlacas(); Placas.table.replaceData(Placas.filtered); actualizarKpisPlacas();
-    try{ if(Placas.table){ const c=Placas.table.getColumn('Sector'); if(c){ c.updateDefinition({ editorParams:function(){ return {values:getUniqueSectors()}; } }); } } }catch(_){ } });
+      document.getElementById("fPlacasEstado").addEventListener("change", ()=>{ aplicarFiltrosPlacas(); Placas.table.replaceData(Placas.filtered); actualizarKpisPlacas(); });
+      
+})();
+document.getElementById("fPlacasPlaca").addEventListener("input", ()=>{ aplicarFiltrosPlacas(); Placas.table.replaceData(Placas.filtered); actualizarKpisPlacas(); });
+      document.getElementById("fPlacasNombre").addEventListener("input", ()=>{ aplicarFiltrosPlacas(); Placas.table.replaceData(Placas.filtered); actualizarKpisPlacas(); });
     }
     actualizarKpisPlacas();
-    try{ if(Placas.table){ const c=Placas.table.getColumn('Sector'); if(c){ c.updateDefinition({ editorParams:function(){ return {values:getUniqueSectors()}; } }); } } }catch(_){ }
     fillSectorOptions();
     document.getElementById("placasNotice").style.display = placasEndpointsReady()? "none":"inline-block";
   }catch(e){
@@ -1223,7 +1295,6 @@ function limpiarFiltrosPlacas(){
   aplicarFiltrosPlacas();
   if(Placas.table) Placas.table.replaceData(Placas.filtered);
   actualizarKpisPlacas();
-    try{ if(Placas.table){ const c=Placas.table.getColumn('Sector'); if(c){ c.updateDefinition({ editorParams:function(){ return {values:getUniqueSectors()}; } }); } } }catch(_){ }
 }
 function toggleFormPlaca(show){ document.getElementById("placasFormWrap").style.display = show? "block":"none"; }
 async function guardarNuevaPlaca(){
@@ -1326,56 +1397,6 @@ async function hardRefresh(){
   const hh = String(now.getHours()).padStart(2,"0");
   const mm = String(now.getMinutes()).padStart(2,"0");
   }
-
-
-function getUniqueSectors(){
-  const all = (Placas.data || [])
-    .map(r => String(r.Sector||"").trim())
-    .filter(Boolean);
-  return Array.from(new Set(all)).sort((a,b)=>a.localeCompare(b));
-}
-function getJefeBySector(sector){
-  const s = String(sector||"").trim().toUpperCase();
-  for(const r of (Placas.data||[])){
-    if(String(r.Sector||"").trim().toUpperCase() === s){
-      return r.JefeInmediato || r["Jefe inmediato"] || "";
-    }
-  }
-  return "";
-}
-
-
-async function onSectorEdited(cell){
-  try{
-    const newSector = cell.getValue();
-    const rowData   = cell.getRow().getData();
-    const placaKey  = rowData.Placa || rowData.PLACA;
-    if(!placaKey) throw new Error("Placa no disponible");
-
-    const res = await fetch(Config.api.placas, {
-      method: "POST",
-      headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({ action:"cambiarSector", placa: placaKey, sector: newSector })
-    });
-    const txt = await res.text();
-    if(!res.ok) throw new Error("HTTP "+res.status+" - "+txt.slice(0,120));
-    let data; try{ data = JSON.parse(txt); } catch { data = {}; }
-
-    const jefe = (data && (data.JefeInmediato || data.jefe)) || getJefeBySector(newSector);
-    const patch = { Sector: newSector };
-    if(jefe) patch.JefeInmediato = jefe;
-    cell.getRow().update(patch);
-
-    const idx = (Placas.data||[]).findIndex(r => (r.Placa||r.PLACA) === placaKey);
-    if(idx>=0){ Placas.data[idx].Sector = newSector; if(jefe) Placas.data[idx].JefeInmediato = jefe; }
-
-    toast("Sector actualizado");
-  }catch(err){
-    console.error("No se pudo actualizar sector:", err);
-    alert("No se pudo actualizar el sector: "+err.message);
-    cell.restoreOldValue();
-  }
-}
 
 async function bootstrap(){
   initFilters();
