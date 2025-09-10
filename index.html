@@ -306,9 +306,12 @@
     <div id="placasFormWrap" class="card" style="margin-top:10px; display:none;">
       <div class="form-grid">
         <div style="display:flex; flex-direction:column; gap:4px;">
-  <input id="npPlaca" class="input" placeholder="Placa o VIN (requerido)"/>
-  <small id="npPlacaHint" class="muted">Formato placa: <code>XXX_XXXX</code> · VIN: hasta 17 caracteres</small>
-  <small id="npPlacaDup" style="display:none;color:#b91c1c;font-weight:600;">Esta placa/VIN ya existe.</small>
+          <small id="npPlacaLimit" class="muted">Hasta 17 caracteres</small>
+          <input id="npPlaca" class="input" placeholder="Placa o VIN (requerido)"/>
+          <small id="npPlacaHint" class="muted">Ingresar Placa/VIN sin Guiones</small>
+          <small id="npPlacaDup" style="display:none;color:#b91c1c;font-weight:600;">Esta placa/VIN ya existe.</small>
+          <small id="npPlacaInc" style="display:none;color:#b45309;font-weight:600;">Completa la Placa (XXX_XXXX) o VIN (17 caracteres).</small>
+        </div>
 </div>
         <input id="npNombre" class="input" placeholder="Nombre (Conductor)"/>
         <select id="npSector" class="input"><option value="">Sector…</option></select>
@@ -1121,11 +1124,12 @@ async function cargarPlacas(){
       document.getElementById("btnPlacasActualizar").addEventListener("click", cargarPlacas);
       document.getElementById("btnPlacasActivar").addEventListener("click", ()=> cambiarEstadoPlacas("Activa"));
       document.getElementById("btnPlacasInactivar").addEventListener("click", ()=> cambiarEstadoPlacas("Inactiva"));
-      document.getElementById("btnPlacasNueva").addEventListener("click", async ()=> { toggleFormPlaca(true); fillSectorOptions(); await loadProcesosOptions(); });
+      document.getElementById("btnPlacasNueva").addEventListener("click", async ()=> { toggleFormPlaca(true); fillSectorOptions(); await loadProcesosOptions(); const inp=document.getElementById("npPlaca"); if(inp){ inp.value=""; } updateSaveState(); });
       document.getElementById("btnPlacaCancelar").addEventListener("click", ()=> toggleFormPlaca(false));
       
       // === Formato y validación de Placa/VIN ===
       const inpPlaca = document.getElementById("npPlaca");
+if (inpPlaca) { inpPlaca.setAttribute("maxlength","17"); }
 if (inpPlaca) { inpPlaca.setAttribute("maxlength","17"); }
       const dupMsg = document.getElementById("npPlacaDup");
       const btnGuardar = document.getElementById("btnPlacaGuardar");
@@ -1170,9 +1174,9 @@ if (inpPlaca) { inpPlaca.setAttribute("maxlength","17"); }
         }else{
           inpPlaca.selectionStart = inpPlaca.selectionEnd = pos;
         }
-        checkDuplicate(inpPlaca.value);
+        updateSaveState();
       });
-      inpPlaca.addEventListener("blur", ()=> { checkDuplicate(inpPlaca.value); });
+      inpPlaca.addEventListener("blur", updateSaveState);
 
       document.getElementById("btnPlacaGuardar").addEventListener("click", guardarNuevaPlaca);
       document.getElementById("btnPlacasLimpiar").addEventListener("click", limpiarFiltrosPlacas);
@@ -1229,6 +1233,11 @@ async function guardarNuevaPlaca(){
     const al = only.slice(0,7); // 3 + 4
     const left = al.slice(0,3), right = al.slice(3,7);
     placa = right ? (left + "_" + right) : left;
+  }
+  // Validación de completitud
+  if(!isComplete(placa)){
+    alert("Completa la Placa (XXX_XXXX) o VIN (17 caracteres).");
+    return;
   }
   // Duplicados en cliente
   const dupExists = (Placas.data||[]).some(r=> String((r.Placa||r.PLACA||"")).replace(/_/g,"").toUpperCase() === only.toUpperCase());
