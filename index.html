@@ -1184,6 +1184,8 @@ async function cargarPlacas(){
   }finally{
     overlay.hide();
   }
+
+  try{ wirePlacaLiveValidation(); }catch(_){}
 }
 function aplicarFiltrosPlacas(){
   const sec = (document.getElementById("fPlacasSector")?.value || "").trim();
@@ -1460,6 +1462,96 @@ function getJefeBySector(sector){
   st.textContent = "@keyframes spin1{from{transform:rotate(0)}to{transform:rotate(360deg)}}";
   document.head.appendChild(st);
 })();
+
+
+// === Wire live validation for Nueva Placa (robusto) ===
+function wirePlacaLiveValidation(){
+  const inp = document.getElementById("npPlaca");
+  const dup = document.getElementById("npPlacaDup");
+  const btn = document.getElementById("btnPlacaGuardar");
+  if(!inp || inp.getAttribute('data-wired')==='1') return;
+  inp.setAttribute('data-wired','1');
+  inp.setAttribute('maxlength','17');
+
+  function normalizeAlnum(s){ return String(s||"").toUpperCase().replace(/[^A-Z0-9]/g,''); }
+  function existsDuplicate(cleanOnly){
+    try{
+      return (Placas.data||[]).some(r => normalizeAlnum(String((r.Placa||r.PLACA||'')).replace(/_/g,'')) === cleanOnly);
+    }catch(_){ return false; }
+  }
+  function isValidNow(cleanOnly){
+    if(cleanOnly.length === 0) return false;
+    if(cleanOnly.length >= 8) return cleanOnly.length === 17; // VIN
+    return cleanOnly.length === 7; // Placa (3+4)
+  }
+  function formatVisual(raw){
+    const clean = normalizeAlnum(raw);
+    if(clean.length >= 8){
+      return clean.slice(0,17);
+    } else {
+      if(clean.length <= 3) return clean;
+      const left = clean.slice(0,3);
+      const right = clean.slice(3, Math.min(clean.length, 8));
+      return left + '_' + right;
+    }
+  }
+
+  // Hint de error (si no existe, lo creamos)
+  let hintErr = document.getElementById("npPlacaErr");
+  if(!hintErr && inp && inp.parentElement){
+    hintErr = document.createElement('small');
+    hintErr.id = 'npPlacaErr';
+    hintErr.style.display = 'none';
+    hintErr.style.color = '#b45309';
+    hintErr.style.fontWeight = '600';
+    hintErr.textContent = 'Valor incompleto.';
+    inp.parentElement.appendChild(hintErr);
+  }
+
+  function updateLive(){
+    const raw = inp.value || "";
+    const clean = normalizeAlnum(raw);
+    const ok = isValidNow(clean);
+    const dupNow = existsDuplicate(clean);
+
+    if(dup) dup.style.display = dupNow ? 'inline' : 'none';
+    if(clean.length>0 && !ok){
+      if(hintErr){
+        hintErr.style.display = 'inline';
+        hintErr.textContent = (clean.length >= 8) ? 'VIN incompleto: 17 caracteres.' : 'Placa incompleta: 7 caracteres.';
+      }
+    } else if(hintErr){
+      hintErr.style.display = 'none';
+    }
+    if(btn) btn.disabled = dupNow || !ok;
+    return !(dupNow || !ok);
+  }
+
+  inp.addEventListener('input', ()=>{
+    const before = inp.value;
+    const formatted = formatVisual(before);
+    if(formatted !== before){
+      inp.value = formatted;
+      const end = formatted.length;
+      try{ inp.setSelectionRange(end,end); }catch(_){}
+    }
+    updateLive();
+  });
+  inp.addEventListener('blur', updateLive);
+
+  // Hook Guardar para revalidar justo antes de enviar
+  if(btn && !btn.getAttribute('data-wired')){
+    btn.setAttribute('data-wired','1');
+    const old = (typeof guardarNuevaPlaca === 'function') ? guardarNuevaPlaca : null;
+    btn.addEventListener('click', (e)=>{
+      if(!updateLive()){ e.preventDefault(); return; }
+      if(old) old();
+    });
+  }
+
+  // Eval inicial
+  updateLive();
+}
 
 async function bootstrap(){
   initFilters();
