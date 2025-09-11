@@ -1,6 +1,6 @@
 export async function onRequest({ request, env }) {
   const { usuario, password } = await request.json();
-  const GAS_URL = "https://script.google.com/macros/s/AKfycbxqTi6wmPfDCtEzbuvHAx4z4LGvMp-igy8-XIUOroZiKhVAKiLmU5GgNIYTNcSgBTUI/exec"; // hardcode
+  const GAS_URL = "https://script.google.com/macros/s/AKfycbyYZ-B8M5Xftd3NSXtszVhfmoV-mihNEVpGL1I_8VbjVT-z3yJsf8WGXL_iUcXzUpfm/exec"; // hardcode
   const res = await fetch(GAS_URL, {
     method: "POST",
     headers: { "Content-Type":"application/json" },
