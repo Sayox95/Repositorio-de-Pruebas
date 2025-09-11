@@ -17,6 +17,8 @@
   <!-- Icons -->
   <link rel="stylesheet" href="https://unpkg.com/lucide-static@0.453.0/font/lucide.css">
   <style>
+#btnLogout{color:#fff !important;}
+
     :root{
       --sidebar-bg:#0F1B2D;
       --sidebar-hover:#122239;
@@ -227,7 +229,7 @@
       </nav>
       <div class="spacer"></div>
       
-      <button id="btnLogout" class="btn btn-ghost" style="margin:10px 0;"><i class="lucide-log-out"></i> Cerrar sesión</button>
+      <button id="btnLogout" class="btn btn-ghost" style="margin:10px 0;" style="margin:10px 0; color:#fff;"><i class="lucide-log-out"></i> Cerrar sesión</button>
 <div class="copyright">© UTCD 2025</div>
     </aside>
 
@@ -1292,6 +1294,9 @@ let placa = document.getElementById("npPlaca").value.trim();
       body: JSON.stringify({ action:"crear", placa, nombre, sector, proceso, designacion, estado })
     });
     if(!res.ok) throw new Error("HTTP "+res.status);
+    // Éxito: mostrar confirmación breve y luego recargar tabla
+    overlay.show("✅ Placa guardada");
+    await new Promise(r=>setTimeout(r,700));
     await cargarPlacas();
     toggleFormPlaca(false);
     document.getElementById("npPlaca").value="";
