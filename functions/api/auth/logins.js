@@ -1,6 +1,6 @@
 export async function onRequest({ request, env }) {
   const { usuario, password } = await request.json();
-  const GAS_URL = env.GAS_AUTH_URL; // añade este secret en Pages
+  const GAS_URL = "https://script.google.com/macros/s/AKfycbxqTi6wmPfDCtEzbuvHAx4z4LGvMp-igy8-XIUOroZiKhVAKiLmU5GgNIYTNcSgBTUI/exec"; // hardcode
   const res = await fetch(GAS_URL, {
     method: "POST",
     headers: { "Content-Type":"application/json" },
