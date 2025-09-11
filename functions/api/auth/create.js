@@ -22,7 +22,7 @@ export async function onRequest({ request, env }) {
 
   // Usa variable de entorno si existe; si no, usamos tu URL
   const GAS_URL = env.GAS_AUTH_URL
-    ?? "https://script.google.com/macros/s/AKfycbxqTi6wmPfDCtEzbuvHAx4z4LGvMp-igy8-XIUOroZiKhVAKiLmU5GgNIYTNcSgBTUI/exec";
+    ?? "https://script.google.com/macros/s/AKfycbyYZ-B8M5Xftd3NSXtszVhfmoV-mihNEVpGL1I_8VbjVT-z3yJsf8WGXL_iUcXzUpfm/exec";
 
   // Llamada a GAS
   const res = await fetch(GAS_URL, {
