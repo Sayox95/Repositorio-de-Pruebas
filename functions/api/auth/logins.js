@@ -1,24 +1,58 @@
-export async function onRequest({ request, env }) {
-  const { usuario, password } = await request.json();
-  const GAS_URL = "https://script.google.com/macros/s/AKfycbz_fjwblx09ywK-y-6RiSIOB88LUdVVsy_r8fR8_18l7Llky6hczAgBXy6cp7eKLl8r/exec"; // hardcode
+// functions/api/auth/login.js
+export async function onRequestPost({ request, env }) {
+  let usuario, password;
+  try { ({ usuario, password } = await request.json()); }
+  catch { return json({ error: "bad_json" }, 400); }
+
+  if (!env.SESSION_SECRET) {
+    return json({ error: "missing_session_secret" }, 500);
+  }
+
+  // Usa variable de entorno o hardcode (como lo tenías)
+  const GAS_URL = env.GAS_AUTH_URL
+    ?? "https://script.google.com/macros/s/AKfycbz_fjwblx09ywK-y-6RiSIOB88LUdVVsy_r8fR8_18l7Llky6hczAgBXy6cp7eKLl8r/exec";
+
   const res = await fetch(GAS_URL, {
     method: "POST",
     headers: { "Content-Type":"application/json" },
     body: JSON.stringify({ action:"login", usuario, password })
   });
-  const out = await res.json();
-  if(!out.ok) return new Response(JSON.stringify(out), { status: 401, headers: { "Content-Type":"application/json", "Access-Control-Allow-Origin":"*" }});
+
+  const out = await res.json().catch(()=>null);
+  if (!res.ok || !out || out.ok !== true) {
+    return json(out || { error: "login_failed" }, 401);
+  }
 
   // Generar JWT (HMAC-SHA256) y setear cookie HttpOnly
   const now = Math.floor(Date.now()/1000);
-  const payload = { sub: out.usuario, rol: out.rol||"usuario", iat: now, exp: now + 60*60*24*7 }; // 7 días
+  const payload = { sub: out.usuario, rol: out.rol || "usuario", iat: now, exp: now + 60*60*24*7 }; // 7 días
   const token = await signJWT(payload, env.SESSION_SECRET);
+
   return new Response(JSON.stringify({ ok:true, usuario:out.usuario, rol:out.rol }), {
     headers: {
       "Content-Type":"application/json",
-      "Set-Cookie": `utcd_session=${token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${60*60*24*7}`,
-      "Access-Control-Allow-Origin":"*"
+      "Set-Cookie": `utcd_session=${token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${60*60*24*7}`
     }
+  });
+}
+
+// Opcional: CORS/preflight si llamaras cross-origin
+export async function onRequestOptions() {
+  return new Response(null, {
+    status: 204,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type",
+      "Access-Control-Max-Age": "86400",
+    },
+  });
+}
+
+function json(obj, status=200) {
+  return new Response(JSON.stringify(obj), {
+    status,
+    headers: { "Content-Type": "application/json" }
   });
 }
 
