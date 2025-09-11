@@ -190,6 +190,24 @@
   </style>
 </head>
 <body>
+
+<!-- ===== Login Section ===== -->
+<section id="secLogin" style="display:none;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0f172a10;">
+  <div style="width:100%;max-width:440px;background:#fff;border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.08);padding:28px;">
+    <h2 style="margin:0 0 10px 0;">Iniciar sesión</h2>
+    <p style="margin:0 0 18px 0;color:#64748b;">Ingrese sus credenciales.</p>
+    <div style="display:grid;gap:12px;">
+      <input id="loginUsuario" class="input" placeholder="Usuario" autocomplete="username" />
+      <input id="loginPassword" class="input" placeholder="Contraseña" type="password" autocomplete="current-password" />
+      <button id="btnDoLogin" class="btn btn-primary">Ingresar</button>
+      <small id="loginError" style="display:none;color:#b91c1c;font-weight:600;"></small>
+    </div>
+  </div>
+</section>
+<!-- ===== /Login Section ===== -->
+<div id="appShell" style="display:none;">
+
+
   <div class="app">
     <aside class="sidebar">
       <div class="brand">
@@ -461,11 +479,15 @@ function toDirectDriveUrl(url){
 /** =========================
  *  Capa de datos (API)
  *  ========================= */
-const API = {
+const API = { _facturasCtl:null,
   async getFacturas(){
-    const res = await fetch(Config.api.leerFacturas, {cache:"no-store", mode:"cors"});
+    if(this._facturasCtl) try{ this._facturasCtl.abort(); }catch(_){}
+    const ctl = new AbortController();
+    this._facturasCtl = ctl;
+    const res = await fetch(Config.api.leerFacturas, {cache:"no-store", mode:"cors", signal: ctl.signal});
     if(!res.ok) throw new Error("No se pudo leer facturas");
     const data = await res.json();
+    if(ctl.signal.aborted) throw new Error('ABORTED');
     const arr = Array.isArray(data)? data : [];
 return arr.map(normalizeRow).filter(r=>r); // no filtramos por nº factura todavía
   },
@@ -1059,7 +1081,7 @@ document.querySelectorAll('.sidebar .nav-btn').forEach(a=>{
 /** =========================
  *  Placas (single endpoint)
  *  ========================= */
-const Placas = { table:null, data:[], filtered:[], _loaded:false };
+const Placas = { table:null, data:[], filtered:[], _loaded:false, controller:null };
 function placasEndpointsReady(){ return !!Config.api.placas; }
 
 function fillSectorOptions(){
@@ -1111,12 +1133,28 @@ async function loadProcesosOptions(){
   }
 }
 
-async function cargarPlacas(){
+
+    async function ensurePlacasTable(){
+      if (Placas.table) return;
+      Placas.table = new Tabulator("#tablaPlacas", {
+        data: [],
+        selectable: true,
+        height: 520,
+        layout: "fitColumns",
+        columns: [/* columns set más abajo al primer render, se actualizarán luego */]
+      });
+      await new Promise(res => Placas.table.once("tableBuilt", res));
+    }
+    async function cargarPlacas(){
   overlay.show("Cargando placas…");
+  // cancelar carga previa si existe
+  try{ Placas.controller?.abort(); }catch(_){}
+  const __ctl = new AbortController();
+  Placas.controller = __ctl;
   try{
     let rows = [];
     if(placasEndpointsReady()){
-      const res = await fetch(Config.api.placas, { cache:"no-store" });
+      const res = await fetch(Config.api.placas, {  cache:"no-store" , signal: __ctl.signal });
       if(!res.ok) throw new Error("HTTP "+res.status);
       rows = await res.json();
     }
@@ -1132,9 +1170,9 @@ async function cargarPlacas(){
       FechaAlta: r.FechaAlta || r.Fecha || r.FECHA || ""
     }));
     aplicarFiltrosPlacas();
-    if(Placas.table){ Placas.table.replaceData(Placas.filtered); }
+    if(Placas.table){ await safeReplaceData(Placas.table, Placas.filtered); }
     else{
-      // intenta precargar procesos en paralelo (no bloqueante)
+// intenta precargar procesos en paralelo (no bloqueante)
       loadProcesosOptions().catch(()=>{});
       Placas.table = new Tabulator("#tablaPlacas", {
         data: Placas.filtered,
@@ -1186,6 +1224,7 @@ async function cargarPlacas(){
   }
 
   try{ wirePlacaLiveValidation(); }catch(_){}
+
 }
 function aplicarFiltrosPlacas(){
   const sec = (document.getElementById("fPlacasSector")?.value || "").trim();
@@ -1553,6 +1592,18 @@ function wirePlacaLiveValidation(){
   updateLive();
 }
 
+
+    // --- Helper para reemplazo seguro de datos en Tabulator ---
+    async function safeReplaceData(table, rows){
+      if(!table) return;
+      try{
+        const p = table.replaceData(rows);
+        if (p && typeof p.then === "function") await p;
+      }catch(e){
+        try{ table.setData(rows); }catch(_){}
+      }
+    }
+    
 async function bootstrap(){
   initFilters();
   $("#btnActualizar").addEventListener("click", hardRefresh);
@@ -1580,14 +1631,70 @@ async function loadData(){
         table.on("tableBuilt", handler);
       })();
     }
-}catch(e){
-alert("No fue posible cargar las facturas.");
-  }finally{
+}catch(e){ if(String(e&&e.message)==="ABORTED"){ /* silencioso */ } else { alert("No fue posible cargar las facturas."); } }finally{
     overlay.hide();
   }
 }
 
 window.addEventListener("DOMContentLoaded", bootstrap);
 </script>
+</div>
+
+<script>
+// ===== Auth (Cloudflare Pages Functions) =====
+const Auth = { login: "/api/auth/login", me: "/api/auth/me", logout: "/api/auth/logout" };
+
+async function authLogin(usuario, password){
+  const res = await fetch(Auth.login, { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ usuario, password }) });
+  if(!res.ok) throw new Error(await res.text());
+  return await res.json();
+}
+async function authMe(){
+  try{
+    const res = await fetch(Auth.me, { method: "GET", cache:"no-store" });
+    if(!res.ok) return null;
+    return await res.json();
+  }catch{ return null; }
+}
+async function authLogout(){ try{ await fetch(Auth.logout, { method:"POST" }); }catch{} }
+
+function showLogin(){ const app=document.getElementById("appShell"); if(app) app.style.display="none"; const s=document.getElementById("secLogin"); if(s) s.style.display="flex"; }
+function showApp(){ const s=document.getElementById("secLogin"); if(s) s.style.display="none"; const app=document.getElementById("appShell"); if(app) app.style.display="block"; }
+
+// Login button + Enter key
+(function wireLoginUI(){
+  const btn = document.getElementById("btnDoLogin");
+  const u = document.getElementById("loginUsuario");
+  const p = document.getElementById("loginPassword");
+  const err = document.getElementById("loginError");
+  function doSubmit(){ (async()=>{
+    if(err) err.style.display = "none";
+    const user = (u.value||"").trim(), pass = p.value||"";
+    if(!user || !pass){ if(err){ err.textContent="Ingrese usuario y contraseña."; err.style.display="inline"; } return; }
+    try{
+      btn.disabled = true;
+      await authLogin(user, pass);
+      showApp();
+      try{ navigateTo('inicio'); }catch(_){}
+    }catch(e){
+      if(err){ err.textContent = "Credenciales inválidas o usuario inactivo."; err.style.display = "inline"; }
+    }finally{ btn.disabled = false; }
+  })(); }
+  if(btn && !btn.dataset.wired){
+    btn.dataset.wired = "1";
+    btn.addEventListener("click", doSubmit);
+    [u,p].forEach(i=> i && i.addEventListener("keydown", ev=>{ if(ev.key==="Enter") doSubmit(); }));
+  }
+})();
+
+// Session check on load
+(async function(){
+  const me = await authMe();
+  if(me && me.usuario){ showApp(); } else { showLogin(); }
+})();
+
+async function doLogout(){ await authLogout(); showLogin(); }
+</script>
+
 </body>
 </html>
