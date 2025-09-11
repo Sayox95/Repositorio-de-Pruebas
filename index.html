@@ -226,7 +226,9 @@
         <a class="nav-btn" href="#placas"><i class="lucide-car"></i><span>Placas</span></a>
       </nav>
       <div class="spacer"></div>
-      <div class="copyright">© UTCD 2025</div>
+      
+      <button id="btnLogout" class="btn btn-ghost" style="margin:10px 0;"><i class="lucide-log-out"></i> Cerrar sesión</button>
+<div class="copyright">© UTCD 2025</div>
     </aside>
 
     <main class="main">
@@ -1694,6 +1696,68 @@ function showApp(){ const s=document.getElementById("secLogin"); if(s) s.style.d
 })();
 
 async function doLogout(){ await authLogout(); showLogin(); }
+
+// ===== Login UX Enhancements (spinner + disable) =====
+(function(){
+  const btn = document.getElementById("btnDoLogin");
+  const u = document.getElementById("loginUsuario");
+  const p = document.getElementById("loginPassword");
+  const err = document.getElementById("loginError");
+  if(!btn || !u || !p) return;
+
+  async function doLogin(){
+    err.style.display = "none";
+    const usuario = (u.value||"").trim();
+    const password = (p.value||"").trim();
+    if(!usuario || !password){
+      err.textContent = "Ingrese usuario y contraseña";
+      err.style.display = "block";
+      return;
+    }
+    // show spinner on button
+    const original = btn.innerHTML;
+    btn.disabled = true; u.disabled = true; p.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Ingresando…';
+    try{
+      // Use existing auth endpoint
+      const r = await fetch('/api/auth/login', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ usuario, password })
+      });
+      if(!r.ok){
+        const out = await r.json().catch(()=>({error:'Credenciales inválidas'}));
+        throw new Error(out.error || 'Credenciales inválidas');
+      }
+      // success -> reload to bootstrap app shell via /api/auth/me
+      location.reload();
+    }catch(e){
+      err.textContent = e.message || "No se pudo iniciar sesión";
+      err.style.display = "block";
+      btn.disabled = false; u.disabled = false; p.disabled = false;
+      btn.innerHTML = original;
+      p.focus();
+    }
+  }
+  btn.addEventListener('click', doLogin);
+  p.addEventListener('keydown', (ev)=>{ if(ev.key==='Enter') doLogin(); });
+  u.addEventListener('keydown', (ev)=>{ if(ev.key==='Enter') doLogin(); });
+})();
+
+// ===== Logout handler =====
+(function(){
+  const btn = document.getElementById("btnLogout");
+  if(!btn) return;
+  btn.addEventListener('click', async ()=>{
+    try{
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span> Cerrando…';
+      await fetch('/api/auth/logout', { method:'POST' });
+    }catch(_){}
+    location.reload();
+  });
+})();
+
 </script>
 
 </body>
