@@ -7,7 +7,7 @@ export async function onRequest({ request, env }) {
   return new Response(JSON.stringify({ usuario: payload.sub, rol: payload.rol }), {
     headers: { "Content-Type":"application/json" }
   });
-}
+} 
 
 async function verifyJWT(token, secret){
   try{
