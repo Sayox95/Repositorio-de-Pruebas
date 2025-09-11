@@ -1,4 +1,3 @@
-excelente ya entendi, asi deje el logins mira:
 
 export async function onRequest({ request, env }) { 
   const { usuario, password } = await request.json();
