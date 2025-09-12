@@ -696,7 +696,17 @@ function buildTable(){
     columns:[
       { formatter:"rowSelection", titleFormatter:"rowSelection", hozAlign:"center", headerSort:false, width:40 },
       { title:"Sector", field:"Sector", width:120 },
-      { title:"Placa", field:"Placa", width:110 },
+      { title:"Placa", field:"Placa", width:160,
+  editor: vinToPlacaEditor,
+  validator:function(cell, value){
+    // Permitimos edición sólo para convertir VIN->placa. Validamos formato de placa final XXX_XXXX (3+_+4)
+    const v = String(value||"").toUpperCase();
+    // permitir también VIN de 17 por si cancela
+    if(/^[A-Z0-9]{17}$/.test(v)) return true;
+    return /^[A-Z]{3}_[A-Z0-9]{4}$/.test(v);
+  },
+  cellEdited: onPlacaEdited
+},
       { title:"Proceso", field:"Proceso", width:130 },
       { title:"Nombre", field:"Nombre", width:180 },
       { title:"Identidad", field:"Identidad", width:150 },
@@ -1353,6 +1363,113 @@ document.addEventListener("change", (ev)=>{
   try{ updateButtons(); }catch(_){}
 });
 
+
+/** Editor VIN->Placa: sólo editable si el valor actual es VIN (17 chars).
+ *  Autoformatea placa a XXX_XXXX mientras escribe. */
+function vinToPlacaEditor(cell, onRendered, success, cancel){
+  const old = String(cell.getValue()||"").toUpperCase().replace(/_/g,"");
+  // Sólo permitir edición si el valor actual es un VIN (17)
+  if(old.length !== 17) return false;
+
+  const input = document.createElement("input");
+  input.type = "text";
+  input.className = "input";
+  input.placeholder = "Nueva placa (XXX_XXXX)";
+  input.value = "";
+  input.maxLength = 9; // 8 con guion bajo, pero permitimos 9 por seguridad
+
+  // Normaliza en vivo: mayúsculas, sin caracteres extra y auto-guion
+  function fmtLive(v){
+    v = String(v||"").toUpperCase().replace(/[^A-Z0-9]/g,"");
+    // Si intenta escribir VIN otra vez, no autoformatear; limitamos a 7 para placa
+    if(v.length > 7){
+      // recorta a 7 (3+4) para placa
+      v = v.slice(0,7);
+    }
+    const left = v.slice(0,3);
+    const right = v.slice(3,7);
+    return right ? (left + "_" + right) : left;
+  }
+
+  input.addEventListener("input", ()=>{
+    const caret = input.selectionStart;
+    const oldV = input.value;
+    input.value = fmtLive(oldV);
+    // El guion puede mover el caret; como es editor pequeño, no complicamos caret restore
+  });
+
+  function validarFinal(val){
+    const v = String(val||"").toUpperCase();
+    // Aceptar VIN (por si cancela), pero éxito sólo si coincide placa final
+    if(/^[A-Z]{3}_[A-Z0-9]{4}$/.test(v)) return {ok:true, placa:v};
+    if(/^[A-Z0-9]{17}$/.test(v)) return {ok:false, msg:"Sigue siendo VIN; ingresa placa (3 letras + '_' + 4)."};
+    const len = v.replace("_","").length;
+    if(len < 7) return {ok:false, msg:`Placa incompleta: 7 caracteres (sin contar '_').`};
+    return {ok:false, msg:"Formato inválido. Usa XXX_XXXX."};
+  }
+
+  function commit(){
+    const v = input.value.trim();
+    const chk = validarFinal(v);
+    if(!chk.ok){
+      alert(chk.msg);
+      return;
+    }
+    // Duplicados en cliente (normalizado sin '_')
+    const only = chk.placa.replace("_","");
+    const dup = (Placas.data||[]).some(r=> String(r.Placa||"").replace(/_/g,"").toUpperCase() === only);
+    if(dup){
+      alert("La placa ya existe en el registro.");
+      return;
+    }
+    success(chk.placa);
+  }
+
+  input.addEventListener("keydown", (e)=>{
+    if(e.key==="Enter"){ e.preventDefault(); commit(); }
+    if(e.key==="Escape"){ e.preventDefault(); cancel(); }
+  });
+  onRendered(()=>{ input.focus(); });
+  return input;
+}
+
+/** Persistencia: al cambiar de VIN->Placa, llamar backend */
+async function onPlacaEdited(cell){
+  try{
+    const col = cell.getColumn(); if(!col || col.getField()!=="Placa") return;
+    const newVal = String(cell.getValue()||"");
+    const oldVal = String(cell.getOldValue()||"");
+    // Si no cambió, ignorar
+    if(newVal === oldVal) return;
+    if(!Config.api.placas){ alert("Configura el endpoint de Placas."); return; }
+
+    overlay.show("Actualizando placa...");
+    const rowData = cell.getRow().getData();
+    // placa actual "clave" la sacamos del oldVal
+    const res = await fetch(Config.api.placas, {
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({ action:"actualizarPlaca", placaActual: oldVal, nuevaPlaca: newVal })
+    });
+    const txt = await res.text();
+    let out = null; try{ out = JSON.parse(txt); }catch{}
+    if(!res.ok || (out && out.error)){
+      // rollback
+      cell.setValue(oldVal, true);
+      alert(out && out.error ? out.error : ("No se pudo actualizar placa. " + (res.status||"")));
+      return;
+    }
+    // Ok visual + refresh datos para que dropdowns queden en sync
+    overlay.show("✅ Placa actualizada");
+    await new Promise(r=>setTimeout(r,700));
+    await cargarPlacas();
+  }catch(e){
+    try{ cell.setValue(cell.getOldValue(), true); }catch(_){}
+    alert("Error al actualizar placa.");
+  }finally{
+    overlay.hide();
+  }
+}
 /** =========================
  *  Bootstrap
  *  ========================= */
