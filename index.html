@@ -120,7 +120,7 @@
     }
     .kpi .label{ color:var(--muted); font-size:13px; font-weight:600}
     .kpi .value{ font-size:28px; font-weight:800}
-    .filters{ display:grid; grid-template-columns: 180px 180px 220px 160px 1fr 220px auto; gap:10px; align-items:center;
+    .filters{ display:grid; grid-template-columns: 180px 180px 220px 160px 1fr 220px 220px auto; gap:10px; align-items:center;
       margin-top:10px;
     }
     .input, select,.choices__inner{
@@ -187,7 +187,7 @@
       .app{ grid-template-columns: 82px 1fr}
       .brand .caption{display:none}
       .nav-btn span{ display:none }
-      .filters{ display:grid; grid-template-columns: 180px 180px 220px 160px 1fr 220px auto; }
+      .filters{ display:grid; grid-template-columns: 180px 180px 220px 160px 1fr 220px 220px auto; }
     }
   </style>
 </head>
@@ -271,13 +271,23 @@
         </div>
       </div>
 
-      <div class="card" style="margin-top:10px;">
+      <div id="kpiRevRangeWrap" class="card" style="margin-top:10px; display:none;">
+  <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+    <span class="label" style="font-size:13px;color:var(--muted);font-weight:700;">Revisadas (rango revisión):</span>
+    <span id="kpiRevRangeCount" class="value" style="font-size:18px;font-weight:800;">0</span>
+    <span class="label" style="font-size:13px;color:var(--muted);font-weight:700;">Total L</span>
+    <span id="kpiRevRangeSum" class="value" style="font-size:18px;font-weight:800;">0.00</span>
+  </div>
+</div>
+
+<div class="card" style="margin-top:10px;">
         <div class="filters">
           <div id="msSector" class="msel" data-placeholder="Sector"></div>
           <div id="msEstado" class="msel" data-placeholder="Estado"></div>
           <input id="fNombre" class="input" placeholder="Nombre Colaborador…"/>
           <input id="fNumero" class="input" placeholder="Nº Factura…"/>
           <input id="fFecha" class="input" placeholder="Rango de fechas"/>
+          <input id="fFechaRev" class="input" placeholder="Rango fecha revisión"/>
           <button id="btnLimpiar" class="btn btn-ghost"><i class="lucide-broom"></i> Limpiar</button>
         </div>
         <div class="table-wrap">
@@ -461,6 +471,7 @@ function normalizeRow(src){
     "Km Actual": g(["Km Actual","KM","Km","Kilometraje"]),
     "Litros Consumidos": g(["Litros Consumidos","Litros","Consumo (L)","ConsumoL"]),
     Total:     g(["Total Gastado","Total","TOTAL","VALOR","Valor","Importe","Monto"], 0),
+    FechaRevision: g(["FechaRevision","Fecha de Revisión","Fecha de Revision","Fecha_Revision","Fecha_Revisión","Fecha Revisada","FechaRevisionISO"]),
     Estado:    g(["Estado","ESTADO","estado"], "Registrada"),
   };
   return row;
@@ -621,6 +632,7 @@ const State = {
     const p = ($("#fPlaca")?.value || "").trim().toLowerCase();
     const n = $("#fNumero").value.trim().toLowerCase();
     const dr = $("#fFecha")._range || null;
+    const dr2 = ($("#fFechaRev")? $("#fFechaRev")._range : null);
     const _normalize = (s)=> String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
     const nombreQ = _normalize(document.getElementById("fNombre")?.value || "");
 
@@ -630,6 +642,7 @@ const State = {
       const numero = (row["Nº Factura"]||row["Numero de Factura"]||row.NoFactura||"").toString();
       const placa  = (row.Placa||"").toString();
       const fecha  = (row.Fecha||row["Fecha Factura"]||row["FechaFactura"]||"").toString();
+      const fechaRev  = (row.FechaRevision||row["Fecha de Revisión"]||row["Fecha de Revision"]||"").toString();
 
       if(sVals.length && !sVals.includes(sector)) return false;
       if(eVals.length && !eVals.includes(estado)) return false;
@@ -642,6 +655,11 @@ const State = {
         const f = new Date(fecha);
         if(isNaN(f)) return false;
         if(f < dr[0] || f > dr[1]) return false;
+      }
+      if(dr2){
+        const fr = new Date(fechaRev);
+        if(isNaN(fr)) return false;
+        if(fr < dr2[0] || fr > dr2[1]) return false;
       }
       return true;
     });
@@ -668,6 +686,37 @@ function estadoColor(v){
  *  ========================= */
 let table;
 let tableBuilt = false;
+
+// Refresca datos tras cambiar estado para tomar FechaRevision del backend
+async function refreshAfterEstado(){
+  try{
+    overlay.show("Actualizando datos…");
+    const currentSector = sectorMS? sectorMS.getSelected():[];
+    const currentEstado = estadoMS? estadoMS.getSelected():[];
+    const qNombre = document.getElementById("fNombre")?.value || "";
+    const qPlaca = document.getElementById("fPlaca")?.value || "";
+    const qNum   = document.getElementById("fNumero")?.value || "";
+    const dr = document.getElementById("fFecha")? document.getElementById("fFecha")._range : null;
+    const dr2 = document.getElementById("fFechaRev")? document.getElementById("fFechaRev")._range : null;
+    const arr = await API.getFacturas();
+    State.raw = arr;
+    try{ sectorMS.setItems(Array.from(new Set(State.raw.map(r=>r.Sector).filter(Boolean)))); }catch(_){ }
+    try{ estadoMS.setItems(getEstadoOptions()); }catch(_){ }
+    try{ sectorMS.select(currentSector); estadoMS.select(currentEstado); }catch(_){ }
+    if(document.getElementById("fNombre")) document.getElementById("fNombre").value = qNombre;
+    if(document.getElementById("fPlaca"))  document.getElementById("fPlaca").value = qPlaca;
+    document.getElementById("fNumero").value = qNum;
+    if(document.getElementById("fFecha")) document.getElementById("fFecha")._range = dr;
+    if(document.getElementById("fFechaRev")) document.getElementById("fFechaRev")._range = dr2;
+    if(table){ await table.replaceData(State.filtered); }
+    updateKpis();
+    try{ updateKpisRevRange(); }catch(_){}
+    setLastUpdatedNow();
+  }catch(_){
+  }finally{
+    overlay.hide();
+  }
+}
 
 function buildTable(){
   if(table){ return; }
@@ -701,7 +750,26 @@ function buildTable(){
       { title:"Nombre", field:"Nombre", width:180 },
       { title:"Identidad", field:"Identidad", width:150 },
       { title:"Total Gastado", field:"Total", hozAlign:"right", width:140, formatter:(c)=>fmt.money(c.getValue())},
-      { title:"Fecha", field:"Fecha", width:120, formatter:(c)=>{ const v=c.getValue(); return v? String(v).slice(0,10):""; }, accessorDownload:(value)=>{  if(!value) return "";  const s = String(value);  if(s.includes("T")) return s.slice(0,10);  try{ const d=new Date(value); if(!isNaN(d)) return d.toISOString().slice(0,10);}catch(e){}  return s.length>=10? s.slice(0,10): s; } },
+      { title:"Fecha", field:"Fecha", width:120,
+        formatter:(c)=>{ const v=c.getValue(); return v? String(v).slice(0,10):""; },
+        accessorDownload:(value)=>{
+          if(!value) return "";
+          const s = String(value);
+          if(s.includes("T")) return s.slice(0,10);
+          try{ const d=new Date(value); if(!isNaN(d)) return d.toISOString().slice(0,10);}catch(e){}
+          return s.length>=10? s.slice(0,10): s;
+        }
+      },
+      { title:"Fecha de Revisión", field:"FechaRevision", width:150,
+        formatter:(c)=>{ const v=c.getValue(); return v? String(v).slice(0,10):""; },
+        accessorDownload:(value)=>{
+          if(!value) return "";
+          const s = String(value);
+          if(s.includes("T")) return s.slice(0,10);
+          try{ const d=new Date(value); if(!isNaN(d)) return d.toISOString().slice(0,10);}catch(e){}
+          return s.length>=10? s.slice(0,10): s;
+        }
+      },
       { title:"Nombre del comercio", field:"Nombre del comercio", width:220, tooltip:true, formatter:(cell)=>{
           const v = String(cell.getValue() ?? ""); const max = 28; return v.length>max? v.slice(0,max)+"…": v;
       }},
@@ -718,8 +786,9 @@ function buildTable(){
           const disabled = (v === "Pagada");
           const cls = disabled? "status-pill disabled" : "status-pill";
           const title = disabled? "No editable cuando está Pagada" : "Cambiar estado";
-          return `<span class=\"${cls}\" title=\"${title}\"><span class=\"dot\" style=\"background:${color}\"></span>${v}</span>`;
+          return `<span class="${cls}" title="${title}"><span class="dot" style="background:${color}"></span>${v}</span>`;
       } }
+
     ],
     dataLoaded:()=>{ updateKpis(); },
     dataFiltered:()=>{ updateKpis(); },
@@ -810,7 +879,9 @@ function openEstadoMenu(cell){
         // Optimista
         row.update({Estado: opt});
         updateKpis();
-        await API.updateEstado(data, opt);
+        const resp = await API.updateEstado(data, opt);
+        if(resp && resp.fechaRevision){ try{ row.update({FechaRevision: resp.fechaRevision}); }catch(_){} }
+        else{ try{ await refreshAfterEstado(); }catch(_){} }
       }catch(err){
 // rollback visual si falla
         row.update({Estado: current});
@@ -853,6 +924,27 @@ function updateKpis(){
   $("#kpiPagadas").textContent   = pagadas;
   $("#kpiAnuladas").textContent  = anuladas;
   updateButtons();
+  try{ updateKpisRevRange(); }catch(_){}
+}
+
+function updateKpisRevRange(){
+  const wrap = document.getElementById("kpiRevRangeWrap");
+  const countEl = document.getElementById("kpiRevRangeCount");
+  const sumEl = document.getElementById("kpiRevRangeSum");
+  if(!wrap || !countEl || !sumEl) return;
+  const dr2 = (document.getElementById("fFechaRev")? document.getElementById("fFechaRev")._range : null);
+  if(!dr2){ wrap.style.display = "none"; countEl.textContent = "0"; sumEl.textContent = "0.00"; return; }
+  const rows = table? table.getData("active") : [];
+  let cnt = 0; let sum = 0;
+  for(const r of rows){
+    if((r.Estado||"") === "Revisada"){
+      const fr = new Date((r.FechaRevision||r["Fecha de Revisión"]||r["Fecha de Revision"]||"").toString());
+      if(!isNaN(fr) && fr >= dr2[0] && fr <= dr2[1]){ cnt++; sum += Number(r.Total)||0; }
+    }
+  }
+  wrap.style.display = "block";
+  countEl.textContent = String(cnt);
+  try{ sumEl.textContent = new Intl.NumberFormat("es-HN",{minimumFractionDigits:2, maximumFractionDigits:2}).format(sum); }catch(_){ sumEl.textContent = sum.toFixed(2); }
 }
 
 /** =========================
@@ -874,6 +966,22 @@ function initFilters(){
         $("#fFecha")._range = selectedDates;
       }else{
         $("#fFecha")._range = null;
+  $("#fFechaRev").value = "";
+  $("#fFechaRev")._range = null;
+      }
+      applyFilters();
+    }
+  });
+  const fpRev = flatpickr("#fFechaRev", {
+    mode:"range",
+    dateFormat:"Y-m-d",
+    onChange(selectedDates){
+      if(selectedDates.length===2){
+        selectedDates[0].setHours(0,0,0,0);
+        selectedDates[1].setHours(23,59,59,999);
+        $("#fFechaRev")._range = selectedDates;
+      }else{
+        $("#fFechaRev")._range = null;
       }
       applyFilters();
     }
@@ -930,6 +1038,8 @@ function clearFilters(){
   $("#fNumero").value = "";
   $("#fFecha").value = "";
   $("#fFecha")._range = null;
+  $("#fFechaRev").value = "";
+  $("#fFechaRev")._range = null;
   applyFilters();
 }
 
@@ -938,7 +1048,7 @@ function applyFilters(){
   const doReplace = ()=>{
     const maybePromise = table.replaceData(State.filtered);
     if(maybePromise && typeof maybePromise.then === "function"){
-      maybePromise.then(()=>{ updateKpis(); updateButtons(); }).catch(()=>{ updateKpis(); updateButtons(); });
+      maybePromise.then(()=>{ updateKpis(); updateButtons(); try{ updateKpisRevRange(); }catch(_){ } }).catch(()=>{ updateKpis(); updateButtons(); try{ updateKpisRevRange(); }catch(_){ } });
     }else{
       // fallback si la versión de Tabulator no retorna promesa
       setTimeout(()=>{ updateKpis(); updateButtons(); }, 0);
