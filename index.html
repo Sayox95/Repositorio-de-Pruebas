@@ -872,36 +872,36 @@ function openEstadoMenu(cell){
     div.className = "status-item";
     div.innerHTML = `<span class="dot" style="background:${estadoColor(opt)}"></span><span>${opt}</span>`;
     div.addEventListener("click", async ()=>{
-      try{
-        // Cerrar el menú inmediatamente al seleccionar
-        menu.classList.remove("open"); statusMenuAnchor = null;
-        overlay.show("Guardando estado...");
-        // Optimista
-        row.update({Estado: opt});
-        updateKpis();
-        const resp = await API.updateEstado(data, opt);
-        if (opt === "Revisada") {
-  if (resp && resp.fechaRevision) {
-    try { row.update({ FechaRevision: resp.fechaRevision }); } catch(_) {}
-  } else {
-    // Solo recargar si era Revisada y el backend no devolvió fecha
-    try { await refreshAfterEstado(); } catch(_) {}
-  }
-} else {
-  // Para Anulada (u otros estados), no recargamos: ya hicimos update optimista + KPIs
-  // (si tu backend no cambia más campos, no hace falta reload)
-}catch(err){
-// rollback visual si falla
-        row.update({Estado: current});
-        updateKpis();
-        alert("No se pudo guardar el estado. Intenta de nuevo.");
-      }finally{
-        overlay.hide();
-        menu.classList.remove("open");
+  try{
+    // Cerrar el menú inmediatamente al seleccionar
+    menu.classList.remove("open"); statusMenuAnchor = null;
+    overlay.show("Guardando estado...");
+
+    // Optimista
+    row.update({Estado: opt});
+    updateKpis();
+
+    const resp = await API.updateEstado(data, opt);
+
+    if (opt === "Revisada") {
+      if (resp && resp.fechaRevision) {
+        try { row.update({ FechaRevision: resp.fechaRevision }); } catch(_) {}
+      } else {
+        // Solo recargar si era Revisada y el backend no devolvió fecha
+        try { await refreshAfterEstado(); } catch(_) {}
       }
-    });
-    menu.appendChild(div);
-  });
+    } // Para Anulada u otros estados, no recargamos (ya hicimos update optimista + KPIs)
+
+  }catch(err){
+    // rollback visual si falla
+    row.update({Estado: current});
+    updateKpis();
+    alert("No se pudo guardar el estado. Intenta de nuevo.");
+  }finally{
+    overlay.hide();
+    menu.classList.remove("open");
+  }
+});
   // Posicionar junto a la celda
   const rect = cell.getElement().getBoundingClientRect();
   const vw = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
