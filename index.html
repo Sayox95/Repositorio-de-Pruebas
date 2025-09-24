@@ -864,56 +864,65 @@ function openEstadoMenu(cell){
   const data = row.getData();
   const current = data.Estado || "Registrada";
   // No permitir edición si está Pagada
-  if(current === "Pagada"){ return; }
+  if (current === "Pagada") { return; }
+
   const options = getEstadoOptions();
   menu.innerHTML = "";
-  options.forEach(opt=>{
+
+  options.forEach(opt => {
     const div = document.createElement("div");
     div.className = "status-item";
     div.innerHTML = `<span class="dot" style="background:${estadoColor(opt)}"></span><span>${opt}</span>`;
+
     div.addEventListener("click", async ()=>{
-  try{
-    // Cerrar el menú inmediatamente al seleccionar
-    menu.classList.remove("open"); statusMenuAnchor = null;
-    overlay.show("Guardando estado...");
+      try{
+        // Cerrar el menú inmediatamente al seleccionar
+        menu.classList.remove("open"); statusMenuAnchor = null;
+        overlay.show("Guardando estado...");
 
-    // Optimista
-    row.update({Estado: opt});
-    updateKpis();
+        // Optimista
+        row.update({Estado: opt});
+        updateKpis();
 
-    const resp = await API.updateEstado(data, opt);
+        const resp = await API.updateEstado(data, opt);
 
-    if (opt === "Revisada") {
-      if (resp && resp.fechaRevision) {
-        try { row.update({ FechaRevision: resp.fechaRevision }); } catch(_) {}
-      } else {
-        // Solo recargar si era Revisada y el backend no devolvió fecha
-        try { await refreshAfterEstado(); } catch(_) {}
+        if (opt === "Revisada") {
+          if (resp && resp.fechaRevision) {
+            try { row.update({ FechaRevision: resp.fechaRevision }); } catch(_) {}
+          } else {
+            // Solo recargar si era Revisada y el backend no devolvió fecha
+            try { await refreshAfterEstado(); } catch(_) {}
+          }
+        } // Para Anulada u otros estados, no recargamos (update optimista + KPIs)
+
+      }catch(err){
+        // rollback visual si falla
+        row.update({Estado: current});
+        updateKpis();
+        alert("No se pudo guardar el estado. Intenta de nuevo.");
+      }finally{
+        overlay.hide();
+        menu.classList.remove("open");
       }
-    } // Para Anulada u otros estados, no recargamos (ya hicimos update optimista + KPIs)
+    });
 
-  }catch(err){
-    // rollback visual si falla
-    row.update({Estado: current});
-    updateKpis();
-    alert("No se pudo guardar el estado. Intenta de nuevo.");
-  }finally{
-    overlay.hide();
-    menu.classList.remove("open");
-  }
-});
+    // 👉 Faltaba agregar el item al menú
+    menu.appendChild(div);
+  }); // 👉 Cierre del forEach
+
   // Posicionar junto a la celda
   const rect = cell.getElement().getBoundingClientRect();
   const vw = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
   const menuWidth = 220;
   let top = rect.bottom + 6;
   let left = rect.left;
-  if(left + menuWidth > vw - 8){ left = Math.max(8, vw - menuWidth - 8); }
+  if (left + menuWidth > vw - 8) { left = Math.max(8, vw - menuWidth - 8); }
   menu.style.top = top + "px";
   menu.style.left = left + "px";
   statusMenuJustOpened = true;
   menu.classList.add("open");
 }
+
 
 function updateButtons(){
   // En esta vista descargamos por el conjunto filtrado; el botón siempre activo si hay filas
