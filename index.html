@@ -1465,6 +1465,20 @@ async function onPlacaEdited(cell){
   // Controlar que sólo aceptamos AAA_9999 y persistimos via action=actualizarPlaca
   const before = cell.getOldValue();
   const after  = cell.getValue();
+
+  // Helper para revertir sin re-disparar eventos y mostrar mensaje
+  function revertWithMessage(msg){
+    try{ if (typeof cell.restoreOldValue === "function") { cell.restoreOldValue(); } else { cell.setValue(before, true); } }catch(_){}
+    try{ if (typeof cell.cancelEdit === "function") cell.cancelEdit(); }catch(_){}
+    // Usar toast no bloqueante si existe; de lo contrario alert
+    try{
+      if (typeof quickToast === "function") { quickToast(msg || "Valor inválido"); }
+      else { alert(msg || "Valor inválido"); }
+    }catch(_){
+      alert(msg || "Valor inválido");
+    }
+  }
+
   try{
     // Si no cambió, nada que hacer
     if(String(before||"") === String(after||"")) return;
@@ -1472,12 +1486,7 @@ async function onPlacaEdited(cell){
     // El valor nuevo debe ser PLACA, no VIN
     const candidate = formatPlateCandidate(after);
     if(!isValidPlateAAA9999(candidate)){
-      // Revert and cleanly cancel the editor so no validation toast gets stuck
-      try{ cell.setValue(before, true); }catch(_){}
-      try{ cell.cancelEdit && cell.cancelEdit(); }catch(_){}
-      try{ const ae = document.activeElement; if(ae && typeof ae.blur==='function') ae.blur(); }catch(_){}
-      // Non-blocking notice (instead of alert) to avoid focus traps
-      if(typeof quickToast==='function'){ quickToast("Formato inválido: use AAA_9999 (3 letras + 4 dígitos).", 2200); }
+      revertWithMessage("Formato inválido. La placa debe ser AAA_9999 (3 letras, guion bajo, 4 dígitos).");
       return;
     }
 
@@ -1491,19 +1500,16 @@ async function onPlacaEdited(cell){
       return cmp === candidateCmp;
     });
     if(dup){
-      try{ cell.setValue(before, true); }catch(_){}
-      try{ cell.cancelEdit && cell.cancelEdit(); }catch(_){}
-      try{ const ae = document.activeElement; if(ae && typeof ae.blur==='function') ae.blur(); }catch(_){}
-      if(typeof quickToast==='function'){ quickToast("Ya existe otra fila con esa placa.", 2200); }
+      revertWithMessage("Ya existe otra fila con esa placa.");
       return;
     }
 
     // Persistir en backend
     if(!Config.api.placas){
-      alert("Endpoint de Placas no configurado.");
-      cell.setValue(before, true);
+      revertWithMessage("Endpoint de Placas no configurado.");
       return;
     }
+
     overlay.show("Actualizando placa…");
     const res = await fetch(Config.api.placas, {
       method:"POST",
@@ -1514,8 +1520,8 @@ async function onPlacaEdited(cell){
     let out = {};
     try{ out = await res.json(); }catch(_){}
     if(!ok || (out && out.error)){
-      alert(out && out.error ? out.error : "No fue posible actualizar la placa.");
-      cell.setValue(before, true);
+      overlay.hide();
+      revertWithMessage(out && out.error ? out.error : "No fue posible actualizar la placa.");
       return;
     }
 
@@ -1533,8 +1539,8 @@ async function onPlacaEdited(cell){
     await cargarPlacas();
   }catch(e){
     console.warn(e);
-    alert("Error al actualizar la placa.");
-    try{ cell.setValue(before, true); }catch(_){}
+    overlay.hide();
+    revertWithMessage("Error al actualizar la placa.");
   }finally{
     overlay.hide();
   }
