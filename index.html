@@ -1472,8 +1472,12 @@ async function onPlacaEdited(cell){
     // El valor nuevo debe ser PLACA, no VIN
     const candidate = formatPlateCandidate(after);
     if(!isValidPlateAAA9999(candidate)){
-      alert("Formato inválido. La placa debe ser AAA_9999 (3 letras, guion bajo, 4 dígitos).");
-      cell.setValue(before, true);
+      // Revert and cleanly cancel the editor so no validation toast gets stuck
+      try{ cell.setValue(before, true); }catch(_){}
+      try{ cell.cancelEdit && cell.cancelEdit(); }catch(_){}
+      try{ const ae = document.activeElement; if(ae && typeof ae.blur==='function') ae.blur(); }catch(_){}
+      // Non-blocking notice (instead of alert) to avoid focus traps
+      if(typeof quickToast==='function'){ quickToast("Formato inválido: use AAA_9999 (3 letras + 4 dígitos).", 2200); }
       return;
     }
 
@@ -1487,8 +1491,10 @@ async function onPlacaEdited(cell){
       return cmp === candidateCmp;
     });
     if(dup){
-      alert("Ya existe otra fila con esa placa.");
-      cell.setValue(before, true);
+      try{ cell.setValue(before, true); }catch(_){}
+      try{ cell.cancelEdit && cell.cancelEdit(); }catch(_){}
+      try{ const ae = document.activeElement; if(ae && typeof ae.blur==='function') ae.blur(); }catch(_){}
+      if(typeof quickToast==='function'){ quickToast("Ya existe otra fila con esa placa.", 2200); }
       return;
     }
 
