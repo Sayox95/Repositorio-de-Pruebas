@@ -2002,5 +2002,142 @@ async function doLogout(){ await authLogout(); showLogin(); }
 
 </script>
 
+
+<script>
+// ====== Patch: month preview + safe saves + no full-refresh on estado ======
+(function(){
+  if (window.__REV_FACT_PATCH_APPLIED__) return;
+  window.__REV_FACT_PATCH_APPLIED__ = true;
+
+  function pad2(n){ return String(n).padStart(2,'0'); }
+  function isoDate(d){ return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`; }
+  function rangoMesActual() {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), 1, 0,0,0);
+    const end   = new Date(now.getFullYear(), now.getMonth()+1, 0, 23,59,59);
+    return { from: isoDate(start), to: isoDate(end) };
+  }
+
+  const CACHE_TTL_MS = 5*60*1000; // 5 minutes
+  function cacheKey(){ 
+    const {from,to} = (window.State?.filtros || rangoMesActual());
+    return `revfact:page1:${from}:${to}`;
+  }
+
+  function enableProgressiveRender(){
+    try {
+      if (window.tablaFacturas && typeof window.tablaFacturas.setOptions === 'function'){
+        window.tablaFacturas.setOptions({
+          progressiveRender: true,
+          progressiveRenderSize: 200,
+          progressiveRenderMargin: 100
+        });
+      }
+    } catch (e){ /* ignore */ }
+  }
+
+  (function patchHardRefresh(){
+    if (!window.hardRefresh) return;
+    const _orig = window.hardRefresh;
+    window.__lastHardRefreshAt = 0;
+    window.hardRefresh = async function(...args){
+      const now = Date.now();
+      const fresh = (now - (window.__lastHardRefreshAt||0)) < CACHE_TTL_MS;
+      const hasData = !!(window.State && Array.isArray(State.raw) && State.raw.length);
+      if (fresh && hasData){
+        console.debug("[Patch] Skip hardRefresh (fresh cache in memory)");
+        return;
+      }
+      window.__lastHardRefreshAt = now;
+      return _orig.apply(this, args);
+    };
+  })();
+
+  (function primeMonthPreview(){
+    try {
+      const { from, to } = rangoMesActual();
+      window.State = window.State || {};
+      State.filtros = Object.assign({ page: 1, pageSize: 200 }, State.filtros || {}, { from, to });
+      const elFrom = document.querySelector('[data-filter="fecha-desde"], #fecha-desde, input[name="fecha_desde"]');
+      const elTo   = document.querySelector('[data-filter="fecha-hasta"], #fecha-hasta, input[name="fecha_hasta"]');
+      if (elFrom) elFrom.value = from;
+      if (elTo)   elTo.value   = to;
+    } catch(e){ /* ignore */ }
+  })();
+
+  (function patchUpdateEstado(){
+    const API = window.API || (window.API = {});
+    if (!API.updateEstado) return;
+    if (API.__updateEstadoPatched) return;
+    API.__updateEstadoPatched = true;
+
+    const _raw = API.updateEstado.bind(API);
+    const savingByRow = new Set();
+    let savingAny = false;
+
+    async function withBackoff(fn){
+      let delay = 600;
+      const max = 3;
+      for (let i=0; i<=max; i++){
+        try{
+          const out = await fn();
+          return out;
+        }catch(err){
+          const status = err && err.status ? err.status : (err && err.response && err.response.status);
+          if (status !== 429) throw err;
+          let wait = delay;
+          try{
+            const ra = (err.headers && err.headers.get && err.headers.get('Retry-After')) || (err.response && err.response.headers && err.response.headers.get && err.response.headers.get('Retry-After'));
+            if (ra) wait = Number(ra)*1000;
+          }catch(e){}
+          await new Promise(r=>setTimeout(r, wait));
+          delay *= 2;
+        }
+      }
+      throw new Error("Rate limited (429) después de reintentos");
+    }
+
+    API.updateEstado = async function(rowData, nuevoEstado, ...rest){
+      const filaId = rowData && (rowData.fila || rowData._fila || rowData.id || rowData.ID);
+      if (savingAny || (filaId && savingByRow.has(filaId))){
+        (window.quickToast || window.alert)?.("Otra actualización está en curso…");
+        return { status: "IGNORED" };
+      }
+      savingAny = true;
+      if (filaId) savingByRow.add(filaId);
+      try {
+        const result = await withBackoff(()=> _raw(rowData, nuevoEstado, ...rest));
+        return result;
+      } finally {
+        if (filaId) savingByRow.delete(filaId);
+        savingAny = false;
+      }
+    };
+  })();
+
+  (function softenRefreshAfterEstado(){
+    const g = window;
+    const prev = g.refreshAfterEstado;
+    g.refreshAfterEstado = async function(rowOrId){
+      try{
+        if (g.API && typeof g.API.leerFactura === 'function' && rowOrId){
+          const id = (typeof rowOrId === 'object') ? (rowOrId.id || rowOrId.fila || rowOrId._fila) : rowOrId;
+          const fresh = await g.API.leerFactura(id);
+          if (fresh && g.tablaFacturas){
+            const r = g.tablaFacturas.getRow(id);
+            if (r) r.update(fresh);
+          }
+          return;
+        }
+        console.debug("[Patch] refreshAfterEstado() neutralizado (no full reload)");
+      }catch(e){
+        console.warn("[Patch] refreshAfterEstado fallback:", e);
+      }
+    };
+  })();
+
+  setTimeout(enableProgressiveRender, 800);
+})();
+</script>
 </body>
 </html>
