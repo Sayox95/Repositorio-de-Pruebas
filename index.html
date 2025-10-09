@@ -494,30 +494,76 @@ function toDirectDriveUrl(url){
 /** =========================
  *  Capa de datos (API)
  *  ========================= */
+// === Remote pagination helpers (added) ===
+window.__REMOTE_PAGINATION__ = true;
+
+function currentMonthRangeISO(){
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), 1, 0,0,0,0);
+  const end   = new Date(now.getFullYear(), now.getMonth()+1, 0, 23,59,59,999);
+  const pad = n=>String(n).padStart(2,'0');
+  const iso = d=> `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  return { from: iso(start), to: iso(end) };
+}
+
+function buildQueryParamsFromUI(){
+  // Read from State.filtros or compute from #fFecha
+  let from = null, to = null;
+  const r = document.getElementById("fFecha")? document.getElementById("fFecha")._range : null;
+  if (r && r.length === 2){
+    const pad = n=>String(n).padStart(2,'0');
+    const iso = d=> `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+    from = iso(r[0]);
+    to   = iso(r[1]);
+  } else {
+    const def = currentMonthRangeISO();
+    from = def.from; to = def.to;
+  }
+  const pageSize = (State && State.filtros && State.filtros.pageSize) ? State.filtros.pageSize : 200;
+  const estadoSel = (typeof estadoMS?.getSelected === 'function') ? estadoMS.getSelected() : [];
+  // Para simplificar enviamos un único estado si hay selección única; si hay varios, lo dejamos vacío
+  const estado = (estadoSel && estadoSel.length===1) ? estadoSel[0] : "";
+  const sort = "fechaDesc";
+  State.filtros = { ...(State.filtros||{}), from, to, page: 1, pageSize, estado, sort };
+  return { from, to, page: 1, pageSize, estado, sort };
+}
+
+function reloadTableRemote(resetPage){
+  if(!table) return;
+  const params = buildQueryParamsFromUI();
+  try{
+    if (resetPage) { table.setPage(1); }
+  }catch(_){}
+  table.setData(Config.api.leerFacturas, params);
+}
+
 const API = { _facturasCtl:null,
   async getFacturas(){
     if(this._facturasCtl) try{ this._facturasCtl.abort(); }catch(_){}
     const ctl = new AbortController();
     this._facturasCtl = ctl;
-    const f = (window.State && State.filtros) ? State.filtros : {};
+    // Build params from UI/State for safety
+    const p = (typeof buildQueryParamsFromUI === 'function') ? buildQueryParamsFromUI() : (State?.filtros || {});
     const qs = new URLSearchParams();
-    if (f.from) qs.set("from", f.from);
-    if (f.to) qs.set("to", f.to);
-    if (f.page) qs.set("page", String(f.page));
-    if (f.pageSize) qs.set("pageSize", String(f.pageSize));
-    if (f.estado) qs.set("estado", String(f.estado));
-    if (f.sort) qs.set("sort", String(f.sort));
-    const url = Config.api.leerFacturas + (qs.toString()? ("?"+qs.toString()) : "");
+    if(p.from) qs.set("from", p.from);
+    if(p.to) qs.set("to", p.to);
+    if(p.page) qs.set("page", p.page);
+    if(p.pageSize) qs.set("pageSize", p.pageSize);
+    if(p.estado) qs.set("estado", p.estado);
+    if(p.sort) qs.set("sort", p.sort);
+    const url = Config.api.leerFacturas + (qs.toString() ? ("?"+qs.toString()) : "");
     const res = await fetch(url, {cache:"no-store", mode:"cors", signal: ctl.signal});
     if(!res.ok) throw new Error("No se pudo leer facturas");
     const data = await res.json();
     if(ctl.signal.aborted) throw new Error('ABORTED');
-    const arr = Array.isArray(data)? data : [];
+
+    // Soporta tanto array plano como {rows,total}
+    const arr = Array.isArray(data) ? data : (Array.isArray(data.rows) ? data.rows : []);
     const out = arr.map(normalizeRow).filter(r=>r);
-    // Filtro de seguridad en cliente por rango (por si el backend aún no filtra)
-    if (f && (f.from || f.to)){
-      const from = f.from ? new Date(f.from+"T00:00:00") : null;
-      const to   = f.to   ? new Date(f.to+"T23:59:59")   : null;
+    // Filtro de seguridad por fecha si el backend aún no filtra
+    if(p && (p.from || p.to)){
+      const from = p.from ? new Date(p.from+"T00:00:00") : null;
+      const to   = p.to   ? new Date(p.to+"T23:59:59")   : null;
       const within = (d)=> (!from || d>=from) && (!to || d<=to);
       return out.filter(r=>{
         const d = r && r.Fecha ? new Date(r.Fecha) : null;
@@ -743,11 +789,37 @@ function buildTable(){
   if(table){ return; }
   table = new Tabulator("#tablaRevision", {
     height: Config.tablaHeight,
-    data: State.filtered,
+    ajaxURL: Config.api.leerFacturas,
     layout:"fitColumns",
     placeholder:"Sin datos",
+    ajaxConfig:"GET",
+    ajaxContentType:"json",
+    paginationSize: (State?.filtros?.pageSize)||200,
+    paginationSizeSelector:[100,200,300,500],
+    paginationDataSent:{page:"page", size:"pageSize"},
+    paginationDataReceived:{last_page:"last_page", data:"data"},
+    ajaxURLGenerator:function(url, config, params){
+      const p = buildQueryParamsFromUI();
+      const u = new URL(url, location.origin);
+      Object.entries(p).forEach(([k,v])=>{ if(v!==undefined && v!==null && v!=="") u.searchParams.set(k, v); });
+      return u.toString();
+    },
+    ajaxResponse:function(url, params, response){
+      if (Array.isArray(response)){
+        const data = response.map(normalizeRow).filter(Boolean);
+        return { data, last_page: 1 };
+      }
+      if (response && Array.isArray(response.rows)){
+        const pageSize = params?.pageSize || (State?.filtros?.pageSize) || 200;
+        const last = Math.max(1, Math.ceil((Number(response.total||response.rows.length)||1) / pageSize));
+        const data = response.rows.map(normalizeRow).filter(Boolean);
+        return { data, last_page: last };
+      }
+      return { data: [], last_page: 1 };
+    },
+
     selectable:true,
-    pagination:false,
+    pagination:"remote",
     reactiveData:false,
     groupStartOpen:false,
     groupHeader:function(value, count, data, group){
@@ -1083,12 +1155,15 @@ function clearFilters(){
 
 function applyFilters(){
   if(!table){ return; }
+  if (window.__REMOTE_PAGINATION__){
+    reloadTableRemote(true);
+    return;
+  }
   const doReplace = ()=>{
     const maybePromise = table.replaceData(State.filtered);
     if(maybePromise && typeof maybePromise.then === "function"){
       maybePromise.then(()=>{ updateKpis(); updateButtons(); try{ updateKpisRevRange(); }catch(_){ } }).catch(()=>{ updateKpis(); updateButtons(); try{ updateKpisRevRange(); }catch(_){ } });
     }else{
-      // fallback si la versión de Tabulator no retorna promesa
       setTimeout(()=>{ updateKpis(); updateButtons(); }, 0);
     }
   };
@@ -1104,8 +1179,7 @@ function applyFilters(){
   }
   doReplace();
 }
-
-/** =========================
+      /** =========================
  *  Exportaciones CSV/XLSX
  *  ========================= */
 function exportXLSX(){
@@ -1615,15 +1689,21 @@ document.addEventListener("change", (ev)=>{
  *  Bootstrap
  *  ========================= */
 async function hardRefresh(){
-  // Limpia filtros, recarga y resetea scroll; luego muestra hora de actualización
   clearFilters();
-  await loadData();
+  const {from, to} = currentMonthRangeISO();
+  const fEl = document.getElementById("fFecha");
+  if (fEl){
+    fEl.value = `${from} to ${to}`;
+    const s = new Date(from+"T00:00:00");
+    const e = new Date(to+"T23:59:59");
+    fEl._range = [s, e];
+  }
+  State.filtros = { ...(State.filtros||{}), from, to, page:1, pageSize:200, sort:"fechaDesc" };
+  if(!table){ buildTable(); }
+  reloadTableRemote(true);
   resetTableScroll();
   setLastUpdatedNow();
-  const now = new Date();
-  const hh = String(now.getHours()).padStart(2,"0");
-  const mm = String(now.getMinutes()).padStart(2,"0");
-  }
+}
 
 async function onSectorEdited(cell){
   try{
@@ -1879,24 +1959,11 @@ async function bootstrap(){
 async function loadData(){
   overlay.show("Cargando facturas…");
   try{
-    const data = await API.getFacturas();
-    State.raw = data;
-    // poblar selects dinámicamente
-    const sectores = Array.from(new Set(data.map(r=>r.Sector).filter(Boolean))).sort();
-    const estados  = Array.from(new Set(data.map(r=>r.Estado||"Registrada"))).sort();
-    if(sectorMS){ sectorMS.setItems(sectores); }
-    if(estadoMS){ estadoMS.setItems(estados); }
-    buildTable();
-    if(tableBuilt){ applyFilters(); } else {
-      (function(){
-        const handler = ()=>{
-          try{ table.off("tableBuilt", handler); }catch(e){}
-          applyFilters();
-        };
-        table.on("tableBuilt", handler);
-      })();
-    }
-}catch(e){ if(String(e&&e.message)==="ABORTED"){ /* silencioso */ } else { alert("No fue posible cargar las facturas."); } }finally{
+    if(!table){ buildTable(); }
+    reloadTableRemote(false);
+  }catch(e){
+    if(String(e&&e.message)!=="ABORTED"){ alert("No fue posible cargar las facturas."); }
+  }finally{
     overlay.hide();
   }
 }
@@ -2023,142 +2090,5 @@ async function doLogout(){ await authLogout(); showLogin(); }
 
 </script>
 
-
-<script>
-// ====== Patch: month preview + safe saves + no full-refresh on estado ======
-(function(){
-  if (window.__REV_FACT_PATCH_APPLIED__) return;
-  window.__REV_FACT_PATCH_APPLIED__ = true;
-
-  function pad2(n){ return String(n).padStart(2,'0'); }
-  function isoDate(d){ return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`; }
-  function rangoMesActual() {
-    const now = new Date();
-    const start = new Date(now.getFullYear(), now.getMonth(), 1, 0,0,0);
-    const end   = new Date(now.getFullYear(), now.getMonth()+1, 0, 23,59,59);
-    return { from: isoDate(start), to: isoDate(end) };
-  }
-
-  const CACHE_TTL_MS = 5*60*1000; // 5 minutes
-  function cacheKey(){ 
-    const {from,to} = (window.State?.filtros || rangoMesActual());
-    return `revfact:page1:${from}:${to}`;
-  }
-
-  function enableProgressiveRender(){
-    try {
-      if (window.tablaFacturas && typeof window.tablaFacturas.setOptions === 'function'){
-        window.tablaFacturas.setOptions({
-          progressiveRender: true,
-          progressiveRenderSize: 200,
-          progressiveRenderMargin: 100
-        });
-      }
-    } catch (e){ /* ignore */ }
-  }
-
-  (function patchHardRefresh(){
-    if (!window.hardRefresh) return;
-    const _orig = window.hardRefresh;
-    window.__lastHardRefreshAt = 0;
-    window.hardRefresh = async function(...args){
-      const now = Date.now();
-      const fresh = (now - (window.__lastHardRefreshAt||0)) < CACHE_TTL_MS;
-      const hasData = !!(window.State && Array.isArray(State.raw) && State.raw.length);
-      if (fresh && hasData){
-        console.debug("[Patch] Skip hardRefresh (fresh cache in memory)");
-        return;
-      }
-      window.__lastHardRefreshAt = now;
-      return _orig.apply(this, args);
-    };
-  })();
-
-  (function primeMonthPreview(){
-    try {
-      const { from, to } = rangoMesActual();
-      window.State = window.State || {};
-      State.filtros = Object.assign({ page: 1, pageSize: 200 }, State.filtros || {}, { from, to });
-      const elFrom = document.querySelector('[data-filter="fecha-desde"], #fecha-desde, input[name="fecha_desde"]');
-      const elTo   = document.querySelector('[data-filter="fecha-hasta"], #fecha-hasta, input[name="fecha_hasta"]');
-      if (elFrom) elFrom.value = from;
-      if (elTo)   elTo.value   = to;
-    } catch(e){ /* ignore */ }
-  })();
-
-  (function patchUpdateEstado(){
-    const API = window.API || (window.API = {});
-    if (!API.updateEstado) return;
-    if (API.__updateEstadoPatched) return;
-    API.__updateEstadoPatched = true;
-
-    const _raw = API.updateEstado.bind(API);
-    const savingByRow = new Set();
-    let savingAny = false;
-
-    async function withBackoff(fn){
-      let delay = 600;
-      const max = 3;
-      for (let i=0; i<=max; i++){
-        try{
-          const out = await fn();
-          return out;
-        }catch(err){
-          const status = err && err.status ? err.status : (err && err.response && err.response.status);
-          if (status !== 429) throw err;
-          let wait = delay;
-          try{
-            const ra = (err.headers && err.headers.get && err.headers.get('Retry-After')) || (err.response && err.response.headers && err.response.headers.get && err.response.headers.get('Retry-After'));
-            if (ra) wait = Number(ra)*1000;
-          }catch(e){}
-          await new Promise(r=>setTimeout(r, wait));
-          delay *= 2;
-        }
-      }
-      throw new Error("Rate limited (429) después de reintentos");
-    }
-
-    API.updateEstado = async function(rowData, nuevoEstado, ...rest){
-      const filaId = rowData && (rowData.fila || rowData._fila || rowData.id || rowData.ID);
-      if (savingAny || (filaId && savingByRow.has(filaId))){
-        (window.quickToast || window.alert)?.("Otra actualización está en curso…");
-        return { status: "IGNORED" };
-      }
-      savingAny = true;
-      if (filaId) savingByRow.add(filaId);
-      try {
-        const result = await withBackoff(()=> _raw(rowData, nuevoEstado, ...rest));
-        return result;
-      } finally {
-        if (filaId) savingByRow.delete(filaId);
-        savingAny = false;
-      }
-    };
-  })();
-
-  (function softenRefreshAfterEstado(){
-    const g = window;
-    const prev = g.refreshAfterEstado;
-    g.refreshAfterEstado = async function(rowOrId){
-      try{
-        if (g.API && typeof g.API.leerFactura === 'function' && rowOrId){
-          const id = (typeof rowOrId === 'object') ? (rowOrId.id || rowOrId.fila || rowOrId._fila) : rowOrId;
-          const fresh = await g.API.leerFactura(id);
-          if (fresh && g.tablaFacturas){
-            const r = g.tablaFacturas.getRow(id);
-            if (r) r.update(fresh);
-          }
-          return;
-        }
-        console.debug("[Patch] refreshAfterEstado() neutralizado (no full reload)");
-      }catch(e){
-        console.warn("[Patch] refreshAfterEstado fallback:", e);
-      }
-    };
-  })();
-
-  setTimeout(enableProgressiveRender, 800);
-})();
-</script>
 </body>
 </html>
