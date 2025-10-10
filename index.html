@@ -2098,6 +2098,43 @@ async function doLogout(){ await authLogout(); showLogin(); }
 })();
 </script>
 
+
+<script>
+// --- ensure API_BASE and buildFacturasURL exist (date-only contract) ---
+if (typeof window.API_BASE === 'undefined' || !API_BASE){
+  // Try to infer from existing config or leave empty for direct absolute URLs
+  window.API_BASE = window.API_BASE || "";
+}
+if (typeof window.buildFacturasURL !== 'function'){
+  window.buildFacturasURL = function(base){
+    const join = base.includes("?") ? "&" : "?";
+    try{
+      const inp = document.getElementById("fFecha");
+      const hasRange = inp && Array.isArray(inp._range) && inp._range.length === 2 && inp._range[0] && inp._range[1];
+      const fmt = (d)=>{
+        const y = d.getFullYear();
+        const m = String(d.getMonth()+1).padStart(2,'0');
+        const da = String(d.getDate()).padStart(2,'0');
+        return `${y}-${m}-${da}`; // YYYY-MM-DD
+      };
+      if (hasRange){
+        const start = new Date(inp._range[0]);
+        const end   = new Date(inp._range[1]);
+        const desde = fmt(start);
+        const hasta = fmt(end);
+        return `${base}${join}desde=${encodeURIComponent(desde)}&hasta=${encodeURIComponent(hasta)}&page=1&pageSize=500`;
+      } else {
+        return `${base}${join}mesActual=true&page=1&pageSize=500`
+      }
+    }catch(e){
+      console.warn("buildFacturasURL failed", e);
+      return `${base}${join}mesActual=true&page=1&pageSize=500`;
+    }
+  };
+  console.log("[Facturas] buildFacturasURL (date-only) injectado");
+}
+</script>
+
 </body>
 </html>
 
