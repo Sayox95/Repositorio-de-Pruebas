@@ -2067,6 +2067,37 @@ async function doLogout(){ await authLogout(); showLogin(); }
 
 </script>
 
+
+<script>
+(function(){
+  try{
+    if (window.__facturasFetchShim) return; window.__facturasFetchShim = true;
+    const origFetch = window.fetch.bind(window);
+    window.fetch = async function(input, init){
+      const url = (typeof input === "string") ? input : (input && input.url) || "";
+      const res = await origFetch(input, init);
+      // Solo adaptamos las respuestas del endpoint de facturas
+      if (url.includes("leerFacturas=true")){
+        try{
+          const clone = res.clone();
+          const payload = await clone.json();
+          const rows = Array.isArray(payload) ? payload : (payload && payload.rows) ? payload.rows : [];
+          // Devolvemos un Response con un JSON array para mantener compat con código antiguo
+          const blob = new Blob([JSON.stringify(rows)], { type: "application/json" });
+          const adapted = new Response(blob, { status: res.status, statusText: res.statusText, headers: res.headers });
+          return adapted;
+        }catch(e){
+          console.warn("fetch shim JSON parse failed; returning original response", e);
+          return res;
+        }
+      }
+      return res;
+    };
+    console.log("[Facturas] fetch shim activo: normaliza respuestas a Array cuando leerFacturas=true");
+  }catch(e){ console.warn("fetch shim failed", e); }
+})();
+</script>
+
 </body>
 </html>
 
