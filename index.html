@@ -445,6 +445,22 @@ const fmt = {
   dateISO(d){ const x = new Date(d); if(isNaN(x)) return ""; return x.toISOString().slice(0,10); },
 };
 
+function currentMonthRange(){
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), 1, 0,0,0,0);
+  const end = new Date(now.getFullYear(), now.getMonth()+1, 0, 23,59,59,999);
+  return [start, end];
+}
+function toISODate(d){ try{ return d.toISOString().slice(0,10); }catch(_){ return ""; } }
+function setDefaultMonthFilterIfEmpty(){
+  const input = document.getElementById("fFecha");
+  if(!input) return;
+  if(input._range && Array.isArray(input._range) && input._range.length===2) return; // ya está definido
+  const [start, end] = currentMonthRange();
+  input._range = [new Date(start), new Date(end)];
+  try{ if(window._fpFecha){ window._fpFecha.setDate([start, end], true); } }catch(_){ input.value = toISODate(start) + " to " + toISODate(end); }
+}
+
 /** Mapea alias de campos al esquema esperado por la tabla */
 function normalizeRow(src){
   if(!src || typeof src!=="object") return null;
@@ -495,11 +511,19 @@ function toDirectDriveUrl(url){
  *  Capa de datos (API)
  *  ========================= */
 const API = { _facturasCtl:null,
-  async getFacturas(){
+  async getFacturas(opts={}){
     if(this._facturasCtl) try{ this._facturasCtl.abort(); }catch(_){}
     const ctl = new AbortController();
     this._facturasCtl = ctl;
-    const res = await fetch(Config.api.leerFacturas, {cache:"no-store", mode:"cors", signal: ctl.signal});
+    const url = (function(){
+      const u = new URL(Config.api.leerFacturas, window.location.origin);
+      if(opts && opts.start) u.searchParams.set('start', opts.start);
+      if(opts && opts.end)   u.searchParams.set('end', opts.end);
+      // mantener compatibilidad con Apps Script si fuera el caso
+      u.searchParams.set('leerFacturas','true');
+      return u.toString();
+    })();
+    const res = await fetch(url, {cache:"no-store", mode:"cors", signal: ctl.signal});
     if(!res.ok) throw new Error("No se pudo leer facturas");
     const data = await res.json();
     if(ctl.signal.aborted) throw new Error('ABORTED');
@@ -972,7 +996,7 @@ let sectorMS, estadoMS;
 
 function initFilters(){
   // Flatpickr range
-  const fp = flatpickr("#fFecha", {
+  window._fpFecha = flatpickr("#fFecha", {
     mode:"range",
     dateFormat:"Y-m-d",
     onChange(selectedDates){
@@ -989,7 +1013,7 @@ function initFilters(){
       applyFilters();
     }
   });
-  const fpRev = flatpickr("#fFechaRev", {
+  window._fpFechaRev = flatpickr("#fFechaRev", {
     mode:"range",
     dateFormat:"Y-m-d",
     onChange(selectedDates){
@@ -1594,15 +1618,12 @@ document.addEventListener("change", (ev)=>{
  *  Bootstrap
  *  ========================= */
 async function hardRefresh(){
-  // Limpia filtros, recarga y resetea scroll; luego muestra hora de actualización
-  clearFilters();
+  // Refresca manteniendo filtros. Si no hay rango de fechas, establece el mes actual por defecto.
+  setDefaultMonthFilterIfEmpty();
   await loadData();
   resetTableScroll();
   setLastUpdatedNow();
-  const now = new Date();
-  const hh = String(now.getHours()).padStart(2,"0");
-  const mm = String(now.getMinutes()).padStart(2,"0");
-  }
+}
 
 async function onSectorEdited(cell){
   try{
@@ -1858,7 +1879,11 @@ async function bootstrap(){
 async function loadData(){
   overlay.show("Cargando facturas…");
   try{
-    const data = await API.getFacturas();
+    // Tomar el rango seleccionado (o aplicar por defecto el mes actual)
+    setDefaultMonthFilterIfEmpty();
+    const dr = document.getElementById("fFecha")? document.getElementById("fFecha")._range : null;
+    const params = (dr && dr.length===2) ? { start: toISODate(dr[0]), end: toISODate(dr[1]) } : {};
+    const data = await API.getFacturas(params);
     State.raw = data;
     // poblar selects dinámicamente
     const sectores = Array.from(new Set(data.map(r=>r.Sector).filter(Boolean))).sort();
@@ -2002,103 +2027,5 @@ async function doLogout(){ await authLogout(); showLogin(); }
 
 </script>
 
-
-<!-- === Patch limpio: usar Apps Script act=list + recarga sólo con rango completo === -->
-<script>
-(function(){
-  // Pega aquí TU URL de Apps Script (deploy Web App)
-  const APPS_SCRIPT_BASE = "https://script.google.com/macros/s/AKfycbycqS5upfIYMjW6mLpsaWXW_wGu_nhR3ncpOEtJiieNOAwfVTHAnRlCrDJyu7QBF55WuQ/exec";
-
-  // Construye URL act=list con rango opcional (YYYY-MM-DD)
-  function buildListURL(range){
-    const u = new URL(APPS_SCRIPT_BASE);
-    u.searchParams.set("act","list");
-    if (range && range.desde && range.hasta){
-      u.searchParams.set("desde", range.desde);
-      u.searchParams.set("hasta", range.hasta);
-    }
-    return u.toString();
-  }
-
-  // Sobrescribe sólo la lectura de facturas para que SIEMPRE venga del servidor filtrado
-  (function patchGetFacturas(){
-    if (!window.API || typeof API.getFacturas !== "function") return;
-    const normalize = (typeof window.normalizeRow === "function") ? window.normalizeRow : (r)=>r;
-    API.getFacturas = async function(){
-      const inp = document.getElementById("fFecha");
-      const hasRange = inp && Array.isArray(inp._range) && inp._range.length===2 && inp._range[0] && inp._range[1];
-      const range = hasRange ? {
-        desde: inp._range && fmtDay(inp._range[0]),
-        hasta: inp._range && fmtDay(inp._range[1]),
-      } : null;
-      const url = buildListURL(range);
-      const res = await fetch(url, { cache:"no-store", mode:"cors" });
-      if (!res.ok) throw new Error("HTTP "+res.status);
-      const payload = await res.json();
-      const rows = Array.isArray(payload) ? payload : (payload.rows || []);
-      return rows.map(normalize).filter(Boolean);
-    };
-    console.log("[Patch] API.getFacturas -> Apps Script act=list");
-  })();
-
-  // util de fecha
-  function fmtDay(d){
-    const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), da=String(d.getDate()).padStart(2,'0');
-    return `${y}-${m}-${da}`;
-  }
-
-  // Reconfigura el datepicker: sólo dispara cuando hay 2 fechas (o cuando se limpia)
-  document.addEventListener("DOMContentLoaded", function(){
-    const inp = document.getElementById("fFecha");
-    if (!inp) return;
-
-    function triggerServerReload(){
-      if (typeof window.hardRefresh === "function") { hardRefresh(); }
-    }
-
-    const onChanged = (selectedDates)=>{
-      if (Array.isArray(selectedDates) && selectedDates.length===0){
-        inp._range = null;            // vuelve a mes actual
-        triggerServerReload();
-        return;
-      }
-      if (Array.isArray(selectedDates) && selectedDates.length===1){
-        // aún no hay rango completo → no dispares
-        inp._range = null;
-        return;
-      }
-      if (Array.isArray(selectedDates) && selectedDates.length>=2){
-        selectedDates[0].setHours(0,0,0,0);
-        selectedDates[1].setHours(23,59,59,999);
-        inp._range = [selectedDates[0], selectedDates[1]];
-        triggerServerReload();
-      }
-    };
-
-    if (inp._flatpickr && typeof inp._flatpickr.set === "function"){
-      const prev = inp._flatpickr.config.onChange;
-      inp._flatpickr.set("onChange", function(sel, str, inst){
-        onChanged(sel);
-        if (Array.isArray(prev)) prev.forEach(fn=>{ try{ fn(sel,str,inst); }catch(_){ } });
-        else if (typeof prev === "function"){ try{ prev(sel,str,inst); }catch(_){ } }
-      });
-    } else {
-      // fallback si el FP aún no está: escuchamos cambios simples
-      inp.addEventListener("change", function(){
-        const v=(inp.value||"").trim();
-        const m=v.match(/(\d{4}-\d{2}-\d{2}).+?(\d{4}-\d{2}-\d{2})/);
-        if (m){
-          inp._range = [ new Date(m[1]), new Date(m[2]) ];
-          triggerServerReload();
-        } else if (!v){
-          inp._range = null;
-          triggerServerReload();
-        }
-      }, { passive:true });
-    }
-  });
-})();
-</script>
-<!-- === /Patch limpio === -->
 </body>
 </html>
