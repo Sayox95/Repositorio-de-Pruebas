@@ -1,81 +1,12 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<script>
-  // Hard-set API_BASE for Apps Script endpoint
-  window.API_BASE = "https://script.google.com/macros/s/AKfycbycqS5upfIYMjW6mLpsaWXW_wGu_nhR3ncpOEtJiieNOAwfVTHAnRlCrDJyu7QBF55WuQ/exec";
-  console.log("[Facturas] API_BASE =", window.API_BASE);
-</script>
-
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>UTCD · Revisión de Facturas</title>
   <!-- Tabulator -->
   <link href="https://unpkg.com/tabulator-tables@6.2.5/dist/css/tabulator.min.css" rel="stylesheet">
-  <script src="https://unpkg.com/tabulator-tables@6.2.5/dist/js/tabulator.min.js">
-
-// === Injected: default current month date-range + server URL builder ===
-function setCurrentMonthRange(){
-  try{
-    const now   = new Date();
-    const start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
-    const end   = new Date(now.getFullYear(), now.getMonth()+1, 0, 23, 59, 59, 999);
-    const inp   = document.getElementById("fFecha");
-    if(!inp) return;
-    inp._range = [start, end];
-    const iso = (d)=> d.toISOString().slice(0,10);
-    if (typeof inp._flatpickr !== "undefined" && inp._flatpickr && typeof inp._flatpickr.setDate === "function") {
-      // if using flatpickr in range mode
-      try { inp._flatpickr.setDate([start, end], true); } catch(_){ inp.value = `${iso(start)} to ${iso(end)}`; }
-    } else {
-      inp.value = `${iso(start)} to ${iso(end)}`;
-    }
-    const rev = document.getElementById("fFechaRev");
-    if(rev){ rev.value = ""; rev._range = null; }
-  }catch(e){ console.warn("setCurrentMonthRange failed", e); }
-}
-
-
-function buildFacturasURL(base){
-  const join = base.includes("?") ? "&" : "?";
-  try{
-    const inp = document.getElementById("fFecha");
-    const hasRange = inp && Array.isArray(inp._range) && inp._range.length === 2 && inp._range[0] && inp._range[1];
-    const fmt = (d)=>{
-      const y = d.getFullYear();
-      const m = String(d.getMonth()+1).padStart(2,'0');
-      const da = String(d.getDate()).padStart(2,'0');
-      return `${y}-${m}-${da}`; // YYYY-MM-DD
-    };
-    if (hasRange){
-      const start = new Date(inp._range[0]);
-      const end   = new Date(inp._range[1]);
-      const desde = fmt(start);
-      const hasta = fmt(end);
-      return `${base}${join}desde=${encodeURIComponent(desde)}&hasta=${encodeURIComponent(hasta)}&page=1&pageSize=500`;
-    } else {
-      return `${base}${join}mesActual=true&page=1&pageSize=500`;
-    }
-  }catch(e){
-    console.warn("buildFacturasURL failed", e);
-    return `${base}${join}mesActual=true&page=1&pageSize=500`;
-  }
-}
-;
-    if (hasRange){
-      const [desde, hasta] = inp._range;
-      return `${base}${join}desde=${encodeURIComponent(fmt(new Date(desde)))}&hasta=${encodeURIComponent(fmt(new Date(hasta)))}&page=1&pageSize=500`;
-    } else {
-      return `${base}${join}mesActual=true&page=1&pageSize=500`;
-    }
-  }catch(e){
-    console.warn("buildFacturasURL failed", e);
-    const join = base.includes("?") ? "&" : "?";
-    return `${base}${join}mesActual=true&page=1&pageSize=500`;
-  }
-}
-
-</script>
+  <script src="https://unpkg.com/tabulator-tables@6.2.5/dist/js/tabulator.min.js"></script>
   <!-- Flatpickr -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
@@ -467,6 +398,52 @@ const Config = {
   tablaHeight: "560px",
 };
 
+// === Helpers: rango del mes actual y builder de URL (YYYY-MM-DD) ===
+function setCurrentMonthRange(){
+  try{
+    const now   = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+    const end   = new Date(now.getFullYear(), now.getMonth()+1, 0, 23, 59, 59, 999);
+    const inp   = document.getElementById("fFecha");
+    if(!inp) return;
+    inp._range = [start, end];
+    const iso = (d)=> d.toISOString().slice(0,10);
+    if (inp._flatpickr && typeof inp._flatpickr.setDate === "function") {
+      try { inp._flatpickr.setDate([start, end], true); } catch(_){ inp.value = `${iso(start)} to ${iso(end)}`; }
+    } else {
+      inp.value = `${iso(start)} to ${iso(end)}`;
+    }
+    const rev = document.getElementById("fFechaRev");
+    if(rev){ rev.value = ""; rev._range = null; }
+  }catch(e){ console.warn("setCurrentMonthRange failed", e); }
+}
+
+function buildFacturasURL(base){
+  // base should include '?leerFacturas=true' (or &leerFacturas=true).
+  try{
+    const inp = document.getElementById("fFecha");
+    const hasRange = inp && Array.isArray(inp._range) && inp._range.length === 2 && inp._range[0] && inp._range[1];
+    const join = base.includes("?") ? "&" : "?";
+    const fmt = (d)=> {
+      const y = d.getFullYear();
+      const m = String(d.getMonth()+1).padStart(2,'0');
+      const da = String(d.getDate()).padStart(2,'0');
+      return `${y}-${m}-${da}`; // YYYY-MM-DD (date-only)
+    };
+    if (hasRange){
+      const [desde, hasta] = inp._range;
+      return `${base}${join}desde=${encodeURIComponent(fmt(new Date(desde)))}&hasta=${encodeURIComponent(fmt(new Date(hasta)))}&page=1&pageSize=500`;
+    } else {
+      return `${base}${join}mesActual=true&page=1&pageSize=500`;
+    }
+  }catch(e){
+    console.warn("buildFacturasURL failed", e);
+    const join = base.includes("?") ? "&" : "?";
+    return `${base}${join}mesActual=true&page=1&pageSize=500`;
+  }
+}
+
+
 /** =========================
  *  Utilidades de UI
  *  ========================= */
@@ -568,7 +545,7 @@ const API = { _facturasCtl:null,
     if(this._facturasCtl) try{ this._facturasCtl.abort(); }catch(_){}
     const ctl = new AbortController();
     this._facturasCtl = ctl;
-    const res = await fetch(Config.api.leerFacturas, {cache:"no-store", mode:"cors", signal: ctl.signal});
+    const res = await fetch((() => { const base = `${Config.api.leerFacturas}?leerFacturas=true`; return buildFacturasURL(base); })(), {cache:"no-store", mode:"cors", signal: ctl.signal});
     if(!res.ok) throw new Error("No se pudo leer facturas");
     const data = await res.json();
     if(ctl.signal.aborted) throw new Error('ABORTED');
@@ -605,7 +582,7 @@ return arr.map(normalizeRow).filter(r=>r); // no filtramos por nº factura todav
   async fetchPdfBlob(url){
     // Intenta por proxy, valida header %PDF
     const tryFetch = async (u)=>{
-      const r = await fetch(buildFacturasURL(u));
+      const r = await fetch(u);
       if(!r.ok) throw new Error("HTTP "+r.status);
       const b = await r.blob();
       // Chequeo básico de PDF
@@ -1055,8 +1032,8 @@ function initFilters(){
   $("#fFechaRev").value = "";
   $("#fFechaRev")._range = null;
       }
-      applyFilters();
-    }
+      loadData();
+}
   });
   const fpRev = flatpickr("#fFechaRev", {
     mode:"range",
@@ -1663,9 +1640,7 @@ document.addEventListener("change", (ev)=>{
  *  Bootstrap
  *  ========================= */
 async function hardRefresh(){
-  
-  try{ setCurrentMonthRange(); }catch(_){ }
-// Limpia filtros, recarga y resetea scroll; luego muestra hora de actualización
+  // Limpia filtros, recarga y resetea scroll; luego muestra hora de actualización
   clearFilters();
   await loadData();
   resetTableScroll();
@@ -2073,261 +2048,5 @@ async function doLogout(){ await authLogout(); showLogin(); }
 
 </script>
 
-
-<script>
-(function(){
-  try{
-    if (window.__facturasFetchShim) return; window.__facturasFetchShim = true;
-    const origFetch = window.fetch.bind(window);
-    window.fetch = async function(input, init){
-      const url = (typeof input === "string") ? input : (input && input.url) || "";
-      const res = await origFetch(input, init);
-      // Solo adaptamos las respuestas del endpoint de facturas
-      if (url.includes("leerFacturas=true")){
-        try{
-          const clone = res.clone();
-          const payload = await clone.json();
-          const rows = Array.isArray(payload) ? payload : (payload && payload.rows) ? payload.rows : [];
-          // Devolvemos un Response con un JSON array para mantener compat con código antiguo
-          const blob = new Blob([JSON.stringify(rows)], { type: "application/json" });
-          const adapted = new Response(blob, { status: res.status, statusText: res.statusText, headers: res.headers });
-          return adapted;
-        }catch(e){
-          console.warn("fetch shim JSON parse failed; returning original response", e);
-          return res;
-        }
-      }
-      return res;
-    };
-    console.log("[Facturas] fetch shim activo: normaliza respuestas a Array cuando leerFacturas=true");
-  }catch(e){ console.warn("fetch shim failed", e); }
-})();
-</script>
-
-
-<script>
-// --- ensure API_BASE and buildFacturasURL exist (date-only contract) ---
-if (typeof window.API_BASE === 'undefined' || !API_BASE){
-  // Try to infer from existing config or leave empty for direct absolute URLs
-  window.API_BASE = window.API_BASE || "";
-}
-if (typeof window.buildFacturasURL !== 'function'){
-  window.buildFacturasURL = function(base){
-    const join = base.includes("?") ? "&" : "?";
-    try{
-      const inp = document.getElementById("fFecha");
-      const hasRange = inp && Array.isArray(inp._range) && inp._range.length === 2 && inp._range[0] && inp._range[1];
-      const fmt = (d)=>{
-        const y = d.getFullYear();
-        const m = String(d.getMonth()+1).padStart(2,'0');
-        const da = String(d.getDate()).padStart(2,'0');
-        return `${y}-${m}-${da}`; // YYYY-MM-DD
-      };
-      if (hasRange){
-        const start = new Date(inp._range[0]);
-        const end   = new Date(inp._range[1]);
-        const desde = fmt(start);
-        const hasta = fmt(end);
-        return `${base}${join}desde=${encodeURIComponent(desde)}&hasta=${encodeURIComponent(hasta)}&page=1&pageSize=500`;
-      } else {
-        return `${base}${join}mesActual=true&page=1&pageSize=500`
-      }
-    }catch(e){
-      console.warn("buildFacturasURL failed", e);
-      return `${base}${join}mesActual=true&page=1&pageSize=500`;
-    }
-  };
-  console.log("[Facturas] buildFacturasURL (date-only) injectado");
-}
-</script>
-
 </body>
 </html>
-
-
-<script>
-(function(){
-  try{
-    const inp = document.getElementById('fFecha');
-    if (!inp) return;
-    if (inp.__dateOnlyHooked) return; inp.__dateOnlyHooked = true;
-
-    function attach(){
-      function onRangeChanged(selectedDates){
-        if (Array.isArray(selectedDates) && selectedDates.length){
-          const d0 = selectedDates[0];
-          const d1 = selectedDates[1] || selectedDates[0];
-          inp._range = [d0, d1];
-        } else {
-          inp._range = null;
-        }
-        if (typeof reloadFacturas === "function") reloadFacturas();
-      }
-
-      if (inp._flatpickr){
-        const prev = inp._flatpickr.config.onChange;
-        inp._flatpickr.set('onChange', function(sel, str, inst){
-          onRangeChanged(sel);
-          if (Array.isArray(prev)) prev.forEach(fn => { try{ fn(sel, str, inst); }catch(_){} });
-          else if (typeof prev === "function") { try{ prev(sel, str, inst); }catch(_){} }
-        });
-      } else {
-        inp.addEventListener('change', function(){
-          const v = (inp.value||'').trim();
-          const m = v.match(/(\d{4}-\d{2}-\d{2}).+?(\d{4}-\d{2}-\d{2})/);
-          if (m){
-            inp._range = [new Date(m[1]), new Date(m[2])];
-          } else {
-            inp._range = null;
-          }
-          if (typeof reloadFacturas === "function") reloadFacturas();
-        }, { passive:true });
-      }
-    }
-
-    if (document.readyState === 'loading'){
-      document.addEventListener('DOMContentLoaded', attach);
-    } else {
-      setTimeout(attach, 0);
-    }
-  }catch(e){ console.warn("date-only hook failed", e); }
-})();
-</script>
-
-
-
-<script>
-// --- Robust fetch wrapper: always returns {rows, meta} ---
-async function fetchFacturas(url){
-  const res = await fetch(url);
-  const payload = await res.json();
-  const rows = Array.isArray(payload) ? payload : (payload.rows || []);
-  const meta = Array.isArray(payload) ? { total: rows.length } : payload;
-  return { rows, meta };
-}
-
-// --- Reload that pushes rows into the app state & UI regardless of implementation details ---
-async function reloadFacturas(){
-  try{
-    const base = `${API_BASE}?leerFacturas=true`;
-    const url  = buildFacturasURL(base);
-    const { rows, meta } = await fetchFacturas(url);
-
-    // 1) App state (if exists)
-    if (window.State && typeof State === 'object'){
-      State.raw = rows;
-      // clear any cached filtered set if the app uses it
-      if ('filtered' in State) State.filtered = null;
-    }
-
-    // 2) Apply filters or render directly
-    if (typeof applyFilters === 'function'){
-      applyFilters(); // many apps rebuild counters and table from State.raw
-    } else if (window.table && typeof table.setData === 'function'){
-      table.setData(rows);
-    } else if (typeof renderFacturas === 'function'){
-      renderFacturas(rows);
-    } else if (typeof render === 'function'){
-      render(rows);
-    }
-
-    // 3) Update counters if there is a helper
-    if (typeof updateCounters === 'function'){
-      const total = (meta && typeof meta.total === 'number') ? meta.total : rows.length;
-      updateCounters(total, rows);
-    }
-
-    console.log("[Facturas] reload: filas=", rows.length, "url=", url);
-  }catch(err){
-    console.error("reloadFacturas failed:", err);
-  }
-}
-</script>
-
-
-<script>
-// --- Persist user-selected range and debounce reloads ---
-(function(){
-  try{
-    // Store last explicit range as YYYY-MM-DD strings
-    window.__FACT_LAST_RANGE = window.__FACT_LAST_RANGE || null;
-
-    // Debounce helper
-    let __debTimer = null;
-    window.debouncedReloadFacturas = function(delay=200){
-      if (__debTimer) clearTimeout(__debTimer);
-      __debTimer = setTimeout(()=>{
-        if (typeof reloadFacturas === 'function') reloadFacturas();
-      }, delay);
-    };
-
-    // Wrap/override buildFacturasURL to prefer persisted range
-    const prevBuild = window.buildFacturasURL;
-    window.buildFacturasURL = function(base){
-      const join = base.includes("?") ? "&" : "?";
-      // If we have a persisted range, use it
-      if (window.__FACT_LAST_RANGE && window.__FACT_LAST_RANGE.desde && window.__FACT_LAST_RANGE.hasta){
-        const d = window.__FACT_LAST_RANGE.desde;
-        const h = window.__FACT_LAST_RANGE.hasta;
-        const url = `${base}${join}desde=${encodeURIComponent(d)}&hasta=${encodeURIComponent(h)}&page=1&pageSize=500`;
-        console.log("[Facturas] usando rango persistido", d, "→", h);
-        return url;
-      }
-      // Fallback to original logic if exists
-      if (typeof prevBuild === "function"){
-        return prevBuild(base);
-      }
-      // Safe fallback
-      return `${base}${join}mesActual=true&page=1&pageSize=500`;
-    };
-
-    // Hook datepicker to set persisted range
-    const inp = document.getElementById('fFecha');
-    function fmt(d){
-      const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), da=String(d.getDate()).padStart(2,'0');
-      return `${y}-${m}-${da}`;
-    }
-    function setPersistedRange(d0, d1){
-      window.__FACT_LAST_RANGE = { desde: fmt(d0), hasta: fmt(d1) };
-      console.log("[Facturas] rango seleccionado:", window.__FACT_LAST_RANGE);
-    }
-
-    if (inp){
-      // If flatpickr exists, patch onChange
-      if (inp._flatpickr && typeof inp._flatpickr.set === "function"){
-        const prev = inp._flatpickr.config.onChange;
-        inp._flatpickr.set('onChange', function(selectedDates, str, inst){
-          if (Array.isArray(selectedDates) && selectedDates.length){
-            const d0 = selectedDates[0];
-            const d1 = selectedDates[1] || selectedDates[0];
-            inp._range = [d0, d1];
-            setPersistedRange(d0, d1);
-            debouncedReloadFacturas();
-          } else {
-            inp._range = null;
-            window.__FACT_LAST_RANGE = null;
-            debouncedReloadFacturas();
-          }
-          if (Array.isArray(prev)) prev.forEach(fn=>{ try{ fn(selectedDates, str, inst); }catch(_){} });
-          else if (typeof prev === "function"){ try{ prev(selectedDates, str, inst); }catch(_){} }
-        });
-      } else {
-        // Native fallback
-        inp.addEventListener('change', function(){
-          const v = (inp.value||'').trim();
-          const m = v.match(/(\d{4}-\d{2}-\d{2}).+?(\d{4}-\d{2}-\d{2})/);
-          if (m){
-            const d0 = new Date(m[1]), d1 = new Date(m[2]);
-            inp._range = [d0, d1];
-            setPersistedRange(d0, d1);
-          } else {
-            inp._range = null;
-            window.__FACT_LAST_RANGE = null;
-          }
-          debouncedReloadFacturas();
-        }, { passive:true });
-      }
-    }
-  }catch(e){ console.warn("persist-range patch failed", e); }
-})();
-</script>
