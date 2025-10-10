@@ -6,7 +6,54 @@
   <title>UTCD · Revisión de Facturas</title>
   <!-- Tabulator -->
   <link href="https://unpkg.com/tabulator-tables@6.2.5/dist/css/tabulator.min.css" rel="stylesheet">
-  <script src="https://unpkg.com/tabulator-tables@6.2.5/dist/js/tabulator.min.js"></script>
+  <script src="https://unpkg.com/tabulator-tables@6.2.5/dist/js/tabulator.min.js">
+
+// === Injected: default current month date-range + server URL builder ===
+function setCurrentMonthRange(){
+  try{
+    const now   = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+    const end   = new Date(now.getFullYear(), now.getMonth()+1, 0, 23, 59, 59, 999);
+    const inp   = document.getElementById("fFecha");
+    if(!inp) return;
+    inp._range = [start, end];
+    const iso = (d)=> d.toISOString().slice(0,10);
+    if (typeof inp._flatpickr !== "undefined" && inp._flatpickr && typeof inp._flatpickr.setDate === "function") {
+      // if using flatpickr in range mode
+      try { inp._flatpickr.setDate([start, end], true); } catch(_){ inp.value = `${iso(start)} to ${iso(end)}`; }
+    } else {
+      inp.value = `${iso(start)} to ${iso(end)}`;
+    }
+    const rev = document.getElementById("fFechaRev");
+    if(rev){ rev.value = ""; rev._range = null; }
+  }catch(e){ console.warn("setCurrentMonthRange failed", e); }
+}
+
+function buildFacturasURL(base){
+  // base should include '?leerFacturas=true' (or &leerFacturas=true).
+  try{
+    const inp = document.getElementById("fFecha");
+    const hasRange = inp && Array.isArray(inp._range) && inp._range.length === 2 && inp._range[0] && inp._range[1];
+    const join = base.includes("?") ? "&" : "?";
+    const fmt = (d)=> {
+      // yyyy-MM-dd HH:mm:ss
+      const pad = (n)=> (n<10?"0":"")+n;
+      return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())+" "+pad(d.getHours())+":"+pad(d.getMinutes())+":"+pad(d.getSeconds());
+    };
+    if (hasRange){
+      const [desde, hasta] = inp._range;
+      return `${base}${join}desde=${encodeURIComponent(fmt(new Date(desde)))}&hasta=${encodeURIComponent(fmt(new Date(hasta)))}&page=1&pageSize=500`;
+    } else {
+      return `${base}${join}mesActual=true&page=1&pageSize=500`;
+    }
+  }catch(e){
+    console.warn("buildFacturasURL failed", e);
+    const join = base.includes("?") ? "&" : "?";
+    return `${base}${join}mesActual=true&page=1&pageSize=500`;
+  }
+}
+
+</script>
   <!-- Flatpickr -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
@@ -494,47 +541,6 @@ function toDirectDriveUrl(url){
 /** =========================
  *  Capa de datos (API)
  *  ========================= */
-// === Remote pagination helpers ===
-window.__REMOTE_PAGINATION__ = true;
-
-function currentMonthRangeISO(){
-  const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth(), 1, 0,0,0,0);
-  const end   = new Date(now.getFullYear(), now.getMonth()+1, 0, 23,59,59,999);
-  const pad = n=>String(n).padStart(2,'0');
-  const iso = d=> `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
-  return { from: iso(start), to: iso(end) };
-}
-
-function buildQueryParamsFromUI(){
-  let from=null, to=null;
-  const dr = document.getElementById("fFecha") ? document.getElementById("fFecha")._range : null;
-  if(dr && dr.length===2){
-    const pad = n=>String(n).padStart(2,'0');
-    const iso = d=> `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
-    from = iso(dr[0]);
-    to   = iso(dr[1]);
-  }else{
-    const def = currentMonthRangeISO();
-    from = def.from; to = def.to;
-  }
-  const estadoSel = (typeof estadoMS?.getSelected === 'function') ? estadoMS.getSelected() : [];
-  const estado = (estadoSel && estadoSel.length===1) ? estadoSel[0] : "";
-  const sort = "fechaDesc";
-  const pageSize = (State?.filtros?.pageSize) || 200;
-  const page = (State?.filtros?.page) || 1;
-
-  State.filtros = { ...(State.filtros||{}), from, to, page, pageSize, estado, sort };
-  return { from, to, page, pageSize, estado, sort };
-}
-
-function reloadTableRemote(resetPage){
-  if(!table) return;
-  const params = buildQueryParamsFromUI();
-  try{ if(resetPage){ table.setPage(1); } }catch(_){}
-  table.setData(Config.api.leerFacturas, params);
-}
-
 const API = { _facturasCtl:null,
   async getFacturas(){
     if(this._facturasCtl) try{ this._facturasCtl.abort(); }catch(_){}
@@ -577,7 +583,7 @@ return arr.map(normalizeRow).filter(r=>r); // no filtramos por nº factura todav
   async fetchPdfBlob(url){
     // Intenta por proxy, valida header %PDF
     const tryFetch = async (u)=>{
-      const r = await fetch(u);
+      const r = await fetch(buildFacturasURL(u));
       if(!r.ok) throw new Error("HTTP "+r.status);
       const b = await r.blob();
       // Chequeo básico de PDF
@@ -763,38 +769,11 @@ function buildTable(){
   if(table){ return; }
   table = new Tabulator("#tablaRevision", {
     height: Config.tablaHeight,
-    ajaxURL: Config.api.leerFacturas,
+    data: State.filtered,
     layout:"fitColumns",
     placeholder:"Sin datos",
-    ajaxConfig:"GET",
-    ajaxContentType:"json",
-    paginationSize: (State?.filtros?.pageSize)||200,
-    paginationSizeSelector:[100,200,300,500],
-    paginationDataSent:{page:"page", size:"pageSize"},
-    paginationDataReceived:{last_page:"last_page", data:"data"},
-    ajaxURLGenerator:function(url, config, params){
-      const p = buildQueryParamsFromUI();
-      const u = new URL(url, location.origin);
-      Object.entries(p).forEach(([k,v])=>{ if(v!==undefined && v!==null && v!=="") u.searchParams.set(k, v); });
-      return u.toString();
-    },
-    ajaxResponse:function(url, params, response){
-      if(Array.isArray(response)){
-        const data = response.map(normalizeRow).filter(Boolean);
-        return { data, last_page: 1 };
-      }
-      if(response && Array.isArray(response.rows)){
-        const pageSize = params?.pageSize || (State?.filtros?.pageSize) || 200;
-        const total = Number(response.total || response.rows.length) || 0;
-        const last = Math.max(1, Math.ceil(total / pageSize));
-        const data = response.rows.map(normalizeRow).filter(Boolean);
-        return { data, last_page: last };
-      }
-      return { data: [], last_page: 1 };
-    },
-
     selectable:true,
-    pagination:"remote",
+    pagination:false,
     reactiveData:false,
     groupStartOpen:false,
     groupHeader:function(value, count, data, group){
@@ -1128,24 +1107,15 @@ function clearFilters(){
   applyFilters();
 }
 
-
-
 function applyFilters(){
   if(!table){ return; }
-  if (window.__REMOTE_PAGINATION__){
-    reloadTableRemote(true);
-    return;
-  }
   const doReplace = ()=>{
     const maybePromise = table.replaceData(State.filtered);
     if(maybePromise && typeof maybePromise.then === "function"){
-      maybePromise
-        .then(()=>{ try{ updateKpis(); }catch(_){} try{ updateButtons(); }catch(_){} try{ updateKpisRevRange(); }catch(_){ } })
-        .catch(()=>{ try{ updateKpis(); }catch(_){} try{ updateButtons(); }catch(_){} try{ updateKpisRevRange(); }catch(_){ } });
+      maybePromise.then(()=>{ updateKpis(); updateButtons(); try{ updateKpisRevRange(); }catch(_){ } }).catch(()=>{ updateKpis(); updateButtons(); try{ updateKpisRevRange(); }catch(_){ } });
     }else{
-      try{ updateKpis(); }catch(_){}
-      try{ updateButtons(); }catch(_){}
-      try{ updateKpisRevRange(); }catch(_){}
+      // fallback si la versión de Tabulator no retorna promesa
+      setTimeout(()=>{ updateKpis(); updateButtons(); }, 0);
     }
   };
   if(!tableBuilt){
@@ -1671,22 +1641,17 @@ document.addEventListener("change", (ev)=>{
  *  Bootstrap
  *  ========================= */
 async function hardRefresh(){
-  // Inicial: mes actual + página 1 (200)
+  
+  try{ setCurrentMonthRange(); }catch(_){ }
+// Limpia filtros, recarga y resetea scroll; luego muestra hora de actualización
   clearFilters();
-  const {from, to} = currentMonthRangeISO();
-  const fEl = document.getElementById("fFecha");
-  if (fEl){
-    fEl.value = `${from} to ${to}`;
-    const s = new Date(from+"T00:00:00");
-    const e = new Date(to+"T23:59:59");
-    fEl._range = [s, e];
-  }
-  State.filtros = { ...(State.filtros||{}), from, to, page:1, pageSize:200, sort:"fechaDesc" };
-  if(!table){ buildTable(); }
-  reloadTableRemote(true);
+  await loadData();
   resetTableScroll();
   setLastUpdatedNow();
-}
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2,"0");
+  const mm = String(now.getMinutes()).padStart(2,"0");
+  }
 
 async function onSectorEdited(cell){
   try{
@@ -1942,11 +1907,24 @@ async function bootstrap(){
 async function loadData(){
   overlay.show("Cargando facturas…");
   try{
-    if(!table){ buildTable(); }
-    reloadTableRemote(false);
-  }catch(e){
-    if(String(e&&e.message)!=="ABORTED"){ alert("No fue posible cargar las facturas."); }
-  }finally{
+    const data = await API.getFacturas();
+    State.raw = data;
+    // poblar selects dinámicamente
+    const sectores = Array.from(new Set(data.map(r=>r.Sector).filter(Boolean))).sort();
+    const estados  = Array.from(new Set(data.map(r=>r.Estado||"Registrada"))).sort();
+    if(sectorMS){ sectorMS.setItems(sectores); }
+    if(estadoMS){ estadoMS.setItems(estados); }
+    buildTable();
+    if(tableBuilt){ applyFilters(); } else {
+      (function(){
+        const handler = ()=>{
+          try{ table.off("tableBuilt", handler); }catch(e){}
+          applyFilters();
+        };
+        table.on("tableBuilt", handler);
+      })();
+    }
+}catch(e){ if(String(e&&e.message)==="ABORTED"){ /* silencioso */ } else { alert("No fue posible cargar las facturas."); } }finally{
     overlay.hide();
   }
 }
