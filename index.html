@@ -2003,116 +2003,134 @@ async function doLogout(){ await authLogout(); showLogin(); }
 </script>
 
 
-<!-- Embedded clean facturas loader -->
+<!-- ===== Compatibilidad limpia con Apps Script (rango servidor) ===== -->
 <script>
-// facturas_clean_patch.js
-// Drop-in script for your existing HTML (include it at the end, after your app scripts)
-//
-// What it does:
-// - Defines API_BASE (Apps Script /exec URL, without query params)
-// - Builds URLs with a single source of truth
-// - Loads data once per action and paints the table
-// - Hooks your datepicker (#fFecha) to call loadFacturas with YYYY-MM-DD range
-//
-// How to use:
-// 1) <script src="facturas_clean_patch.js"></script> at the bottom of your HTML
-// 2) Edit API_BASE below with your Apps Script URL (ending in /exec).
+(function(){ 
+  const API_BASE = "https://script.google.com/macros/s/AKfycbycqS5upfIYMjW6mLpsaWXW_wGu_nhR3ncpOEtJiieNOAwfVTHAnRlCrDJyu7QBF55WuQ/exec";
 
-const API_BASE = "https://script.google.com/macros/s/AKfycbycqS5upfIYMjW6mLpsaWXW_wGu_nhR3ncpOEtJiieNOAwfVTHAnRlCrDJyu7QBF55WuQ/exec";
-
-function fmtDateYYYYMMDD(d){
-  const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), da=String(d.getDate()).padStart(2,'0');
-  return `${y}-${m}-${da}`;
-}
-
-function buildURL(params = {}){
-  const { desde, hasta, page=1, pageSize=500 } = params;
-  const u = new URL(API_BASE);
-  u.searchParams.set("leerFacturas","true");
-  if (desde && hasta){
-    u.searchParams.set("desde", desde); // YYYY-MM-DD
-    u.searchParams.set("hasta", hasta);
-  } else {
-    u.searchParams.set("mesActual","true");
+  function fmtDay(d){ 
+    const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), da=String(d.getDate()).padStart(2,'0');
+    return y+"-"+m+"-"+da;
   }
-  u.searchParams.set("page", page);
-  u.searchParams.set("pageSize", pageSize);
-  return u.toString();
-}
 
-async function loadFacturas(params){
-  const url = buildURL(params);
-  const res = await fetch(url, { cache:"no-store", mode:"cors" });
-  const payload = await res.json();
-  const rows = payload?.rows || [];
-  // Single source of truth
-  window.State = window.State || {};
-  State.raw = rows;
-  // Paint
-  if (typeof renderFacturas === "function"){
-    renderFacturas(rows);
-  } else if (window.table && typeof table.setData === "function"){
-    table.setData(rows); // Tabulator
-  } else if (typeof render === "function"){
-    render(rows);
-  } else {
-    console.log("[Facturas] filas:", rows.length);
-  }
-}
-
-// Default load: month current
-async function loadFacturasMesActual(){ return loadFacturas({}); }
-
-// Datepicker hook
-function hookDatepicker(){
-  const inp = document.getElementById('fFecha');
-  if (!inp || inp.__cleanHooked) return;
-  inp.__cleanHooked = true;
-
-  const onRangeChange = (selectedDates)=>{
-    if (Array.isArray(selectedDates) && selectedDates.length){
-      const d0 = selectedDates[0];
-      const d1 = selectedDates[1] || selectedDates[0];
-      loadFacturas({ desde: fmtDateYYYYMMDD(d0), hasta: fmtDateYYYYMMDD(d1) });
+  function buildFacturasURL(){ 
+    const u = new URL(API_BASE);
+    u.searchParams.set("leerFacturas","true");
+    const inp = document.getElementById("fFecha");
+    const hasRange = inp && Array.isArray(inp._range) && inp._range[0] && inp._range[1];
+    if (hasRange){ 
+      const d0 = inp._range[0], d1 = inp._range[1];
+      u.searchParams.set("desde", fmtDay(d0));
+      u.searchParams.set("hasta", fmtDay(d1));
     } else {
-      loadFacturasMesActual();
+      u.searchParams.set("mesActual","true");
     }
-  };
+    u.searchParams.set("page","1");
+    u.searchParams.set("pageSize","500");
+    return u.toString();
+  }
 
-  if (inp._flatpickr && typeof inp._flatpickr.set === "function"){
-    const prev = inp._flatpickr.config.onChange;
-    inp._flatpickr.set('onChange', function(sel, str, inst){
-      onRangeChange(sel);
-      if (Array.isArray(prev)) prev.forEach(fn => { try{ fn(sel,str,inst); }catch(_){ } });
-      else if (typeof prev === "function"){ try{ prev(sel,str,inst); }catch(_){ } }
-    });
-  } else {
-    // Fallback: native change
-    inp.addEventListener('change', function(){
-      const v=(inp.value||'').trim();
-      const m=v.match(/(\d{4}-\d{2}-\d{2}).+?(\d{4}-\d{2}-\d{2})/);
-      if (m){
-        loadFacturas({ desde:m[1], hasta:m[2] });
-      } else {
-        loadFacturasMesActual();
+  // Carga centralizada desde servidor: reemplaza State.raw y la tabla
+  async function recargarDesdeServidor(){ 
+    try{ 
+      if (window.overlay && typeof overlay.show === "function") overlay.show("Cargando facturas…");
+      const url = buildFacturasURL();
+      const res = await fetch(url, { cache:"no-store", mode:"cors" });
+      const json = await res.json();
+      const rows = Array.isArray(json) ? json : (Array.isArray(json.rows) ? json.rows : []);
+      window.State = window.State || { raw: [] };
+      State.raw = (typeof normalizeRow === "function" ? rows.map(normalizeRow).filter(Boolean) : rows);
+      if (window.table && typeof table.replaceData === "function"){ 
+        await table.replaceData(State.filtered ? State.filtered : State.raw);
       }
-    }, { passive:true });
+      if (typeof updateKpis === "function") updateKpis();
+      if (typeof setLastUpdatedNow === "function") setLastUpdatedNow();
+    } finally { 
+      if (window.overlay && typeof overlay.hide === "function") overlay.hide();
+    }
   }
-}
 
-// Initialize clean flow once
-(function initClean(){
-  if (document.readyState === 'loading'){
-    document.addEventListener('DOMContentLoaded', ()=>{
-      hookDatepicker();
-      loadFacturasMesActual();
-    });
-  } else {
+  // Parchea API.getFacturas para que todos los flujos usen el servidor con rango
+  function instalarPatchAPI(){
+    if (!window.API || typeof API.getFacturas !== "function") return false;
+    if (API.__patched_for_rango) return true;
+    const _orig = API.getFacturas.bind(API);
+    API.getFacturas = async function(){ 
+      const url = buildFacturasURL();
+      const res = await fetch(url, { cache:"no-store", mode:"cors" });
+      const data = await res.json();
+      const arr = Array.isArray(data) ? data : (Array.isArray(data.rows) ? data.rows : []);
+      const norm = (typeof window.normalizeRow === "function") ? window.normalizeRow : (r)=>r;
+      return arr.map(norm).filter(Boolean);
+    };
+    API.__patched_for_rango = true;
+    console.log("[Compat] API.getFacturas parcheado para usar rango servidor.");
+    return true;
+  }
+
+  // Hook al datepicker para que, además de filtrar UI, dispare recarga servidor
+  function hookDatepicker(){
+    const inp = document.getElementById("fFecha");
+    if (!inp || inp.__hooked_server_range) return;
+    inp.__hooked_server_range = true;
+
+    function onChanged(selectedDates){
+      if (Array.isArray(selectedDates) && selectedDates.length) {
+        const d0 = selectedDates[0];
+        const d1 = selectedDates[1] || selectedDates[0];
+        // Normalizamos extremos del día (el backend igual expande si mandas YYYY-MM-DD)
+        d0.setHours(0,0,0,0);
+        d1.setHours(23,59,59,999);
+        inp._range = [d0, d1];
+      } else {
+        inp._range = null;
+      }
+      // Traer dataset correcto del backend
+      recargarDesdeServidor().catch(()=>{});
+    }
+
+    // Si flatpickr ya está, reconfiguramos onChange "sumando" nuestro listener
+    if (inp._flatpickr && typeof inp._flatpickr.set === "function") {
+      const prev = inp._flatpickr.config.onChange;
+      inp._flatpickr.set('onChange', function(sel, str, inst){
+        onChanged(sel);
+        if (Array.isArray(prev)) prev.forEach(fn => { try{ fn(sel,str,inst); }catch(_ ){} });
+        else if (typeof prev === "function") { try{ prev(sel,str,inst); }catch(_ ){} }
+      });
+    } else {
+      // Fallback: si no hay flatpickr, engancha change nativo
+      inp.addEventListener('change', function(){
+        const v=(inp.value||'').trim();
+        const m=v.match(/(\d{4}-\d{2}-\d{2}).+?(\d{4}-\d{2}-\d{2})/);
+        if (m) inp._range = [ new Date(m[1]), new Date(m[2]) ]; else inp._range = null;
+        recargarDesdeServidor().catch(()=>{});
+      }, { passive:true });
+    }
+  }
+
+  // Carga inicial: sin rango → mes actual
+  function firstLoad(){
+    const inp = document.getElementById("fFecha");
+    if (inp) { inp._range = null; }
+    recargarDesdeServidor().catch(()=>{});
+  }
+
+  function init(){
     hookDatepicker();
-    loadFacturasMesActual();
+    // Puede que API aún no exista; reintenta unos ms
+    let tries = 0;
+    const t = setInterval(()=>{
+      if (instalarPatchAPI()) { clearInterval(t); return; }
+      if (++tries > 40) clearInterval(t);
+    }, 100);
+    // Primera carga
+    firstLoad();
   }
-})();
 
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+})();
 </script>
+<!-- ===== /Compatibilidad limpia con Apps Script ===== -->
 </body>
 </html>
