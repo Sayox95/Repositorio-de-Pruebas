@@ -2243,3 +2243,91 @@ async function reloadFacturas(){
   }
 }
 </script>
+
+
+<script>
+// --- Persist user-selected range and debounce reloads ---
+(function(){
+  try{
+    // Store last explicit range as YYYY-MM-DD strings
+    window.__FACT_LAST_RANGE = window.__FACT_LAST_RANGE || null;
+
+    // Debounce helper
+    let __debTimer = null;
+    window.debouncedReloadFacturas = function(delay=200){
+      if (__debTimer) clearTimeout(__debTimer);
+      __debTimer = setTimeout(()=>{
+        if (typeof reloadFacturas === 'function') reloadFacturas();
+      }, delay);
+    };
+
+    // Wrap/override buildFacturasURL to prefer persisted range
+    const prevBuild = window.buildFacturasURL;
+    window.buildFacturasURL = function(base){
+      const join = base.includes("?") ? "&" : "?";
+      // If we have a persisted range, use it
+      if (window.__FACT_LAST_RANGE && window.__FACT_LAST_RANGE.desde && window.__FACT_LAST_RANGE.hasta){
+        const d = window.__FACT_LAST_RANGE.desde;
+        const h = window.__FACT_LAST_RANGE.hasta;
+        const url = `${base}${join}desde=${encodeURIComponent(d)}&hasta=${encodeURIComponent(h)}&page=1&pageSize=500`;
+        console.log("[Facturas] usando rango persistido", d, "→", h);
+        return url;
+      }
+      // Fallback to original logic if exists
+      if (typeof prevBuild === "function"){
+        return prevBuild(base);
+      }
+      // Safe fallback
+      return `${base}${join}mesActual=true&page=1&pageSize=500`;
+    };
+
+    // Hook datepicker to set persisted range
+    const inp = document.getElementById('fFecha');
+    function fmt(d){
+      const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), da=String(d.getDate()).padStart(2,'0');
+      return `${y}-${m}-${da}`;
+    }
+    function setPersistedRange(d0, d1){
+      window.__FACT_LAST_RANGE = { desde: fmt(d0), hasta: fmt(d1) };
+      console.log("[Facturas] rango seleccionado:", window.__FACT_LAST_RANGE);
+    }
+
+    if (inp){
+      // If flatpickr exists, patch onChange
+      if (inp._flatpickr && typeof inp._flatpickr.set === "function"){
+        const prev = inp._flatpickr.config.onChange;
+        inp._flatpickr.set('onChange', function(selectedDates, str, inst){
+          if (Array.isArray(selectedDates) && selectedDates.length){
+            const d0 = selectedDates[0];
+            const d1 = selectedDates[1] || selectedDates[0];
+            inp._range = [d0, d1];
+            setPersistedRange(d0, d1);
+            debouncedReloadFacturas();
+          } else {
+            inp._range = null;
+            window.__FACT_LAST_RANGE = null;
+            debouncedReloadFacturas();
+          }
+          if (Array.isArray(prev)) prev.forEach(fn=>{ try{ fn(selectedDates, str, inst); }catch(_){} });
+          else if (typeof prev === "function"){ try{ prev(selectedDates, str, inst); }catch(_){} }
+        });
+      } else {
+        // Native fallback
+        inp.addEventListener('change', function(){
+          const v = (inp.value||'').trim();
+          const m = v.match(/(\d{4}-\d{2}-\d{2}).+?(\d{4}-\d{2}-\d{2})/);
+          if (m){
+            const d0 = new Date(m[1]), d1 = new Date(m[2]);
+            inp._range = [d0, d1];
+            setPersistedRange(d0, d1);
+          } else {
+            inp._range = null;
+            window.__FACT_LAST_RANGE = null;
+          }
+          debouncedReloadFacturas();
+        }, { passive:true });
+      }
+    }
+  }catch(e){ console.warn("persist-range patch failed", e); }
+})();
+</script>
