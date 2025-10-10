@@ -398,52 +398,6 @@ const Config = {
   tablaHeight: "560px",
 };
 
-// === Helpers: rango del mes actual y builder de URL (YYYY-MM-DD) ===
-function setCurrentMonthRange(){
-  try{
-    const now   = new Date();
-    const start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
-    const end   = new Date(now.getFullYear(), now.getMonth()+1, 0, 23, 59, 59, 999);
-    const inp   = document.getElementById("fFecha");
-    if(!inp) return;
-    inp._range = [start, end];
-    const iso = (d)=> d.toISOString().slice(0,10);
-    if (inp._flatpickr && typeof inp._flatpickr.setDate === "function") {
-      try { inp._flatpickr.setDate([start, end], true); } catch(_){ inp.value = `${iso(start)} to ${iso(end)}`; }
-    } else {
-      inp.value = `${iso(start)} to ${iso(end)}`;
-    }
-    const rev = document.getElementById("fFechaRev");
-    if(rev){ rev.value = ""; rev._range = null; }
-  }catch(e){ console.warn("setCurrentMonthRange failed", e); }
-}
-
-function buildFacturasURL(base){
-  // base should include '?leerFacturas=true' (or &leerFacturas=true).
-  try{
-    const inp = document.getElementById("fFecha");
-    const hasRange = inp && Array.isArray(inp._range) && inp._range.length === 2 && inp._range[0] && inp._range[1];
-    const join = base.includes("?") ? "&" : "?";
-    const fmt = (d)=> {
-      const y = d.getFullYear();
-      const m = String(d.getMonth()+1).padStart(2,'0');
-      const da = String(d.getDate()).padStart(2,'0');
-      return `${y}-${m}-${da}`; // YYYY-MM-DD (date-only)
-    };
-    if (hasRange){
-      const [desde, hasta] = inp._range;
-      return `${base}${join}desde=${encodeURIComponent(fmt(new Date(desde)))}&hasta=${encodeURIComponent(fmt(new Date(hasta)))}&page=1&pageSize=500`;
-    } else {
-      return `${base}${join}mesActual=true&page=1&pageSize=500`;
-    }
-  }catch(e){
-    console.warn("buildFacturasURL failed", e);
-    const join = base.includes("?") ? "&" : "?";
-    return `${base}${join}mesActual=true&page=1&pageSize=500`;
-  }
-}
-
-
 /** =========================
  *  Utilidades de UI
  *  ========================= */
@@ -545,7 +499,7 @@ const API = { _facturasCtl:null,
     if(this._facturasCtl) try{ this._facturasCtl.abort(); }catch(_){}
     const ctl = new AbortController();
     this._facturasCtl = ctl;
-    const res = await fetch((() => { const base = `${Config.api.leerFacturas}?leerFacturas=true`; return buildFacturasURL(base); })(), {cache:"no-store", mode:"cors", signal: ctl.signal});
+    const res = await fetch(Config.api.leerFacturas, {cache:"no-store", mode:"cors", signal: ctl.signal});
     if(!res.ok) throw new Error("No se pudo leer facturas");
     const data = await res.json();
     if(ctl.signal.aborted) throw new Error('ABORTED');
@@ -1032,8 +986,8 @@ function initFilters(){
   $("#fFechaRev").value = "";
   $("#fFechaRev")._range = null;
       }
-      loadData();
-}
+      applyFilters();
+    }
   });
   const fpRev = flatpickr("#fFechaRev", {
     mode:"range",
@@ -2050,3 +2004,119 @@ async function doLogout(){ await authLogout(); showLogin(); }
 
 </body>
 </html>
+
+
+<!-- ====== ChatGPT Patch: Server-side date-range loading (YYYY-MM-DD) ====== -->
+<script>
+(function(){
+  // 0) Config: set Apps Script endpoint for leerFacturas
+  window.Config = window.Config || { api: {} };
+  window.Config.api = window.Config.api || {};
+  window.Config.api.leerFacturas = "https://script.google.com/macros/s/AKfycbycqS5upfIYMjW6mLpsaWXW_wGu_nhR3ncpOEtJiieNOAwfVTHAnRlCrDJyu7QBF55WuQ/exec?leerFacturas=true";
+
+  // 1) Helpers
+  function setCurrentMonthRange(){ try{ 
+    const now=new Date();
+    const start=new Date(now.getFullYear(), now.getMonth(), 1, 0,0,0,0);
+    const end=new Date(now.getFullYear(), now.getMonth()+1, 0, 23,59,59,999);
+    const inp=document.getElementById("fFecha"); if(!inp) return;
+    inp._range=[start,end];
+    if (inp._flatpickr && typeof inp._flatpickr.setDate==="function"){ inp._flatpickr.setDate([start,end], true); }
+    else { const iso=d=>d.toISOString().slice(0,10); inp.value = iso(start)+" to "+iso(end); }
+    const rev=document.getElementById("fFechaRev"); if(rev){ rev.value=""; rev._range=null; }
+  }catch(e){ console.warn("setCurrentMonthRange failed", e); }}
+
+  function buildFacturasURL(){ try{
+    const base = window.Config?.api?.leerFacturas || "";
+    const join = base.includes("?") ? "&" : "?";
+    const inp = document.getElementById("fFecha");
+    const hasRange = inp && Array.isArray(inp._range) && inp._range.length===2 && inp._range[0] && inp._range[1];
+    const fmt = (d)=>{ const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), da=String(d.getDate()).padStart(2,'0'); return y+"-"+m+"-"+da; };
+    if (hasRange){ const [d0,d1]=inp._range; return base+join+"desde="+encodeURIComponent(fmt(d0))+"&hasta="+encodeURIComponent(fmt(d1))+"&page=1&pageSize=500"; }
+    return base+join+"mesActual=true&page=1&pageSize=500";
+  }catch(e){ console.warn("buildFacturasURL failed", e); return (window.Config?.api?.leerFacturas||"")+"?mesActual=true&page=1&pageSize=500"; }}
+
+  // 2) Robust fetch normalizer
+  async function fetchFacturas(url){ 
+    const res = await fetch(url, { cache:"no-store", mode:"cors" });
+    const payload = await res.json().catch(_=>[]);
+    const rows = Array.isArray(payload) ? payload : (payload && Array.isArray(payload.rows) ? payload.rows : []);
+    const meta = Array.isArray(payload) ? { total: rows.length } : (payload||{});
+    return { rows, meta };
+  }
+
+  // 3) Monkey-patch API.getFacturas and hardRefresh once API is present
+  function installPatches(){
+    if (!window.API || typeof API.getFacturas!=="function") return false;
+    if (!window.__fact_patch_installed){
+      // Patch getFacturas to load from backend with range
+      const _origGet = API.getFacturas.bind(API);
+      API.getFacturas = async function(){
+        const url = buildFacturasURL();
+        const { rows } = await fetchFacturas(url);
+        const norm = (typeof window.normalizeRow==="function") ? window.normalizeRow : (r)=>r;
+        return rows.map(norm).filter(Boolean);
+      };
+      // Patch hardRefresh to set month range by default before loading
+      if (typeof window.hardRefresh === "function"){
+        const _origHR = window.hardRefresh;
+        window.hardRefresh = async function(){
+          try{ if (typeof window.clearFilters==="function") clearFilters(); }catch(_){}
+          setCurrentMonthRange();
+          return _origHR.apply(this, arguments);
+        };
+      }
+      window.__fact_patch_installed = true;
+      console.log("[Facturas] patch instalado");
+    }
+    return true;
+  }
+
+  // 4) Hook flatpickr to trigger reload when date range changes
+  function hookDatepicker(){
+    const inp = document.getElementById('fFecha'); if(!inp) return;
+    if (inp.__fact_hooked) return; inp.__fact_hooked = true;
+    function onChanged(selectedDates){
+      if (Array.isArray(selectedDates) && selectedDates.length){
+        const d0 = selectedDates[0];
+        const d1 = selectedDates[1] || selectedDates[0];
+        inp._range = [d0, d1];
+      } else {
+        inp._range = null;
+      }
+      if (typeof window.loadData === "function") loadData();
+      else if (typeof window.hardRefresh === "function") hardRefresh();
+    }
+    if (inp._flatpickr && typeof inp._flatpickr.set==="function"){
+      const prev = inp._flatpickr.config.onChange;
+      inp._flatpickr.set('onChange', function(sel,str,inst){
+        onChanged(sel);
+        if (Array.isArray(prev)) prev.forEach(fn=>{ try{ fn(sel,str,inst); }catch(_){ } });
+        else if (typeof prev==="function"){ try{ prev(sel,str,inst); }catch(_){ } }
+      });
+    } else {
+      inp.addEventListener('change', function(){
+        const v=(inp.value||'').trim();
+        const m=v.match(/(\d{4}-\d{2}-\d{2}).+?(\d{4}-\d{2}-\d{2})/);
+        if (m){ inp._range=[ new Date(m[1]), new Date(m[2]) ]; } else { inp._range=null; }
+        if (typeof window.loadData === "function") loadData();
+        else if (typeof window.hardRefresh === "function") hardRefresh();
+      }, { passive:true });
+    }
+  }
+
+  // 5) Initialize when ready
+  function init(){
+    hookDatepicker();
+    if (!installPatches()){
+      let retries=0; const t=setInterval(()=>{ 
+        if (installPatches()){ clearInterval(t); return; }
+        if (++retries>40) clearInterval(t); // ~4s
+      }, 100);
+    }
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else setTimeout(init,0);
+})();
+</script>
+<!-- ====== /ChatGPT Patch ====== -->
