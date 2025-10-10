@@ -1,6 +1,12 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
+<script>
+  // Hard-set API_BASE for Apps Script endpoint
+  window.API_BASE = "https://script.google.com/macros/s/AKfycbycqS5upfIYMjW6mLpsaWXW_wGu_nhR3ncpOEtJiieNOAwfVTHAnRlCrDJyu7QBF55WuQ/exec";
+  console.log("[Facturas] API_BASE =", window.API_BASE);
+</script>
+
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>UTCD · Revisión de Facturas</title>
@@ -2203,7 +2209,7 @@ async function fetchFacturas(url){
 // --- Reload that pushes rows into the app state & UI regardless of implementation details ---
 async function reloadFacturas(){
   try{
-    const base = `${typeof API_BASE!=='undefined'?API_BASE:''}?leerFacturas=true`.replace('??','?');
+    const base = `${API_BASE}?leerFacturas=true`;
     const url  = buildFacturasURL(base);
     const { rows, meta } = await fetchFacturas(url);
 
