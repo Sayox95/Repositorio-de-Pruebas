@@ -2003,7 +2003,7 @@ async function doLogout(){ await authLogout(); showLogin(); }
 </script>
 
 
-<!-- ===== Patch mínimo: servidor como fuente (mes actual o rango) ===== -->
+<!-- ===== Patch: disparar solo con rango completo o limpieza ===== -->
 <script>
 (function(){
   const API_BASE = "https://script.google.com/macros/s/AKfycbycqS5upfIYMjW6mLpsaWXW_wGu_nhR3ncpOEtJiieNOAwfVTHAnRlCrDJyu7QBF55WuQ/exec";
@@ -2016,7 +2016,7 @@ async function doLogout(){ await authLogout(); showLogin(); }
     const u = new URL(API_BASE);
     u.searchParams.set("leerFacturas","true");
     const inp = document.getElementById("fFecha");
-    if (inp && Array.isArray(inp._range) && inp._range[0] && inp._range[1]){
+    if (inp && Array.isArray(inp._range) && inp._range.length===2 && inp._range[0] && inp._range[1]){
       const [d0, d1] = inp._range;
       u.searchParams.set("desde", fmtDay(d0));
       u.searchParams.set("hasta", fmtDay(d1));
@@ -2026,11 +2026,17 @@ async function doLogout(){ await authLogout(); showLogin(); }
     return u.toString();
   }
 
-  // Evitar solapes de fetch (protección suave)
   let inflight = 0;
+  let debTimer = null;
+  function debouncedReload(){
+    if (debTimer) clearTimeout(debTimer);
+    debTimer = setTimeout(()=>{
+      if (typeof window.hardRefresh === "function") hardRefresh();
+    }, 150);
+  }
 
   function patchGetFacturasOnce(){
-    if (!window.API || typeof API.getFacturas!=="function" || API.__serverRangePatched) return;
+    if (!window.API || typeof API.getFacturas!=="function" || API.__serverRangePatched2) return;
     const normalize = (typeof window.normalizeRow === "function") ? window.normalizeRow : (r)=>r;
 
     API.getFacturas = async function(){
@@ -2046,24 +2052,35 @@ async function doLogout(){ await authLogout(); showLogin(); }
         inflight = Math.max(0, inflight-1);
       }
     };
-    API.__serverRangePatched = true;
-    console.log("[Facturas] API.getFacturas → servidor (mesActual/rango)");
+    API.__serverRangePatched2 = true;
+    console.log("[Facturas] API.getFacturas → servidor (mesActual/rango, trigger controlado)");
   }
 
-  function hookDatepicker(){
+  function hookDatepickerStrict(){
     const inp = document.getElementById("fFecha");
-    if (!inp || inp.__hookedServerRange) return;
-    inp.__hookedServerRange = true;
+    if (!inp || inp.__hookedServerStrict) return;
+    inp.__hookedServerStrict = true;
 
     const onChanged = (selectedDates)=>{
-      if (Array.isArray(selectedDates) && selectedDates.length){
+      // 1) Si el usuario BORRA la selección → _range = null y recarga mes actual
+      if (Array.isArray(selectedDates) && selectedDates.length===0){
+        inp._range = null;
+        debouncedReload();
+        return;
+      }
+      // 2) Si solo hay FECHA INICIAL → NO disparar todavía
+      if (Array.isArray(selectedDates) && selectedDates.length===1){
+        // almacenar provisional, pero no recargar
+        inp._range = null;
+        return;
+      }
+      // 3) Si hay INICIAL y FINAL → setear _range y recargar
+      if (Array.isArray(selectedDates) && selectedDates.length>=2){
         const d0 = selectedDates[0];
         const d1 = selectedDates[1] || selectedDates[0];
-        inp._range = [d0, d1];    // backend expande YYYY-MM-DD
-      } else {
-        inp._range = null;        // volver a mesActual=true
+        inp._range = [d0, d1];
+        debouncedReload();
       }
-      if (typeof window.hardRefresh === "function") hardRefresh();
     };
 
     if (inp._flatpickr && typeof inp._flatpickr.set === "function"){
@@ -2074,23 +2091,29 @@ async function doLogout(){ await authLogout(); showLogin(); }
         else if (typeof prev === "function"){ try{ prev(sel,str,inst); }catch(_){ } }
       });
     } else {
+      // Fallback: solo dispara cuando detecta dos fechas en el texto
       inp.addEventListener("change", function(){
         const v=(inp.value||"").trim();
         const m=v.match(/(\d{4}-\d{2}-\d{2}).+?(\d{4}-\d{2}-\d{2})/);
-        if (m) inp._range = [ new Date(m[1]), new Date(m[2]) ]; else inp._range = null;
-        if (typeof window.hardRefresh === "function") hardRefresh();
+        if (m){
+          inp._range = [ new Date(m[1]), new Date(m[2]) ];
+          debouncedReload();
+        } else if (!v){
+          inp._range = null;
+          debouncedReload();
+        }
       }, { passive:true });
     }
   }
 
   function init(){
     patchGetFacturasOnce();
-    hookDatepicker();
+    hookDatepickerStrict();
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
   else init();
 })();
 </script>
-<!-- ===== /Patch mínimo ===== -->
+<!-- ===== /Patch: disparar solo con rango completo o limpieza ===== -->
 </body>
 </html>
