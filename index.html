@@ -2151,3 +2151,52 @@ async function doLogout(){ await authLogout(); showLogin(); }
 })();
 </script>
 
+
+
+<script>
+// --- Robust fetch wrapper: always returns {rows, meta} ---
+async function fetchFacturas(url){
+  const res = await fetch(url);
+  const payload = await res.json();
+  const rows = Array.isArray(payload) ? payload : (payload.rows || []);
+  const meta = Array.isArray(payload) ? { total: rows.length } : payload;
+  return { rows, meta };
+}
+
+// --- Reload that pushes rows into the app state & UI regardless of implementation details ---
+async function reloadFacturas(){
+  try{
+    const base = `${typeof API_BASE!=='undefined'?API_BASE:''}?leerFacturas=true`.replace('??','?');
+    const url  = buildFacturasURL(base);
+    const { rows, meta } = await fetchFacturas(url);
+
+    // 1) App state (if exists)
+    if (window.State && typeof State === 'object'){
+      State.raw = rows;
+      // clear any cached filtered set if the app uses it
+      if ('filtered' in State) State.filtered = null;
+    }
+
+    // 2) Apply filters or render directly
+    if (typeof applyFilters === 'function'){
+      applyFilters(); // many apps rebuild counters and table from State.raw
+    } else if (window.table && typeof table.setData === 'function'){
+      table.setData(rows);
+    } else if (typeof renderFacturas === 'function'){
+      renderFacturas(rows);
+    } else if (typeof render === 'function'){
+      render(rows);
+    }
+
+    // 3) Update counters if there is a helper
+    if (typeof updateCounters === 'function'){
+      const total = (meta && typeof meta.total === 'number') ? meta.total : rows.length;
+      updateCounters(total, rows);
+    }
+
+    console.log("[Facturas] reload: filas=", rows.length, "url=", url);
+  }catch(err){
+    console.error("reloadFacturas failed:", err);
+  }
+}
+</script>
