@@ -1,14 +1,25 @@
+// functions/api/leer.js
+// Propaga start, end y fechaCol hacia el Apps Script.
+// Si no llegan parámetros, el Apps Script devolverá por defecto el MES ACTUAL.
+
 export async function onRequestGet({ request }) {
   const origin = request.headers.get("Origin") || "*";
 
-  const url = new URL("https://script.google.com/macros/s/AKfycbyx4MDr-Vj6FAaPZfXqoEVupzqzspKt2k0N95kIzoZZlXD0qI_rnngiM34imZtq_lQGXQ/exec");
-  url.searchParams.set("leerFacturas", "true");
+  // Lee los params que vienen de tu frontend
+  const inUrl = new URL(request.url);
+  const start   = inUrl.searchParams.get("start");     // ej. "2025-10-01" o "2025-10-01 00:00:00"
+  const end     = inUrl.searchParams.get("end");       // ej. "2025-10-31" o "2025-10-31 23:59:59"
+  const fechaCol= inUrl.searchParams.get("fechaCol");  // normalmente "Fecha"
+
+  // Construye la URL al Apps Script
+  const gas = new URL("https://script.google.com/macros/s/AKfycbwhndB5zT7AifrVK7B8zLuJRmt6jgJWtNxmiAmCLWg7BHuPuM7FyMC1dZ6LQYxALk_UEg/exec");
+  gas.searchParams.set("leerFacturas", "true");
+  if (start)    gas.searchParams.set("start", start);
+  if (end)      gas.searchParams.set("end", end);
+  if (fechaCol) gas.searchParams.set("fechaCol", fechaCol);
 
   try {
-    const resp = await fetch(url.toString(), {
-      method: "GET"
-    });
-
+    const resp = await fetch(gas.toString(), { method: "GET" });
     const text = await resp.text();
 
     return new Response(text, {
