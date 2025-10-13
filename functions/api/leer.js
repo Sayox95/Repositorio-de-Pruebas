@@ -1,21 +1,22 @@
 // functions/api/leer.js
-// Acepta start, end y tanto campoFecha como fechaCol; los reenvía al Apps Script
+// Propaga start, end y fechaCol hacia el Apps Script.
+// Si no llegan parámetros, el Apps Script devolverá por defecto el MES ACTUAL.
+
 export async function onRequestGet({ request }) {
   const origin = request.headers.get("Origin") || "*";
 
+  // Lee los params que vienen de tu frontend
   const inUrl = new URL(request.url);
-  const start    = inUrl.searchParams.get("start");
-  const end      = inUrl.searchParams.get("end");
-  // Acepta ambos nombres y los unifica:
-  const campoFecha = inUrl.searchParams.get("campoFecha");
-  const fechaCol   = inUrl.searchParams.get("fechaCol") || campoFecha;
+  const start   = inUrl.searchParams.get("start");     // ej. "2025-10-01" o "2025-10-01 00:00:00"
+  const end     = inUrl.searchParams.get("end");       // ej. "2025-10-31" o "2025-10-31 23:59:59"
+  const fechaCol= inUrl.searchParams.get("fechaCol");  // normalmente "Fecha"
 
-  // URL del Apps Script (ajusta a tu deployment)
-  const gas = new URL("https://script.google.com/macros/s/AKfycbzRyxAoh75b76-7N0t4wdrT6pfTNb283OQYP6EqmJI5Egr39JSC79QPD6P2a29A5aOxog/exec");
+  // Construye la URL al Apps Script
+  const gas = new URL("https://script.google.com/macros/s/AKfycbxsbSs0UiHFZ3VegZqHKRZQL9VkRbsEpHlI4QIcLtyy_IXVbj5xHykOHpUc_0enkG376g/exec");
   gas.searchParams.set("leerFacturas", "true");
-  if (start)     gas.searchParams.set("start", start);
-  if (end)       gas.searchParams.set("end", end);
-  if (fechaCol)  gas.searchParams.set("fechaCol", fechaCol); // el GAS acepta fechaCol o campoFecha
+  if (start)    gas.searchParams.set("start", start);
+  if (end)      gas.searchParams.set("end", end);
+  if (fechaCol) gas.searchParams.set("fechaCol", fechaCol);
 
   try {
     const resp = await fetch(gas.toString(), { method: "GET" });
@@ -25,12 +26,14 @@ export async function onRequestGet({ request }) {
       status: resp.status,
       headers: {
         "Access-Control-Allow-Origin": origin,
-        "Content-Type": "application/json",
-        "Cache-Control": "no-store"
+        "Content-Type": "application/json"
       }
     });
   } catch (e) {
-    return new Response(JSON.stringify({ status: "ERROR", message: e.message }), {
+    return new Response(JSON.stringify({
+      status: "ERROR",
+      message: e.message
+    }), {
       status: 502,
       headers: {
         "Access-Control-Allow-Origin": origin,
