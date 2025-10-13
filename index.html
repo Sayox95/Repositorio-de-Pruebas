@@ -1123,11 +1123,9 @@ function clearFilters(){
   $("#fNumero").value = "";
   $("#fFecha").value = "";
   $("#fFecha")._range = null;
-  try{ if($("#fFecha")._flatpickr){ $("#fFecha")._flatpickr.clear(); } }catch(_){ }
   $("#fFechaRev").value = "";
   $("#fFechaRev")._range = null;
-  try{ if($("#fFechaRev")._flatpickr){ $("#fFechaRev")._flatpickr.clear(); } }catch(_){ }
-  loadData();
+  applyFilters();
 }
 
 function applyFilters(){
