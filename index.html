@@ -491,38 +491,51 @@ function toDirectDriveUrl(url){
   }catch(_){ return url; }
 }
 
+
+/** ===== Helper de rangos de fecha (servidor) ===== */
+function getMonthBounds(dt=new Date()){
+  const start = new Date(dt.getFullYear(), dt.getMonth(), 1, 0,0,0,0);
+  const end   = new Date(dt.getFullYear(), dt.getMonth()+1, 0, 23,59,59,999);
+  return {start, end};
+}
+function toYMDHMS(d){
+  const pad = (n)=>String(n).padStart(2,'0');
+  return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())+" "+pad(d.getHours())+":"+pad(d.getMinutes())+":"+pad(d.getSeconds());
+}
+function buildLeerUrl(base, {start,end,fechaCol='Fecha'}={}){
+  try{
+    const u = new URL(base, window.location.origin);
+    u.searchParams.set('leerFacturas','true');
+    if(start) u.searchParams.set('start', toYMDHMS(start));
+    if(end)   u.searchParams.set('end',   toYMDHMS(end));
+    if(fechaCol) u.searchParams.set('fechaCol', fechaCol);
+    return u.toString();
+  }catch(_){
+    // Si base es absoluta a otro dominio
+    try{
+      const u = new URL(base);
+      u.searchParams.set('leerFacturas','true');
+      if(start) u.searchParams.set('start', toYMDHMS(start));
+      if(end)   u.searchParams.set('end',   toYMDHMS(end));
+      if(fechaCol) u.searchParams.set('fechaCol', fechaCol);
+      return u.toString();
+    }catch(_){ return base; }
+  }
+}
 /** =========================
  *  Capa de datos (API)
  *  ========================= */
 const API = { _facturasCtl:null,
-  async getFacturas(opts={}){
+  async getFacturas(){
     if(this._facturasCtl) try{ this._facturasCtl.abort(); }catch(_){}
     const ctl = new AbortController();
     this._facturasCtl = ctl;
-    let url = Config.api.leerFacturas;
-    try{
-      const u = new URL(url, location.origin);
-      if(!u.searchParams.has("leerFacturas")) u.searchParams.set("leerFacturas","true");
-      if(opts.mes){
-        u.searchParams.set("mes", opts.mes);
-      }else if(opts.desde && opts.hasta){
-        u.searchParams.set("desde", opts.desde);
-        u.searchParams.set("hasta", opts.hasta);
-      }
-      url = u.toString();
-    }catch(_){
-      const q = [];
-      if(!/leerFacturas=/.test(url)) q.push("leerFacturas=true");
-      if(opts.mes){ q.push("mes="+encodeURIComponent(opts.mes)); }
-      else if(opts.desde && opts.hasta){ q.push("desde="+encodeURIComponent(opts.desde)); q.push("hasta="+encodeURIComponent(opts.hasta)); }
-      if(q.length) url += (url.includes("?") ? "&" : "?") + q.join("&");
-    }
-    const res = await fetch(url, {cache:"no-store", mode:"cors", signal: ctl.signal});
+    const res = await fetch(Config.api.leerFacturas, {cache:"no-store", mode:"cors", signal: ctl.signal});
     if(!res.ok) throw new Error("No se pudo leer facturas");
     const data = await res.json();
     if(ctl.signal.aborted) throw new Error('ABORTED');
     const arr = Array.isArray(data)? data : [];
-    return arr.map(normalizeRow).filter(r=>r); // no filtramos por nº factura todavía
+return arr.map(normalizeRow).filter(r=>r); // no filtramos por nº factura todavía
   },
   proxied(url){
     const base = Config.api.proxyBase.replace(/\/$/,"");
@@ -994,21 +1007,22 @@ function initFilters(){
     mode:"range",
     dateFormat:"Y-m-d",
     onChange(selectedDates){
-      const inp = document.getElementById("fFecha");
       if(selectedDates.length===2){
         selectedDates[0].setHours(0,0,0,0);
         selectedDates[1].setHours(23,59,59,999);
-        if(inp) inp._range = selectedDates;
+        $("#fFecha")._range = selectedDates;
+        // 👉 Carga en servidor para el rango elegido
+        loadDataRange(selectedDates[0], selectedDates[1]);
       }else{
-        if(inp) inp._range = null;
-        const fr = document.getElementById("fFechaRev");
-        if(fr){ fr.value = ""; fr._range = null; }
+        $("#fFecha")._range = null;
+        $("#fFechaRev").value = "";
+        $("#fFechaRev")._range = null;
+        // 👉 Si se limpia, volvemos al mes actual
+        const {start,end} = getMonthBounds(new Date());
+        loadDataRange(start,end);
       }
-      applyFilters();
-      if(typeof maybeRefetchByMonth==='function'){ maybeRefetchByMonth().catch(()=>{}); }
     }
-  });
-  const fpRev = flatpickr("#fFechaRev", {
+  });const fpRev = flatpickr("#fFechaRev", {
     mode:"range",
     dateFormat:"Y-m-d",
     onChange(selectedDates){
@@ -1613,15 +1627,16 @@ document.addEventListener("change", (ev)=>{
  *  Bootstrap
  *  ========================= */
 async function hardRefresh(){
-  // Carga por MES actual por defecto y refleja el filtro en UI
-  const cm = (typeof setCurrentMonthFilterUI==='function') ? setCurrentMonthFilterUI() : null;
-  await loadData(cm ? { mes: cm.mes } : {});
+  // Limpia filtros, carga mes actual y resetea scroll; luego muestra hora de actualización
+  clearFilters();
+  const {start,end} = getMonthBounds(new Date());
+  await loadDataRange(start,end);
   resetTableScroll();
   setLastUpdatedNow();
   const now = new Date();
   const hh = String(now.getHours()).padStart(2,"0");
   const mm = String(now.getMinutes()).padStart(2,"0");
-  }
+}
 
 async function onSectorEdited(cell){
   try{
@@ -1874,10 +1889,11 @@ async function bootstrap(){
   $("#btnDescargar").addEventListener("click", descargarZip);  $("#btnExportXLSX").addEventListener("click", exportXLSX);
   navigateTo("secInicio");}
 
-async function loadData(opts={}){
+async function loadData(){
   overlay.show("Cargando facturas…");
   try{
-    const data = await API.getFacturas(opts);
+    const {start,end} = getMonthBounds(new Date());
+    const data = await API.getFacturas({start,end,fechaCol:'Fecha'});
     State.raw = data;
     // poblar selects dinámicamente
     const sectores = Array.from(new Set(data.map(r=>r.Sector).filter(Boolean))).sort();
@@ -1899,6 +1915,29 @@ async function loadData(opts={}){
   }
 }
 
+
+async function loadDataRange(start, end){
+  overlay.show("Cargando facturas…");
+  try{
+    const data = await API.getFacturas({start, end, fechaCol:'Fecha'});
+    State.raw = data;
+    const sectores = Array.from(new Set(data.map(r=>r.Sector).filter(Boolean))).sort();
+    const estados  = Array.from(new Set(data.map(r=>r.Estado||"Registrada"))).sort();
+    if(sectorMS){ sectorMS.setItems(sectores); }
+    if(estadoMS){ estadoMS.setItems(estados); }
+    buildTable();
+    if(tableBuilt){ applyFilters(); } else {
+      (function(){
+        const handler = ()=>{ try{ table.off("tableBuilt", handler); }catch(e){}; applyFilters(); };
+        table.on("tableBuilt", handler);
+      })();
+    }
+  }catch(e){
+    if(String(e&&e.message)!=="ABORTED"){ alert("No fue posible cargar las facturas."); }
+  }finally{
+    overlay.hide();
+  }
+}
 window.addEventListener("DOMContentLoaded", bootstrap);
 </script>
 </div>
@@ -2019,42 +2058,6 @@ async function doLogout(){ await authLogout(); showLogin(); }
   });
 })();
 
-</script>
-
-
-<script id="month-filter-helpers">
-(function(){
-  if (typeof window.monthKey === "function") return;
-  function monthKey(d){ const y=d.getFullYear(); const m=String(d.getMonth()+1).padStart(2,"0"); return `${y}-${m}`; }
-  function sameCalendarMonth(a,b){ return a && b && (a.getFullYear()===b.getFullYear()) && (a.getMonth()===b.getMonth()); }
-  function setCurrentMonthFilterUI(){
-    const now = new Date();
-    const first = new Date(now.getFullYear(), now.getMonth(), 1); first.setHours(0,0,0,0);
-    const last  = new Date(now.getFullYear(), now.getMonth()+1, 0); last.setHours(23,59,59,999);
-    const inp = document.getElementById("fFecha");
-    if(!inp) return null;
-    inp._range = [first, last];
-    try{ if(inp._flatpickr){ inp._flatpickr.setDate([first, last], true); } }catch(_) {}
-    return { first, last, mes: monthKey(now) };
-  }
-  async function maybeRefetchByMonth(){
-    const inp = document.getElementById("fFecha");
-    const dr = inp ? inp._range : null;
-    if(!dr || dr.length!==2) return;
-    if(sameCalendarMonth(dr[0], dr[1])){
-      const mes = monthKey(dr[0]);
-      if (typeof window.loadData === "function") await window.loadData({ mes });
-    }else{
-      const desde = dr[0].toISOString().slice(0,10);
-      const hasta = dr[1].toISOString().slice(0,10);
-      if (typeof window.loadData === "function") await window.loadData({ desde, hasta });
-    }
-  }
-  window.monthKey = monthKey;
-  window.sameCalendarMonth = sameCalendarMonth;
-  window.setCurrentMonthFilterUI = setCurrentMonthFilterUI;
-  window.maybeRefetchByMonth = maybeRefetchByMonth;
-})();
 </script>
 
 </body>
