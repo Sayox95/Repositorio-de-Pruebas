@@ -1123,18 +1123,11 @@ function clearFilters(){
   $("#fNumero").value = "";
   $("#fFecha").value = "";
   $("#fFecha")._range = null;
+  try{ if($("#fFecha")._flatpickr){ $("#fFecha")._flatpickr.clear(); } }catch(_){ }
   $("#fFechaRev").value = "";
   $("#fFechaRev")._range = null;
-  // limpiar flatpickr de Fecha y Fecha de Revisión si existen
-  try{
-    const f1 = document.getElementById("fFecha");
-    if(f1){ if(f1._flatpickr){ f1._flatpickr.clear(); } f1.value=""; f1._range=null; }
-    const f2 = document.getElementById("fFechaRev");
-    if(f2){ if(f2._flatpickr){ f2._flatpickr.clear(); } f2.value=""; f2._range=null; }
-  }catch(_){}
-  // volver a cargar mes actual desde el servidor
-  if(typeof loadData === "function"){ loadData(); }
-  applyFilters();
+  try{ if($("#fFechaRev")._flatpickr){ $("#fFechaRev")._flatpickr.clear(); } }catch(_){ }
+  loadData();
 }
 
 function applyFilters(){
