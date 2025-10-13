@@ -445,22 +445,6 @@ const fmt = {
   dateISO(d){ const x = new Date(d); if(isNaN(x)) return ""; return x.toISOString().slice(0,10); },
 };
 
-function currentMonthRange(){
-  const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth(), 1, 0,0,0,0);
-  const end = new Date(now.getFullYear(), now.getMonth()+1, 0, 23,59,59,999);
-  return [start, end];
-}
-function toISODate(d){ try{ return d.toISOString().slice(0,10); }catch(_){ return ""; } }
-function setDefaultMonthFilterIfEmpty(){
-  const input = document.getElementById("fFecha");
-  if(!input) return;
-  if(input._range && Array.isArray(input._range) && input._range.length===2) return; // ya está definido
-  const [start, end] = currentMonthRange();
-  input._range = [new Date(start), new Date(end)];
-  try{ if(window._fpFecha){ window._fpFecha.setDate([start, end], true); } }catch(_){ input.value = toISODate(start) + " to " + toISODate(end); }
-}
-
 /** Mapea alias de campos al esquema esperado por la tabla */
 function normalizeRow(src){
   if(!src || typeof src!=="object") return null;
@@ -511,24 +495,23 @@ function toDirectDriveUrl(url){
  *  Capa de datos (API)
  *  ========================= */
 const API = { _facturasCtl:null,
-  async getFacturas(opts={}){
+  async getFacturas(range={}){
     if(this._facturasCtl) try{ this._facturasCtl.abort(); }catch(_){}
     const ctl = new AbortController();
     this._facturasCtl = ctl;
-    const url = (function(){
-      const u = new URL(Config.api.leerFacturas, window.location.origin);
-      if(opts && opts.start) u.searchParams.set('start', opts.start);
-      if(opts && opts.end)   u.searchParams.set('end', opts.end);
-      // mantener compatibilidad con Apps Script si fuera el caso
-      u.searchParams.set('leerFacturas','true');
-      return u.toString();
-    })();
+    // compose URL with optional date range (uses alias correcto: 'Fecha')
+    const params = new URLSearchParams({ leerFacturas: "true" });
+    try{
+      if(range && range.from){ params.set("from", fmt.dateISO(range.from)); }
+      if(range && range.to){ params.set("to", fmt.dateISO(range.to)); }
+    }catch(_){}
+    const url = Config.api.leerFacturas + (Config.api.leerFacturas.includes("?") ? "&" : "?") + params.toString();
     const res = await fetch(url, {cache:"no-store", mode:"cors", signal: ctl.signal});
     if(!res.ok) throw new Error("No se pudo leer facturas");
     const data = await res.json();
     if(ctl.signal.aborted) throw new Error('ABORTED');
     const arr = Array.isArray(data)? data : [];
-return arr.map(normalizeRow).filter(r=>r); // no filtramos por nº factura todavía
+    return arr.map(normalizeRow).filter(r=>r);
   },
   proxied(url){
     const base = Config.api.proxyBase.replace(/\/$/,"");
@@ -722,7 +705,8 @@ async function refreshAfterEstado(){
     const qNum   = document.getElementById("fNumero")?.value || "";
     const dr = document.getElementById("fFecha")? document.getElementById("fFecha")._range : null;
     const dr2 = document.getElementById("fFechaRev")? document.getElementById("fFechaRev")._range : null;
-    const arr = await API.getFacturas();
+    const range = dr ? { from: dr[0], to: dr[1] } : (function(){ const t=new Date(); return { from: new Date(t.getFullYear(), t.getMonth(), 1), to: new Date(t.getFullYear(), t.getMonth()+1, 0,23,59,59,999)}; })();
+    const arr = await API.getFacturas(range);
     State.raw = arr;
     try{ sectorMS.setItems(Array.from(new Set(State.raw.map(r=>r.Sector).filter(Boolean)))); }catch(_){ }
     try{ estadoMS.setItems(getEstadoOptions()); }catch(_){ }
@@ -996,7 +980,7 @@ let sectorMS, estadoMS;
 
 function initFilters(){
   // Flatpickr range
-  window._fpFecha = flatpickr("#fFecha", {
+  const fp = flatpickr("#fFecha", {
     mode:"range",
     dateFormat:"Y-m-d",
     onChange(selectedDates){
@@ -1005,15 +989,19 @@ function initFilters(){
         selectedDates[0].setHours(0,0,0,0);
         selectedDates[1].setHours(23,59,59,999);
         $("#fFecha")._range = selectedDates;
+        // 🔄 Cargar datos del backend solo para el rango seleccionado (sostenible y rápido)
+        try{ loadData({ from: selectedDates[0], to: selectedDates[1] }); }catch(_){}
       }else{
         $("#fFecha")._range = null;
-  $("#fFechaRev").value = "";
-  $("#fFechaRev")._range = null;
+        $("#fFechaRev").value = "";
+        $("#fFechaRev")._range = null;
       }
       applyFilters();
     }
   });
-  window._fpFechaRev = flatpickr("#fFechaRev", {
+  // guarda referencia para usarla al entrar a la sección
+  try{ document.getElementById("fFecha")._fp = fp; }catch(_){}
+  const fpRev = flatpickr("#fFechaRev", {
     mode:"range",
     dateFormat:"Y-m-d",
     onChange(selectedDates){
@@ -1027,6 +1015,7 @@ function initFilters(){
       applyFilters();
     }
   });
+  try{ document.getElementById("fFechaRev")._fp = fpRev; }catch(_){}
   // MultiSelect con checkboxes
   sectorMS = createMultiSelect("#msSector", "Sector", applyFilters);
   estadoMS = createMultiSelect("#msEstado", "Estado", applyFilters);
@@ -1618,14 +1607,22 @@ document.addEventListener("change", (ev)=>{
  *  Bootstrap
  *  ========================= */
 async function hardRefresh(){
-  // Refresca manteniendo filtros. Si no hay rango de fechas, establece el mes actual por defecto.
-  setDefaultMonthFilterIfEmpty();
-  await loadData();
+  // Limpia filtros y establece por defecto el rango del MES ACTUAL (rapidez de carga)
+  clearFilters();
+  const today = new Date();
+  const start = new Date(today.getFullYear(), today.getMonth(), 1, 0,0,0,0);
+  const end   = new Date(today.getFullYear(), today.getMonth()+1, 0, 23,59,59,999);
+  // pinta el filtro visualmente
+  try{ (document.getElementById("fFecha")._fp||{}).setDate([start, end], true); }catch(_){}
+  // persiste el rango en el input y carga desde backend
+  document.getElementById("fFecha")._range = [start, end];
+  await loadData({ from: start, to: end });
   resetTableScroll();
   setLastUpdatedNow();
-}
-
-async function onSectorEdited(cell){
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2,"0");
+  const mm = String(now.getMinutes()).padStart(2,"0");
+}async function onSectorEdited(cell){
   try{
     toastLoading.show("Actualizando sector…");
     const newSector = cell.getValue();
@@ -1876,14 +1873,10 @@ async function bootstrap(){
   $("#btnDescargar").addEventListener("click", descargarZip);  $("#btnExportXLSX").addEventListener("click", exportXLSX);
   navigateTo("secInicio");}
 
-async function loadData(){
+async function loadData(range){
   overlay.show("Cargando facturas…");
   try{
-    // Tomar el rango seleccionado (o aplicar por defecto el mes actual)
-    setDefaultMonthFilterIfEmpty();
-    const dr = document.getElementById("fFecha")? document.getElementById("fFecha")._range : null;
-    const params = (dr && dr.length===2) ? { start: toISODate(dr[0]), end: toISODate(dr[1]) } : {};
-    const data = await API.getFacturas(params);
+    const data = await API.getFacturas(range||{});
     State.raw = data;
     // poblar selects dinámicamente
     const sectores = Array.from(new Set(data.map(r=>r.Sector).filter(Boolean))).sort();
