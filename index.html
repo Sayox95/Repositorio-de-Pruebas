@@ -664,7 +664,7 @@ const State = {
     const eVals = estadoMS? estadoMS.getSelected() : [];
     const p = ($("#fPlaca")?.value || "").trim().toLowerCase();
     const n = $("#fNumero").value.trim().toLowerCase();
-    const dr = $("#fFecha")._range || null;
+    /* Fecha filtrada en servidor; bloque desactivado */
     const dr2 = ($("#fFechaRev")? $("#fFechaRev")._range : null);
     const _normalize = (s)=> String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
     const nombreQ = _normalize(document.getElementById("fNombre")?.value || "");
@@ -684,11 +684,7 @@ const State = {
       const nombreNorm = _normalize(row.Nombre||"");
       if(nombreQ && !nombreNorm.includes(nombreQ)) return false;
 
-      if(dr){
-        const f = new Date(fecha);
-        if(isNaN(f)) return false;
-        if(f < dr[0] || f > dr[1]) return false;
-      }
+      /* Fecha filtrada en servidor; bloque desactivado */
       if(dr2){
         const fr = new Date(fechaRev);
         if(isNaN(fr)) return false;
@@ -729,7 +725,7 @@ async function refreshAfterEstado(){
     const qNombre = document.getElementById("fNombre")?.value || "";
     const qPlaca = document.getElementById("fPlaca")?.value || "";
     const qNum   = document.getElementById("fNumero")?.value || "";
-    const dr = document.getElementById("fFecha")? document.getElementById("fFecha")._range : null;
+    /* Fecha filtrada en servidor; bloque desactivado */
     const dr2 = document.getElementById("fFechaRev")? document.getElementById("fFechaRev")._range : null;
     const arr = await API.getFacturas();
     State.raw = arr;
@@ -1147,6 +1143,8 @@ function clearFilters(){
 }
 
 function applyFilters(){
+  const dr = null; // filtro de fecha solo en servidor
+
   if(!table){ return; }
   const doReplace = ()=>{
     const maybePromise = table.replaceData(State.filtered);
