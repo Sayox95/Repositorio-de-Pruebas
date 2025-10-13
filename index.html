@@ -491,51 +491,27 @@ function toDirectDriveUrl(url){
   }catch(_){ return url; }
 }
 
-
-/** ===== Helper de rangos de fecha (servidor) ===== */
-function getMonthBounds(dt=new Date()){
-  const start = new Date(dt.getFullYear(), dt.getMonth(), 1, 0,0,0,0);
-  const end   = new Date(dt.getFullYear(), dt.getMonth()+1, 0, 23,59,59,999);
-  return {start, end};
-}
-function toYMDHMS(d){
-  const pad = (n)=>String(n).padStart(2,'0');
-  return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())+" "+pad(d.getHours())+":"+pad(d.getMinutes())+":"+pad(d.getSeconds());
-}
-function buildLeerUrl(base, {start,end,fechaCol='Fecha'}={}){
-  try{
-    const u = new URL(base, window.location.origin);
-    u.searchParams.set('leerFacturas','true');
-    if(start) u.searchParams.set('start', toYMDHMS(start));
-    if(end)   u.searchParams.set('end',   toYMDHMS(end));
-    if(fechaCol) u.searchParams.set('fechaCol', fechaCol);
-    return u.toString();
-  }catch(_){
-    // Si base es absoluta a otro dominio
-    try{
-      const u = new URL(base);
-      u.searchParams.set('leerFacturas','true');
-      if(start) u.searchParams.set('start', toYMDHMS(start));
-      if(end)   u.searchParams.set('end',   toYMDHMS(end));
-      if(fechaCol) u.searchParams.set('fechaCol', fechaCol);
-      return u.toString();
-    }catch(_){ return base; }
-  }
-}
 /** =========================
  *  Capa de datos (API)
  *  ========================= */
 const API = { _facturasCtl:null,
-  async getFacturas(){
+  async getFacturas({start, end} = {}){
     if(this._facturasCtl) try{ this._facturasCtl.abort(); }catch(_){}
     const ctl = new AbortController();
     this._facturasCtl = ctl;
-    const res = await fetch(Config.api.leerFacturas, {cache:"no-store", mode:"cors", signal: ctl.signal});
+
+    let url = Config.api.leerFacturas;
+    if (start && end) {
+      const qs = new URLSearchParams({ start, end, campoFecha: "Fecha" });
+      url += (url.includes("?") ? "&" : "?") + qs.toString();
+    }
+
+    const res = await fetch(url, {cache:"no-store", mode:"cors", signal: ctl.signal});
     if(!res.ok) throw new Error("No se pudo leer facturas");
     const data = await res.json();
     if(ctl.signal.aborted) throw new Error('ABORTED');
     const arr = Array.isArray(data)? data : [];
-return arr.map(normalizeRow).filter(r=>r); // no filtramos por nº factura todavía
+    return arr.map(normalizeRow).filter(r=>r);
   },
   proxied(url){
     const base = Config.api.proxyBase.replace(/\/$/,"");
@@ -682,11 +658,7 @@ const State = {
       const nombreNorm = _normalize(row.Nombre||"");
       if(nombreQ && !nombreNorm.includes(nombreQ)) return false;
 
-      if(dr){
-        const f = new Date(fecha);
-        if(isNaN(f)) return false;
-        if(f < dr[0] || f > dr[1]) return false;
-      }
+      /* filtrado por Fecha se hace en servidor */
       if(dr2){
         const fr = new Date(fechaRev);
         if(isNaN(fr)) return false;
@@ -729,7 +701,8 @@ async function refreshAfterEstado(){
     const qNum   = document.getElementById("fNumero")?.value || "";
     const dr = document.getElementById("fFecha")? document.getElementById("fFecha")._range : null;
     const dr2 = document.getElementById("fFechaRev")? document.getElementById("fFechaRev")._range : null;
-    const arr = await API.getFacturas();
+    const range = (dr && dr.length===2) ? { start: fmt.dateISO(dr[0]), end: fmt.dateISO(dr[1]) } : monthRangeToday();
+    const arr = await API.getFacturas(range);
     State.raw = arr;
     try{ sectorMS.setItems(Array.from(new Set(State.raw.map(r=>r.Sector).filter(Boolean)))); }catch(_){ }
     try{ estadoMS.setItems(getEstadoOptions()); }catch(_){ }
@@ -1010,19 +983,21 @@ function initFilters(){
       if(selectedDates.length===2){
         selectedDates[0].setHours(0,0,0,0);
         selectedDates[1].setHours(23,59,59,999);
+        const start = fmt.dateISO(selectedDates[0]);
+        const end   = fmt.dateISO(selectedDates[1]);
         $("#fFecha")._range = selectedDates;
-        // 👉 Carga en servidor para el rango elegido
-        loadDataRange(selectedDates[0], selectedDates[1]);
+        loadData({ start, end }); // nueva lectura al servidor
       }else{
         $("#fFecha")._range = null;
-        $("#fFechaRev").value = "";
-        $("#fFechaRev")._range = null;
-        // 👉 Si se limpia, volvemos al mes actual
-        const {start,end} = getMonthBounds(new Date());
-        loadDataRange(start,end);
+        if(document.getElementById("fFechaRev")){
+          $("#fFechaRev").value = "";
+          $("#fFechaRev")._range = null;
+        }
+        loadData(); // volver al mes actual
       }
     }
-  });const fpRev = flatpickr("#fFechaRev", {
+  });
+const fpRev = flatpickr("#fFechaRev", {
     mode:"range",
     dateFormat:"Y-m-d",
     onChange(selectedDates){
@@ -1077,7 +1052,7 @@ function initFilters(){
 
   const debouncedNumero = debounce(applyFilters, 250);
   $("#fNumero").addEventListener("input", debouncedNumero);
-  $("#btnLimpiar").addEventListener("click", clearFilters);
+  $("#btnLimpiar").addEventListener("click", ()=>{ clearFilters(); loadData(); });
 }
 
 function clearFilters(){
@@ -1627,16 +1602,15 @@ document.addEventListener("change", (ev)=>{
  *  Bootstrap
  *  ========================= */
 async function hardRefresh(){
-  // Limpia filtros, carga mes actual y resetea scroll; luego muestra hora de actualización
+  // Limpia filtros, recarga y resetea scroll; luego muestra hora de actualización
   clearFilters();
-  const {start,end} = getMonthBounds(new Date());
-  await loadDataRange(start,end);
+  await loadData();
   resetTableScroll();
   setLastUpdatedNow();
   const now = new Date();
   const hh = String(now.getHours()).padStart(2,"0");
   const mm = String(now.getMinutes()).padStart(2,"0");
-}
+  }
 
 async function onSectorEdited(cell){
   try{
@@ -1889,11 +1863,18 @@ async function bootstrap(){
   $("#btnDescargar").addEventListener("click", descargarZip);  $("#btnExportXLSX").addEventListener("click", exportXLSX);
   navigateTo("secInicio");}
 
-async function loadData(){
+
+function monthRangeToday(){
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), 1, 0,0,0,0);
+  const end   = new Date(now.getFullYear(), now.getMonth()+1, 0, 23,59,59,999);
+  return { start: fmt.dateISO(start), end: fmt.dateISO(end) };
+}
+async function loadData(range){
   overlay.show("Cargando facturas…");
   try{
-    const {start,end} = getMonthBounds(new Date());
-    const data = await API.getFacturas({start,end,fechaCol:'Fecha'});
+    const { start, end } = range || monthRangeToday();
+    const data = await API.getFacturas({ start, end });
     State.raw = data;
     // poblar selects dinámicamente
     const sectores = Array.from(new Set(data.map(r=>r.Sector).filter(Boolean))).sort();
@@ -1910,34 +1891,14 @@ async function loadData(){
         table.on("tableBuilt", handler);
       })();
     }
-}catch(e){ if(String(e&&e.message)==="ABORTED"){ /* silencioso */ } else { alert("No fue posible cargar las facturas."); } }finally{
-    overlay.hide();
-  }
-}
-
-
-async function loadDataRange(start, end){
-  overlay.show("Cargando facturas…");
-  try{
-    const data = await API.getFacturas({start, end, fechaCol:'Fecha'});
-    State.raw = data;
-    const sectores = Array.from(new Set(data.map(r=>r.Sector).filter(Boolean))).sort();
-    const estados  = Array.from(new Set(data.map(r=>r.Estado||"Registrada"))).sort();
-    if(sectorMS){ sectorMS.setItems(sectores); }
-    if(estadoMS){ estadoMS.setItems(estados); }
-    buildTable();
-    if(tableBuilt){ applyFilters(); } else {
-      (function(){
-        const handler = ()=>{ try{ table.off("tableBuilt", handler); }catch(e){}; applyFilters(); };
-        table.on("tableBuilt", handler);
-      })();
-    }
   }catch(e){
-    if(String(e&&e.message)!=="ABORTED"){ alert("No fue posible cargar las facturas."); }
+    if(String(e&&e.message)==="ABORTED"){ /* silencioso */ }
+    else { alert("No fue posible cargar las facturas."); }
   }finally{
     overlay.hide();
   }
 }
+
 window.addEventListener("DOMContentLoaded", bootstrap);
 </script>
 </div>
