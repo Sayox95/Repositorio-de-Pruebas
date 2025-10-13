@@ -494,97 +494,36 @@ function toDirectDriveUrl(url){
 /** =========================
  *  Capa de datos (API)
  *  ========================= */
+
+function monthRangeToday(){
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), 1, 0,0,0,0);
+  const end   = new Date(now.getFullYear(), now.getMonth()+1, 0, 23,59,59,999);
+  return { start: fmt.dateISO(start), end: fmt.dateISO(end) };
+}
 const API = { _facturasCtl:null,
   async getFacturas({start, end} = {}){
     if(this._facturasCtl) try{ this._facturasCtl.abort(); }catch(_){}
     const ctl = new AbortController();
     this._facturasCtl = ctl;
-
     let url = Config.api.leerFacturas;
-    if (start && end) {
-      const qs = new URLSearchParams({ start, end, campoFecha: "Fecha" });
-      url += (url.includes("?") ? "&" : "?") + qs.toString();
+    if (start && end){
+      const qs = new URLSearchParams({ start, end, campoFecha:"Fecha" });
+      url += (url.includes("?")?"&":"?") + qs.toString();
     }
-
     const res = await fetch(url, {cache:"no-store", mode:"cors", signal: ctl.signal});
     if(!res.ok) throw new Error("No se pudo leer facturas");
     const data = await res.json();
     if(ctl.signal.aborted) throw new Error('ABORTED');
     const arr = Array.isArray(data)? data : [];
-    return arr.map(normalizeRow).filter(r=>r); // no filtramos por nº factura todavía
-  },
-  proxied(url){
-    const base = Config.api.proxyBase.replace(/\/$/,"");
-    const u = encodeURIComponent(url);
-    return `${base}/proxy?url=${u}`;
-  },
-  async updateEstado(rowData, nuevoEstado){
-    // Backend original espera: { actualizarEstado:true, fila, nuevoEstado }
-    const filaId = rowData.fila || rowData._fila;
-    if(!filaId){
-      throw new Error("No se encontró 'fila' para actualizar (el dataset debe incluir 'fila' o '_fila').");
-    }
-    const payload = { actualizarEstado:true, fila: filaId, nuevoEstado: nuevoEstado };
-    const res = await fetch(Config.api.guardar, {
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body: JSON.stringify(payload),
-    });
-    if(!res.ok){
-      const txt = await res.text().catch(()=>"");
-      throw new Error("Error HTTP al guardar: "+res.status+" "+txt);
-    }
-    const json = await res.json().catch(()=>({status:"ERROR"}));
-    if(json.status !== "OK"){
-      throw new Error(json.message || "El backend no confirmó el cambio.");
-    }
-    return json;
-  },
-  async fetchPdfBlob(url){
-    // Intenta por proxy, valida header %PDF
-    const tryFetch = async (u)=>{
-      const r = await fetch(u);
-      if(!r.ok) throw new Error("HTTP "+r.status);
-      const b = await r.blob();
-      // Chequeo básico de PDF
-      const head = await b.slice(0,5).text().catch(()=>null);
-      if(head && head.startsWith("%PDF")) return b;
-      // Si el content-type ya es application/pdf, también lo aceptamos
-      const ctype = r.headers.get("content-type")||"";
-      if(ctype.includes("application/pdf")) return b;
-      throw new Error("El recurso no parece ser un PDF");
-    };
-    try{
-      return await tryFetch(API.proxied(url));
-    }catch(e){
-return await tryFetch(url);
-    }
-  }
-};
-// === Búsqueda global por coincidencia parcial de Nº (histórico) ===
-// Se define post-objeto para evitar errores de llaves/comas.
-if (typeof API === "object" && typeof API.getFacturasPorNumeroLike !== "function") {
-  API.getFacturasPorNumeroLike = async function(numeroLike){
-    if(!numeroLike) return [];
-    if(this._facturasCtl) { try{ this._facturasCtl.abort(); }catch(_){ } }
-    const ctl = new AbortController();
-    this._facturasCtl = ctl;
-
-    let base = Config.api.leerFacturas;
-    // Soporta rutas relativas o absolutas
-    const url = (typeof base === "string" && (base.startsWith("http://") || base.startsWith("https://"))) ? new URL(base) : new URL(base, location.origin);
-    url.searchParams.set("numeroLike", String(numeroLike).trim());
-    url.searchParams.set("campoFecha", "Fecha");
-
-    const res = await fetch(url.toString(), { cache:"no-store", mode:"cors", signal: ctl.signal });
-    if(!res.ok) throw new Error("No se pudo leer facturas (numeroLike)");
-    const data = await res.json();
-    if(ctl.signal.aborted) throw new Error("ABORTED");
-
-    const arr = Array.isArray(data) ? data : (data && data.rows ? data.rows : []);
-    return arr.map(normalizeRow).filter(Boolean);
+    return arr.map(normalizeRow).filter(r=>r);
   };
-}
+
+
+
+
+
+
 
 
 /** ========= MultiSelect ========= */
@@ -683,7 +622,7 @@ const State = {
       const nombreNorm = _normalize(row.Nombre||"");
       if(nombreQ && !nombreNorm.includes(nombreQ)) return false;
 
-      /* filtrado por Fecha se hace en servidor */
+      /* filtro por Fecha se hace en servidor */
       if(dr2){
         const fr = new Date(fechaRev);
         if(isNaN(fr)) return false;
@@ -693,6 +632,9 @@ const State = {
     });
   }
 };
+// Mantener el último rango usado en el servidor (null => mes actual)
+State.activeRange = null;
+
 
 /** Opciones de estado a partir de datos o valores por defecto */
 function getEstadoOptions(){
@@ -726,8 +668,7 @@ async function refreshAfterEstado(){
     const qNum   = document.getElementById("fNumero")?.value || "";
     const dr = document.getElementById("fFecha")? document.getElementById("fFecha")._range : null;
     const dr2 = document.getElementById("fFechaRev")? document.getElementById("fFechaRev")._range : null;
-    const range = (dr && dr.length===2) ? { start: fmt.dateISO(dr[0]), end: fmt.dateISO(dr[1]) } : monthRangeToday();
-    const arr = await API.getFacturas(range);
+    const arr = await API.getFacturas(State.activeRange ?? monthRangeToday());
     State.raw = arr;
     try{ sectorMS.setItems(Array.from(new Set(State.raw.map(r=>r.Sector).filter(Boolean)))); }catch(_){ }
     try{ estadoMS.setItems(getEstadoOptions()); }catch(_){ }
@@ -1002,30 +943,30 @@ let sectorMS, estadoMS;
 function initFilters(){
   // Flatpickr range
   const fp = flatpickr("#fFecha", {
-    mode:"range",
-    dateFormat:"Y-m-d",
-    onChange: function(selectedDates){
-      if(selectedDates.length===0){
-        // borrar rango → volver a mes actual
-        $("#fFecha")._range = null;
-        const fRev = document.getElementById("fFechaRev");
-        if(fRev){ fRev.value = ""; fRev._range = null; }
-        loadData(); // mes actual
-      }else{
-        // 1 fecha o 2 fechas: solo guardar el valor; no cargar aún
-        $("#fFecha")._range = selectedDates;
-      }
-    },
-    onClose: function(selectedDates){
-      if(selectedDates.length===2){
-        selectedDates[0].setHours(0,0,0,0);
-        selectedDates[1].setHours(23,59,59,999);
-        const start = fmt.dateISO(selectedDates[0]);
-        const end   = fmt.dateISO(selectedDates[1]);
-        loadData({ start, end }); // nueva lectura al servidor
-      }
+  mode:"range",
+  dateFormat:"Y-m-d",
+  onChange(selectedDates){
+    if(selectedDates.length===0){
+      $("#fFecha")._range = null;
+      const fRev = document.getElementById("fFechaRev");
+      if (fRev){ fRev.value = ""; fRev._range = null; }
+      State.activeRange = null;
+      loadData(); // vuelve a mes actual
+    } else {
+      $("#fFecha")._range = selectedDates; // guardamos temporal
     }
-  });const fpRev = flatpickr("#fFechaRev", {
+  },
+  onClose(selectedDates){
+    if(selectedDates.length===2){
+      selectedDates[0].setHours(0,0,0,0);
+      selectedDates[1].setHours(23,59,59,999);
+      const start = fmt.dateISO(selectedDates[0]);
+      const end   = fmt.dateISO(selectedDates[1]);
+      loadData({ start, end }); // lectura al servidor
+    }
+  }
+});
+  const fpRev = flatpickr("#fFechaRev", {
     mode:"range",
     dateFormat:"Y-m-d",
     onChange(selectedDates){
@@ -1079,40 +1020,61 @@ function initFilters(){
   if(nombreInput){ nombreInput.addEventListener("input", debouncedNombre); }
 
   let _lastGlobalNumero = "";
-  const debouncedNumero = debounce(async ()=>{
-    // 1) Filtrado local primero
-    applyFilters();
-    const q = $("#fNumero").value.trim();
-    const noLocales = !State.filtered || State.filtered.length === 0;
-
-    // 2) Si no hay resultados locales y el patrón es específico (>=6), busca en histórico
-    if(q.length >= 6 && table && noLocales){
-      if(_lastGlobalNumero === q) return; // evita repetición
-      _lastGlobalNumero = q;
-
-      overlay.show("Buscando en histórico…");
-      try{
-        const data = await API.getFacturasPorNumeroLike(q);
-        if(data.length){
-          State.raw = data;
-          if(typeof buildTable === "function") buildTable();
-          applyFilters();
-          if(typeof updateKpis === "function") updateKpis();
-          try{ updateKpisRevRange(); }catch(_){}
-        }else{
-          // sin resultados: opcionalmente avisar
-          // alert("Sin coincidencias en el histórico para ese número.");
+const debouncedNumero = debounce(async ()=>{
+  applyFilters(); // filtro local primero
+  const q = $("#fNumero").value.trim();
+  // Si no hay resultados locales y escribieron 6+ caracteres, disparamos búsqueda global (like)
+  if(q.length >= 6 && table && (!State.filtered || State.filtered.length === 0)){
+    if(_lastGlobalNumero === q) return; // evita repetir misma consulta
+    _lastGlobalNumero = q;
+    overlay.show("Buscando en histórico…");
+    try{
+      const data = await API.getFacturasPorNumeroLike(q);
+      if(data.length){
+        State.raw = data;
+        buildTable();
+        applyFilters();
+        if(typeof toastOk === "function"){
+          toastOk("Mostrando resultados del histórico por Nº parcial. Usa 'Limpiar' para volver al mes actual.");
         }
-      }catch(e){
-        console.error(e);
-        alert("No fue posible buscar en el histórico.");
-      }finally{
-        overlay.hide();
+      }else{
+        if(typeof toastWarn === "function"){
+          toastWarn("Sin coincidencias en el histórico para ese número.");
+        }
       }
+    }catch(_){
+      alert("No fue posible buscar en el histórico.");
+    }finally{
+      overlay.hide();
     }
-  }, 250);
-  $("#fNumero").addEventListener("input", debouncedNumero);
-  $("#btnLimpiar").addEventListener("click", ()=>{ clearFilters(); loadData(); });
+  }
+}, 250);
+$("#fNumero").addEventListener("input", debouncedNumero);
+// Enter en Nº Factura → búsqueda global en servidor
+  $("#fNumero").addEventListener("keydown", async (e)=>{
+    if(e.key !== "Enter") return;
+    const q = $("#fNumero").value.trim();
+    if(!q) return;
+    overlay.show("Buscando factura globalmente…");
+    try{
+      const data = await API.getFacturasPorNumero(q);
+      if(data.length){
+        State.raw = data;
+        buildTable();
+        applyFilters();
+        if(typeof toastOk === "function"){ toastOk("Mostrando búsqueda global por Nº. Usa 'Limpiar' para volver al mes actual."); }
+      }else{
+        if(typeof toastWarn === "function"){ toastWarn("No se encontró esa factura en el histórico."); }
+      }
+    }catch(_){
+      alert("No fue posible buscar la factura.");
+    }finally{
+      overlay.hide();
+    }
+  });
+
+  // Botón de "Buscar" global junto a Nº Factura (además de Enter)
+  $("#btnLimpiar").addEventListener("click", clearFilters);
 }
 
 function clearFilters(){
@@ -1125,33 +1087,8 @@ function clearFilters(){
   $("#fFecha")._range = null;
   $("#fFechaRev").value = "";
   $("#fFechaRev")._range = null;
-  applyFilters();
-
-  // --- Limpiar Rango de Fechas (Flatpickr) de forma robusta ---
-  try {
-    const el = document.getElementById("fFecha");
-    if (el && el._flatpickr) {
-      try { el._flatpickr.clear(); } catch(_) {}
-      try { el._flatpickr.close(); } catch(_) {}
-    }
-    if (el) { el.value = ""; el._range = null; }
-  } catch (_) {}
-
-  // --- Limpiar Rango de Fecha de Revisión (si existe) ---
-  try {
-    const el2 = document.getElementById("fFechaRev");
-    if (el2 && el2._flatpickr) {
-      try { el2._flatpickr.clear(); } catch(_) {}
-      try { el2._flatpickr.close(); } catch(_) {}
-    }
-    if (el2) { el2.value = ""; el2._range = null; }
-  } catch (_) {}
-
-  // Reiniciar rango activo y recargar mes actual
-  try { State.activeRange = null; } catch(_) {}
-  try { if (typeof loadData === "function") loadData(); } catch(_) {}
+  State.activeRange = null; loadData();
 }
-
 
 function applyFilters(){
   if(!table){ return; }
@@ -1687,49 +1624,7 @@ document.addEventListener("change", (ev)=>{
  *  Bootstrap
  *  ========================= */
 async function hardRefresh(){
-  // Limpia filtros, recarga y resetea scroll; luego muestra hora de actualización
-  clearFilters();
-  await loadData();
-resetTableScroll();
-  setLastUpdatedNow();
-  const now = new Date();
-  const hh = String(now.getHours()).padStart(2,"0");
-  const mm = String(now.getMinutes()).padStart(2,"0");
-  }
-
-async function onSectorEdited(cell){
-  try{
-    toastLoading.show("Actualizando sector…");
-    const newSector = cell.getValue();
-    const rowData   = cell.getRow().getData();
-    const placaKey  = rowData.Placa || rowData.PLACA;
-    if(!placaKey) throw new Error("Placa no disponible");
-
-    const res = await fetch(Config.api.placas, {
-      method: "POST",
-      headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({ action:"cambiarSector", placa: placaKey, sector: newSector })
-    });
-    const txt = await res.text();
-    if(!res.ok) throw new Error("HTTP "+res.status+" - "+txt.slice(0,120));
-    let data; try{ data = JSON.parse(txt); } catch { data = {}; }
-
-    const jefe = (data && (data.JefeInmediato || data.jefe)) || getJefeBySector(newSector);
-    const patch = { Sector: newSector };
-    if(jefe) patch.JefeInmediato = jefe;
-    cell.getRow().update(patch);
-
-    const idx = (Placas.data||[]).findIndex(r => (r.Placa||r.PLACA) === placaKey);
-    if(idx>=0){ Placas.data[idx].Sector = newSector; if(jefe) Placas.data[idx].JefeInmediato = jefe; }
-
-    toastLoading.hide();
-    quickToast("Sector actualizado");
-  }catch(err){
-    console.error("No se pudo actualizar sector:", err);
-    toastLoading.hide();
-    alert("No se pudo actualizar el sector: "+err.message);
-    cell.restoreOldValue();
-  }
+  await loadData(); // reutiliza State.activeRange o mes actual
 }
 
 function getUniqueSectors(){
@@ -1948,26 +1843,16 @@ async function bootstrap(){
   $("#btnDescargar").addEventListener("click", descargarZip);  $("#btnExportXLSX").addEventListener("click", exportXLSX);
   navigateTo("secInicio");}
 
-
-function monthRangeToday(){
-  const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth(), 1, 0,0,0,0);
-  const end   = new Date(now.getFullYear(), now.getMonth()+1, 0, 23,59,59,999);
-  return { start: fmt.dateISO(start), end: fmt.dateISO(end) };
-}
-async function loadData(range){
+async function loadData(){
   overlay.show("Cargando facturas…");
   try{
-    const { start, end } = range || monthRangeToday();
     const data = await API.getFacturas({ start, end });
     State.raw = data;
-
     // poblar selects dinámicamente
     const sectores = Array.from(new Set(data.map(r=>r.Sector).filter(Boolean))).sort();
     const estados  = Array.from(new Set(data.map(r=>r.Estado||"Registrada"))).sort();
     if(sectorMS){ sectorMS.setItems(sectores); }
     if(estadoMS){ estadoMS.setItems(estados); }
-
     buildTable();
     if(tableBuilt){ applyFilters(); } else {
       (function(){
@@ -1978,10 +1863,7 @@ async function loadData(range){
         table.on("tableBuilt", handler);
       })();
     }
-  }catch(e){
-    if(String(e&&e.message)==="ABORTED"){ /* silencioso */ }
-    else { alert("No fue posible cargar las facturas."); }
-  }finally{
+}catch(e){ if(String(e&&e.message)==="ABORTED"){ /* silencioso */ } else { alert("No fue posible cargar las facturas."); } }finally{
     overlay.hide();
   }
 }
