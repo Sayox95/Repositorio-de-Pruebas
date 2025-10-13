@@ -1126,7 +1126,32 @@ function clearFilters(){
   $("#fFechaRev").value = "";
   $("#fFechaRev")._range = null;
   applyFilters();
+
+  // --- Limpiar Rango de Fechas (Flatpickr) de forma robusta ---
+  try {
+    const el = document.getElementById("fFecha");
+    if (el && el._flatpickr) {
+      try { el._flatpickr.clear(); } catch(_) {}
+      try { el._flatpickr.close(); } catch(_) {}
+    }
+    if (el) { el.value = ""; el._range = null; }
+  } catch (_) {}
+
+  // --- Limpiar Rango de Fecha de Revisión (si existe) ---
+  try {
+    const el2 = document.getElementById("fFechaRev");
+    if (el2 && el2._flatpickr) {
+      try { el2._flatpickr.clear(); } catch(_) {}
+      try { el2._flatpickr.close(); } catch(_) {}
+    }
+    if (el2) { el2.value = ""; el2._range = null; }
+  } catch (_) {}
+
+  // Reiniciar rango activo y recargar mes actual
+  try { State.activeRange = null; } catch(_) {}
+  try { if (typeof loadData === "function") loadData(); } catch(_) {}
 }
+
 
 function applyFilters(){
   if(!table){ return; }
