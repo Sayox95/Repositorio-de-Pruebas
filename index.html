@@ -1115,7 +1115,7 @@ function initFilters(){
   $("#btnLimpiar").addEventListener("click", ()=>{ clearFilters(); loadData(); });
 }
 
-{
+function clearFilters(){
   if(statusMenuEl){ statusMenuEl.classList.remove('open'); }
   if(sectorMS){ sectorMS.clear(); }
   if(estadoMS){ estadoMS.clear(); }
@@ -1125,23 +1125,16 @@ function initFilters(){
   $("#fFecha")._range = null;
   $("#fFechaRev").value = "";
   $("#fFechaRev")._range = null;
-  State.activeRange = null; loadData();
-  // Limpia los rangos de fecha visuales y su estado interno
+  // limpiar flatpickr de Fecha y Fecha de Revisión si existen
   try{
-    const f = document.getElementById("fFecha");
-    if (f){
-      if (f._flatpickr && typeof f._flatpickr.clear === "function") f._flatpickr.clear();
-      f.value = "";
-      f._range = null;
-    }
-    const fr = document.getElementById("fFechaRev");
-    if (fr){
-      if (fr._flatpickr && typeof fr._flatpickr.clear === "function") fr._flatpickr.clear();
-      fr.value = "";
-      fr._range = null;
-    }
-  }catch(e){ console.warn("No se pudo limpiar flatpickr:", e); }
-
+    const f1 = document.getElementById("fFecha");
+    if(f1){ if(f1._flatpickr){ f1._flatpickr.clear(); } f1.value=""; f1._range=null; }
+    const f2 = document.getElementById("fFechaRev");
+    if(f2){ if(f2._flatpickr){ f2._flatpickr.clear(); } f2.value=""; f2._range=null; }
+  }catch(_){}
+  // volver a cargar mes actual desde el servidor
+  if(typeof loadData === "function"){ loadData(); }
+  applyFilters();
 }
 
 function applyFilters(){
