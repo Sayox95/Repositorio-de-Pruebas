@@ -491,37 +491,21 @@ function toDirectDriveUrl(url){
   }catch(_){ return url; }
 }
 
-const LoadWindow = { from: null, to: null };
-
 /** =========================
  *  Capa de datos (API)
  *  ========================= */
 const API = { _facturasCtl:null,
-    async getFacturas({from, to} = {}){
-  if(this._facturasCtl) try{ this._facturasCtl.abort(); }catch(_){}
-  const ctl = new AbortController(); this._facturasCtl = ctl;
-  // Construye URL con parámetro leerFacturas y rango cuando exista
-  const u = new URL(Config.api.leerFacturas);
-  u.searchParams.set("leerFacturas","true");
-  if (from) u.searchParams.set("from", from);
-  if (to)   u.searchParams.set("to",   to);
-  const res = await fetch(u.toString(), {cache:"no-store", mode:"cors", signal: ctl.signal});
-  if(!res.ok) throw new Error("No se pudo leer facturas");
-  const data = await res.json();
-  if(ctl.signal.aborted) throw new Error('ABORTED');
-  const arr = Array.isArray(data)? data : [];
-  const rows = arr.map(normalizeRow).filter(r=>r);
-  // Actualiza ventana cargada
-  if (from && to){
-    try{
-      LoadWindow.from = new Date(from + "T00:00:00");
-      LoadWindow.to   = new Date(to   + "T23:59:59");
-    }catch(_){ LoadWindow.from = null; LoadWindow.to = null; }
-  } else {
-    LoadWindow.from = null; LoadWindow.to = null;
-  }
-  return rows;
-},
+  async getFacturas(){
+    if(this._facturasCtl) try{ this._facturasCtl.abort(); }catch(_){}
+    const ctl = new AbortController();
+    this._facturasCtl = ctl;
+    const res = await fetch(Config.api.leerFacturas, {cache:"no-store", mode:"cors", signal: ctl.signal});
+    if(!res.ok) throw new Error("No se pudo leer facturas");
+    const data = await res.json();
+    if(ctl.signal.aborted) throw new Error('ABORTED');
+    const arr = Array.isArray(data)? data : [];
+return arr.map(normalizeRow).filter(r=>r); // no filtramos por nº factura todavía
+  },
   proxied(url){
     const base = Config.api.proxyBase.replace(/\/$/,"");
     const u = encodeURIComponent(url);
@@ -705,7 +689,6 @@ let tableBuilt = false;
 
 // Refresca datos tras cambiar estado para tomar FechaRevision del backend
 async function refreshAfterEstado(){
-
   try{
     overlay.show("Actualizando datos…");
     const currentSector = sectorMS? sectorMS.getSelected():[];
@@ -715,13 +698,9 @@ async function refreshAfterEstado(){
     const qNum   = document.getElementById("fNumero")?.value || "";
     const dr = document.getElementById("fFecha")? document.getElementById("fFecha")._range : null;
     const dr2 = document.getElementById("fFechaRev")? document.getElementById("fFechaRev")._range : null;
-    const __range = document.getElementById("fFecha") ? document.getElementById("fFecha")._range : null;
-    const __from = __range && __range[0] ? fmt.dateISO(__range[0]) : null;
-    const __to   = __range && __range[1] ? fmt.dateISO(__range[1]) : null;
-    const arr = await API.getFacturas( (__from && __to) ? {from: __from, to: __to} : {} );
+    const arr = await API.getFacturas();
     State.raw = arr;
-    try{ sectorMS.setItems(Array.from(new Set(State.raw.map(r=>r.Sector).filter(Boolean)))); 
-}catch(_){ }
+    try{ sectorMS.setItems(Array.from(new Set(State.raw.map(r=>r.Sector).filter(Boolean)))); }catch(_){ }
     try{ estadoMS.setItems(getEstadoOptions()); }catch(_){ }
     try{ sectorMS.select(currentSector); estadoMS.select(currentEstado); }catch(_){ }
     if(document.getElementById("fNombre")) document.getElementById("fNombre").value = qNombre;
@@ -996,39 +975,18 @@ function initFilters(){
   const fp = flatpickr("#fFecha", {
     mode:"range",
     dateFormat:"Y-m-d",
-    onChange: async (selectedDates) => {
+    onChange(selectedDates){
       if(selectedDates.length===2){
+        // normalizamos a extremos del día
         selectedDates[0].setHours(0,0,0,0);
         selectedDates[1].setHours(23,59,59,999);
         $("#fFecha")._range = selectedDates;
-
-        const fromD = selectedDates[0];
-        const toD   = selectedDates[1];
-        const insideLoaded = (LoadWindow.from && LoadWindow.to && fromD >= LoadWindow.from && toD <= LoadWindow.to);
-
-        if (!insideLoaded){
-          overlay.show("Cargando facturas del rango…");
-          try{
-            const rows = await API.getFacturas({ from: fmt.dateISO(fromD), to: fmt.dateISO(toD) });
-            State.raw = rows;
-            try{ sectorMS.setItems(Array.from(new Set(State.raw.map(r=>r.Sector).filter(Boolean)))); }catch(_){ }
-            try{ estadoMS.setItems(getEstadoOptions()); }catch(_){ }
-            const maybe = table.replaceData(State.filtered);
-            if (maybe && typeof maybe.then === "function") await maybe;
-            updateKpis(); try{ updateKpisRevRange(); }catch(_){}
-            setLastUpdatedNow();
-          } finally {
-            overlay.hide();
-          }
-        } else {
-          applyFilters();
-        }
       }else{
         $("#fFecha")._range = null;
-        $("#fFechaRev").value = "";
-        $("#fFechaRev")._range = null;
-        applyFilters();
+  $("#fFechaRev").value = "";
+  $("#fFechaRev")._range = null;
       }
+      applyFilters();
     }
   });
   const fpRev = flatpickr("#fFechaRev", {
@@ -1636,34 +1594,48 @@ document.addEventListener("change", (ev)=>{
  *  Bootstrap
  *  ========================= */
 async function hardRefresh(){
-  overlay.show("Cargando facturas…");
+  // Limpia filtros, recarga y resetea scroll; luego muestra hora de actualización
+  clearFilters();
+  await loadData();
+  resetTableScroll();
+  setLastUpdatedNow();
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2,"0");
+  const mm = String(now.getMinutes()).padStart(2,"0");
+  }
+
+async function onSectorEdited(cell){
   try{
-    const now = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1, 0,0,0,0);
-    const monthEnd   = new Date(now.getFullYear(), now.getMonth()+1, 0, 23,59,59,999);
+    toastLoading.show("Actualizando sector…");
+    const newSector = cell.getValue();
+    const rowData   = cell.getRow().getData();
+    const placaKey  = rowData.Placa || rowData.PLACA;
+    if(!placaKey) throw new Error("Placa no disponible");
 
-    // Reflejar rango en el filtro de Fecha (alias correcto: Fecha)
-    const fpEl = document.getElementById("fFecha");
-    if (fpEl){
-      fpEl._range = [new Date(monthStart), new Date(monthEnd)];
-      // flatpickr setea el value, pero aseguramos una representación visible
-      fpEl.value = `${fmt.dateISO(monthStart)} to ${fmt.dateISO(monthEnd)}`;
-    }
+    const res = await fetch(Config.api.placas, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({ action:"cambiarSector", placa: placaKey, sector: newSector })
+    });
+    const txt = await res.text();
+    if(!res.ok) throw new Error("HTTP "+res.status+" - "+txt.slice(0,120));
+    let data; try{ data = JSON.parse(txt); } catch { data = {}; }
 
-    const rows = await API.getFacturas({ from: fmt.dateISO(monthStart), to: fmt.dateISO(monthEnd) });
-    State.raw = rows;
-    try{ sectorMS.setItems(Array.from(new Set(State.raw.map(r=>r.Sector).filter(Boolean)))); }catch(_){ }
-    try{ estadoMS.setItems(getEstadoOptions()); }catch(_){ }
+    const jefe = (data && (data.JefeInmediato || data.jefe)) || getJefeBySector(newSector);
+    const patch = { Sector: newSector };
+    if(jefe) patch.JefeInmediato = jefe;
+    cell.getRow().update(patch);
 
-    if(!table) buildTable();
-    const maybe = table.replaceData(State.filtered);
-    if (maybe && typeof maybe.then === "function") await maybe;
+    const idx = (Placas.data||[]).findIndex(r => (r.Placa||r.PLACA) === placaKey);
+    if(idx>=0){ Placas.data[idx].Sector = newSector; if(jefe) Placas.data[idx].JefeInmediato = jefe; }
 
-    updateKpis(); 
-    try{ updateKpisRevRange(); }catch(_){}
-    setLastUpdatedNow();
-  } finally {
-    overlay.hide();
+    toastLoading.hide();
+    quickToast("Sector actualizado");
+  }catch(err){
+    console.error("No se pudo actualizar sector:", err);
+    toastLoading.hide();
+    alert("No se pudo actualizar el sector: "+err.message);
+    cell.restoreOldValue();
   }
 }
 
@@ -2030,5 +2002,51 @@ async function doLogout(){ await authLogout(); showLogin(); }
 
 </script>
 
+
+<!-- === Patch mínimo: fuente de datos = Apps Script act=list (server-side filter) === -->
+<script>
+(function(){
+  // URL del Apps Script (Web App /exec)
+  const APPS_BASE = "https://script.google.com/macros/s/AKfycbycqS5upfIYMjW6mLpsaWXW_wGu_nhR3ncpOEtJiieNOAwfVTHAnRlCrDJyu7QBF55WuQ/exec";
+
+  function fmtDay(d){
+    const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), da=String(d.getDate()).padStart(2,'0');
+    return `${y}-${m}-${da}`;
+  }
+  function buildURL(){
+    const u = new URL(APPS_BASE);
+    u.searchParams.set("act","list");
+    const inp = document.getElementById("fFecha");
+    const hasRange = inp && Array.isArray(inp._range) && inp._range.length===2 && inp._range[0] && inp._range[1];
+    if (hasRange){
+      u.searchParams.set("desde", fmtDay(inp._range[0]));
+      u.searchParams.set("hasta", fmtDay(inp._range[1]));
+    }
+    return u.toString();
+  }
+
+  function patchOnce(){
+    if (!window.API || typeof API.getFacturas!=="function" || API.__srvPatch) return;
+    const normalize = (typeof window.normalizeRow==="function") ? window.normalizeRow : r=>r;
+    API.getFacturas = async function(){
+      const url = buildURL();
+      const res = await fetch(url, {cache:"no-store", mode:"cors"});
+      if(!res.ok) throw new Error("HTTP "+res.status);
+      const body = await res.json();
+      const rows = Array.isArray(body) ? body : (body.rows || []);
+      return rows.map(normalize).filter(Boolean);
+    };
+    API.__srvPatch = true;
+    console.log("[Facturas] Fuente de datos: servidor con filtro (act=list)");
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", patchOnce);
+  } else {
+    patchOnce();
+  }
+})();
+</script>
+<!-- === /Patch mínimo === -->
 </body>
 </html>
