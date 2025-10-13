@@ -1130,41 +1130,7 @@ $("#fNumero").addEventListener("input", debouncedNumero);
   });
 
   // Botón de "Buscar" global junto a Nº Factura (además de Enter)
-  (function(){
-    const numInput = document.getElementById("fNumero");
-    if(!numInput) return;
-    const btn = document.createElement("button");
-    btn.id = "btnBuscarNumero";
-    btn.className = "btn";
-    btn.style.marginLeft = "6px";
-    btn.innerHTML = '<i class="lucide-search"></i> Buscar';
-    numInput.insertAdjacentElement("afterend", btn);
-
-    async function doGlobalSearch(){
-      const q = numInput.value.trim();
-      if(!q) return;
-      overlay.show("Buscando factura globalmente…");
-      try{
-        const data = await API.getFacturasPorNumero(q);
-        if(data.length){
-          State.raw = data;
-          buildTable();
-          applyFilters();
-          if(typeof toastOk === "function"){ toastOk("Mostrando búsqueda global por Nº. Usa 'Limpiar' para volver al mes actual."); }
-        }else{
-          if(typeof toastWarn === "function"){ toastWarn("No se encontró esa factura en el histórico."); }
-        }
-      }catch(_){
-        alert("No fue posible buscar la factura.");
-      }finally{
-        overlay.hide();
-      }
-    }
-
-    btn.addEventListener("click", doGlobalSearch);
-  })();
-
-$("#btnLimpiar").addEventListener("click", clearFilters);
+  $("#btnLimpiar").addEventListener("click", clearFilters);
 }
 
 function clearFilters(){
