@@ -511,7 +511,7 @@ const API = { _facturasCtl:null,
     const data = await res.json();
     if(ctl.signal.aborted) throw new Error('ABORTED');
     const arr = Array.isArray(data)? data : [];
-    return arr.map(normalizeRow).filter(r=>r);
+    return arr.map(normalizeRow).filter(r=>r); // no filtramos por nº factura todavía
   },
   proxied(url){
     const base = Config.api.proxyBase.replace(/\/$/,"");
@@ -979,25 +979,28 @@ function initFilters(){
   const fp = flatpickr("#fFecha", {
     mode:"range",
     dateFormat:"Y-m-d",
-    onChange(selectedDates){
+    onChange: function(selectedDates){
+      if(selectedDates.length===0){
+        // borrar rango → volver a mes actual
+        $("#fFecha")._range = null;
+        const fRev = document.getElementById("fFechaRev");
+        if(fRev){ fRev.value = ""; fRev._range = null; }
+        loadData(); // mes actual
+      }else{
+        // 1 fecha o 2 fechas: solo guardar el valor; no cargar aún
+        $("#fFecha")._range = selectedDates;
+      }
+    },
+    onClose: function(selectedDates){
       if(selectedDates.length===2){
         selectedDates[0].setHours(0,0,0,0);
         selectedDates[1].setHours(23,59,59,999);
         const start = fmt.dateISO(selectedDates[0]);
         const end   = fmt.dateISO(selectedDates[1]);
-        $("#fFecha")._range = selectedDates;
         loadData({ start, end }); // nueva lectura al servidor
-      }else{
-        $("#fFecha")._range = null;
-        if(document.getElementById("fFechaRev")){
-          $("#fFechaRev").value = "";
-          $("#fFechaRev")._range = null;
-        }
-        loadData(); // volver al mes actual
       }
     }
-  });
-const fpRev = flatpickr("#fFechaRev", {
+  });const fpRev = flatpickr("#fFechaRev", {
     mode:"range",
     dateFormat:"Y-m-d",
     onChange(selectedDates){
@@ -1605,7 +1608,7 @@ async function hardRefresh(){
   // Limpia filtros, recarga y resetea scroll; luego muestra hora de actualización
   clearFilters();
   await loadData();
-  resetTableScroll();
+resetTableScroll();
   setLastUpdatedNow();
   const now = new Date();
   const hh = String(now.getHours()).padStart(2,"0");
@@ -1876,11 +1879,13 @@ async function loadData(range){
     const { start, end } = range || monthRangeToday();
     const data = await API.getFacturas({ start, end });
     State.raw = data;
+
     // poblar selects dinámicamente
     const sectores = Array.from(new Set(data.map(r=>r.Sector).filter(Boolean))).sort();
     const estados  = Array.from(new Set(data.map(r=>r.Estado||"Registrada"))).sort();
     if(sectorMS){ sectorMS.setItems(sectores); }
     if(estadoMS){ estadoMS.setItems(estados); }
+
     buildTable();
     if(tableBuilt){ applyFilters(); } else {
       (function(){
