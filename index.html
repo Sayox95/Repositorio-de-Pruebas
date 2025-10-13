@@ -586,6 +586,28 @@ return await tryFetch(url);
     }
   }
 };
+// === Búsqueda global por coincidencia parcial de Nº (histórico) ===
+try{
+  API.getFacturasPorNumeroLike = async function(numeroLike){
+    if(!numeroLike) return [];
+    if(this._facturasCtl) try{ this._facturasCtl.abort(); }catch(_){}
+    const ctl = new AbortController();
+    this._facturasCtl = ctl;
+
+    let base = Config.api.leerFacturas;
+    const url = base.match(/^\w+:\/\//) ? new URL(base) : new URL(base, location.origin);
+    url.searchParams.set("numeroLike", String(numeroLike).trim());
+    url.searchParams.set("campoFecha", "Fecha");
+
+    const res = await fetch(url.toString(), { cache:"no-store", mode:"cors", signal: ctl.signal });
+    if(!res.ok) throw new Error("No se pudo leer facturas (numeroLike)");
+    const data = await res.json();
+    if(ctl.signal.aborted) throw new Error("ABORTED");
+    const arr = Array.isArray(data) ? data : (data && data.rows ? data.rows : []);
+    return arr.map(normalizeRow).filter(Boolean);
+  };
+}catch(e){ console.warn("No se pudo adjuntar getFacturasPorNumeroLike:", e); }
+
 
 /** ========= MultiSelect ========= */
 function createMultiSelect(selector, placeholder="Seleccione…", onChange=()=>{}){
@@ -2087,5 +2109,28 @@ async function doLogout(){ await authLogout(); showLogin(); }
 
 </script>
 
+
+<script>
+(function(){
+  if (typeof API === "object" && typeof API.getFacturasPorNumeroLike !== "function") {
+    API.getFacturasPorNumeroLike = async function(numeroLike){
+      if(!numeroLike) return [];
+      if(this._facturasCtl) try{ this._facturasCtl.abort(); }catch(_){}
+      const ctl = new AbortController();
+      this._facturasCtl = ctl;
+      let base = Config.api.leerFacturas;
+      const url = base.match(/^\w+:\/\//) ? new URL(base) : new URL(base, location.origin);
+      url.searchParams.set("numeroLike", String(numeroLike).trim());
+      url.searchParams.set("campoFecha", "Fecha");
+      const res = await fetch(url.toString(), { cache:"no-store", mode:"cors", signal: ctl.signal });
+      if(!res.ok) throw new Error("No se pudo leer facturas (numeroLike)");
+      const data = await res.json();
+      if(ctl.signal.aborted) throw new Error("ABORTED");
+      const arr = Array.isArray(data) ? data : (data && data.rows ? data.rows : []);
+      return arr.map(normalizeRow).filter(Boolean);
+    };
+  }
+})();
+</script>
 </body>
 </html>
