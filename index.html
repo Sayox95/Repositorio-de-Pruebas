@@ -499,22 +499,20 @@ const API = { _facturasCtl:null,
     if(this._facturasCtl) try{ this._facturasCtl.abort(); }catch(_){}
     const ctl = new AbortController();
     this._facturasCtl = ctl;
-    // Construir URL con parámetros para filtrar en servidor por mes o rango
     let url = Config.api.leerFacturas;
     try{
       const u = new URL(url, location.origin);
       if(!u.searchParams.has("leerFacturas")) u.searchParams.set("leerFacturas","true");
       if(opts.mes){
-        u.searchParams.set("mes", opts.mes); // YYYY-MM
+        u.searchParams.set("mes", opts.mes);
       }else if(opts.desde && opts.hasta){
-        u.searchParams.set("desde", opts.desde); // YYYY-MM-DD
-        u.searchParams.set("hasta", opts.hasta); // YYYY-MM-DD
+        u.searchParams.set("desde", opts.desde);
+        u.searchParams.set("hasta", opts.hasta);
       }
       url = u.toString();
     }catch(_){
-      // fallback cuando Config.api.leerFacturas es absoluto sin base resoluble
       const q = [];
-      if(!/\bleerFacturas=/.test(url)) q.push("leerFacturas=true");
+      if(!/leerFacturas=/.test(url)) q.push("leerFacturas=true");
       if(opts.mes){ q.push("mes="+encodeURIComponent(opts.mes)); }
       else if(opts.desde && opts.hasta){ q.push("desde="+encodeURIComponent(opts.desde)); q.push("hasta="+encodeURIComponent(opts.hasta)); }
       if(q.length) url += (url.includes("?") ? "&" : "?") + q.join("&");
@@ -991,53 +989,23 @@ function updateKpisRevRange(){
 let sectorMS, estadoMS;
 
 function initFilters(){
-
-function monthKey(d){ const y=d.getFullYear(); const m=String(d.getMonth()+1).padStart(2,"0"); return `${y}-${m}`; }
-function sameCalendarMonth(a,b){ return a && b && (a.getFullYear()===b.getFullYear()) && (a.getMonth()===b.getMonth()); }
-function setCurrentMonthFilterUI(){
-  const now = new Date();
-  const first = new Date(now.getFullYear(), now.getMonth(), 1); first.setHours(0,0,0,0);
-  const last  = new Date(now.getFullYear(), now.getMonth()+1, 0); last.setHours(23,59,59,999);
-  const inp = document.getElementById("fFecha");
-  if(!inp) return null;
-  inp._range = [first, last];
-  // Pintar visualmente en flatpickr si existe
-  try{ if(inp._flatpickr){ inp._flatpickr.setDate([first, last], true); } }catch(_) {}
-  return { first, last, mes: monthKey(now) };
-}
-async function maybeRefetchByMonth(){
-  const inp = document.getElementById("fFecha");
-  const dr = inp? inp._range : null;
-  if(!dr || dr.length!==2) return;
-  // Si el rango está dentro de un único mes calendario, pedimos al servidor ese mes
-  if(sameCalendarMonth(dr[0], dr[1])){
-    const mes = monthKey(dr[0]);
-    await loadData({ mes });
-  }else{
-    // Si abarca varios meses, probamos con rango completo (desde/hasta)
-    const desde = dr[0].toISOString().slice(0,10);
-    const hasta = dr[1].toISOString().slice(0,10);
-    await loadData({ desde, hasta });
-  }
-}
-
   // Flatpickr range
   const fp = flatpickr("#fFecha", {
     mode:"range",
     dateFormat:"Y-m-d",
     onChange(selectedDates){
+      const inp = document.getElementById("fFecha");
       if(selectedDates.length===2){
         selectedDates[0].setHours(0,0,0,0);
         selectedDates[1].setHours(23,59,59,999);
-        $("#fFecha")._range = selectedDates;
+        if(inp) inp._range = selectedDates;
       }else{
-        $("#fFecha")._range = null;
-        $("#fFechaRev").value = "";
-        $("#fFechaRev")._range = null;
+        if(inp) inp._range = null;
+        const fr = document.getElementById("fFechaRev");
+        if(fr){ fr.value = ""; fr._range = null; }
       }
       applyFilters();
-      // Refrescar datos desde servidor según mes/rango
-      maybeRefetchByMonth().catch(()=>{});
+      if(typeof maybeRefetchByMonth==='function'){ maybeRefetchByMonth().catch(()=>{}); }
     }
   });
   const fpRev = flatpickr("#fFechaRev", {
@@ -1646,7 +1614,7 @@ document.addEventListener("change", (ev)=>{
  *  ========================= */
 async function hardRefresh(){
   // Carga por MES actual por defecto y refleja el filtro en UI
-  const cm = setCurrentMonthFilterUI();
+  const cm = (typeof setCurrentMonthFilterUI==='function') ? setCurrentMonthFilterUI() : null;
   await loadData(cm ? { mes: cm.mes } : {});
   resetTableScroll();
   setLastUpdatedNow();
@@ -2051,6 +2019,42 @@ async function doLogout(){ await authLogout(); showLogin(); }
   });
 })();
 
+</script>
+
+
+<script id="month-filter-helpers">
+(function(){
+  if (typeof window.monthKey === "function") return;
+  function monthKey(d){ const y=d.getFullYear(); const m=String(d.getMonth()+1).padStart(2,"0"); return `${y}-${m}`; }
+  function sameCalendarMonth(a,b){ return a && b && (a.getFullYear()===b.getFullYear()) && (a.getMonth()===b.getMonth()); }
+  function setCurrentMonthFilterUI(){
+    const now = new Date();
+    const first = new Date(now.getFullYear(), now.getMonth(), 1); first.setHours(0,0,0,0);
+    const last  = new Date(now.getFullYear(), now.getMonth()+1, 0); last.setHours(23,59,59,999);
+    const inp = document.getElementById("fFecha");
+    if(!inp) return null;
+    inp._range = [first, last];
+    try{ if(inp._flatpickr){ inp._flatpickr.setDate([first, last], true); } }catch(_) {}
+    return { first, last, mes: monthKey(now) };
+  }
+  async function maybeRefetchByMonth(){
+    const inp = document.getElementById("fFecha");
+    const dr = inp ? inp._range : null;
+    if(!dr || dr.length!==2) return;
+    if(sameCalendarMonth(dr[0], dr[1])){
+      const mes = monthKey(dr[0]);
+      if (typeof window.loadData === "function") await window.loadData({ mes });
+    }else{
+      const desde = dr[0].toISOString().slice(0,10);
+      const hasta = dr[1].toISOString().slice(0,10);
+      if (typeof window.loadData === "function") await window.loadData({ desde, hasta });
+    }
+  }
+  window.monthKey = monthKey;
+  window.sameCalendarMonth = sameCalendarMonth;
+  window.setCurrentMonthFilterUI = setCurrentMonthFilterUI;
+  window.maybeRefetchByMonth = maybeRefetchByMonth;
+})();
 </script>
 
 </body>
