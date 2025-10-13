@@ -1,25 +1,22 @@
-// functions/api/leer.js
-// Propaga start, end y fechaCol hacia el Apps Script.
-// Si no llegan parámetros, el Apps Script devolverá por defecto el MES ACTUAL.
-
 export async function onRequestGet({ request }) {
   const origin = request.headers.get("Origin") || "*";
 
-  // Lee los params que vienen de tu frontend
-  const inUrl = new URL(request.url);
-  const start   = inUrl.searchParams.get("start");     // ej. "2025-10-01" o "2025-10-01 00:00:00"
-  const end     = inUrl.searchParams.get("end");       // ej. "2025-10-31" o "2025-10-31 23:59:59"
-  const fechaCol= inUrl.searchParams.get("fechaCol");  // normalmente "Fecha"
+  // URL de tu Apps Script
+  const url = new URL("https://script.google.com/macros/s/AKfycby32DiL5HDsGwsKyHpSTEvsUWakQzG4y_P0x5jePfob4Te059pwc8JLxjbEdqRt4fx_Qw/exec");
+  url.searchParams.set("leerFacturas", "true");
 
-  // Construye la URL al Apps Script
-  const gas = new URL("https://script.google.com/macros/s/AKfycbwhndB5zT7AifrVK7B8zLuJRmt6jgJWtNxmiAmCLWg7BHuPuM7FyMC1dZ6LQYxALk_UEg/exec");
-  gas.searchParams.set("leerFacturas", "true");
-  if (start)    gas.searchParams.set("start", start);
-  if (end)      gas.searchParams.set("end", end);
-  if (fechaCol) gas.searchParams.set("fechaCol", fechaCol);
+  // Pasar parámetros de rango si existen
+  const reqUrl = new URL(request.url);
+  const start = reqUrl.searchParams.get("start");
+  const end = reqUrl.searchParams.get("end");
+  const campoFecha = reqUrl.searchParams.get("campoFecha"); // esperado "Fecha"
+
+  if (start)      url.searchParams.set("start", start);
+  if (end)        url.searchParams.set("end", end);
+  if (campoFecha) url.searchParams.set("campoFecha", campoFecha);
 
   try {
-    const resp = await fetch(gas.toString(), { method: "GET" });
+    const resp = await fetch(url.toString(), { method: "GET" });
     const text = await resp.text();
 
     return new Response(text, {
@@ -30,10 +27,7 @@ export async function onRequestGet({ request }) {
       }
     });
   } catch (e) {
-    return new Response(JSON.stringify({
-      status: "ERROR",
-      message: e.message
-    }), {
+    return new Response(JSON.stringify({ status: "ERROR", message: e.message }), {
       status: 502,
       headers: {
         "Access-Control-Allow-Origin": origin,
