@@ -495,23 +495,16 @@ function toDirectDriveUrl(url){
  *  Capa de datos (API)
  *  ========================= */
 const API = { _facturasCtl:null,
-  async getFacturas({start, end} = {}){
+  async getFacturas(){
     if(this._facturasCtl) try{ this._facturasCtl.abort(); }catch(_){}
     const ctl = new AbortController();
     this._facturasCtl = ctl;
-
-    let url = Config.api.leerFacturas;
-    if (start && end) {
-      const qs = new URLSearchParams({ start, end, campoFecha: "Fecha" });
-      url += (url.includes("?") ? "&" : "?") + qs.toString();
-    }
-
-    const res = await fetch(url, {cache:"no-store", mode:"cors", signal: ctl.signal});
+    const res = await fetch(Config.api.leerFacturas, {cache:"no-store", mode:"cors", signal: ctl.signal});
     if(!res.ok) throw new Error("No se pudo leer facturas");
     const data = await res.json();
     if(ctl.signal.aborted) throw new Error('ABORTED');
     const arr = Array.isArray(data)? data : [];
-    return arr.map(normalizeRow).filter(r=>r); // no filtramos por nº factura todavía
+return arr.map(normalizeRow).filter(r=>r); // no filtramos por nº factura todavía
   },
   proxied(url){
     const base = Config.api.proxyBase.replace(/\/$/,"");
@@ -541,72 +534,58 @@ const API = { _facturasCtl:null,
     return json;
   },
   async fetchPdfBlob(url){
-    // Intenta por proxy, valida header %PDF
-    const tryFetch = async (u)=>{
-      const r = await fetch(u);
-      if(!r.ok) throw new Error("HTTP "+r.status);
-      const b = await r.blob();
-      // Chequeo básico de PDF
-      const head = await b.slice(0,5).text().catch(()=>null);
-      if(head && head.startsWith("%PDF")) return b;
-      // Si el content-type ya es application/pdf, también lo aceptamos
-      const ctype = r.headers.get("content-type")||"";
-      if(ctype.includes("application/pdf")) return b;
-      throw new Error("El recurso no parece ser un PDF");
-    };
-// === Búsqueda global por coincidencia parcial de Nº (histórico) ===
-// La agregamos como método post-definición para evitar errores de llaves/comas.
-API.getFacturasPorNumeroLike = async function(numeroLike){
-  if(!numeroLike) return [];
-  // Cancelación de lecturas previas
-  if(this._facturasCtl) try{ this._facturasCtl.abort(); }catch(_){}
-  const ctl = new AbortController();
-  this._facturasCtl = ctl;
+    const r = await fetch(url);
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    const b = await r.blob();
+    // Chequeo básico de PDF
+    const head = await b.slice(0,5).text().catch(()=>null);
+    if(head && head.startsWith("%PDF")) return b;
+    // Si el content-type ya es application/pdf, también lo aceptamos
+    const ctype = r.headers.get("content-type")||"";
+    if(ctype.includes("application/pdf")) return b;
+    throw new Error("El recurso no parece ser un PDF");
+  },
 
-  // Construye URL hacia el proxy leer.js (reenvía a GAS) con numeroLike
-  let base = Config.api.leerFacturas;
-  const url = base.match(/^\w+:\/\//) ? new URL(base) : new URL(base, location.origin);
-  url.searchParams.set("numeroLike", String(numeroLike).trim());
-  url.searchParams.set("campoFecha", "Fecha");
+  // Búsqueda global por número de factura (servidor)
 
-  const res = await fetch(url.toString(), { cache:"no-store", mode:"cors", signal: ctl.signal });
-  if(!res.ok) throw new Error("No se pudo leer facturas (numeroLike)");
-  const data = await res.json();
-  if(ctl.signal.aborted) throw new Error("ABORTED");
-
-  const arr = Array.isArray(data) ? data : (data && data.rows ? data.rows : []);
-  // Reutilizamos tu normalizador existente
-  return arr.map(normalizeRow).filter(Boolean);
-};
-
-    try{
-      return await tryFetch(API.proxied(url));
-    }catch(e){
-return await tryFetch(url);
-    }
-  }
-};
-// === Búsqueda global por coincidencia parcial de Nº (histórico) ===
-try{
-  API.getFacturasPorNumeroLike = async function(numeroLike){
-    if(!numeroLike) return [];
-    if(this._facturasCtl) try{ this._facturasCtl.abort(); }catch(_){}
+  async getFacturasPorNumero(numero){
+    if(!numero) return [];
     const ctl = new AbortController();
-    this._facturasCtl = ctl;
-
-    let base = Config.api.leerFacturas;
-    const url = base.match(/^\w+:\/\//) ? new URL(base) : new URL(base, location.origin);
-    url.searchParams.set("numeroLike", String(numeroLike).trim());
-    url.searchParams.set("campoFecha", "Fecha");
-
+    const url = new URL(Config.api.leerFacturas, location.origin);
+    url.searchParams.set("numero", String(numero).trim());
+    url.searchParams.set("campoFecha", "Fecha"); // consistencia backend
     const res = await fetch(url.toString(), { cache:"no-store", mode:"cors", signal: ctl.signal });
-    if(!res.ok) throw new Error("No se pudo leer facturas (numeroLike)");
+    if(!res.ok) throw new Error("No se pudo buscar factura");
     const data = await res.json();
-    if(ctl.signal.aborted) throw new Error("ABORTED");
     const arr = Array.isArray(data) ? data : (data && data.rows ? data.rows : []);
     return arr.map(normalizeRow).filter(Boolean);
-  };
-}catch(e){ console.warn("No se pudo adjuntar getFacturasPorNumeroLike:", e); }
+  },
+  // Búsqueda global por coincidencia parcial de Nº
+  async getFacturasPorNumeroLike(numeroLike){
+    if(!numeroLike) return [];
+    const ctl = new AbortController();
+    let url = new URL(Config.api.leerFacturas, location.origin);
+    if(!/^\w+:\/\//.test(String(Config.api.leerFacturas||""))){
+      // Si leerFacturas ya es absoluta (e.g., https://...), usamos tal cual
+      url = new URL(Config.api.leerFacturas);
+    }
+    url.searchParams.set("numeroLike", String(numeroLike).trim());
+    url.searchParams.set("campoFecha", "Fecha"); // consistencia backend
+    const res = await fetch(url.toString(), { cache:"no-store", mode:"cors", signal: ctl.signal });
+    if(!res.ok) throw new Error("No se pudo buscar por número (like)");
+    const data = await res.json();
+    const arr = Array.isArray(data) ? data : (data && data.rows ? data.rows : []);
+    return arr.map(normalizeRow).filter(Boolean);
+  },
+
+
+};
+
+
+
+
+
+
 
 
 /** ========= MultiSelect ========= */
@@ -705,7 +684,11 @@ const State = {
       const nombreNorm = _normalize(row.Nombre||"");
       if(nombreQ && !nombreNorm.includes(nombreQ)) return false;
 
-      /* filtrado por Fecha se hace en servidor */
+      if(dr){
+        const f = new Date(fecha);
+        if(isNaN(f)) return false;
+        if(f < dr[0] || f > dr[1]) return false;
+      }
       if(dr2){
         const fr = new Date(fechaRev);
         if(isNaN(fr)) return false;
@@ -748,8 +731,7 @@ async function refreshAfterEstado(){
     const qNum   = document.getElementById("fNumero")?.value || "";
     const dr = document.getElementById("fFecha")? document.getElementById("fFecha")._range : null;
     const dr2 = document.getElementById("fFechaRev")? document.getElementById("fFechaRev")._range : null;
-    const range = (dr && dr.length===2) ? { start: fmt.dateISO(dr[0]), end: fmt.dateISO(dr[1]) } : monthRangeToday();
-    const arr = await API.getFacturas(range);
+    const arr = await API.getFacturas();
     State.raw = arr;
     try{ sectorMS.setItems(Array.from(new Set(State.raw.map(r=>r.Sector).filter(Boolean)))); }catch(_){ }
     try{ estadoMS.setItems(getEstadoOptions()); }catch(_){ }
@@ -1026,28 +1008,21 @@ function initFilters(){
   const fp = flatpickr("#fFecha", {
     mode:"range",
     dateFormat:"Y-m-d",
-    onChange: function(selectedDates){
-      if(selectedDates.length===0){
-        // borrar rango → volver a mes actual
-        $("#fFecha")._range = null;
-        const fRev = document.getElementById("fFechaRev");
-        if(fRev){ fRev.value = ""; fRev._range = null; }
-        loadData(); // mes actual
-      }else{
-        // 1 fecha o 2 fechas: solo guardar el valor; no cargar aún
-        $("#fFecha")._range = selectedDates;
-      }
-    },
-    onClose: function(selectedDates){
+    onChange(selectedDates){
       if(selectedDates.length===2){
+        // normalizamos a extremos del día
         selectedDates[0].setHours(0,0,0,0);
         selectedDates[1].setHours(23,59,59,999);
-        const start = fmt.dateISO(selectedDates[0]);
-        const end   = fmt.dateISO(selectedDates[1]);
-        loadData({ start, end }); // nueva lectura al servidor
+        $("#fFecha")._range = selectedDates;
+      }else{
+        $("#fFecha")._range = null;
+  $("#fFechaRev").value = "";
+  $("#fFechaRev")._range = null;
       }
+      applyFilters();
     }
-  });const fpRev = flatpickr("#fFechaRev", {
+  });
+  const fpRev = flatpickr("#fFechaRev", {
     mode:"range",
     dateFormat:"Y-m-d",
     onChange(selectedDates){
@@ -1101,44 +1076,61 @@ function initFilters(){
   if(nombreInput){ nombreInput.addEventListener("input", debouncedNombre); }
 
   let _lastGlobalNumero = "";
-  const debouncedNumero = debounce(async ()=>{
-    // 1) Filtra localmente como siempre
-    applyFilters();
-
-    const q = $("#fNumero").value.trim();
-    const noLocales = !State.filtered || State.filtered.length === 0;
-
-    // 2) Si no hay resultados locales y el patrón es específico (>=6), busca en histórico
-    if(q.length >= 6 && table && noLocales){
-      if(_lastGlobalNumero === q) return; // evita repetir misma búsqueda
-      _lastGlobalNumero = q;
-
-      overlay.show("Buscando en histórico…");
-      try{
-        const data = await API.getFacturasPorNumeroLike(q);
-        if(data.length){
-          State.raw = data;
-          if(typeof buildTable === "function") buildTable();
-          applyFilters();
-          if(typeof updateKpis === "function") updateKpis();
-          if(typeof toastOk === "function"){
-            toastOk("Mostrando coincidencias del histórico por Nº. Usa 'Limpiar' para volver al mes actual.");
-          }
-        }else{
-          if(typeof toastWarn === "function"){
-            toastWarn("Sin coincidencias en el histórico para ese número.");
-          }
+const debouncedNumero = debounce(async ()=>{
+  applyFilters(); // filtro local primero
+  const q = $("#fNumero").value.trim();
+  // Si no hay resultados locales y escribieron 6+ caracteres, disparamos búsqueda global (like)
+  if(q.length >= 6 && table && (!State.filtered || State.filtered.length === 0)){
+    if(_lastGlobalNumero === q) return; // evita repetir misma consulta
+    _lastGlobalNumero = q;
+    overlay.show("Buscando en histórico…");
+    try{
+      const data = await API.getFacturasPorNumeroLike(q);
+      if(data.length){
+        State.raw = data;
+        buildTable();
+        applyFilters();
+        if(typeof toastOk === "function"){
+          toastOk("Mostrando resultados del histórico por Nº parcial. Usa 'Limpiar' para volver al mes actual.");
         }
-      }catch(e){
-        console.error(e);
-        alert("No fue posible buscar en el histórico.");
-      }finally{
-        overlay.hide();
+      }else{
+        if(typeof toastWarn === "function"){
+          toastWarn("Sin coincidencias en el histórico para ese número.");
+        }
       }
+    }catch(_){
+      alert("No fue posible buscar en el histórico.");
+    }finally{
+      overlay.hide();
     }
-  }, 250);
-  $("#fNumero").addEventListener("input", debouncedNumero);
-  $("#btnLimpiar").addEventListener("click", ()=>{ clearFilters(); loadData(); });
+  }
+}, 250);
+$("#fNumero").addEventListener("input", debouncedNumero);
+// Enter en Nº Factura → búsqueda global en servidor
+  $("#fNumero").addEventListener("keydown", async (e)=>{
+    if(e.key !== "Enter") return;
+    const q = $("#fNumero").value.trim();
+    if(!q) return;
+    overlay.show("Buscando factura globalmente…");
+    try{
+      const data = await API.getFacturasPorNumero(q);
+      if(data.length){
+        State.raw = data;
+        buildTable();
+        applyFilters();
+        if(typeof toastOk === "function"){ toastOk("Mostrando búsqueda global por Nº. Usa 'Limpiar' para volver al mes actual."); }
+      }else{
+        if(typeof toastWarn === "function"){ toastWarn("No se encontró esa factura en el histórico."); }
+      }
+    }catch(_){
+      alert("No fue posible buscar la factura.");
+    }finally{
+      overlay.hide();
+    }
+  });
+
+  // Botón de "Buscar" global junto a Nº Factura (además de Enter)
+  $("#btnLimpiar").addEventListener("click", clearFilters);
 }
 
 function clearFilters(){
@@ -1691,7 +1683,7 @@ async function hardRefresh(){
   // Limpia filtros, recarga y resetea scroll; luego muestra hora de actualización
   clearFilters();
   await loadData();
-resetTableScroll();
+  resetTableScroll();
   setLastUpdatedNow();
   const now = new Date();
   const hh = String(now.getHours()).padStart(2,"0");
@@ -1949,26 +1941,16 @@ async function bootstrap(){
   $("#btnDescargar").addEventListener("click", descargarZip);  $("#btnExportXLSX").addEventListener("click", exportXLSX);
   navigateTo("secInicio");}
 
-
-function monthRangeToday(){
-  const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth(), 1, 0,0,0,0);
-  const end   = new Date(now.getFullYear(), now.getMonth()+1, 0, 23,59,59,999);
-  return { start: fmt.dateISO(start), end: fmt.dateISO(end) };
-}
-async function loadData(range){
+async function loadData(){
   overlay.show("Cargando facturas…");
   try{
-    const { start, end } = range || monthRangeToday();
-    const data = await API.getFacturas({ start, end });
+    const data = await API.getFacturas();
     State.raw = data;
-
     // poblar selects dinámicamente
     const sectores = Array.from(new Set(data.map(r=>r.Sector).filter(Boolean))).sort();
     const estados  = Array.from(new Set(data.map(r=>r.Estado||"Registrada"))).sort();
     if(sectorMS){ sectorMS.setItems(sectores); }
     if(estadoMS){ estadoMS.setItems(estados); }
-
     buildTable();
     if(tableBuilt){ applyFilters(); } else {
       (function(){
@@ -1979,10 +1961,7 @@ async function loadData(range){
         table.on("tableBuilt", handler);
       })();
     }
-  }catch(e){
-    if(String(e&&e.message)==="ABORTED"){ /* silencioso */ }
-    else { alert("No fue posible cargar las facturas."); }
-  }finally{
+}catch(e){ if(String(e&&e.message)==="ABORTED"){ /* silencioso */ } else { alert("No fue posible cargar las facturas."); } }finally{
     overlay.hide();
   }
 }
@@ -2109,28 +2088,5 @@ async function doLogout(){ await authLogout(); showLogin(); }
 
 </script>
 
-
-<script>
-(function(){
-  if (typeof API === "object" && typeof API.getFacturasPorNumeroLike !== "function") {
-    API.getFacturasPorNumeroLike = async function(numeroLike){
-      if(!numeroLike) return [];
-      if(this._facturasCtl) try{ this._facturasCtl.abort(); }catch(_){}
-      const ctl = new AbortController();
-      this._facturasCtl = ctl;
-      let base = Config.api.leerFacturas;
-      const url = base.match(/^\w+:\/\//) ? new URL(base) : new URL(base, location.origin);
-      url.searchParams.set("numeroLike", String(numeroLike).trim());
-      url.searchParams.set("campoFecha", "Fecha");
-      const res = await fetch(url.toString(), { cache:"no-store", mode:"cors", signal: ctl.signal });
-      if(!res.ok) throw new Error("No se pudo leer facturas (numeroLike)");
-      const data = await res.json();
-      if(ctl.signal.aborted) throw new Error("ABORTED");
-      const arr = Array.isArray(data) ? data : (data && data.rows ? data.rows : []);
-      return arr.map(normalizeRow).filter(Boolean);
-    };
-  }
-})();
-</script>
 </body>
 </html>
