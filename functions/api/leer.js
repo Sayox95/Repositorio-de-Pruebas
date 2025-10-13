@@ -1,7 +1,7 @@
 export async function onRequestGet({ request }) {
   const origin = request.headers.get("Origin") || "*";
 
-  const url = new URL("https://script.google.com/macros/s/AKfycbxrCNKFvugbGvTaBmkKHNWB9bn2WjxS7dSw1xxNPQs__FrcvSf3ikxYKwVX6-X3QiFnCg/exec");
+  const url = new URL("https://script.google.com/macros/s/AKfycbxjW6EkL8uIIEd-Q3kqynZBDmT2OtfqmhnSaIT8Sib8uQTteKTE4soe2c6zFRKfv5vGgA/exec");
   url.searchParams.set("leerFacturas", "true");
 
   try {
