@@ -12,7 +12,7 @@ export async function onRequestGet({ request }) {
   const fechaCol= inUrl.searchParams.get("fechaCol");  // normalmente "Fecha"
 
   // Construye la URL al Apps Script
-  const gas = new URL("https://script.google.com/macros/s/AKfycbxsbSs0UiHFZ3VegZqHKRZQL9VkRbsEpHlI4QIcLtyy_IXVbj5xHykOHpUc_0enkG376g/exec");
+  const gas = new URL("https://script.google.com/macros/s/AKfycbyXaMWRG_VC6zDQe4hOl2NNKKznUdM9FF3jhGEiPMhawa3uvNkYEUIarKEwCLd5CpWNOg/exec");
   gas.searchParams.set("leerFacturas", "true");
   if (start)    gas.searchParams.set("start", start);
   if (end)      gas.searchParams.set("end", end);
