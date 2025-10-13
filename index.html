@@ -495,16 +495,23 @@ function toDirectDriveUrl(url){
  *  Capa de datos (API)
  *  ========================= */
 const API = { _facturasCtl:null,
-  async getFacturas(){
+  async getFacturas({start, end} = {}){
     if(this._facturasCtl) try{ this._facturasCtl.abort(); }catch(_){}
     const ctl = new AbortController();
     this._facturasCtl = ctl;
-    const res = await fetch(Config.api.leerFacturas, {cache:"no-store", mode:"cors", signal: ctl.signal});
+
+    let url = Config.api.leerFacturas;
+    if (start && end) {
+      const qs = new URLSearchParams({ start, end, campoFecha: "Fecha" });
+      url += (url.includes("?") ? "&" : "?") + qs.toString();
+    }
+
+    const res = await fetch(url, {cache:"no-store", mode:"cors", signal: ctl.signal});
     if(!res.ok) throw new Error("No se pudo leer facturas");
     const data = await res.json();
     if(ctl.signal.aborted) throw new Error('ABORTED');
     const arr = Array.isArray(data)? data : [];
-return arr.map(normalizeRow).filter(r=>r); // no filtramos por nº factura todavía
+    return arr.map(normalizeRow).filter(r=>r); // no filtramos por nº factura todavía
   },
   proxied(url){
     const base = Config.api.proxyBase.replace(/\/$/,"");
@@ -534,59 +541,26 @@ return arr.map(normalizeRow).filter(r=>r); // no filtramos por nº factura todav
     return json;
   },
   async fetchPdfBlob(url){
-    const r = await fetch(url);
-    if(!r.ok) throw new Error("HTTP "+r.status);
-    const b = await r.blob();
-    // Chequeo básico de PDF
-    const head = await b.slice(0,5).text().catch(()=>null);
-    if(head && head.startsWith("%PDF")) return b;
-    // Si el content-type ya es application/pdf, también lo aceptamos
-    const ctype = r.headers.get("content-type")||"";
-    if(ctype.includes("application/pdf")) return b;
-    throw new Error("El recurso no parece ser un PDF");
-  },
-
-  // Búsqueda global por número de factura (servidor)
-
-  async getFacturasPorNumero(numero){
-    if(!numero) return [];
-    const ctl = new AbortController();
-    const url = new URL(Config.api.leerFacturas, location.origin);
-    url.searchParams.set("numero", String(numero).trim());
-    url.searchParams.set("campoFecha", "Fecha"); // consistencia backend
-    const res = await fetch(url.toString(), { cache:"no-store", mode:"cors", signal: ctl.signal });
-    if(!res.ok) throw new Error("No se pudo buscar factura");
-    const data = await res.json();
-    const arr = Array.isArray(data) ? data : (data && data.rows ? data.rows : []);
-    return arr.map(normalizeRow).filter(Boolean);
-  },
-  // Búsqueda global por coincidencia parcial de Nº
-  async getFacturasPorNumeroLike(numeroLike){
-    if(!numeroLike) return [];
-    const ctl = new AbortController();
-    let url = new URL(Config.api.leerFacturas, location.origin);
-    if(!/^\w+:\/\//.test(String(Config.api.leerFacturas||""))){
-      // Si leerFacturas ya es absoluta (e.g., https://...), usamos tal cual
-      url = new URL(Config.api.leerFacturas);
+    // Intenta por proxy, valida header %PDF
+    const tryFetch = async (u)=>{
+      const r = await fetch(u);
+      if(!r.ok) throw new Error("HTTP "+r.status);
+      const b = await r.blob();
+      // Chequeo básico de PDF
+      const head = await b.slice(0,5).text().catch(()=>null);
+      if(head && head.startsWith("%PDF")) return b;
+      // Si el content-type ya es application/pdf, también lo aceptamos
+      const ctype = r.headers.get("content-type")||"";
+      if(ctype.includes("application/pdf")) return b;
+      throw new Error("El recurso no parece ser un PDF");
+    };
+    try{
+      return await tryFetch(API.proxied(url));
+    }catch(e){
+return await tryFetch(url);
     }
-    url.searchParams.set("numeroLike", String(numeroLike).trim());
-    url.searchParams.set("campoFecha", "Fecha"); // consistencia backend
-    const res = await fetch(url.toString(), { cache:"no-store", mode:"cors", signal: ctl.signal });
-    if(!res.ok) throw new Error("No se pudo buscar por número (like)");
-    const data = await res.json();
-    const arr = Array.isArray(data) ? data : (data && data.rows ? data.rows : []);
-    return arr.map(normalizeRow).filter(Boolean);
-  },
-
-
+  }
 };
-
-
-
-
-
-
-
 
 /** ========= MultiSelect ========= */
 function createMultiSelect(selector, placeholder="Seleccione…", onChange=()=>{}){
@@ -684,7 +658,7 @@ const State = {
       const nombreNorm = _normalize(row.Nombre||"");
       if(nombreQ && !nombreNorm.includes(nombreQ)) return false;
 
-      /* filtro por Fecha solo en servidor (desactivado) */
+      /* filtrado por Fecha se hace en servidor */
       if(dr2){
         const fr = new Date(fechaRev);
         if(isNaN(fr)) return false;
@@ -693,6 +667,25 @@ const State = {
       return true;
     });
   }
+  ,
+  // Búsqueda global por coincidencia parcial de Nº (histórico, limitado por backend)
+  async getFacturasPorNumeroLike(numeroLike){
+    if(!numeroLike) return [];
+    if(this._facturasCtl) try{ this._facturasCtl.abort(); }catch(_){}
+    const ctl = new AbortController();
+    this._facturasCtl = ctl;
+    let url = Config.api.leerFacturas;
+    const u = new URL(url, location.origin);
+    u.searchParams.set("numeroLike", String(numeroLike).trim());
+    u.searchParams.set("campoFecha", "Fecha");
+    const res = await fetch(u.toString(), { cache:"no-store", mode:"cors", signal: ctl.signal });
+    if(!res.ok) throw new Error("No se pudo leer facturas");
+    const data = await res.json();
+    if(ctl.signal.aborted) throw new Error('ABORTED');
+    const arr = Array.isArray(data)? data : (data && data.rows ? data.rows : []);
+    return arr.map(normalizeRow).filter(Boolean);
+  }
+
 };
 
 /** Opciones de estado a partir de datos o valores por defecto */
@@ -727,7 +720,8 @@ async function refreshAfterEstado(){
     const qNum   = document.getElementById("fNumero")?.value || "";
     const dr = document.getElementById("fFecha")? document.getElementById("fFecha")._range : null;
     const dr2 = document.getElementById("fFechaRev")? document.getElementById("fFechaRev")._range : null;
-    const arr = await API.getFacturas();
+    const range = (dr && dr.length===2) ? { start: fmt.dateISO(dr[0]), end: fmt.dateISO(dr[1]) } : monthRangeToday();
+    const arr = await API.getFacturas(range);
     State.raw = arr;
     try{ sectorMS.setItems(Array.from(new Set(State.raw.map(r=>r.Sector).filter(Boolean)))); }catch(_){ }
     try{ estadoMS.setItems(getEstadoOptions()); }catch(_){ }
@@ -1002,32 +996,30 @@ let sectorMS, estadoMS;
 function initFilters(){
   // Flatpickr range
   const fp = flatpickr("#fFecha", {
-  mode:"range",
-  dateFormat:"Y-m-d",
-  onChange: function(selectedDates){
-    if(selectedDates.length===0){
-      // Borrado de rango → volver a mes actual
-      $("#fFecha")._range = null;
-      const fRev = document.getElementById("fFechaRev");
-      if (fRev){ fRev.value = ""; fRev._range = null; }
-      loadData(); // mes actual
-    } else {
-      // 1 o 2 fechas: solo guardamos, no cargamos aún
-      $("#fFecha")._range = selectedDates;
+    mode:"range",
+    dateFormat:"Y-m-d",
+    onChange: function(selectedDates){
+      if(selectedDates.length===0){
+        // borrar rango → volver a mes actual
+        $("#fFecha")._range = null;
+        const fRev = document.getElementById("fFechaRev");
+        if(fRev){ fRev.value = ""; fRev._range = null; }
+        loadData(); // mes actual
+      }else{
+        // 1 fecha o 2 fechas: solo guardar el valor; no cargar aún
+        $("#fFecha")._range = selectedDates;
+      }
+    },
+    onClose: function(selectedDates){
+      if(selectedDates.length===2){
+        selectedDates[0].setHours(0,0,0,0);
+        selectedDates[1].setHours(23,59,59,999);
+        const start = fmt.dateISO(selectedDates[0]);
+        const end   = fmt.dateISO(selectedDates[1]);
+        loadData({ start, end }); // nueva lectura al servidor
+      }
     }
-  },
-  onClose: function(selectedDates){
-    if(selectedDates.length===2){
-      selectedDates[0].setHours(0,0,0,0);
-      selectedDates[1].setHours(23,59,59,999);
-      const start = fmt.dateISO(selectedDates[0]);
-      const end   = fmt.dateISO(selectedDates[1]);
-      loadData({ start, end }); // nueva lectura al servidor
-    }
-    // con 1 fecha no hacemos nada
-  }
-});
-  const fpRev = flatpickr("#fFechaRev", {
+  });const fpRev = flatpickr("#fFechaRev", {
     mode:"range",
     dateFormat:"Y-m-d",
     onChange(selectedDates){
@@ -1081,61 +1073,34 @@ function initFilters(){
   if(nombreInput){ nombreInput.addEventListener("input", debouncedNombre); }
 
   let _lastGlobalNumero = "";
-const debouncedNumero = debounce(async ()=>{
-  applyFilters(); // filtro local primero
-  const q = $("#fNumero").value.trim();
-  // Si no hay resultados locales y escribieron 6+ caracteres, disparamos búsqueda global (like)
-  if(q.length >= 6 && table && (!State.filtered || State.filtered.length === 0)){
-    if(_lastGlobalNumero === q) return; // evita repetir misma consulta
-    _lastGlobalNumero = q;
-    overlay.show("Buscando en histórico…");
-    try{
-      const data = await API.getFacturasPorNumeroLike(q);
-      if(data.length){
-        State.raw = data;
-        buildTable();
-        applyFilters();
-        if(typeof toastOk === "function"){
-          toastOk("Mostrando resultados del histórico por Nº parcial. Usa 'Limpiar' para volver al mes actual.");
-        }
-      }else{
-        if(typeof toastWarn === "function"){
-          toastWarn("Sin coincidencias en el histórico para ese número.");
-        }
-      }
-    }catch(_){
-      alert("No fue posible buscar en el histórico.");
-    }finally{
-      overlay.hide();
-    }
-  }
-}, 250);
-$("#fNumero").addEventListener("input", debouncedNumero);
-// Enter en Nº Factura → búsqueda global en servidor
-  $("#fNumero").addEventListener("keydown", async (e)=>{
-    if(e.key !== "Enter") return;
+  const debouncedNumero = debounce(async ()=>{
+    // Filtrado local primero
+    applyFilters();
     const q = $("#fNumero").value.trim();
-    if(!q) return;
-    overlay.show("Buscando factura globalmente…");
-    try{
-      const data = await API.getFacturasPorNumero(q);
-      if(data.length){
-        State.raw = data;
-        buildTable();
-        applyFilters();
-        if(typeof toastOk === "function"){ toastOk("Mostrando búsqueda global por Nº. Usa 'Limpiar' para volver al mes actual."); }
-      }else{
-        if(typeof toastWarn === "function"){ toastWarn("No se encontró esa factura en el histórico."); }
+    if(q.length >= 6 && table && (!State.filtered || State.filtered.length === 0)){
+      if(_lastGlobalNumero === q) return;
+      _lastGlobalNumero = q;
+      overlay.show("Buscando en histórico…");
+      try{
+        const data = await API.getFacturasPorNumeroLike(q);
+        if(data.length){
+          State.raw = data;
+          if(typeof buildTable === "function") buildTable();
+          applyFilters();
+          if(typeof updateKpis === "function") updateKpis();
+        } else {
+          // opcional: mensaje sin resultados
+        }
+      }catch(e){
+        console.error(e);
+        alert("No fue posible buscar en el histórico.");
+      }finally{
+        overlay.hide();
       }
-    }catch(_){
-      alert("No fue posible buscar la factura.");
-    }finally{
-      overlay.hide();
     }
-  });
-
-  // Botón de "Buscar" global junto a Nº Factura (además de Enter)
-  $("#btnLimpiar").addEventListener("click", clearFilters);
+  }, 250);
+  $("#fNumero").addEventListener("input", debouncedNumero);
+  $("#btnLimpiar").addEventListener("click", ()=>{ clearFilters(); loadData(); });
 }
 
 function clearFilters(){
@@ -1688,7 +1653,7 @@ async function hardRefresh(){
   // Limpia filtros, recarga y resetea scroll; luego muestra hora de actualización
   clearFilters();
   await loadData();
-  resetTableScroll();
+resetTableScroll();
   setLastUpdatedNow();
   const now = new Date();
   const hh = String(now.getHours()).padStart(2,"0");
@@ -1710,7 +1675,7 @@ async function onSectorEdited(cell){
     });
     const txt = await res.text();
     if(!res.ok) throw new Error("HTTP "+res.status+" - "+txt.slice(0,120));
-    let data; try{ data = JSON.parse(txt); } catch(e){ data = {}; }
+    let data; try{ data = JSON.parse(txt); } catch { data = {}; }
 
     const jefe = (data && (data.JefeInmediato || data.jefe)) || getJefeBySector(newSector);
     const patch = { Sector: newSector };
@@ -1960,36 +1925,30 @@ async function loadData(range){
     const data = await API.getFacturas({ start, end });
     State.raw = data;
 
-    // (Opcional) repoblar selects si existen
-    try {
-      const sectores = Array.from(new Set(data.map(r=>r.Sector).filter(Boolean))).sort();
-      const estados  = Array.from(new Set(data.map(r=>r.Estado||"Registrada"))).sort();
-      if (typeof sectorMS !== "undefined" && sectorMS) sectorMS.setItems(sectores);
-      if (typeof estadoMS  !== "undefined" && estadoMS)  estadoMS.setItems(estados);
-    } catch(e){}
+    // poblar selects dinámicamente
+    const sectores = Array.from(new Set(data.map(r=>r.Sector).filter(Boolean))).sort();
+    const estados  = Array.from(new Set(data.map(r=>r.Estado||"Registrada"))).sort();
+    if(sectorMS){ sectorMS.setItems(sectores); }
+    if(estadoMS){ estadoMS.setItems(estados); }
 
-    buildTable && buildTable();
-    if (typeof tableBuilt !== "undefined" && tableBuilt) {
-      applyFilters && applyFilters();
-    } else if (typeof table !== "undefined" && table && table.on) {
-      // Si Tabulator emite evento de construido
+    buildTable();
+    if(tableBuilt){ applyFilters(); } else {
       (function(){
         const handler = ()=>{
-          try{ table.off("tableBuilt", handler);}catch(e){}
-          applyFilters && applyFilters();
+          try{ table.off("tableBuilt", handler); }catch(e){}
+          applyFilters();
         };
         table.on("tableBuilt", handler);
       })();
     }
-  } catch(e){
-    if (String(e && e.message) !== "ABORTED") {
-      console.error(e);
-      alert("No fue posible cargar las facturas.");
-    }
-  } finally {
+  }catch(e){
+    if(String(e&&e.message)==="ABORTED"){ /* silencioso */ }
+    else { alert("No fue posible cargar las facturas."); }
+  }finally{
     overlay.hide();
   }
 }
+
 window.addEventListener("DOMContentLoaded", bootstrap);
 </script>
 </div>
@@ -2008,9 +1967,9 @@ async function authMe(){
     const res = await fetch(Auth.me, { method: "GET", cache:"no-store" });
     if(!res.ok) return null;
     return await res.json();
-  }catch(e){ return null; }
+  }catch{ return null; }
 }
-async function authLogout(){ try{ await fetch(Auth.logout, { method:"POST" }); }catch(e){} }
+async function authLogout(){ try{ await fetch(Auth.logout, { method:"POST" }); }catch{} }
 
 function showLogin(){ const app=document.getElementById("appShell"); if(app) app.style.display="none"; const s=document.getElementById("secLogin"); if(s) s.style.display="flex"; }
 function showApp(){ const s=document.getElementById("secLogin"); if(s) s.style.display="none"; const app=document.getElementById("appShell"); if(app) app.style.display="block"; }
