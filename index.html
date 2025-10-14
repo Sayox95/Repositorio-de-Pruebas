@@ -691,66 +691,44 @@ let tableBuilt = false;
 async function refreshAfterEstado(){
   try{
     overlay.show("Actualizando datos…");
-    await new Promise(r=>setTimeout(r,150));
-    if(table){ await table.setData(); }
-    setLastUpdatedNow && setLastUpdatedNow();
-  }catch(e){
-    console.warn(e);
+    const currentSector = sectorMS? sectorMS.getSelected():[];
+    const currentEstado = estadoMS? estadoMS.getSelected():[];
+    const qNombre = document.getElementById("fNombre")?.value || "";
+    const qPlaca = document.getElementById("fPlaca")?.value || "";
+    const qNum   = document.getElementById("fNumero")?.value || "";
+    const dr = document.getElementById("fFecha")? document.getElementById("fFecha")._range : null;
+    const dr2 = document.getElementById("fFechaRev")? document.getElementById("fFechaRev")._range : null;
+    const arr = await API.getFacturas();
+    State.raw = arr;
+    try{ sectorMS.setItems(Array.from(new Set(State.raw.map(r=>r.Sector).filter(Boolean)))); }catch(_){ }
+    try{ estadoMS.setItems(getEstadoOptions()); }catch(_){ }
+    try{ sectorMS.select(currentSector); estadoMS.select(currentEstado); }catch(_){ }
+    if(document.getElementById("fNombre")) document.getElementById("fNombre").value = qNombre;
+    if(document.getElementById("fPlaca"))  document.getElementById("fPlaca").value = qPlaca;
+    document.getElementById("fNumero").value = qNum;
+    if(document.getElementById("fFecha")) document.getElementById("fFecha")._range = dr;
+    if(document.getElementById("fFechaRev")) document.getElementById("fFechaRev")._range = dr2;
+    if(table){ await table.replaceData(State.filtered); }
+    updateKpis();
+    try{ updateKpisRevRange(); }catch(_){}
+    setLastUpdatedNow();
+  }catch(_){
   }finally{
     overlay.hide();
   }
+}
 
 function buildTable(){
   if(table){ return; }
   table = new Tabulator("#tablaRevision", {
     height: Config.tablaHeight,
-    layout: "fitColumns",
-    placeholder: "Sin datos",
-    selectable: true,
-    pagination: true,
-    paginationMode: "remote",
-    paginationSize: 100,
-    ajaxURL: Config.api.leerFacturas,
-    ajaxRequestFunc: async function(url, config, params){
-      const toURL = (u)=> (u.startsWith("http") ? new URL(u) : new URL(u, location.origin));
-      const q = toURL(url);
-      q.searchParams.set("page", params.page || 1);
-      q.searchParams.set("size", params.size || 100);
-      const sorters = this.getSorters ? this.getSorters() : [];
-      if (sorters && sorters.length){
-        q.searchParams.set("sortBy", sorters[0].field);
-        q.searchParams.set("sortDir", (sorters[0].dir||"asc").toUpperCase());
-      }
-      // Rango de fechas (alias fijo "Fecha")
-      const elFecha = document.getElementById("fFecha");
-      const dr = elFecha && elFecha._range;
-      if (dr && dr.length===2){
-        const s = new Date(dr[0]); s.setHours(0,0,0,0);
-        const e = new Date(dr[1]); e.setHours(23,59,59,999);
-        const iso = d => new Date(d).toISOString().slice(0,10);
-        q.searchParams.set("start", iso(s));
-        q.searchParams.set("end", iso(e));
-      }
-      q.searchParams.set("campoFecha", "Fecha");
-      // Nº Factura: exacto o like (>=6)
-      const num = (document.getElementById("fNumero")?.value || "").trim();
-      if (num.length >= 6) q.searchParams.set("numeroLike", num);
-      else if (num) q.searchParams.set("numero", num);
-      // Nombre (q), Placa, Sector/Estado CSV
-      const nombre = (document.getElementById("fNombre")?.value || "").trim(); if (nombre) q.searchParams.set("q", nombre);
-      const placa = (document.getElementById("fPlaca")?.value || "").trim(); if (placa) q.searchParams.set("placa", placa);
-      let sectorVals = (typeof sectorMS!=="undefined" && sectorMS ? sectorMS.getSelected() : []);
-      let estadoVals = (typeof estadoMS!=="undefined" && estadoMS ? estadoMS.getSelected() : []);
-      if (sectorVals && sectorVals.length) q.searchParams.set("sector", sectorVals.join(","));
-      if (estadoVals && estadoVals.length) q.searchParams.set("estado", estadoVals.join(","));
-      const resp = await fetch(q.toString(), { cache:"no-store" });
-      const json = await resp.json();
-      return { data: json.data || json.rows || [], last_page: json.lastPage || 1 };
-    },
-    ajaxRequesting: function(){ try{ overlay.show("Cargando facturas…"); }catch(_){ } },
-    ajaxResponse: function(url, params, response){ try{ overlay.hide(); }catch(_){ } return response; },
-    ajaxError: function(){ try{ overlay.hide(); }catch(_){ } },
-    groupStartOpen: false,
+    data: State.filtered,
+    layout:"fitColumns",
+    placeholder:"Sin datos",
+    selectable:true,
+    pagination:false,
+    reactiveData:false,
+    groupStartOpen:false,
     groupHeader:function(value, count, data, group){
       // value = Identidad
       const nombre = (data && data[0] && (data[0].Nombre||data[0].Identidad)) || value;
@@ -812,9 +790,9 @@ function buildTable(){
       } }
 
     ],
-    dataLoaded: ()=>{ updateKpis(); },
-    dataFiltered: ()=>{ updateKpis(); },
-    rowSelectionChanged: ()=>{ updateButtons(); },
+    dataLoaded:()=>{ updateKpis(); },
+    dataFiltered:()=>{ updateKpis(); },
+    rowSelectionChanged:()=>{ updateButtons(); },
   });
   table.on("tableBuilt", ()=>{
     // Fallback: delegado por si el cellClick no se dispara en algunos navegadores
@@ -992,21 +970,7 @@ function updateKpisRevRange(){
 
 let sectorMS, estadoMS;
 
-
-async function loadDistincts(){
-  try{
-    const u = new URL(Config.api.leerFacturas, location.origin);
-    u.searchParams.set("distinct", "Sector,Estado");
-    const r = await fetch(u.toString(), {cache:"no-store"});
-    const j = await r.json();
-    const D = j.distinct || {};
-    if (typeof sectorMS!=="undefined" && sectorMS && Array.isArray(D.Sector)) sectorMS.setItems(D.Sector);
-    if (typeof estadoMS!=="undefined" && estadoMS && Array.isArray(D.Estado)) estadoMS.setItems(D.Estado);
-  }catch(e){ console.warn("distincts failed", e); }
-}
-
-async function initFilters(){
-  try{ await loadDistincts(); }catch(_){ }
+function initFilters(){
   // Flatpickr range
   const fp = flatpickr("#fFecha", {
     mode:"range",
@@ -1084,21 +1048,7 @@ async function initFilters(){
 }
 
 function clearFilters(){
-  if(sectorMS){ sectorMS.clear(); }
-  if(estadoMS){ estadoMS.clear(); }
-  const placaInput = document.getElementById("fPlaca"); if(placaInput){ placaInput.value = ""; }
-  const nombreInput = document.getElementById("fNombre"); if(nombreInput){ nombreInput.value = ""; }
-  const numInput = document.getElementById("fNumero"); if(numInput){ numInput.value = ""; }
-  const elFecha = document.getElementById("fFecha");
-  const inst = elFecha && elFecha._flatpickr;
-  if(inst){ inst.clear(); inst.close && inst.close(); }
-  if(elFecha){ elFecha.value=""; elFecha._range=null; }
-  const elRev = document.getElementById("fFechaRev");
-  const inst2 = elRev && elRev._flatpickr;
-  if(inst2){ inst2.clear(); inst2.close && inst2.close(); }
-  if(elRev){ elRev.value=""; elRev._range=null; }
-  try{ table.setData(); }catch(e){ console.warn(e); }
-}
+  if(statusMenuEl){ statusMenuEl.classList.remove('open'); }
   if(sectorMS){ sectorMS.clear(); }
   if(estadoMS){ estadoMS.clear(); }
   const placaInput = document.getElementById("fPlaca"); if(placaInput){ placaInput.value = ""; }
@@ -1110,7 +1060,29 @@ function clearFilters(){
   applyFilters();
 }
 
-function applyFilters(){ if(!table) return; try{ table.setData(); }catch(e){ console.warn(e); } }
+function applyFilters(){
+  if(!table){ return; }
+  const doReplace = ()=>{
+    const maybePromise = table.replaceData(State.filtered);
+    if(maybePromise && typeof maybePromise.then === "function"){
+      maybePromise.then(()=>{ updateKpis(); updateButtons(); try{ updateKpisRevRange(); }catch(_){ } }).catch(()=>{ updateKpis(); updateButtons(); try{ updateKpisRevRange(); }catch(_){ } });
+    }else{
+      // fallback si la versión de Tabulator no retorna promesa
+      setTimeout(()=>{ updateKpis(); updateButtons(); }, 0);
+    }
+  };
+  if(!tableBuilt){
+    (function(){
+      const handler = ()=>{
+        try{ table.off("tableBuilt", handler); }catch(e){}
+        doReplace();
+      };
+      table.on("tableBuilt", handler);
+    })();
+    return;
+  }
+  doReplace();
+}
 
 /** =========================
  *  Exportaciones CSV/XLSX
@@ -1622,21 +1594,50 @@ document.addEventListener("change", (ev)=>{
  *  Bootstrap
  *  ========================= */
 async function hardRefresh(){
+  // Limpia filtros, recarga y resetea scroll; luego muestra hora de actualización
+  clearFilters();
+  await loadData();
+  resetTableScroll();
+  setLastUpdatedNow();
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2,"0");
+  const mm = String(now.getMinutes()).padStart(2,"0");
+  }
+
+async function onSectorEdited(cell){
   try{
-    // Si la tabla aún no existe, intenta no romper la navegación.
-    if (typeof table !== "undefined" && table && table.setData) {
-      await table.setData();
-    } else if (typeof buildTable === "function") {
-      buildTable();
-      if (typeof table !== "undefined" && table && table.setData) {
-        await table.setData();
-      }
-    } // si no existe buildTable, bootstrap hará el setup inicial
-  }catch(e){
-    console.warn(e);
+    toastLoading.show("Actualizando sector…");
+    const newSector = cell.getValue();
+    const rowData   = cell.getRow().getData();
+    const placaKey  = rowData.Placa || rowData.PLACA;
+    if(!placaKey) throw new Error("Placa no disponible");
+
+    const res = await fetch(Config.api.placas, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({ action:"cambiarSector", placa: placaKey, sector: newSector })
+    });
+    const txt = await res.text();
+    if(!res.ok) throw new Error("HTTP "+res.status+" - "+txt.slice(0,120));
+    let data; try{ data = JSON.parse(txt); } catch { data = {}; }
+
+    const jefe = (data && (data.JefeInmediato || data.jefe)) || getJefeBySector(newSector);
+    const patch = { Sector: newSector };
+    if(jefe) patch.JefeInmediato = jefe;
+    cell.getRow().update(patch);
+
+    const idx = (Placas.data||[]).findIndex(r => (r.Placa||r.PLACA) === placaKey);
+    if(idx>=0){ Placas.data[idx].Sector = newSector; if(jefe) Placas.data[idx].JefeInmediato = jefe; }
+
+    toastLoading.hide();
+    quickToast("Sector actualizado");
+  }catch(err){
+    console.error("No se pudo actualizar sector:", err);
+    toastLoading.hide();
+    alert("No se pudo actualizar el sector: "+err.message);
+    cell.restoreOldValue();
   }
 }
-
 
 function getUniqueSectors(){
   const all = (Placas.data || [])
@@ -1848,7 +1849,7 @@ function wirePlacaLiveValidation(){
     }
     
 async function bootstrap(){
-  (window.initFilters ? window.initFilters() : null);
+  initFilters();
   $("#btnActualizar").addEventListener("click", hardRefresh);
   $("#btnAgrupar").addEventListener("click", toggleGrouping);
   $("#btnDescargar").addEventListener("click", descargarZip);  $("#btnExportXLSX").addEventListener("click", exportXLSX);
