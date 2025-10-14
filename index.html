@@ -2170,40 +2170,89 @@ function buildPagoTable(){
 
 // ===== Pago: cargar =====
 async function cargarPago(){
+  const __t0 = (performance && performance.now) ? performance.now() : Date.now();
+  console.log("%c[Pago] iniciar cargarPago()", "color:#0FA47E;font-weight:bold");
+
   if(typeof overlay!=="undefined") overlay.show("Cargando facturas…");
-  try{
+  try {
     let arr = null;
+    let serverFilter = false;
+    let fallbackUsed = false;
+    let rawAllCount = null;
+
+    // 1) Intento pedir ya filtradas en servidor
     if (typeof API!=="undefined" && typeof API.getFacturas === "function") {
-      try{
+      try {
+        console.time("[Pago] API.getFacturas(estados=Revisada,Pagada)");
         arr = await API.getFacturas({ estados: ["Revisada","Pagada"] });
-      }catch(_){ arr = null; }
+        console.timeEnd("[Pago] API.getFacturas(estados=Revisada,Pagada)");
+      } catch (err) {
+        console.warn("[Pago] fallo getFacturas con estados; usaré fallback:", err && err.message ? err.message : err);
+        arr = null;
+      }
     }
-    // Fallback: pedir todo y filtrar en cliente si el backend no soporta el parámetro
+
+    // 2) Fallback si el backend aún no soporta el parámetro
     let data = Array.isArray(arr) ? arr : [];
-    if (!data.length || !data.every(r => r && "Estado" in r)) {
+    if (!data.length || !data.every(r => r && typeof r === "object" && ("Estado" in r))) {
+      console.time("[Pago] API.getFacturas() (fallback, sin filtro servidor)");
       const all = await (typeof API!=="undefined" ? API.getFacturas() : Promise.resolve([]));
-      data = (all||[]).filter(r => ["Revisada","Pagada"].includes(String(r.Estado||"")));
+      console.timeEnd("[Pago] API.getFacturas() (fallback, sin filtro servidor)");
+      rawAllCount = Array.isArray(all) ? all.length : null;
+      data = (all || []).filter(r => ["Revisada","Pagada"].includes(String((r && r.Estado) || "")));
+      fallbackUsed = true;
+    } else {
+      serverFilter = true;
     }
+
+    // 3) Logs de métricas
+    const recibidas = (Array.isArray(arr) && serverFilter) ? arr.length : (rawAllCount !== null ? rawAllCount : data.length);
+    console.log("[Pago] métricas:", {
+      servidorFiltrado: serverFilter,
+      fallback: fallbackUsed,
+      recibidas: recibidas,
+      despuesFiltro: data.length
+    });
+
+    // 4) Guardar data cruda
     Pago.raw = data;
 
-    // Repoblar multiselects
-    const sectores = Array.from(new Set((Pago.raw||[]).map(r=>r.Sector).filter(Boolean))).sort((a,b)=>a.localeCompare(b));
-    if(pagoSectorMS && pagoSectorMS.setItems){ pagoSectorMS.setItems(sectores); }
-    const estados = Array.from(new Set((Pago.raw||[]).map(r=>r.Estado).filter(Boolean)));
-    if(pagoEstadoMS && pagoEstadoMS.setItems){ pagoEstadoMS.setItems(estados); }
+    // 5) Repoblar multiselects
+    console.time("[Pago] repoblar filtros (sectores/estados)");
+    const sectores = Array.from(new Set((Pago.raw || []).map(r => r.Sector).filter(Boolean))).sort((a,b)=>a.localeCompare(b));
+    if (pagoSectorMS && pagoSectorMS.setItems) { pagoSectorMS.setItems(sectores); }
+    const estados = Array.from(new Set((Pago.raw || []).map(r => r.Estado).filter(Boolean)));
+    if (pagoEstadoMS && pagoEstadoMS.setItems) { pagoEstadoMS.setItems(estados); }
+    console.timeEnd("[Pago] repoblar filtros (sectores/estados)");
+    console.log("[Pago] #sectores únicos:", sectores.length, "->", sectores.slice(0,10), sectores.length>10 ? "…" : "+");
+    console.log("[Pago] #estados únicos:", estados.length, "->", estados);
 
+    // 6) Construir tabla y cargar datos
     await waitForTabulatorAndContainer();
     buildPagoTable();
     const list = Pago.filtered;
-    if(pagoTableReady){ pagoTable.replaceData(list); } else { pagoPendingData = list; }
+    console.log("[Pago] filas visibles tras filtros UI:", list.length);
+
+    console.time("[Pago] replaceData");
+    if (pagoTableReady) {
+      await pagoTable.replaceData(list);
+    } else {
+      pagoPendingData = list;
+    }
+    console.timeEnd("[Pago] replaceData");
+
     updatePagoKpis();
     setLastUpdatedPago();
-  }catch(e){
-    console.error(e);
-  }finally{
+
+    const __t1 = (performance && performance.now) ? performance.now() : Date.now();
+    console.log("%c[Pago] cargarPago() listo en " + Math.round(__t1-__t0) + " ms", "color:#0FA47E;font-weight:bold");
+  } catch (e) {
+    console.error("[Pago] error en cargarPago:", e);
+  } finally {
     if(typeof overlay!=="undefined") overlay.hide();
   }
 }
+
 function updatePagoKpis(){
   const rows = pagoTable? pagoTable.getData("active") : [];
   let pend=0, pag=0, sp=0, sg=0;
