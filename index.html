@@ -190,55 +190,6 @@
       .filters{ display:grid; grid-template-columns: 180px 180px 220px 160px 1fr 220px 220px auto; }
     }
   </style>
-<style>
-  .tabulator-cell .btn-pagar{
-    padding: 2px 6px; font-size: 12px; line-height: 1; height: 22px;
-    border-radius: 4px; background: var(--primary); color:#fff; border:0; cursor:pointer;
-  }
-</style>
-
-<style>
-  #fPagoSector[multiple], #fPagoEstado[multiple]{
-    min-height: 38px;
-    max-height: 90px;
-    overflow: auto;
-  }
-</style>
-
-
-<style>
-  /* Multiselect (checkbox dropdown) */
-  .msel { position: relative; }
-  .msel .msel-input {
-    display: flex; align-items: center; min-height: 38px; width: 100%;
-    padding: 6px 10px; border: 1px solid var(--border, #e3e3e3); border-radius: 10px;
-    background: #fff; font-size: 14px; color: var(--text, #111);
-    cursor: pointer;
-  }
-  .msel .msel-input.placeholder { color: #99a3ad; }
-  .msel .msel-caret { margin-left: auto; opacity: .6; }
-  .msel .msel-panel {
-    position: absolute; z-index: 40; top: calc(100% + 6px); left: 0; right: 0;
-    background: #fff; border: 1px solid var(--border, #e3e3e3); border-radius: 12px;
-    box-shadow: 0 10px 20px rgba(0,0,0,.08);
-    max-height: 220px; overflow: auto; padding: 6px;
-    display: none;
-  }
-  .msel.open .msel-panel { display: block; }
-  .msel .opt {
-    display: grid; grid-template-columns: 22px 1fr; align-items: center;
-    gap: 8px; padding: 6px 8px; border-radius: 8px; cursor: pointer;
-  }
-  .msel .opt:hover { background: #f6f7f9; }
-  .msel .opt input { width: 16px; height: 16px; }
-  .msel .msel-badges { display: flex; flex-wrap: wrap; gap: 6px; }
-  .msel .badge {
-    background: #eef2ff; color: #334155; border-radius: 999px; padding: 2px 8px; font-size: 12px;
-  }
-  /* Hide original select but keep it in DOM for events */
-  select.msel-hidden { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
-</style>
-
 </head>
 <body>
 
@@ -369,11 +320,8 @@
 
   <div class="card" style="margin-top:10px;">
     <div class="filters" style="grid-template-columns: 220px 220px 220px 160px 1fr 220px auto;">
-      <select id="fPagoSector" class="input" multiple></select>
-      <select id="fPagoEstado" class="input" multiple>
-        <option value="Revisada">Revisada</option>
-        <option value="Pagada">Pagada</option>
-      </select>
+      <div id="msPagoSector" class="msel" data-placeholder="Sector"></div>
+      <div id="msPagoEstado" class="msel" data-placeholder="Estado"></div>
       <input id="fPagoNombre" class="input" placeholder="Nombre Colaborador…"/>
       <input id="fPagoNumero" class="input" placeholder="Nº Factura…"/>
       <input id="fPagoFecha" class="input" placeholder="Rango de fechas"/>
@@ -2104,53 +2052,31 @@ async function doLogout(){ await authLogout(); showLogin(); }
 
 </script>
 
-
 <script>
-// ===================== Pago: API =====================
-if (typeof API !== "undefined") {
-  API.pagarFacturas = async function(rows, fondoPeriodo, fechaPago){
-    const errs = [];
-    for (const r of (rows||[])){
-      const fila = r.fila || r._fila;
-      if(!fila){ errs.push("Fila sin 'fila' real"); continue; }
-      const url = (Config && Config.api && Config.api.guardar) ? Config.api.guardar : "/api/guardar";
-      const res = await fetch(url, { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ fondoPeriodo, fechaPago, fila }) });
-      let json=null; try{ json=await res.json(); }catch(_){}
-      if(!res.ok || !json || json.status!=="OK"){ errs.push("Fallo fila " + fila + ": " + (json && json.message || res.status)); }
-    }
-    if(errs.length) throw new Error(errs.join(" · "));
-  };
-}
-
-// ===================== Pago: Estado/Tabla =====================
-let pagoTable=null, pagoTableReady=false, pagoPendingData=null, pagoGrouped=false;
+// ===== Pago: estado local =====
+let pagoTable = null, pagoTableReady = false, pagoPendingData = null, pagoGrouped = false;
+let pagoSectorMS = null, pagoEstadoMS = null;
 
 const Pago = {
-  raw:[],
+  raw: [],
   get filtered(){
-    const s = (document.querySelector("#fPagoSector")?.value || "").trim();
-    const e = (document.querySelector("#fPagoEstado")?.value || "").trim();
-    const n = (document.querySelector("#fPagoNumero")?.value || "").trim().toLowerCase();
-    const nombreQ = (document.querySelector("#fPagoNombre")?.value || "").toLowerCase()
-      .normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+    const sectores = pagoSectorMS ? pagoSectorMS.getSelected() : [];
+    const estados  = pagoEstadoMS ? pagoEstadoMS.getSelected() : [];
+    const nro      = (document.querySelector("#fPagoNumero")?.value || "").trim().toLowerCase();
+    const qNombre  = (document.querySelector("#fPagoNombre")?.value || "").toLowerCase()
+                      .normalize("NFD").replace(/[\u0300-\u036f]/g,"");
     const dr = document.getElementById("fPagoFecha") ? document.getElementById("fPagoFecha")._range : null;
-
     return (Pago.raw||[]).filter(r=>{
       const sector = (r.Sector||"").toString();
       const estado = (r.Estado||"").toString();
       const numero = (r["Nº Factura"]||r["Numero de Factura"]||"").toString().toLowerCase();
-      const nombre = (r.Nombre||"").toString().toLowerCase()
-        .normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+      const nombre = (r.Nombre||"").toString().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
       const fecha  = (r.Fecha||"").toString();
-
-      if(s.length && !s.includes(sector)) return false;
-      if(e.length && !e.includes(estado)) return false;
-      if(n && !numero.includes(n)) return false;
-      if(nombreQ && !nombre.includes(nombreQ)) return false;
-      if(dr){
-        const d = new Date(fecha);
-        if(isNaN(d) || d < dr[0] || d > dr[1]) return false;
-      }
+      if(sectores.length && !sectores.includes(sector)) return false;
+      if(estados.length  && !estados.includes(estado)) return false;
+      if(nro && !numero.includes(nro)) return false;
+      if(qNombre && !nombre.includes(qNombre)) return false;
+      if(dr){ const d = new Date(fecha); if(isNaN(d) || d<dr[0] || d>dr[1]) return false; }
       return true;
     });
   }
@@ -2162,15 +2088,12 @@ function setLastUpdatedPago(){
   el.textContent = "Actualizado: " + t.getFullYear()+"-"+pad(t.getMonth()+1)+"-"+pad(t.getDate())+" "+pad(t.getHours())+":"+pad(t.getMinutes());
 }
 
-// Espera a que Tabulator y el contenedor estén listos (si entras directo a #pago)
+// ===== Pago: tabla =====
 function waitForTabulatorAndContainer(){
   return new Promise(function(resolve){
     function tick(){
-      const hasTabulator = typeof window.Tabulator !== "undefined";
-      const el = document.querySelector("#tablaPago");
-      const attached = !!(el && document.body.contains(el));
-      if(hasTabulator && attached){ resolve(); }
-      else { requestAnimationFrame(tick); }
+      const ready = typeof window.Tabulator!=="undefined" && document.querySelector("#tablaPago");
+      if(ready) resolve(); else requestAnimationFrame(tick);
     }
     tick();
   });
@@ -2201,21 +2124,19 @@ function buildPagoTable(){
       { title:"Número de Factura", field:"Numero de Factura", width:150 },
       { title:"Enlace PDF", field:"Enlace PDF", width:110,
         formatter:(cell)=>{
-          const r = cell.getRow().getData();
-          const v = cell.getValue() || r.Enlace || r.PDF || "";
-          return v? "<a href=\"" + (typeof API!=='undefined' && API.proxied ? API.proxied(v) : v) + "\" target=\"_blank\" title=\"Abrir PDF\">📄</a>" : "";
+          const r=cell.getRow().getData(); const v=cell.getValue()||r.Enlace||r.PDF||"";
+          return v? "<a href=\""+((typeof API!=='undefined' && API.proxied)? API.proxied(v): v)+"\" target=\"_blank\" title=\"Abrir PDF\">📄</a>":"";
         } },
       { title:"Estado", field:"Estado", width:120, formatter:(c)=> {
-          const v = (c.getValue()||"").toString();
+          const v=(c.getValue()||"").toString();
           if(v==="Pagada") return "<span class=\"status-pill disabled\"><span class=\"dot\" style=\"background:" + (typeof estadoColor==='function'? estadoColor('Pagada'): '#0FA47E') + "\"></span>Pagada</span>";
           return "<button class=\"btn-pagar\" title=\"Pagar esta factura\">Pagar</button>";
         },
         cellClick: (e, cell)=>{
-          const row = cell.getRow(); const d = row.getData();
+          const d = cell.getRow().getData();
           if((d.Estado||"")==="Pagada") return;
-          if(pagoTable && pagoTable.deselectRow) pagoTable.deselectRow();
-          row.select();
-          openPagoModal();
+          pagoTable.deselectRow && pagoTable.deselectRow();
+          cell.getRow().select(); openPagoModal();
         }
       },
     ],
@@ -2223,7 +2144,7 @@ function buildPagoTable(){
     dataFiltered: updatePagoKpis,
     rowSelectionChanged: ()=>{ const b=document.getElementById("btnPagoAbrirModal"); if(b) b.disabled = (pagoTable.getSelectedRows().length===0); }
   });
-  // Marcar lista para primer replaceData cuando esté lista
+
   pagoTable.on("tableBuilt", function(){
     pagoTableReady = true;
     if(pagoPendingData){
@@ -2234,39 +2155,35 @@ function buildPagoTable(){
   });
 }
 
+// ===== Pago: cargar =====
 async function cargarPago(){
   if(typeof overlay!=="undefined") overlay.show("Cargando facturas…");
   try{
     const arr = await (typeof API!=="undefined" ? API.getFacturas() : Promise.resolve([]));
     Pago.raw = (arr||[]).filter(r=> ["Revisada","Pagada"].includes(String(r.Estado||"")));
-    const sel = document.getElementById("fPagoSector");
-    if(sel){
-      const sectors = Array.from(new Set((Pago.raw||[]).map(r=>r.Sector).filter(Boolean))).sort((a,b)=>a.localeCompare(b));
-      const prev = new Set(Array.from(sel.selectedOptions).map(o=>o.value)); sel.innerHTML = sectors.map(s=>'<option value="'+s+'">'+s+'</option>').join(''); Array.from(sel.options).forEach(o=>{ if(prev.has(o.value)) o.selected = true; });
-    }
+    // Alimentar MS como en Revisión
+    const sectores = Array.from(new Set((Pago.raw||[]).map(r=>r.Sector).filter(Boolean))).sort((a,b)=>a.localeCompare(b));
+    if(pagoSectorMS && pagoSectorMS.setItems){ pagoSectorMS.setItems(sectores); }
+    const estados = Array.from(new Set((Pago.raw||[]).map(r=>r.Estado).filter(Boolean)));
+    if(pagoEstadoMS && pagoEstadoMS.setItems){ pagoEstadoMS.setItems(estados); }
+
     await waitForTabulatorAndContainer();
     buildPagoTable();
     const list = Pago.filtered;
-    if(pagoTableReady){
-      pagoTable.replaceData(list);
-    }else{
-      pagoPendingData = list;
-    }
+    if(pagoTableReady) pagoTable.replaceData(list); else pagoPendingData = list;
     updatePagoKpis();
     setLastUpdatedPago();
-  }catch(e){
-    console.error(e);
-  }finally{
-    if(typeof overlay!=="undefined") overlay.hide();
-  }
+  }catch(e){ console.error(e); }
+  finally{ if(typeof overlay!=="undefined") overlay.hide(); }
 }
 
 function updatePagoKpis(){
   const rows = pagoTable? pagoTable.getData("active") : [];
   let pend=0, pag=0, sp=0, sg=0;
   for(const r of rows){
-    if((r.Estado||"")==="Revisada"){ pend++; sp += Number(r["Total Gastado"] ?? r.Total) || 0; }
-    if((r.Estado||"")==="Pagada"){ pag++; sg += Number(r["Total Gastado"] ?? r.Total) || 0; }
+    const total = Number(r["Total Gastado"] ?? r.Total) || 0;
+    if((r.Estado||"")==="Revisada"){ pend++; sp += total; }
+    if((r.Estado||"")==="Pagada"){ pag++; sg += total; }
   }
   const fmtMoney = (v)=> "L " + (Number(v)||0).toLocaleString("es-HN",{minimumFractionDigits:2,maximumFractionDigits:2});
   const $ = (sel)=>document.querySelector(sel);
@@ -2284,9 +2201,9 @@ function applyPagoFilters(){
 }
 
 function clearPagoFilters(){
+  pagoSectorMS && pagoSectorMS.clear();
+  pagoEstadoMS && pagoEstadoMS.clear();
   const $ = (sel)=>document.querySelector(sel);
-  Array.from($("#fPagoSector").options).forEach(o=>o.selected=false);
-  Array.from($("#fPagoEstado").options).forEach(o=>o.selected=false);
   $("#fPagoNombre").value = "";
   $("#fPagoNumero").value = "";
   $("#fPagoFecha").value = "";
@@ -2306,7 +2223,23 @@ function togglePagoGrouping(){
   }
 }
 
-// ===================== Pago: Modal =====================
+// ===== Pago: API para registrar pago =====
+if (typeof API !== "undefined") {
+  API.pagarFacturas = async function(rows, fondoPeriodo, fechaPago){
+    const errs = [];
+    for (const r of (rows||[])){
+      const fila = r.fila || r._fila;
+      if(!fila){ errs.push("Fila sin 'fila' real"); continue; }
+      const url = (Config && Config.api && Config.api.guardar) ? Config.api.guardar : "/api/guardar";
+      const res = await fetch(url, { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ fondoPeriodo, fechaPago, fila }) });
+      let json=null; try{ json=await res.json(); }catch(_){}
+      if(!res.ok || !json || json.status!=="OK"){ errs.push("Fallo fila " + fila + ": " + (json && json.message || res.status)); }
+    }
+    if(errs.length) throw new Error(errs.join(" · "));
+  };
+}
+
+// ===== Pago: Modal =====
 function openPagoModal(){
   const el = document.getElementById("modalPago"); if(!el) return;
   const dft = (typeof fmt!=="undefined" && fmt.dateISO) ? fmt.dateISO(new Date()) : new Date().toISOString().slice(0,10);
@@ -2335,9 +2268,12 @@ async function confirmPago(){
   }
 }
 
-// ===================== Pago: Wire-up =====================
+// ===== Pago: Wire-up =====
 document.addEventListener("DOMContentLoaded", function(){
-  // Date range
+  // MultiSelects con la misma función que usa Revisión
+  try{ pagoSectorMS = createMultiSelect("#msPagoSector", "Sector", applyPagoFilters); }catch(_){}
+  try{ pagoEstadoMS = createMultiSelect("#msPagoEstado", "Estado", applyPagoFilters); }catch(_){}
+
   if (typeof flatpickr !== "undefined") {
     flatpickr("#fPagoFecha", {
       mode:"range", dateFormat:"Y-m-d",
@@ -2355,96 +2291,19 @@ document.addEventListener("DOMContentLoaded", function(){
   }
 
   const $ = (sel)=>document.querySelector(sel);
-  $("#fPagoSector")?.addEventListener("change", applyPagoFilters);
-  $("#fPagoEstado")?.addEventListener("change", applyPagoFilters);
-  (function(){ let t; const h=()=>{ clearTimeout(t); t=setTimeout(applyPagoFilters,250); }; $("#fPagoNumero")?.addEventListener("input", h); $("#fPagoNombre")?.addEventListener("input", h); })();
   $("#btnPagoLimpiar")?.addEventListener("click", clearPagoFilters);
-
   $("#btnPagoActualizar")?.addEventListener("click", cargarPago);
   $("#btnPagoExportXLSX")?.addEventListener("click", ()=> pagoTable?.download("xlsx", "Pago_UTCD_" + new Date().toISOString().slice(0,10) + ".xlsx", {sheetName:"Pago", rowRange:"active"}));
   $("#btnPagoAgrupar")?.addEventListener("click", togglePagoGrouping);
   $("#btnPagoAbrirModal")?.addEventListener("click", openPagoModal);
-
   $("#mpCancelar")?.addEventListener("click", closePagoModal);
   $("#mpConfirmar")?.addEventListener("click", confirmPago);
 
-  // Si el usuario entra a #pago directamente
   if (location.hash === "#pago") { setTimeout(function(){ cargarPago(); }, 0); }
-  // Si navega haciendo click en el menú #pago (complemento al listener global)
   const navPago = document.querySelector('.sidebar .nav-btn[href="#pago"]');
   if(navPago){ navPago.addEventListener("click", function(){ setTimeout(function(){ cargarPago(); }, 0); }); }
-  // Y si cambia el hash manualmente
   window.addEventListener("hashchange", function(){ if(location.hash==="#pago"){ setTimeout(function(){ cargarPago(); }, 0); } });
 });
 </script>
-
-
-<script>
-// === Lightweight checkbox multiselect enhancer (no external libs) ===
-function enhanceMultiSelect(sel, placeholder){
-  if(!sel || sel._enhanced) return;
-  sel.classList.add('msel-hidden');
-  const wrap = document.createElement('div'); wrap.className = 'msel';
-  const input = document.createElement('div'); input.className = 'msel-input placeholder';
-  input.innerHTML = '<span class="msel-content">'+(placeholder||'Selecciona')+'</span><span class="msel-caret">▾</span>';
-  const panel = document.createElement('div'); panel.className = 'msel-panel';
-  wrap.appendChild(input); wrap.appendChild(panel);
-  sel.parentNode.insertBefore(wrap, sel);
-  wrap.appendChild(sel); // keep select inside for form semantics
-
-  function renderPanel(){
-    panel.innerHTML = '';
-    Array.from(sel.options).forEach(function(opt){
-      const row = document.createElement('div'); row.className = 'opt';
-      const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = opt.selected; cb.dataset.value = opt.value;
-      const lab = document.createElement('div'); lab.textContent = opt.textContent;
-      row.appendChild(cb); row.appendChild(lab);
-      row.addEventListener('click', function(ev){
-        if(ev.target.tagName !== 'INPUT'){ cb.checked = !cb.checked; }
-        opt.selected = cb.checked;
-        // dispatch change on select
-        const e = new Event('change', {bubbles:true}); sel.dispatchEvent(e);
-        renderInput();
-      });
-      panel.appendChild(row);
-    });
-  }
-
-  function renderInput(){
-    const selected = Array.from(sel.selectedOptions).map(o=>o.textContent);
-    const content = wrap.querySelector('.msel-content');
-    if(selected.length === 0){
-      input.classList.add('placeholder'); content.innerHTML = placeholder || 'Selecciona';
-    }else{
-      input.classList.remove('placeholder');
-      content.innerHTML = '<div class="msel-badges">' + selected.map(s=>'<span class="badge">'+s+'</span>').join('') + '</div>';
-    }
-  }
-
-  function open(){ wrap.classList.add('open'); }
-  function close(){ wrap.classList.remove('open'); }
-  input.addEventListener('click', function(ev){ ev.stopPropagation(); if(wrap.classList.contains('open')) close(); else open(); });
-  document.addEventListener('click', function(){ close(); });
-
-  // Observe option list changes (e.g., when repopulating sectors)
-  const mo = new MutationObserver(function(){ renderPanel(); renderInput(); });
-  mo.observe(sel, { childList:true });
-
-  sel._enhanced = true;
-  renderPanel(); renderInput();
-}
-
-// Hook: after sector options are populated in cargarPago(), enhance both selects
-(function(){
-  const _cargarPago = cargarPago;
-  cargarPago = async function(){
-    await _cargarPago();
-    // Enhance once
-    enhanceMultiSelect(document.getElementById('fPagoSector'), 'Sector');
-    enhanceMultiSelect(document.getElementById('fPagoEstado'), 'Estado');
-  };
-})();
-</script>
-
 </body>
 </html>
