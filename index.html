@@ -1021,6 +1021,7 @@ function updateKpisRevRange(){
 
 let sectorMS, estadoMS;
 
+const TYPING_DEBOUNCE_MS = 650;
 function initFilters(){
   // Flatpickr range
   const fp = flatpickr("#fFecha", {
@@ -1097,9 +1098,15 @@ function initFilters(){
   const nombreInput = document.getElementById("fNombre");
   if(nombreInput){ nombreInput.addEventListener("input", debouncedNombre); }
 
-  const debouncedNumero = debounce(()=>applyFilters(false), 250);
-  $("#fNumero").addEventListener("input", debouncedNumero);
-  $("#btnLimpiar").addEventListener("click", clearFilters);
+  const debouncedNumero = debounce(()=>applyFilters(false), TYPING_DEBOUNCE_MS);
+const numEl = $("#fNumero");
+if(numEl){
+  numEl.addEventListener("input", debouncedNumero);
+  numEl.addEventListener("change", ()=>applyFilters(false));
+  numEl.addEventListener("blur", ()=>applyFilters(false));
+  numEl.addEventListener("keydown", (e)=>{ if(e.key === "Enter") applyFilters(false); });
+}
+$("#btnLimpiar").addEventListener("click", clearFilters);
 }
 
 function clearFilters(){
