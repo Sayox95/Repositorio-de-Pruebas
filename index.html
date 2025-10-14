@@ -247,7 +247,8 @@
         <div class="actions">
           <span id="lastUpdated" class="last-updated" title="Última actualización">—</span>
           <button id="btnActualizar" class="btn"><i class="lucide-rotate-cw"></i> Actualizar</button>
-          <button id="btnAgrupar" class="btn btn-ghost"><i class="lucide-layers-2"></i> Agrupar por colaborador</button>          <button id="btnExportXLSX" class="btn btn-ghost"><i class="lucide-download"></i> Excel</button>
+          <button id="btnAgrupar" class="btn btn-ghost"><i class="lucide-layers-2"></i> Agrupar por colaborador</button>
+          <button id="btnMostrarMas" class="btn btn-ghost"><i class="lucide-plus"></i> Mostrar más</button>          <button id="btnExportXLSX" class="btn btn-ghost"><i class="lucide-download"></i> Excel</button>
           <button id="btnDescargar" class="btn btn-primary"><i class="lucide-file-down"></i> Descargar PDFs</button>
         </div>
       </div>
@@ -506,6 +507,45 @@ const API = { _facturasCtl:null,
     const arr = Array.isArray(data)? data : [];
 return arr.map(normalizeRow).filter(r=>r); // no filtramos por nº factura todavía
   },
+  // Nueva: lectura paginada + filtros en backend
+  async getFacturasPage(params = {}){
+    const {
+      limit = Page.limit, offset = Page.offset,
+      sector = [], estado = [],
+      nombre = "", placa = "", numero = "",
+      fechaFrom = "", fechaTo = "",
+      fechaRevFrom = "", fechaRevTo = ""
+    } = params;
+
+    const u = new URL(Config.api.leerFacturas);
+    u.searchParams.set("leerFacturas", "true");
+    u.searchParams.set("limit", String(limit));
+    u.searchParams.set("offset", String(offset));
+    if (sector && sector.length) u.searchParams.set("sector", sector.join(","));
+    if (estado && estado.length) u.searchParams.set("estado", estado.join(","));
+    if (nombre) u.searchParams.set("nombre", nombre);
+    if (placa)  u.searchParams.set("placa", placa);
+    if (numero) u.searchParams.set("numero", numero);
+    if (fechaFrom && fechaTo){ u.searchParams.set("fechaFrom", fechaFrom); u.searchParams.set("fechaTo", fechaTo); }
+    if (fechaRevFrom && fechaRevTo){ u.searchParams.set("fechaRevFrom", fechaRevFrom); u.searchParams.set("fechaRevTo", fechaRevTo); }
+
+    if(this._facturasCtl) try{ this._facturasCtl.abort(); }catch(_){}
+    const ctl = new AbortController();
+    this._facturasCtl = ctl;
+    const res = await fetch(u.toString(), { cache: "no-store", mode: "cors", signal: ctl.signal });
+    if (!res.ok) throw new Error("No se pudo leer facturas");
+    const json = await res.json();
+    if(ctl.signal.aborted) throw new Error('ABORTED');
+    const rows = (json.rows || json || []).map(normalizeRow).filter(Boolean);
+    const total = json.total ?? rows.length;
+    return { rows, total };
+  },
+
+  async getFacturasAll(filters = {}){
+    const { rows } = await this.getFacturasPage({ ...filters, limit: 0, offset: 0 });
+    return rows;
+  },
+
   proxied(url){
     const base = Config.api.proxyBase.replace(/\/$/,"");
     const u = encodeURIComponent(url);
@@ -665,6 +705,10 @@ const State = {
     });
   }
 };
+
+// Estado de paginado para Revisión
+let Page = { limit: 200, offset: 0, total: 0 };
+
 
 /** Opciones de estado a partir de datos o valores por defecto */
 function getEstadoOptions(){
@@ -1060,38 +1104,53 @@ function clearFilters(){
   applyFilters();
 }
 
+
 function applyFilters(){
-  if(!table){ return; }
-  const doReplace = ()=>{
-    const maybePromise = table.replaceData(State.filtered);
-    if(maybePromise && typeof maybePromise.then === "function"){
-      maybePromise.then(()=>{ updateKpis(); updateButtons(); try{ updateKpisRevRange(); }catch(_){ } }).catch(()=>{ updateKpis(); updateButtons(); try{ updateKpisRevRange(); }catch(_){ } });
-    }else{
-      // fallback si la versión de Tabulator no retorna promesa
-      setTimeout(()=>{ updateKpis(); updateButtons(); }, 0);
-    }
-  };
-  if(!tableBuilt){
-    (function(){
-      const handler = ()=>{
-        try{ table.off("tableBuilt", handler); }catch(e){}
-        doReplace();
-      };
-      table.on("tableBuilt", handler);
-    })();
-    return;
-  }
-  doReplace();
+  if(!table) return;
+  overlay.show("Aplicando filtros…");
+  (async ()=>{
+    try{
+      Page.offset = 0;
+      const { rows, total } = await API.getFacturasPage(currentFilters());
+      State.raw = rows;
+      Page.total = total;
+      await (async function safeReplace(){ 
+        try { const p = table.replaceData(State.raw); if(p && p.then) await p; }
+        catch(_){ try{ table.setData(State.raw); }catch(__){} }
+      })();
+      updateKpis(); try{ updateKpisRevRange(); }catch(_){}
+      toggleShowMore();
+    }catch(e){ console.error(e); }
+    finally{ overlay.hide(); }
+  })();
 }
+
 
 /** =========================
  *  Exportaciones CSV/XLSX
  *  ========================= */
-function exportXLSX(){
-  if(!table) return;
-  const fname = `Facturas_UTCD_${new Date().toISOString().slice(0,10)}.xlsx`;
-  // Usa el downloader nativo de Tabulator (requiere XLSX global)
-  table.download("xlsx", fname, { sheetName:"Revisión", rowRange:"active" });
+
+async function exportXLSX(){
+  overlay.show("Preparando Excel…");
+  (async ()=>{
+    try{
+      const allRows = await API.getFacturasAll(currentFilters());
+      const fname = `Facturas_UTCD_${new Date().toISOString().slice(0,10)}.xlsx`;
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(allRows);
+      XLSX.utils.book_append_sheet(wb, ws, "Revisión");
+      XLSX.writeFile(wb, fname);
+    }catch(e){
+      console.error(e);
+      // Fallback: exportar lo visible
+      if(window.table){
+        const fname = `Facturas_UTCD_${new Date().toISOString().slice(0,10)}.xlsx`;
+        table.download("xlsx", fname, { sheetName:"Revisión", rowRange:"active" });
+      }
+    }finally{
+      overlay.hide();
+    }
+  })();
 }
 
 /** =========================
@@ -1848,6 +1907,31 @@ function wirePlacaLiveValidation(){
       }
     }
     
+
+// Botón "Mostrar más" para paginar
+(function(){
+  const btn = document.getElementById("btnMostrarMas");
+  if(btn){
+    btn.addEventListener("click", async ()=>{
+      overlay.show("Cargando más…");
+      try{
+        Page.offset += Page.limit;
+        const { rows } = await API.getFacturasPage({ ...currentFilters(), limit: Page.limit, offset: Page.offset });
+        State.raw = State.raw.concat(rows);
+        try{ await table.addData(rows); }catch(_){}
+        toggleShowMore();
+      }catch(e){ console.error(e); }
+      finally{ overlay.hide(); }
+    });
+  }
+})();
+
+function toggleShowMore(){
+  const btn = document.getElementById("btnMostrarMas");
+  if(!btn || !table) return;
+  const shown = State.raw.length;
+  btn.style.display = (shown < Page.total) ? "inline-flex" : "none";
+}
 async function bootstrap(){
   initFilters();
   $("#btnActualizar").addEventListener("click", hardRefresh);
@@ -1855,18 +1939,38 @@ async function bootstrap(){
   $("#btnDescargar").addEventListener("click", descargarZip);  $("#btnExportXLSX").addEventListener("click", exportXLSX);
   navigateTo("secInicio");}
 
+
+function currentFilters(){
+  const sVals = (typeof sectorMS !== 'undefined' && sectorMS && sectorMS.getSelected)? sectorMS.getSelected() : [];
+  const eVals = (typeof estadoMS !== 'undefined' && estadoMS && estadoMS.getSelected)? estadoMS.getSelected() : [];
+  const nombre = (document.getElementById("fNombre")?.value || "").trim();
+  const placa  = (document.getElementById("fPlaca")?.value || "").trim();
+  const numero = (document.getElementById("fNumero")?.value || "").trim();
+  const dr  = document.getElementById("fFecha")? (document.getElementById("fFecha")._range || null) : null;
+  const dr2 = document.getElementById("fFechaRev")? (document.getElementById("fFechaRev")._range || null) : null;
+  return {
+    sector: sVals, estado: eVals, nombre, placa, numero,
+    fechaFrom: dr? dr[0].toISOString() : "", fechaTo: dr? dr[1].toISOString() : "",
+    fechaRevFrom: dr2? dr2[0].toISOString() : "", fechaRevTo: dr2? dr2[1].toISOString() : ""
+  };
+}
 async function loadData(){
   overlay.show("Cargando facturas…");
   try{
-    const data = await API.getFacturas();
-    State.raw = data;
-    // poblar selects dinámicamente
-    const sectores = Array.from(new Set(data.map(r=>r.Sector).filter(Boolean))).sort();
-    const estados  = Array.from(new Set(data.map(r=>r.Estado||"Registrada"))).sort();
-    if(sectorMS){ sectorMS.setItems(sectores); }
-    if(estadoMS){ estadoMS.setItems(estados); }
+    Page.offset = 0;
+    const filters = currentFilters();
+    const { rows, total } = await API.getFacturasPage(filters);
+    State.raw = rows;
+    Page.total = total;
+    // poblar selects dinámicamente (si existen)
+    const sectores = Array.from(new Set(rows.map(r=>r.Sector).filter(Boolean))).sort();
+    const estados  = Array.from(new Set(rows.map(r=>r.Estado||"Registrada"))).sort();
+    if(typeof sectorMS !== 'undefined' && sectorMS){ sectorMS.setItems(sectores); }
+    if(typeof estadoMS !== 'undefined' && estadoMS){ estadoMS.setItems(estados); }
     buildTable();
-    if(tableBuilt){ applyFilters(); } else {
+    if(tableBuilt){
+      applyFilters();
+    }else{
       (function(){
         const handler = ()=>{
           try{ table.off("tableBuilt", handler); }catch(e){}
@@ -1875,11 +1979,13 @@ async function loadData(){
         table.on("tableBuilt", handler);
       })();
     }
-}catch(e){ if(String(e&&e.message)==="ABORTED"){ /* silencioso */ } else { alert("No fue posible cargar las facturas."); } }finally{
+    toggleShowMore();
+  }catch(e){
+    console.error(e);
+  }finally{
     overlay.hide();
   }
 }
-
 window.addEventListener("DOMContentLoaded", bootstrap);
 </script>
 </div>
