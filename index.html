@@ -196,6 +196,15 @@
     border-radius: 4px; background: var(--primary); color:#fff; border:0; cursor:pointer;
   }
 </style>
+
+<style>
+  #fPagoSector[multiple], #fPagoEstado[multiple]{
+    min-height: 38px;
+    max-height: 90px;
+    overflow: auto;
+  }
+</style>
+
 </head>
 <body>
 
@@ -325,10 +334,9 @@
   </div>
 
   <div class="card" style="margin-top:10px;">
-    <div class="filters" style="grid-template-columns: 180px 180px 220px 160px 1fr 220px auto;">
-      <select id="fPagoSector" class="input"><option value="">Sector</option></select>
-      <select id="fPagoEstado" class="input">
-        <option value="">Estado</option>
+    <div class="filters" style="grid-template-columns: 220px 220px 220px 160px 1fr 220px auto;">
+      <select id="fPagoSector" class="input" multiple></select>
+      <select id="fPagoEstado" class="input" multiple>
         <option value="Revisada">Revisada</option>
         <option value="Pagada">Pagada</option>
       </select>
@@ -2101,8 +2109,8 @@ const Pago = {
         .normalize("NFD").replace(/[\u0300-\u036f]/g,"");
       const fecha  = (r.Fecha||"").toString();
 
-      if(s && sector!==s) return false;
-      if(e && estado!==e) return false;
+      if(s.length && !s.includes(sector)) return false;
+      if(e.length && !e.includes(estado)) return false;
       if(n && !numero.includes(n)) return false;
       if(nombreQ && !nombre.includes(nombreQ)) return false;
       if(dr){
@@ -2200,7 +2208,7 @@ async function cargarPago(){
     const sel = document.getElementById("fPagoSector");
     if(sel){
       const sectors = Array.from(new Set((Pago.raw||[]).map(r=>r.Sector).filter(Boolean))).sort((a,b)=>a.localeCompare(b));
-      sel.innerHTML = '<option value="">Sector</option>' + sectors.map(s=>'<option value="'+s+'">'+s+'</option>').join('');
+      const prev = new Set(Array.from(sel.selectedOptions).map(o=>o.value)); sel.innerHTML = sectors.map(s=>'<option value="'+s+'">'+s+'</option>').join(''); Array.from(sel.options).forEach(o=>{ if(prev.has(o.value)) o.selected = true; });
     }
     await waitForTabulatorAndContainer();
     buildPagoTable();
@@ -2243,8 +2251,8 @@ function applyPagoFilters(){
 
 function clearPagoFilters(){
   const $ = (sel)=>document.querySelector(sel);
-  $("#fPagoSector").value = "";
-  $("#fPagoEstado").value = "";
+  Array.from($("#fPagoSector").options).forEach(o=>o.selected=false);
+  Array.from($("#fPagoEstado").options).forEach(o=>o.selected=false);
   $("#fPagoNombre").value = "";
   $("#fPagoNumero").value = "";
   $("#fPagoFecha").value = "";
