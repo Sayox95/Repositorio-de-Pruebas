@@ -350,24 +350,58 @@
     </div>
 
     <!-- Modal pago -->
-    <div id="modalPago" class="overlay" style="display:none;">
-      <div class="bubble" style="display:flex;flex-direction:column;gap:10px;min-width:340px;">
-        <div style="font-weight:800;font-size:16px;display:flex;align-items:center;gap:8px;"><i class="lucide-credit-card"></i> Registrar pago</div>
-        <label style="display:grid;gap:6px;">
-          <small class="muted" style="font-weight:700;">Fondo / Periodo</small>
-          <input id="mpFondoPeriodo" class="input" placeholder="Ej. Combustible · 2025-09"/>
-        </label>
-        <label style="display:grid;gap:6px;">
-          <small class="muted" style="font-weight:700;">Fecha de pago</small>
-          <input id="mpFechaPago" class="input" placeholder="YYYY-MM-DD"/>
-        </label>
-        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px;">
-          <button id="mpCancelar" class="btn btn-ghost"><i class="lucide-x"></i> Cancelar</button>
-          <button id="mpConfirmar" class="btn btn-primary"><i class="lucide-check"></i> Confirmar</button>
-        </div>
-      </div>
+<div id="modalPago" class="overlay" style="display:none;">
+  <div class="bubble" style="display:flex;flex-direction:column;gap:12px;min-width:420px;max-width:560px;">
+    <div style="font-weight:800;font-size:16px;display:flex;align-items:center;gap:8px;">
+      <i class="lucide-credit-card"></i> Registrar pago
     </div>
-  </section>
+
+    <!-- Resumen tipo "factura" -->
+    <div class="card" style="padding:12px;display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div><small class="muted">Facturas a pagar</small><div id="mpCount" style="font-weight:700;font-size:16px;">0</div></div>
+      <div><small class="muted">Monto subtotal</small><div id="mpSubtotal" style="font-weight:700;font-size:16px;">L 0.00</div></div>
+      <div><small class="muted">Otros cargos</small><div id="mpCargos" style="font-weight:700;font-size:16px;">L 0.00</div></div>
+      <div><small class="muted">Total a pagar</small><div id="mpTotal" style="font-weight:800;font-size:18px;">L 0.00</div></div>
+    </div>
+
+    <div style="display:grid;gap:10px;grid-template-columns:1fr 1fr;">
+      <label style="display:grid;gap:6px;">
+        <small class="muted" style="font-weight:700;">Fondo / Periodo</small>
+        <input id="mpFondoPeriodo" class="input" placeholder="Ej. Combustible · 2025-09"/>
+      </label>
+      <label style="display:grid;gap:6px;">
+        <small class="muted" style="font-weight:700;">Fecha de pago</small>
+        <input id="mpFechaPago" class="input" placeholder="YYYY-MM-DD"/>
+      </label>
+    </div>
+
+    <div style="display:grid;gap:10px;grid-template-columns:1fr 1fr;">
+      <label style="display:grid;gap:6px;">
+        <small class="muted" style="font-weight:700;">ID_PAGO</small>
+        <input id="mpIdPago" class="input" readonly />
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:22px;">
+        <input id="mpAnotarEnFondo" type="checkbox" />
+        <span class="muted">Anotar ID_PAGO y cargos en "Fondo / Periodo"</span>
+      </label>
+    </div>
+
+    <!-- Otros cargos -->
+    <div class="card" style="padding:12px;display:flex;flex-direction:column;gap:8px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div style="font-weight:700;">Otros Cargos</div>
+        <button id="mpAddCargo" class="btn btn-ghost"><i class="lucide-plus"></i> Agregar cargo</button>
+      </div>
+      <div id="mpCargosList" style="display:flex;flex-direction:column;gap:8px;"></div>
+    </div>
+
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px;">
+      <button id="mpCancelar" class="btn btn-ghost"><i class="lucide-x"></i> Cancelar</button>
+      <button id="mpConfirmar" class="btn btn-primary"><i class="lucide-check"></i> Confirmar</button>
+    </div>
+  </div>
+</div>
+</section>
 
 
   <!-- ============== Sección Anticipos (placeholder) ============== -->
@@ -2396,6 +2430,149 @@ document.addEventListener("DOMContentLoaded", function(){
   if(navPago){ navPago.addEventListener("click", function(){ setTimeout(function(){ cargarPago(); }, 0); }); }
   window.addEventListener("hashchange", function(){ if(location.hash==="#pago"){ setTimeout(function(){ cargarPago(); }, 0); } });
 });
+
+/* ====== Pago: resumen, cargos e integración pagoLote ====== */
+(function(){
+  function generateIdPago(){
+    const d = new Date();
+    const pad = n => String(n).padStart(2,"0");
+    const rnd = Math.random().toString(36).slice(2,6).toUpperCase();
+    return `PAGO-${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}-${rnd}`;
+  }
+  function fmtL(v){ return "L " + (Number(v)||0).toLocaleString("es-HN",{minimumFractionDigits:2,maximumFractionDigits:2}); }
+
+  function getSelectedSubtotal(){
+    const rows = (typeof pagoTable!=="undefined" && pagoTable.getSelectedData) ? pagoTable.getSelectedData() : [];
+    let sum = 0;
+    for(const r of rows){
+      const t = Number(r["Total Gastado"] ?? r.Total) || 0;
+      sum += t;
+    }
+    return { count: rows.length, subtotal: sum, rows };
+  }
+
+  function addCargoRow(type="", amount=""){
+    const wrap = document.getElementById("mpCargosList"); if(!wrap) return;
+    const div = document.createElement("div");
+    div.className = "cargo-row";
+    div.style.display = "grid";
+    div.style.gridTemplateColumns = "1fr 160px 32px";
+    div.style.gap = "8px";
+    div.innerHTML = `
+      <select class="input cargo-tipo">
+        <option value="Tasa seguridad poblacion"${'Tasa seguridad poblacion'===type?' selected':''}>Tasa seguridad poblacion</option>
+        <option value="ACH"${'ACH'===type?' selected':''}>ACH</option>
+        <option value="Otro"${'Otro'===type?' selected':''}>Otro</option>
+      </select>
+      <input class="input cargo-monto" type="number" step="0.01" min="0" placeholder="0.00" value="${amount}"/>
+      <button class="btn btn-ghost cargo-remove" title="Eliminar"><i class="lucide-trash-2"></i></button>
+    `;
+    wrap.appendChild(div);
+    div.querySelector(".cargo-monto").addEventListener("input", recomputePagoResumen);
+    div.querySelector(".cargo-tipo").addEventListener("change", recomputePagoResumen);
+    div.querySelector(".cargo-remove").addEventListener("click", () => { div.remove(); recomputePagoResumen(); });
+  }
+
+  function readCargos(){
+    const wrap = document.getElementById("mpCargosList"); if(!wrap) return [];
+    const out = [];
+    wrap.querySelectorAll(".cargo-row").forEach(row => {
+      const tipo = row.querySelector(".cargo-tipo")?.value || "";
+      const monto = Number(row.querySelector(".cargo-monto")?.value || 0) || 0;
+      if(monto>0) out.push({ tipo, monto });
+    });
+    return out;
+  }
+
+  function recomputePagoResumen(){
+    const {count, subtotal} = getSelectedSubtotal();
+    const cargos = readCargos();
+    const cargosTotal = cargos.reduce((a,c)=>a+(Number(c.monto)||0),0);
+    const total = subtotal + cargosTotal;
+
+    const elCount = document.getElementById("mpCount");
+    const elSubtotal = document.getElementById("mpSubtotal");
+    const elCargos = document.getElementById("mpCargos");
+    const elTotal = document.getElementById("mpTotal");
+    if(elCount) elCount.textContent = String(count);
+    if(elSubtotal) elSubtotal.textContent = fmtL(subtotal);
+    if(elCargos) elCargos.textContent = fmtL(cargosTotal);
+    if(elTotal) elTotal.textContent = fmtL(total);
+  }
+
+  // Exponer para que lo usen otros handlers si existen
+  window._pagoResumen = { recomputePagoResumen, getSelectedSubtotal, readCargos, addCargoRow, generateIdPago };
+
+  // API: pago en lote
+  if(typeof API !== "undefined"){
+    API.pagarFacturasLote = async function(rows, fondoPeriodo, fechaPago, idPago, cargos){
+      const filas = (rows || []).map(r => r.fila || r._fila).filter(Boolean);
+      if (!filas.length) throw new Error("No hay filas válidas para el pago.");
+      const url = (Config && Config.api && Config.api.guardar) ? Config.api.guardar : "/api/guardar";
+      const body = {
+        accion: "pagoLote",
+        filas,
+        fondoPeriodo,
+        fechaPago,
+        idPago,
+        cargos: Array.isArray(cargos) ? cargos : []
+      };
+      const res = await fetch(url, { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body) });
+      const json = await res.json().catch(()=>null);
+      if(!res.ok || !json || json.status!=="OK"){
+        throw new Error((json && json.message) || ("Error HTTP " + res.status));
+      }
+      return json;
+    };
+  }
+
+  // Override modal handlers (sin tocar filtros ni tabla)
+  window.openPagoModal = function(){
+    const el = document.getElementById("modalPago"); if(!el) return;
+    const dft = (typeof fmt!=="undefined" && fmt.dateISO) ? fmt.dateISO(new Date()) : new Date().toISOString().slice(0,10);
+    document.getElementById("mpFondoPeriodo").value = "";
+    document.getElementById("mpFechaPago").value = dft;
+    document.getElementById("mpIdPago").value = generateIdPago();
+    const list = document.getElementById("mpCargosList"); if(list){ list.innerHTML=""; }
+    recomputePagoResumen();
+    el.style.display = "grid";
+  };
+  window.closePagoModal = function(){
+    const el = document.getElementById("modalPago"); if(!el) return;
+    el.style.display = "none";
+  };
+  window.confirmPago = async function(){
+    try{
+      const fondoPeriodo = (document.getElementById("mpFondoPeriodo")?.value||"").trim();
+      const fechaPago    = (document.getElementById("mpFechaPago")?.value||"").trim();
+      const idPago       = (document.getElementById("mpIdPago")?.value||"").trim();
+      if(!fondoPeriodo || !fechaPago){ alert("Completa Fondo/Periodo y Fecha de pago."); return; }
+      const rows = (typeof pagoTable!=="undefined" && pagoTable.getSelectedData) ? pagoTable.getSelectedData() : [];
+      if(!rows?.length){ alert("Selecciona al menos una factura."); return; }
+
+      const cargos = readCargos();
+      if(typeof overlay!=="undefined") overlay.show("Registrando pago…");
+      await API.pagarFacturasLote(rows, fondoPeriodo, fechaPago, idPago, cargos);
+      if(typeof cargarPago === "function"){ await cargarPago(); }
+      closePagoModal();
+    }catch(e){
+      alert("No se pudo registrar el pago. " + e.message);
+    }finally{
+      if(typeof overlay!=="undefined") overlay.hide();
+    }
+  };
+
+  // Wire botones del modal cuando el DOM exista
+  document.addEventListener("DOMContentLoaded", function(){
+    document.getElementById("mpCancelar")?.addEventListener("click", closePagoModal);
+    document.getElementById("mpConfirmar")?.addEventListener("click", confirmPago);
+    document.getElementById("mpAddCargo")?.addEventListener("click", function(){ addCargoRow(); });
+    // Recalcular si se cambia selección antes de abrir modal
+    if (typeof pagoTable !== "undefined" && pagoTable && pagoTable.on) {
+      try { pagoTable.on("rowSelectionChanged", recomputePagoResumen); } catch(_) {}
+    }
+  });
+})();
 </script>
 
 </body>
