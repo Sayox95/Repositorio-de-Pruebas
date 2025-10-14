@@ -1123,9 +1123,9 @@ async function applyFilters(silent=false){
     const { rows, total } = res;
     State.raw = rows;
     Page.total = total;
-    try{ const p = table.replaceData(State.raw); if(p && p.then) await p; }catch(_){ try{ table.setData(State.raw);}catch(__){} }
-    updateKpis(); try{ updateKpisRevRange(); }catch(_){}
-    toggleShowMore();
+    await replaceDataSafe(State.raw);
+      updateKpis(); try{ updateKpisRevRange(); }catch(_){}
+      toggleShowMore();
   }catch(e){
     console.error(e);
   }finally{
@@ -1953,6 +1953,23 @@ function hasActiveFilters(){
   const f = currentFilters();
   return (f.sector&&f.sector.length) || (f.estado&&f.estado.length) || f.nombre || f.placa || f.numero || (f.fechaFrom&&f.fechaTo) || (f.fechaRevFrom&&f.fechaRevTo);
 }
+async function replaceDataSafe(rows){
+  // Espera a que Tabulator emita 'tableBuilt' antes de reemplazar datos
+  if(typeof tableBuilt !== 'undefined' && !tableBuilt){
+    await new Promise((resolve)=>{
+      try{
+        const handler = ()=>{ try{ table.off("tableBuilt", handler); }catch(_){ } resolve(); };
+        table.on("tableBuilt", handler);
+      }catch(_){ resolve(); }
+    });
+  }
+  try{
+    const p = table.replaceData(rows);
+    if(p && typeof p.then === "function") await p;
+  }catch(e){
+    try{ table.setData(rows); }catch(_){}
+  }
+}
 function currentFilters(){
   const sVals = (typeof sectorMS !== 'undefined' && sectorMS && sectorMS.getSelected)? sectorMS.getSelected() : [];
   const eVals = (typeof estadoMS !== 'undefined' && estadoMS && estadoMS.getSelected)? estadoMS.getSelected() : [];
@@ -1989,7 +2006,7 @@ async function loadData(){
       await applyFilters(true); // silent=true
     }else{
       // sólo pintar la página recibida
-      try{ const p = table.replaceData(State.raw); if(p && p.then) await p; }catch(_){ try{ table.setData(State.raw);}catch(__){} }
+      await replaceDataSafe(State.raw);
       updateKpis(); try{ updateKpisRevRange(); }catch(_){}
       toggleShowMore();
     }
