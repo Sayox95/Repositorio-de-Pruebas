@@ -559,26 +559,17 @@ function toDirectDriveUrl(url){
  *  Capa de datos (API)
  *  ========================= */
 const API = { _facturasCtl:null,
-  async getFacturas(opts = {}){
+  async getFacturas(){
     if(this._facturasCtl) try{ this._facturasCtl.abort(); }catch(_){}
     const ctl = new AbortController();
     this._facturasCtl = ctl;
-
-    const base = Config.api.leerFacturas;
-    const url = new URL(base, location.origin);
-    if (opts && Array.isArray(opts.estados) && opts.estados.length){
-      url.searchParams.set("estados", opts.estados.join(","));
-      console.log("[Pago] forwarding estados to proxy:", opts.estados.join(","));
-    }
-
-    const res = await fetch(url.toString(), { cache:"no-store", mode:"cors", signal: ctl.signal });
+    const res = await fetch(Config.api.leerFacturas, {cache:"no-store", mode:"cors", signal: ctl.signal});
     if(!res.ok) throw new Error("No se pudo leer facturas");
-    const data = await res.json().catch(()=>[]);
-    if(ctl.signal.aborted) throw new Error("ABORTED");
-    const arr = Array.isArray(data) ? data : [];
-    return arr.map(normalizeRow).filter(Boolean);
+    const data = await res.json();
+    if(ctl.signal.aborted) throw new Error('ABORTED');
+    const arr = Array.isArray(data)? data : [];
+return arr.map(normalizeRow).filter(r=>r); // no filtramos por nº factura todavía
   },
-  
   proxied(url){
     const base = Config.api.proxyBase.replace(/\/$/,"");
     const u = encodeURIComponent(url);
@@ -2189,8 +2180,6 @@ async function cargarPago(){
     let fallbackUsed = false;
     let rawAllCount = null;
 
-    const TARGET = new Set(["Revisada","Pagada"]);
-
     // 1) Intento pedir ya filtradas en servidor
     if (typeof API!=="undefined" && typeof API.getFacturas === "function") {
       try {
@@ -2203,34 +2192,27 @@ async function cargarPago(){
       }
     }
 
-    // Normalizar data inicial
+    // 2) Fallback si el backend aún no soporta el parámetro
     let data = Array.isArray(arr) ? arr : [];
-
-    // 2) Verificar de verdad si el servidor filtró (ningún estado fuera de TARGET)
-    const serverReturnedValid = data.length > 0 && data.every(r => TARGET.has(String((r && r.Estado) || "")));
-    if (!serverReturnedValid) {
-      // El backend no filtró (o devolvió vacío): pedir todo y filtrar localmente
+    if (!data.length || !data.every(r => r && typeof r === "object" && ("Estado" in r))) {
       console.time("[Pago] API.getFacturas() (fallback, sin filtro servidor)");
       const all = await (typeof API!=="undefined" ? API.getFacturas() : Promise.resolve([]));
       console.timeEnd("[Pago] API.getFacturas() (fallback, sin filtro servidor)");
       rawAllCount = Array.isArray(all) ? all.length : null;
-      data = (all || []).filter(r => TARGET.has(String((r && r.Estado) || "")));
+      data = (all || []).filter(r => ["Revisada","Pagada"].includes(String((r && r.Estado) || "")));
       fallbackUsed = true;
-      serverFilter = false;
     } else {
       serverFilter = true;
     }
 
     // 3) Logs de métricas
-    const recibidas = (Array.isArray(arr) && arr) ? arr.length : (rawAllCount !== null ? rawAllCount : data.length);
-    const estadosUnicos = Array.from(new Set((Array.isArray(arr) && arr.length ? arr : data).map(r => String((r && r.Estado) || "")).filter(Boolean)));
+    const recibidas = (Array.isArray(arr) && serverFilter) ? arr.length : (rawAllCount !== null ? rawAllCount : data.length);
     console.log("[Pago] métricas:", {
       servidorFiltrado: serverFilter,
       fallback: fallbackUsed,
       recibidas: recibidas,
       despuesFiltro: data.length
     });
-    console.log("[Pago] estados devueltos por servidor:", estadosUnicos);
 
     // 4) Guardar data cruda
     Pago.raw = data;
