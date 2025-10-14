@@ -192,15 +192,8 @@
   </style>
 <style>
   .tabulator-cell .btn-pagar{
-    padding: 2px 6px !important;
-    font-size: 0.75rem !important;
-    line-height: 1 !important;
-    height: 22px !important;
-    border-radius: 4px;
-    background: var(--primary);
-    color:#fff;
-    border:0;
-    cursor:pointer;
+    padding: 2px 6px; font-size: 12px; line-height: 1; height: 22px;
+    border-radius: 4px; background: var(--primary); color:#fff; border:0; cursor:pointer;
   }
 </style>
 </head>
@@ -339,8 +332,8 @@
         <option value="Revisada">Revisada</option>
         <option value="Pagada">Pagada</option>
       </select>
-      <input id="fPagoNombre" class="input" placeholder="Nombre Colaborador…"/>
-      <input id="fPagoNumero" class="input" placeholder="Nº Factura…"/>
+      <input id="fPagoNombre" class="input" placeholder="Nombre Colaborador..."/>
+      <input id="fPagoNumero" class="input" placeholder="Nº Factura..."/>
       <input id="fPagoFecha" class="input" placeholder="Rango de fechas"/>
       <button id="btnPagoLimpiar" class="btn btn-ghost"><i class="lucide-broom"></i> Limpiar</button>
     </div>
@@ -356,7 +349,7 @@
       <div style="font-weight:800;font-size:16px;display:flex;align-items:center;gap:8px;"><i class="lucide-credit-card"></i> Registrar pago</div>
       <label style="display:grid;gap:6px;">
         <small class="muted" style="font-weight:700;">Fondo / Periodo</small>
-        <input id="mpFondoPeriodo" class="input" placeholder="Ej. Combustible · Sep/2025"/>
+        <input id="mpFondoPeriodo" class="input" placeholder="Ej. Combustible · 2025-09"/>
       </label>
       <label style="display:grid;gap:6px;">
         <small class="muted" style="font-weight:700;">Fecha de pago</small>
@@ -2070,13 +2063,14 @@ async function doLogout(){ await authLogout(); showLogin(); }
 </script>
 
 <script>
-// ====== Extensión API: pago puntual (marca Pagada y setea Fondo/Fecha) ======
-if (typeof API !== 'undefined') {
+// ===================== Pago: Extensión API =====================
+if (typeof API !== "undefined") {
   API.pagarFacturas = async function(rows, fondoPeriodo, fechaPago){
     const errs = [];
-    await Promise.all((rows||[]).map(async r => {
+    const list = Array.isArray(rows) ? rows : [];
+    for (const r of list){
       const fila = r.fila || r._fila;
-      if(!fila){ errs.push("Fila sin 'fila' real en dataset"); return; }
+      if(!fila){ errs.push("Fila sin 'fila' real en dataset"); continue; }
       const res = await fetch((Config && Config.api && Config.api.guardar) ? Config.api.guardar : "/api/guardar", {
         method:"POST",
         headers:{"Content-Type":"application/json"},
@@ -2087,15 +2081,14 @@ if (typeof API !== 'undefined') {
       if(!res.ok || !json || json.status!=="OK"){
         errs.push("Fallo al pagar fila " + fila + ": " + (json && json.message ? json.message : res.status));
       }
-    }));
+    }
     if(errs.length) throw new Error(errs.join(" · "));
   };
 }
 
-// ====== Módulo Pago (tabla, filtros, KPIs, modal) ======
-let pagoTable;
+// ===================== Pago: Estado/Tabla =====================
+let pagoTable = null;
 let pagoGrouped = false;
-let flatpickrPago;
 
 const Pago = {
   raw: [],
@@ -2137,11 +2130,11 @@ function setLastUpdatedPago(){
   const dd = String(now.getDate()).padStart(2,"0");
   const hh = String(now.getHours()).padStart(2,"0");
   const mi = String(now.getMinutes()).padStart(2,"0");
-  el.textContent = `Actualizado: ${yyyy}-${mm}-${dd} ${hh}:${mi}`;
+  el.textContent = "Actualizado: " + yyyy + "-" + mm + "-" + dd + " " + hh + ":" + mi;
 }
 
-function buildPagoTable(){
-  if(pagoTable) return;
+async function ensurePagoTable(){
+  if (pagoTable) return;
   pagoTable = new Tabulator("#tablaPago", {
     height: Config.tablaHeight,
     data: [],
@@ -2161,18 +2154,18 @@ function buildPagoTable(){
       { title:"Fecha", field:"Fecha", width:120,
         formatter:(c)=>{ const v=c.getValue(); return v? String(v).slice(0,10):""; } },
       { title:"Nombre del comercio", field:"Nombre del comercio", width:220, tooltip:true,
-        formatter:(cell)=>{ const v=String(cell.getValue()??""); const m=28; return v.length>m? v.slice(0,m)+"…": v; } },
+        formatter:(cell)=>{ const v=String(cell.getValue()??""); const m=28; return v.length>m? v.slice(0,m)+"...": v; } },
       { title:"Número de Factura", field:"Numero de Factura", width:150 },
       { title:"Enlace PDF", field:"Enlace PDF", width:110,
         formatter:(cell)=>{
           const r = cell.getRow().getData();
           const v = cell.getValue() || r.Enlace || r.PDF || "";
-          return v? `<a href="${(typeof API!=="undefined"? API.proxied(v): v)}" target="_blank" title="Abrir PDF">📄</a>` : "";
+          return v? "<a href=\"" + (typeof API!=="undefined"? API.proxied(v): v) + "\" target=\"_blank\" title=\"Abrir PDF\">📄</a>" : "";
         } },
       { title:"Estado", field:"Estado", width:120, formatter:(c)=> {
           const v = (c.getValue()||"").toString();
-          if(v==="Pagada") return `<span class="status-pill disabled"><span class="dot" style="background:${(typeof estadoColor!=="undefined"? estadoColor('Pagada'): '#0FA47E')}"></span>Pagada</span>`;
-          return `<button class="btn-pagar" title="Pagar esta factura">Pagar</button>`;
+          if(v==="Pagada") return "<span class=\"status-pill disabled\"><span class=\"dot\" style=\"background:" + (typeof estadoColor!=="undefined"? estadoColor('Pagada'): '#0FA47E') + "\"></span>Pagada</span>";
+          return "<button class=\"btn-pagar\" title=\"Pagar esta factura\">Pagar</button>";
         },
         cellClick: (e, cell)=>{
           const row = cell.getRow(); const d = row.getData();
@@ -2183,37 +2176,24 @@ function buildPagoTable(){
         }
       },
     ],
-    groupHeader:function(value,count,data,group){
-      const total = data.reduce((acc,r)=> acc + (Number(r["Total Gastado"] ?? r.Total) || 0), 0);
-      const formatted = new Intl.NumberFormat("es-HN",{minimumFractionDigits:2, maximumFractionDigits:2}).format(total);
-      const nombre = (data && data[0] && (data[0].Nombre||"")) || "";
-      const label = `${nombre} - ${value} · ${count} factura(s) · Total: L ${formatted}`;
-      const el = document.createElement("div");
-      el.style.display="inline-flex"; el.style.alignItems="center"; el.style.gap="8px";
-      const cb = document.createElement("input"); cb.type="checkbox"; cb.addEventListener("change",(ev)=>{
-        group.getRows().forEach(r=> ev.target.checked ? r.select() : r.deselect());
-      });
-      const span = document.createElement("span"); span.textContent = label;
-      el.appendChild(cb); el.appendChild(span);
-      return el;
-    },
     dataLoaded: updatePagoKpis,
     dataFiltered: updatePagoKpis,
     rowSelectionChanged: ()=>{ const b=document.getElementById("btnPagoAbrirModal"); if(b) b.disabled = (pagoTable.getSelectedRows().length===0); }
   });
+  await new Promise(res => pagoTable.once("tableBuilt", res));
 }
 
 async function cargarPago(){
-  if(typeof overlay!=="undefined") overlay.show("Cargando facturas…");
+  if(typeof overlay!=="undefined") overlay.show("Cargando facturas...");
   try{
     const arr = await (typeof API!=="undefined" ? API.getFacturas() : Promise.resolve([]));
     Pago.raw = (arr||[]).filter(r=> ["Revisada","Pagada"].includes(String(r.Estado||"")));
     const sel = document.getElementById("fPagoSector");
     if(sel){
       const sectors = Array.from(new Set((Pago.raw||[]).map(r=>r.Sector).filter(Boolean))).sort((a,b)=>a.localeCompare(b));
-      sel.innerHTML = '<option value="">Sector</option>' + sectors.map(s=>`<option value="${s}">${s}</option>`).join('');
+      sel.innerHTML = '<option value="">Sector</option>' + sectors.map(s=>'<option value="' + s + '">' + s + '</option>').join('');
     }
-    if(!pagoTable) buildPagoTable();
+    await ensurePagoTable();
     await pagoTable.replaceData(Pago.filtered);
     updatePagoKpis();
     setLastUpdatedPago();
@@ -2233,8 +2213,8 @@ function updatePagoKpis(){
   }
   const fmtMoney = (v)=> "L " + (Number(v)||0).toLocaleString("es-HN",{minimumFractionDigits:2,maximumFractionDigits:2});
   const $ = (sel)=>document.querySelector(sel);
-  $("#kpiPagoPendientes").textContent = pend;
-  $("#kpiPagoPagadas").textContent = pag;
+  $("#kpiPagoPendientes").textContent = String(pend);
+  $("#kpiPagoPagadas").textContent = String(pag);
   $("#kpiPagoTotalPend").textContent = fmtMoney(sp);
   $("#kpiPagoTotalPag").textContent  = fmtMoney(sg);
 }
@@ -2243,7 +2223,7 @@ function applyPagoFilters(){
   if(!pagoTable) return;
   const list = Pago.filtered;
   const maybe = pagoTable.replaceData(list);
-  if(maybe?.then) maybe.then(updatePagoKpis); else setTimeout(updatePagoKpis,0);
+  if(maybe && typeof maybe.then === "function"){ maybe.then(updatePagoKpis); } else { setTimeout(updatePagoKpis,0); }
 }
 
 function clearPagoFilters(){
@@ -2253,7 +2233,7 @@ function clearPagoFilters(){
   $("#fPagoNombre").value = "";
   $("#fPagoNumero").value = "";
   $("#fPagoFecha").value = "";
-  document.getElementById("fPagoFecha")._range = null;
+  const f = document.getElementById("fPagoFecha"); if(f) f._range = null;
   applyPagoFilters();
 }
 
@@ -2269,7 +2249,7 @@ function togglePagoGrouping(){
   }
 }
 
-// ===== Modal de Pago =====
+// ===================== Pago: Modal =====================
 function openPagoModal(){
   const el = document.getElementById("modalPago");
   if(!el) return;
@@ -2288,7 +2268,7 @@ async function confirmPago(){
     const rows = pagoTable.getSelectedData();
     if(!rows?.length){ alert("Selecciona al menos una factura."); return; }
 
-    if(typeof overlay!=="undefined") overlay.show("Registrando pago…");
+    if(typeof overlay!=="undefined") overlay.show("Registrando pago...");
     await API.pagarFacturas(rows, fondoPeriodo, fechaPago);
     await cargarPago();
     closePagoModal();
@@ -2299,11 +2279,10 @@ async function confirmPago(){
   }
 }
 
-// ===== Wire-up Pago al cargar =====
-document.addEventListener("DOMContentLoaded", ()=>{
-  // Flatpickr rango
+// ===================== Pago: Wire-up =====================
+document.addEventListener("DOMContentLoaded", function(){
   if (typeof flatpickr !== "undefined") {
-    flatpickrPago = flatpickr("#fPagoFecha", {
+    flatpickr("#fPagoFecha", {
       mode:"range", dateFormat:"Y-m-d",
       onChange(selectedDates){
         if(selectedDates.length===2){
@@ -2318,31 +2297,25 @@ document.addEventListener("DOMContentLoaded", ()=>{
     });
   }
 
-  // Filtros
   const $ = (sel)=>document.querySelector(sel);
   $("#fPagoSector")?.addEventListener("change", applyPagoFilters);
   $("#fPagoEstado")?.addEventListener("change", applyPagoFilters);
-  $("#fPagoNumero")?.addEventListener("input", (function(){ let t; return ()=>{ clearTimeout(t); t=setTimeout(applyPagoFilters,250);} })());
-  $("#fPagoNombre")?.addEventListener("input", (function(){ let t; return ()=>{ clearTimeout(t); t=setTimeout(applyPagoFilters,250);} })());
+  (function(){ let t; const h=()=>{ clearTimeout(t); t=setTimeout(applyPagoFilters,250); }; $("#fPagoNumero")?.addEventListener("input", h); $("#fPagoNombre")?.addEventListener("input", h); })();
   $("#btnPagoLimpiar")?.addEventListener("click", clearPagoFilters);
 
-  // Botones barra
   $("#btnPagoActualizar")?.addEventListener("click", cargarPago);
-  $("#btnPagoExportXLSX")?.addEventListener("click", ()=> pagoTable?.download("xlsx", `Pago_UTCD_${new Date().toISOString().slice(0,10)}.xlsx`, {sheetName:"Pago", rowRange:"active"}));
+  $("#btnPagoExportXLSX")?.addEventListener("click", ()=> pagoTable?.download("xlsx", "Pago_UTCD_" + new Date().toISOString().slice(0,10) + ".xlsx", {sheetName:"Pago", rowRange:"active"}));
   $("#btnPagoAgrupar")?.addEventListener("click", togglePagoGrouping);
   $("#btnPagoAbrirModal")?.addEventListener("click", openPagoModal);
 
-  // Modal
   $("#mpCancelar")?.addEventListener("click", closePagoModal);
   $("#mpConfirmar")?.addEventListener("click", confirmPago);
 
-  // Hook navegación: si el usuario entra a #pago, cargar datos
-  document.querySelectorAll('.sidebar .nav-btn').forEach(a=>{
-    a.addEventListener('click', (ev)=>{
-      const href = a.getAttribute('href')||'';
-      if(href==='#pago'){ setTimeout(()=>cargarPago(), 0); }
-    });
-  });
+  // Hook de navegación: si el usuario entra a #pago, cargar datos
+  const navPago = document.querySelector('.sidebar .nav-btn[href="#pago"]');
+  if(navPago){
+    navPago.addEventListener("click", function(){ setTimeout(function(){ cargarPago(); }, 0); });
+  }
 });
 </script>
 </body>
