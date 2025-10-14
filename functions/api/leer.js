@@ -2,7 +2,7 @@ export async function onRequestGet({ request }) {
   const origin = request.headers.get("Origin") || "*";
   const inUrl = new URL(request.url);
 
-  const url = new URL("https://script.google.com/macros/s/AKfycbykoaV3XYGYf3kUGBhlrfAL7KdX8prIWQaCBlW2DDqBVIjubWCanpps1RagPwCxVYJkrg/exec");
+  const url = new URL("https://script.google.com/macros/s/AKfycbzJfcoKM45i_MUCnCY9RlJKMjTzji1gSAnQ8LHd5NVP5TyvvsBHcLEOmzywv_Ha5uBzug/exec");
   url.searchParams.set("leerFacturas", "true");
 
   // Copiar parámetros entrantes (limit, offset, filtros…)
