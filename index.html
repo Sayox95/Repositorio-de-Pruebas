@@ -1661,6 +1661,8 @@ document.addEventListener("change", (ev)=>{
  *  Bootstrap
  *  ========================= */
 async function hardRefresh(){
+  try{ console.time("[Revision] cargar"); }catch(_e){}
+
   // Limpia filtros, recarga y resetea scroll; luego muestra hora de actualización
   clearFilters();
   await loadData();
@@ -1669,7 +1671,9 @@ async function hardRefresh(){
   const now = new Date();
   const hh = String(now.getHours()).padStart(2,"0");
   const mm = String(now.getMinutes()).padStart(2,"0");
-  }
+  
+  try{ console.timeEnd("[Revision] cargar"); }catch(_e){}
+}
 
 async function onSectorEdited(cell){
   try{
@@ -2316,6 +2320,8 @@ function clearPagoFilters(){
 
 // ========= Carga principal =========
 async function cargarPago(){
+  try{ console.time("[Pago] cargar"); }catch(_e){}
+
   if(typeof overlay!=="undefined") overlay.show("Cargando facturas…");
   try {
     let arr = null;
@@ -2349,6 +2355,8 @@ async function cargarPago(){
   } finally {
     if(typeof overlay!=="undefined") overlay.hide();
   }
+
+  try{ console.timeEnd("[Pago] cargar"); }catch(_e){}
 }
 
 // ========= Wire-up =========
