@@ -205,6 +205,40 @@
   }
 </style>
 
+
+<style>
+  /* Multiselect (checkbox dropdown) */
+  .msel { position: relative; }
+  .msel .msel-input {
+    display: flex; align-items: center; min-height: 38px; width: 100%;
+    padding: 6px 10px; border: 1px solid var(--border, #e3e3e3); border-radius: 10px;
+    background: #fff; font-size: 14px; color: var(--text, #111);
+    cursor: pointer;
+  }
+  .msel .msel-input.placeholder { color: #99a3ad; }
+  .msel .msel-caret { margin-left: auto; opacity: .6; }
+  .msel .msel-panel {
+    position: absolute; z-index: 40; top: calc(100% + 6px); left: 0; right: 0;
+    background: #fff; border: 1px solid var(--border, #e3e3e3); border-radius: 12px;
+    box-shadow: 0 10px 20px rgba(0,0,0,.08);
+    max-height: 220px; overflow: auto; padding: 6px;
+    display: none;
+  }
+  .msel.open .msel-panel { display: block; }
+  .msel .opt {
+    display: grid; grid-template-columns: 22px 1fr; align-items: center;
+    gap: 8px; padding: 6px 8px; border-radius: 8px; cursor: pointer;
+  }
+  .msel .opt:hover { background: #f6f7f9; }
+  .msel .opt input { width: 16px; height: 16px; }
+  .msel .msel-badges { display: flex; flex-wrap: wrap; gap: 6px; }
+  .msel .badge {
+    background: #eef2ff; color: #334155; border-radius: 999px; padding: 2px 8px; font-size: 12px;
+  }
+  /* Hide original select but keep it in DOM for events */
+  select.msel-hidden { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
+</style>
+
 </head>
 <body>
 
@@ -2342,6 +2376,74 @@ document.addEventListener("DOMContentLoaded", function(){
   // Y si cambia el hash manualmente
   window.addEventListener("hashchange", function(){ if(location.hash==="#pago"){ setTimeout(function(){ cargarPago(); }, 0); } });
 });
+</script>
+
+
+<script>
+// === Lightweight checkbox multiselect enhancer (no external libs) ===
+function enhanceMultiSelect(sel, placeholder){
+  if(!sel || sel._enhanced) return;
+  sel.classList.add('msel-hidden');
+  const wrap = document.createElement('div'); wrap.className = 'msel';
+  const input = document.createElement('div'); input.className = 'msel-input placeholder';
+  input.innerHTML = '<span class="msel-content">'+(placeholder||'Selecciona')+'</span><span class="msel-caret">▾</span>';
+  const panel = document.createElement('div'); panel.className = 'msel-panel';
+  wrap.appendChild(input); wrap.appendChild(panel);
+  sel.parentNode.insertBefore(wrap, sel);
+  wrap.appendChild(sel); // keep select inside for form semantics
+
+  function renderPanel(){
+    panel.innerHTML = '';
+    Array.from(sel.options).forEach(function(opt){
+      const row = document.createElement('div'); row.className = 'opt';
+      const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = opt.selected; cb.dataset.value = opt.value;
+      const lab = document.createElement('div'); lab.textContent = opt.textContent;
+      row.appendChild(cb); row.appendChild(lab);
+      row.addEventListener('click', function(ev){
+        if(ev.target.tagName !== 'INPUT'){ cb.checked = !cb.checked; }
+        opt.selected = cb.checked;
+        // dispatch change on select
+        const e = new Event('change', {bubbles:true}); sel.dispatchEvent(e);
+        renderInput();
+      });
+      panel.appendChild(row);
+    });
+  }
+
+  function renderInput(){
+    const selected = Array.from(sel.selectedOptions).map(o=>o.textContent);
+    const content = wrap.querySelector('.msel-content');
+    if(selected.length === 0){
+      input.classList.add('placeholder'); content.innerHTML = placeholder || 'Selecciona';
+    }else{
+      input.classList.remove('placeholder');
+      content.innerHTML = '<div class="msel-badges">' + selected.map(s=>'<span class="badge">'+s+'</span>').join('') + '</div>';
+    }
+  }
+
+  function open(){ wrap.classList.add('open'); }
+  function close(){ wrap.classList.remove('open'); }
+  input.addEventListener('click', function(ev){ ev.stopPropagation(); if(wrap.classList.contains('open')) close(); else open(); });
+  document.addEventListener('click', function(){ close(); });
+
+  // Observe option list changes (e.g., when repopulating sectors)
+  const mo = new MutationObserver(function(){ renderPanel(); renderInput(); });
+  mo.observe(sel, { childList:true });
+
+  sel._enhanced = true;
+  renderPanel(); renderInput();
+}
+
+// Hook: after sector options are populated in cargarPago(), enhance both selects
+(function(){
+  const _cargarPago = cargarPago;
+  cargarPago = async function(){
+    await _cargarPago();
+    // Enhance once
+    enhanceMultiSelect(document.getElementById('fPagoSector'), 'Sector');
+    enhanceMultiSelect(document.getElementById('fPagoEstado'), 'Estado');
+  };
+})();
 </script>
 
 </body>
