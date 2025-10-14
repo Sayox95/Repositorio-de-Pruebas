@@ -332,8 +332,8 @@
         <option value="Revisada">Revisada</option>
         <option value="Pagada">Pagada</option>
       </select>
-      <input id="fPagoNombre" class="input" placeholder="Nombre Colaborador..."/>
-      <input id="fPagoNumero" class="input" placeholder="Nº Factura..."/>
+      <input id="fPagoNombre" class="input" placeholder="Nombre Colaborador…"/>
+      <input id="fPagoNumero" class="input" placeholder="Nº Factura…"/>
       <input id="fPagoFecha" class="input" placeholder="Rango de fechas"/>
       <button id="btnPagoLimpiar" class="btn btn-ghost"><i class="lucide-broom"></i> Limpiar</button>
     </div>
@@ -2062,36 +2062,29 @@ async function doLogout(){ await authLogout(); showLogin(); }
 
 </script>
 
+
 <script>
-// ===================== Pago: Extensión API =====================
+// ===================== Pago: API =====================
 if (typeof API !== "undefined") {
   API.pagarFacturas = async function(rows, fondoPeriodo, fechaPago){
     const errs = [];
-    const list = Array.isArray(rows) ? rows : [];
-    for (const r of list){
+    for (const r of (rows||[])){
       const fila = r.fila || r._fila;
-      if(!fila){ errs.push("Fila sin 'fila' real en dataset"); continue; }
-      const res = await fetch((Config && Config.api && Config.api.guardar) ? Config.api.guardar : "/api/guardar", {
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({ fondoPeriodo, fechaPago, fila })
-      });
-      let json = null;
-      try{ json = await res.json(); }catch(_){}
-      if(!res.ok || !json || json.status!=="OK"){
-        errs.push("Fallo al pagar fila " + fila + ": " + (json && json.message ? json.message : res.status));
-      }
+      if(!fila){ errs.push("Fila sin 'fila' real"); continue; }
+      const url = (Config && Config.api && Config.api.guardar) ? Config.api.guardar : "/api/guardar";
+      const res = await fetch(url, { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ fondoPeriodo, fechaPago, fila }) });
+      let json=null; try{ json=await res.json(); }catch(_){}
+      if(!res.ok || !json || json.status!=="OK"){ errs.push("Fallo fila " + fila + ": " + (json && json.message || res.status)); }
     }
     if(errs.length) throw new Error(errs.join(" · "));
   };
 }
 
 // ===================== Pago: Estado/Tabla =====================
-let pagoTable = null;
-let pagoGrouped = false;
+let pagoTable=null, pagoTableReady=false, pagoPendingData=null, pagoGrouped=false;
 
 const Pago = {
-  raw: [],
+  raw:[],
   get filtered(){
     const s = (document.querySelector("#fPagoSector")?.value || "").trim();
     const e = (document.querySelector("#fPagoEstado")?.value || "").trim();
@@ -2122,21 +2115,29 @@ const Pago = {
 };
 
 function setLastUpdatedPago(){
-  const el = document.getElementById("lastUpdatedPago");
-  if(!el) return;
-  const now = new Date();
-  const yyyy = now.getFullYear();
-  const mm = String(now.getMonth()+1).padStart(2,"0");
-  const dd = String(now.getDate()).padStart(2,"0");
-  const hh = String(now.getHours()).padStart(2,"0");
-  const mi = String(now.getMinutes()).padStart(2,"0");
-  el.textContent = "Actualizado: " + yyyy + "-" + mm + "-" + dd + " " + hh + ":" + mi;
+  const el=document.getElementById("lastUpdatedPago"); if(!el) return;
+  const t=new Date(), pad=n=>String(n).padStart(2,"0");
+  el.textContent = "Actualizado: " + t.getFullYear()+"-"+pad(t.getMonth()+1)+"-"+pad(t.getDate())+" "+pad(t.getHours())+":"+pad(t.getMinutes());
 }
 
-async function ensurePagoTable(){
-  if (pagoTable) return;
+// Espera a que Tabulator y el contenedor estén listos (si entras directo a #pago)
+function waitForTabulatorAndContainer(){
+  return new Promise(function(resolve){
+    function tick(){
+      const hasTabulator = typeof window.Tabulator !== "undefined";
+      const el = document.querySelector("#tablaPago");
+      const attached = !!(el && document.body.contains(el));
+      if(hasTabulator && attached){ resolve(); }
+      else { requestAnimationFrame(tick); }
+    }
+    tick();
+  });
+}
+
+function buildPagoTable(){
+  if(pagoTable) return;
   pagoTable = new Tabulator("#tablaPago", {
-    height: Config.tablaHeight,
+    height: (typeof Config!=="undefined" && Config.tablaHeight) ? Config.tablaHeight : "560px",
     data: [],
     layout: "fitColumns",
     selectable: true,
@@ -2150,21 +2151,21 @@ async function ensurePagoTable(){
       { title:"Nombre", field:"Nombre", width:180 },
       { title:"Identidad", field:"Identidad", width:150 },
       { title:"Total Gastado", field:"Total", hozAlign:"right", width:140,
-        formatter:(c)=> (typeof fmt!=="undefined" ? fmt.money(c.getValue() ?? c.getRow().getData()["Total Gastado"]) : c.getValue()) },
+        formatter:(c)=> (typeof fmt!=="undefined" && fmt.money) ? fmt.money(c.getValue() ?? c.getRow().getData()["Total Gastado"]) : c.getValue() },
       { title:"Fecha", field:"Fecha", width:120,
         formatter:(c)=>{ const v=c.getValue(); return v? String(v).slice(0,10):""; } },
       { title:"Nombre del comercio", field:"Nombre del comercio", width:220, tooltip:true,
-        formatter:(cell)=>{ const v=String(cell.getValue()??""); const m=28; return v.length>m? v.slice(0,m)+"...": v; } },
+        formatter:(cell)=>{ const v=String(cell.getValue()??""); const m=28; return v.length>m? v.slice(0,m)+"…": v; } },
       { title:"Número de Factura", field:"Numero de Factura", width:150 },
       { title:"Enlace PDF", field:"Enlace PDF", width:110,
         formatter:(cell)=>{
           const r = cell.getRow().getData();
           const v = cell.getValue() || r.Enlace || r.PDF || "";
-          return v? "<a href=\"" + (typeof API!=="undefined"? API.proxied(v): v) + "\" target=\"_blank\" title=\"Abrir PDF\">📄</a>" : "";
+          return v? "<a href=\"" + (typeof API!=='undefined' && API.proxied ? API.proxied(v) : v) + "\" target=\"_blank\" title=\"Abrir PDF\">📄</a>" : "";
         } },
       { title:"Estado", field:"Estado", width:120, formatter:(c)=> {
           const v = (c.getValue()||"").toString();
-          if(v==="Pagada") return "<span class=\"status-pill disabled\"><span class=\"dot\" style=\"background:" + (typeof estadoColor!=="undefined"? estadoColor('Pagada'): '#0FA47E') + "\"></span>Pagada</span>";
+          if(v==="Pagada") return "<span class=\"status-pill disabled\"><span class=\"dot\" style=\"background:" + (typeof estadoColor==='function'? estadoColor('Pagada'): '#0FA47E') + "\"></span>Pagada</span>";
           return "<button class=\"btn-pagar\" title=\"Pagar esta factura\">Pagar</button>";
         },
         cellClick: (e, cell)=>{
@@ -2180,21 +2181,35 @@ async function ensurePagoTable(){
     dataFiltered: updatePagoKpis,
     rowSelectionChanged: ()=>{ const b=document.getElementById("btnPagoAbrirModal"); if(b) b.disabled = (pagoTable.getSelectedRows().length===0); }
   });
-  await new Promise(res => pagoTable.once("tableBuilt", res));
+  // Marcar lista para primer replaceData cuando esté lista
+  pagoTable.on("tableBuilt", function(){
+    pagoTableReady = true;
+    if(pagoPendingData){
+      try{ pagoTable.replaceData(pagoPendingData); }catch(_){}
+      pagoPendingData = null;
+      updatePagoKpis();
+    }
+  });
 }
 
 async function cargarPago(){
-  if(typeof overlay!=="undefined") overlay.show("Cargando facturas...");
+  if(typeof overlay!=="undefined") overlay.show("Cargando facturas…");
   try{
     const arr = await (typeof API!=="undefined" ? API.getFacturas() : Promise.resolve([]));
     Pago.raw = (arr||[]).filter(r=> ["Revisada","Pagada"].includes(String(r.Estado||"")));
     const sel = document.getElementById("fPagoSector");
     if(sel){
       const sectors = Array.from(new Set((Pago.raw||[]).map(r=>r.Sector).filter(Boolean))).sort((a,b)=>a.localeCompare(b));
-      sel.innerHTML = '<option value="">Sector</option>' + sectors.map(s=>'<option value="' + s + '">' + s + '</option>').join('');
+      sel.innerHTML = '<option value="">Sector</option>' + sectors.map(s=>'<option value="'+s+'">'+s+'</option>').join('');
     }
-    await ensurePagoTable();
-    await pagoTable.replaceData(Pago.filtered);
+    await waitForTabulatorAndContainer();
+    buildPagoTable();
+    const list = Pago.filtered;
+    if(pagoTableReady){
+      pagoTable.replaceData(list);
+    }else{
+      pagoPendingData = list;
+    }
     updatePagoKpis();
     setLastUpdatedPago();
   }catch(e){
@@ -2251,8 +2266,7 @@ function togglePagoGrouping(){
 
 // ===================== Pago: Modal =====================
 function openPagoModal(){
-  const el = document.getElementById("modalPago");
-  if(!el) return;
+  const el = document.getElementById("modalPago"); if(!el) return;
   const dft = (typeof fmt!=="undefined" && fmt.dateISO) ? fmt.dateISO(new Date()) : new Date().toISOString().slice(0,10);
   document.getElementById("mpFondoPeriodo").value = "";
   document.getElementById("mpFechaPago").value = dft;
@@ -2268,7 +2282,7 @@ async function confirmPago(){
     const rows = pagoTable.getSelectedData();
     if(!rows?.length){ alert("Selecciona al menos una factura."); return; }
 
-    if(typeof overlay!=="undefined") overlay.show("Registrando pago...");
+    if(typeof overlay!=="undefined") overlay.show("Registrando pago…");
     await API.pagarFacturas(rows, fondoPeriodo, fechaPago);
     await cargarPago();
     closePagoModal();
@@ -2281,6 +2295,7 @@ async function confirmPago(){
 
 // ===================== Pago: Wire-up =====================
 document.addEventListener("DOMContentLoaded", function(){
+  // Date range
   if (typeof flatpickr !== "undefined") {
     flatpickr("#fPagoFecha", {
       mode:"range", dateFormat:"Y-m-d",
@@ -2311,12 +2326,15 @@ document.addEventListener("DOMContentLoaded", function(){
   $("#mpCancelar")?.addEventListener("click", closePagoModal);
   $("#mpConfirmar")?.addEventListener("click", confirmPago);
 
-  // Hook de navegación: si el usuario entra a #pago, cargar datos
+  // Si el usuario entra a #pago directamente
+  if (location.hash === "#pago") { setTimeout(function(){ cargarPago(); }, 0); }
+  // Si navega haciendo click en el menú #pago (complemento al listener global)
   const navPago = document.querySelector('.sidebar .nav-btn[href="#pago"]');
-  if(navPago){
-    navPago.addEventListener("click", function(){ setTimeout(function(){ cargarPago(); }, 0); });
-  }
+  if(navPago){ navPago.addEventListener("click", function(){ setTimeout(function(){ cargarPago(); }, 0); }); }
+  // Y si cambia el hash manualmente
+  window.addEventListener("hashchange", function(){ if(location.hash==="#pago"){ setTimeout(function(){ cargarPago(); }, 0); } });
 });
 </script>
+
 </body>
 </html>
