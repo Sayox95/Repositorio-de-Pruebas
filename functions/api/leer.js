@@ -1,31 +1,36 @@
 export async function onRequestGet({ request }) {
   const origin = request.headers.get("Origin") || "*";
 
-  const url = new URL("https://script.google.com/macros/s/AKfycbxWfWTDDdRIAwse2nBRiz2AR2rb3nicUX26NlXUyHmDDRxYUnBNlExapeD7hEDIacMgcg/exec");
+  // Lee los parámetros que lleguen al proxy
+  const incoming = new URL(request.url);
+  const estados  = incoming.searchParams.get("estados"); // "Revisada,Pagada" (opcional)
+
+  // Construye la URL al Apps Script
+  const url = new URL("https://script.google.com/macros/s/AKfycbzyB8pM5I1C1dnZ14HecXh8sLXKM5P53ZJAIrcBPDZnC9_OXlEZrBEEStAbCZMe5Jvdtw/exec");
   url.searchParams.set("leerFacturas", "true");
+  if (estados) url.searchParams.set("estados", estados);
 
   try {
-    const resp = await fetch(url.toString(), {
-      method: "GET"
-    });
-
-    const text = await resp.text();
+    const resp  = await fetch(url.toString(), { method: "GET" });
+    const text  = await resp.text();
 
     return new Response(text, {
       status: resp.status,
       headers: {
         "Access-Control-Allow-Origin": origin,
-        "Content-Type": "application/json"
+        "Access-Control-Allow-Methods": "GET, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type",
+        "Content-Type": resp.headers.get("Content-Type") || "application/json",
+        "Cache-Control": "no-store"
       }
     });
   } catch (e) {
-    return new Response(JSON.stringify({
-      status: "ERROR",
-      message: e.message
-    }), {
+    return new Response(JSON.stringify({ status: "ERROR", message: e.message }), {
       status: 502,
       headers: {
         "Access-Control-Allow-Origin": origin,
+        "Access-Control-Allow-Methods": "GET, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type",
         "Content-Type": "application/json"
       }
     });
