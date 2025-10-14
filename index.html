@@ -1031,10 +1031,10 @@ function initFilters(){
         selectedDates[0].setHours(0,0,0,0);
         selectedDates[1].setHours(23,59,59,999);
         $("#fFecha")._range = selectedDates;
-        applyFilters();
+        applyFilters(false);
       }else if(selectedDates.length===0){
         $("#fFecha")._range = null;
-        applyFilters();
+        applyFilters(false);
       }else{
         // sólo primer click: no aplicar hasta que tengamos ambas fechas
         $("#fFecha")._range = null;
@@ -1049,18 +1049,18 @@ function initFilters(){
         selectedDates[0].setHours(0,0,0,0);
         selectedDates[1].setHours(23,59,59,999);
         $("#fFechaRev")._range = selectedDates;
-        applyFilters();
+        applyFilters(false);
       }else if(selectedDates.length===0){
         $("#fFechaRev")._range = null;
-        applyFilters();
+        applyFilters(false);
       }else{
         $("#fFechaRev")._range = null;
       }
     }
   });
   // MultiSelect con checkboxes
-  sectorMS = createMultiSelect("#msSector", "Sector", applyFilters);
-  estadoMS = createMultiSelect("#msEstado", "Estado", applyFilters);
+  sectorMS = createMultiSelect("#msSector", "Sector", ()=>applyFilters(false));
+  estadoMS = createMultiSelect("#msEstado", "Estado", ()=>applyFilters(false));
 
   // Asegurar input de Placa
   const filtersRow = document.querySelector(".filters");
@@ -1077,7 +1077,7 @@ function initFilters(){
       filtersRow.insertBefore(placaEl, filtersRow.children[2] || null);
     }
   }
-  const debouncedPlaca = debounce(applyFilters, 250);
+  const debouncedPlaca = debounce(()=>applyFilters(false), 250);
   const placaInput = document.getElementById("fPlaca");
   if(placaInput){ placaInput.addEventListener("input", debouncedPlaca); }
   // Asegurar input de Nombre (acento-insensible)
@@ -1093,11 +1093,11 @@ function initFilters(){
       filtersRow.appendChild(nombreEl);
     }
   }
-  const debouncedNombre = debounce(applyFilters, 250);
+  const debouncedNombre = debounce(()=>applyFilters(false), 250);
   const nombreInput = document.getElementById("fNombre");
   if(nombreInput){ nombreInput.addEventListener("input", debouncedNombre); }
 
-  const debouncedNumero = debounce(applyFilters, 250);
+  const debouncedNumero = debounce(()=>applyFilters(false), 250);
   $("#fNumero").addEventListener("input", debouncedNumero);
   $("#btnLimpiar").addEventListener("click", clearFilters);
 }
@@ -1112,7 +1112,7 @@ function clearFilters(){
   $("#fFecha")._range = null;
   $("#fFechaRev").value = "";
   $("#fFechaRev")._range = null;
-  applyFilters();
+  applyFilters(false);
 }
 
 
