@@ -1621,42 +1621,22 @@ document.addEventListener("change", (ev)=>{
 /** =========================
  *  Bootstrap
  *  ========================= */
-async function hardRefresh(){ if(!table) buildTable(); try{ table.setData(); }catch(e){ console.warn(e); } }
-
-async function onSectorEdited(cell){
+async function hardRefresh(){
   try{
-    toastLoading.show("Actualizando sector…");
-    const newSector = cell.getValue();
-    const rowData   = cell.getRow().getData();
-    const placaKey  = rowData.Placa || rowData.PLACA;
-    if(!placaKey) throw new Error("Placa no disponible");
-
-    const res = await fetch(Config.api.placas, {
-      method: "POST",
-      headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({ action:"cambiarSector", placa: placaKey, sector: newSector })
-    });
-    const txt = await res.text();
-    if(!res.ok) throw new Error("HTTP "+res.status+" - "+txt.slice(0,120));
-    let data; try{ data = JSON.parse(txt); } catch { data = {}; }
-
-    const jefe = (data && (data.JefeInmediato || data.jefe)) || getJefeBySector(newSector);
-    const patch = { Sector: newSector };
-    if(jefe) patch.JefeInmediato = jefe;
-    cell.getRow().update(patch);
-
-    const idx = (Placas.data||[]).findIndex(r => (r.Placa||r.PLACA) === placaKey);
-    if(idx>=0){ Placas.data[idx].Sector = newSector; if(jefe) Placas.data[idx].JefeInmediato = jefe; }
-
-    toastLoading.hide();
-    quickToast("Sector actualizado");
-  }catch(err){
-    console.error("No se pudo actualizar sector:", err);
-    toastLoading.hide();
-    alert("No se pudo actualizar el sector: "+err.message);
-    cell.restoreOldValue();
+    // Si la tabla aún no existe, intenta no romper la navegación.
+    if (typeof table !== "undefined" && table && table.setData) {
+      await table.setData();
+    } else if (typeof buildTable === "function") {
+      buildTable();
+      if (typeof table !== "undefined" && table && table.setData) {
+        await table.setData();
+      }
+    } // si no existe buildTable, bootstrap hará el setup inicial
+  }catch(e){
+    console.warn(e);
   }
 }
+
 
 function getUniqueSectors(){
   const all = (Placas.data || [])
