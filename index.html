@@ -1333,8 +1333,7 @@ async function loadProcesosOptions(){
     // si falla, dejamos el select con opción manual libre
     sel.innerHTML = '<option value="">Proceso…</option>';
     // Dejar posibilidad de teclear manualmente: convertimos a input fallback si deseas (por ahora no)
-    console.warn("No se pudo cargar procesos:", e);
-  }
+    }
 }
 
 
@@ -1611,7 +1610,6 @@ async function onPlacaEdited(cell){
     // Refrescar tabla para reflejar cambios y rehidratar editores de "Sector"
     await cargarPlacas();
   }catch(e){
-    console.warn(e);
     overlay.hide();
     revertWithMessage("Error al actualizar la placa.");
   }finally{
@@ -2082,23 +2080,41 @@ let pagoSectorMS = null, pagoEstadoMS = null;
 const Pago = {
   raw: [],
   get filtered(){
+
     const sectores = pagoSectorMS ? pagoSectorMS.getSelected() : [];
     const estados  = pagoEstadoMS ? pagoEstadoMS.getSelected() : [];
-    const nro      = (document.querySelector("#fPagoNumero")?.value || "").trim().toLowerCase();
-    const qNombre  = (document.querySelector("#fPagoNombre")?.value || "").toLowerCase()
+    const nroQ     = (document.querySelector("#fPagoNumero")?.value || "").trim().toLowerCase();
+    const nomQ     = (document.querySelector("#fPagoNombre")?.value || "").toLowerCase()
                       .normalize("NFD").replace(/[\u0300-\u036f]/g,"");
     const dr = document.getElementById("fPagoFecha") ? document.getElementById("fPagoFecha")._range : null;
+    const getFirst = (o, keys)=>{
+      for (const k of keys){ if (o && o[k] != null && o[k] !== "") return o[k]; }
+      return "";
+    };
+    const canon = (v)=> String(v||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
     return (Pago.raw||[]).filter(r=>{
-      const sector = (r.Sector||"").toString();
-      const estado = (r.Estado||"").toString();
-      const numero = (r["Nº Factura"]||r["Numero de Factura"]||"").toString().toLowerCase();
-      const nombre = (r.Nombre||"").toString().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
-      const fecha  = (r.Fecha||"").toString();
+      const sector = String(r.Sector||"");
+      const estado = String(r.Estado||"");
+
+      // Numero de Factura: contempla varias columnas posibles
+      const num = getFirst(r, ["Numero de Factura","Número de Factura","Nº Factura","No. Factura","Nro Factura","Factura","N Factura"]);
+      const numCanon = canon(num);
+
+      // Nombre de colaborador: contempla varias variantes
+      const nombre = getFirst(r, ["Nombre","Nombre Colaborador","Nombre del colaborador","Colaborador","Empleado"]);
+      const nombreCanon = canon(nombre);
+
+      // Fecha
+      const fecha = String(getFirst(r, ["Fecha","Fecha de compra","Fecha Emisión"]) || "");
+
       if(sectores.length && !sectores.includes(sector)) return false;
       if(estados.length  && !estados.includes(estado)) return false;
-      if(nro && !numero.includes(nro)) return false;
-      if(qNombre && !nombre.includes(qNombre)) return false;
-      if(dr){ const d = new Date(fecha); if(isNaN(d) || d<dr[0] || d>dr[1]) return false; }
+      if(nroQ && !numCanon.includes(nroQ)) return false;
+      if(nomQ && !nombreCanon.includes(nomQ)) return false;
+      if(dr){
+        const d = new Date(fecha);
+        if(isNaN(d) || d < dr[0] || d > dr[1]) return false;
+      }
       return true;
     });
   }
@@ -2179,93 +2195,40 @@ function buildPagoTable(){
 
 // ===== Pago: cargar =====
 async function cargarPago(){
-  const __t0 = (performance && performance.now) ? performance.now() : Date.now();
-  console.log("%c[Pago] iniciar cargarPago()", "color:#0FA47E;font-weight:bold");
-
   if(typeof overlay!=="undefined") overlay.show("Cargando facturas…");
   try {
     let arr = null;
-    let serverFilter = false;
-    let fallbackUsed = false;
-    let rawAllCount = null;
-
     const TARGET = new Set(["Revisada","Pagada"]);
 
-    // 1) Intento pedir ya filtradas en servidor
+    // Intento pedir ya filtradas en servidor
     if (typeof API!=="undefined" && typeof API.getFacturas === "function") {
-      try {
-        console.time("[Pago] API.getFacturas(estados=Revisada,Pagada)");
-        arr = await API.getFacturas({ estados: ["Revisada","Pagada"] });
-        console.timeEnd("[Pago] API.getFacturas(estados=Revisada,Pagada)");
-      } catch (err) {
-        console.warn("[Pago] fallo getFacturas con estados; usaré fallback:", err && err.message ? err.message : err);
-        arr = null;
-      }
+      try { arr = await API.getFacturas({ estados: ["Revisada","Pagada"] }); } catch(_){ arr = null; }
     }
-
-    // Normalizar data inicial
     let data = Array.isArray(arr) ? arr : [];
 
-    // 2) Verificar de verdad si el servidor filtró (ningún estado fuera de TARGET)
-    const serverReturnedValid = data.length > 0 && data.every(r => TARGET.has(String((r && r.Estado) || "")));
-    if (!serverReturnedValid) {
-      // El backend no filtró (o devolvió vacío): pedir todo y filtrar localmente
-      console.time("[Pago] API.getFacturas() (fallback, sin filtro servidor)");
+    // Verificación: si el servidor no filtró, hago fallback
+    const serverFiltered = data.length>0 && data.every(r => TARGET.has(String((r && r.Estado) || "")));
+    if (!serverFiltered) {
       const all = await (typeof API!=="undefined" ? API.getFacturas() : Promise.resolve([]));
-      console.timeEnd("[Pago] API.getFacturas() (fallback, sin filtro servidor)");
-      rawAllCount = Array.isArray(all) ? all.length : null;
       data = (all || []).filter(r => TARGET.has(String((r && r.Estado) || "")));
-      fallbackUsed = true;
-      serverFilter = false;
-    } else {
-      serverFilter = true;
     }
 
-    // 3) Logs de métricas
-    const recibidas = (Array.isArray(arr) && arr) ? arr.length : (rawAllCount !== null ? rawAllCount : data.length);
-    const estadosUnicos = Array.from(new Set((Array.isArray(arr) && arr.length ? arr : data).map(r => String((r && r.Estado) || "")).filter(Boolean)));
-    console.log("[Pago] métricas:", {
-      servidorFiltrado: serverFilter,
-      fallback: fallbackUsed,
-      recibidas: recibidas,
-      despuesFiltro: data.length
-    });
-    console.log("[Pago] estados devueltos por servidor:", estadosUnicos);
-
-    // 4) Guardar data cruda
     Pago.raw = data;
 
-    // 5) Repoblar multiselects
-    console.time("[Pago] repoblar filtros (sectores/estados)");
-    const sectores = Array.from(new Set((Pago.raw || []).map(r => r.Sector).filter(Boolean))).sort((a,b)=>a.localeCompare(b));
-    if (pagoSectorMS && pagoSectorMS.setItems) { pagoSectorMS.setItems(sectores); }
-    const estados = Array.from(new Set((Pago.raw || []).map(r => r.Estado).filter(Boolean)));
-    if (pagoEstadoMS && pagoEstadoMS.setItems) { pagoEstadoMS.setItems(estados); }
-    console.timeEnd("[Pago] repoblar filtros (sectores/estados)");
-    console.log("[Pago] #sectores únicos:", sectores.length, "->", sectores.slice(0,10), sectores.length>10 ? "…" : "+");
-    console.log("[Pago] #estados únicos:", estados.length, "->", estados);
+    // Repoblar filtros
+    const sectores = Array.from(new Set((Pago.raw||[]).map(r=>r.Sector).filter(Boolean))).sort((a,b)=>a.localeCompare(b));
+    if(pagoSectorMS && pagoSectorMS.setItems){ pagoSectorMS.setItems(sectores); }
+    const estados = Array.from(new Set((Pago.raw||[]).map(r=>r.Estado).filter(Boolean)));
+    if(pagoEstadoMS && pagoEstadoMS.setItems){ pagoEstadoMS.setItems(estados); }
 
-    // 6) Construir tabla y cargar datos
     await waitForTabulatorAndContainer();
     buildPagoTable();
     const list = Pago.filtered;
-    console.log("[Pago] filas visibles tras filtros UI:", list.length);
-
-    console.time("[Pago] replaceData");
-    if (pagoTableReady) {
-      await pagoTable.replaceData(list);
-    } else {
-      pagoPendingData = list;
-    }
-    console.timeEnd("[Pago] replaceData");
-
+    if(pagoTableReady){ await pagoTable.replaceData(list); } else { pagoPendingData = list; }
     updatePagoKpis();
     setLastUpdatedPago();
-
-    const __t1 = (performance && performance.now) ? performance.now() : Date.now();
-    console.log("%c[Pago] cargarPago() listo en " + Math.round(__t1-__t0) + " ms", "color:#0FA47E;font-weight:bold");
-  } catch (e) {
-    console.error("[Pago] error en cargarPago:", e);
+  } catch(e) {
+    console.error(e);
   } finally {
     if(typeof overlay!=="undefined") overlay.hide();
   }
@@ -2386,6 +2349,8 @@ document.addEventListener("DOMContentLoaded", function(){
 
   const $ = (sel)=>document.querySelector(sel);
   $("#btnPagoLimpiar")?.addEventListener("click", clearPagoFilters);
+  $("#fPagoNombre")?.addEventListener("input", applyPagoFilters);
+  $("#fPagoNumero")?.addEventListener("input", applyPagoFilters);
   $("#btnPagoActualizar")?.addEventListener("click", cargarPago);
   $("#btnPagoExportXLSX")?.addEventListener("click", ()=> pagoTable?.download("xlsx", "Pago_UTCD_" + new Date().toISOString().slice(0,10) + ".xlsx", {sheetName:"Pago", rowRange:"active"}));
   $("#btnPagoAgrupar")?.addEventListener("click", togglePagoGrouping);
