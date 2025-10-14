@@ -553,7 +553,221 @@ return arr.map(normalizeRow).filter(r=>r); // no filtramos por nº factura todav
 return await tryFetch(url);
     }
   }
-};
+
+  ,
+  async listFacturas(params){
+    // Llama al backend con paginación y filtros. Fallback si el backend devuelve un array.
+    try {
+      if (!params) params = {};
+      if (this._facturasCtl) { try { this._facturasCtl.abort(); } catch (e) {} }
+      const ctl = new AbortController();
+      this._facturasCtl = ctl;
+
+      const base = (Config && Config.api && Config.api.leerFacturas) ? Config.api.leerFacturas : "";
+      const u = new URL(base, window.location.href);
+      const add = (k, v) => {
+        if (v == null || v === "") return;
+        if (Array.isArray(v)) { v.forEach(x => u.searchParams.append(k, String(x))); }
+        else { u.searchParams.set(k, String(v)); }
+      };
+
+      add("leerFacturas", "true");
+      add("page", params.page || 1);
+      add("pageSize", params.pageSize || 50);
+      add("sector", params.sector || []);
+      add("estado", params.estado || []);
+      add("nombre", params.nombre || "");
+      add("numero", params.numero || "");
+      add("placa",  params.placa  || "");
+      add("fechaFrom", params.fechaFrom || "");
+      add("fechaTo",   params.fechaTo   || "");
+      add("fechaRevFrom", params.fechaRevFrom || "");
+      add("fechaRevTo",   params.fechaRevTo   || "");
+
+      const res = await fetch(u.toString(), { cache:"no-store", mode:"cors", signal: ctl.signal });
+      if (!res.ok) throw new Error("No se pudo leer facturas");
+      const data = await res.json();
+      if (ctl.signal.aborted) throw new Error("ABORTED");
+
+      // Si es array → backend viejo. Devolvemos shape compatible mínima.
+      if (Array.isArray(data)) {
+        const rows = data.map(normalizeRow).filter(Boolean);
+        return { status: "OK", rows, total: rows.length, page: 1, pageSize: rows.length, facets: null, kpis: null };
+      }
+      // Si ya viene con {rows,total,...} → backend nuevo
+      const rows = (data && Array.isArray(data.rows)) ? data.rows.map(normalizeRow).filter(Boolean) : [];
+      return {
+        status: data && data.status || "OK",
+        rows,
+        total: (data && typeof data.total === "number") ? data.total : rows.length,
+        page: (data && data.page) || (params.page || 1),
+        pageSize: (data && data.pageSize) || (params.pageSize || 50),
+        facets: (data && data.facets) || null,
+        kpis: (data && data.kpis) || null
+      };
+    } catch (e) {
+      // Fallback absoluto: usa getFacturas()
+      try {
+        const arr = await this.getFacturas();
+        return { status:"OK", rows: arr, total: arr.length, page: 1, pageSize: arr.length, facets: null, kpis: null };
+      } catch (e2) {
+        throw e2;
+      }
+    }
+  }
+}
+
+/** =========================
+ *  Paginación remota + Filtros remotos (con fallback local)
+ *  ========================= */
+const Paging = { page: 1, size: 50, total: 0 };
+let lastServerKpis = null;
+
+function readFiltersAsParams(){
+  const sectors = (typeof sectorMS !== "undefined" && sectorMS && sectorMS.getSelected) ? sectorMS.getSelected() : [];
+  const estados = (typeof estadoMS !== "undefined" && estadoMS && estadoMS.getSelected) ? estadoMS.getSelected() : [];
+  const nombre  = (document.getElementById("fNombre") && document.getElementById("fNombre").value) || "";
+  const numero  = (document.getElementById("fNumero") && document.getElementById("fNumero").value) || "";
+  const placa   = (document.getElementById("fPlaca") && document.getElementById("fPlaca").value) || "";
+  const drEl    = document.getElementById("fFecha");
+  const dr2El   = document.getElementById("fFechaRev");
+  const dr      = drEl ? drEl._range : null;
+  const dr2     = dr2El ? dr2El._range : null;
+
+  return {
+    page: Paging.page,
+    pageSize: Paging.size,
+    sector: sectors,
+    estado: estados,
+    nombre: nombre.trim(),
+    numero: numero.trim(),
+    placa:  placa.trim(),
+    fechaFrom: dr ? dr[0].toISOString().slice(0,10) : "",
+    fechaTo:   dr ? dr[1].toISOString().slice(0,10) : "",
+    fechaRevFrom: dr2 ? dr2[0].toISOString().slice(0,10) : "",
+    fechaRevTo:   dr2 ? dr2[1].toISOString().slice(0,10) : "",
+  };
+}
+
+async function loadPage(page){
+  overlay.show("Cargando facturas…");
+  try{
+    Paging.page = page || 1;
+    const params = readFiltersAsParams();
+    params.page = Paging.page; params.pageSize = Paging.size;
+
+    const resp = await API.listFacturas(params); // {rows,total,facets,kpis}
+    const rows = (resp && resp.rows) || [];
+    Paging.total = (resp && typeof resp.total === "number") ? resp.total : rows.length;
+    lastServerKpis = resp && resp.kpis ? resp.kpis : null;
+
+    // Facetas para selects (si backend las envía)
+    try { if (resp && resp.facets && resp.facets.sector && sectorMS && sectorMS.setItems) sectorMS.setItems(resp.facets.sector); } catch (e) {}
+    try { if (resp && resp.facets && resp.facets.estado && estadoMS && estadoMS.setItems) estadoMS.setItems(resp.facets.estado); } catch (e) {}
+
+    // Render de la página
+    if (!table) buildTable();
+    State.raw = rows;
+    const maybe = table.replaceData(State.filtered);
+    if (maybe && typeof maybe.then === "function") { await maybe; }
+
+    updateKpisFromServer();
+    updatePagerUi();
+    setLastUpdatedNow();
+  } catch(e){
+    // fallback: intentar flujo original
+    try {
+      const arr = await API.getFacturas();
+      State.raw = arr;
+      if (!table) buildTable();
+      const maybe2 = table.replaceData(State.filtered);
+      if (maybe2 && typeof maybe2.then === "function") { await maybe2; }
+      updateKpis();
+      updatePagerUi();
+      setLastUpdatedNow();
+    } catch (e2) {
+      alert("No fue posible cargar las facturas.");
+    }
+  } finally {
+    overlay.hide();
+  }
+}
+
+function updateKpisFromServer(){
+  if(!lastServerKpis){
+    try{ updateKpis(); }catch(e){}
+    return;
+  }
+  var elR = document.getElementById("kpiRegistradas");
+  var elRe = document.getElementById("kpiRevisadas");
+  var elP = document.getElementById("kpiPagadas");
+  var elA = document.getElementById("kpiAnuladas");
+  if(elR) elR.textContent = String(lastServerKpis.total || 0);
+  if(elRe) elRe.textContent   = String((lastServerKpis.estados && lastServerKpis.estados.Revisada) || 0);
+  if(elP) elP.textContent     = String((lastServerKpis.estados && lastServerKpis.estados.Pagada) || 0);
+  if(elA) elA.textContent     = String((lastServerKpis.estados && lastServerKpis.estados.Anulada) || 0);
+
+  var wrap = document.getElementById("kpiRevRangeWrap");
+  var countEl = document.getElementById("kpiRevRangeCount");
+  var sumEl = document.getElementById("kpiRevRangeSum");
+  if(wrap && countEl && sumEl){
+    wrap.style.display = "block";
+    var cnt = (lastServerKpis.revRange && lastServerKpis.revRange.count) || 0;
+    var sum = Number((lastServerKpis.revRange && lastServerKpis.revRange.sum) || 0);
+    countEl.textContent = String(cnt);
+    try{ sumEl.textContent = new Intl.NumberFormat("es-HN",{minimumFractionDigits:2, maximumFractionDigits:2}).format(sum); }catch(e){ sumEl.textContent = String(sum); }
+  }
+}
+
+function ensurePagerUi(){
+  if(document.getElementById("pagerWrap")) return;
+  var actions = document.querySelector("#secRevision .toolbar .actions");
+  if(!actions) return;
+  var wrap = document.createElement("div");
+  wrap.id = "pagerWrap";
+  wrap.className = "actions";
+  wrap.innerHTML = ''
+    + '<button id="pgPrev" class="btn btn-ghost" type="button"><i class="lucide-chevron-left"></i> Prev</button>'
+    + '<span id="pgInfo" class="last-updated">Página 1</span>'
+    + '<button id="pgNext" class="btn btn-ghost" type="button">Sig <i class="lucide-chevron-right"></i></button>'
+    + '<select id="pgSize" class="input" style="width:auto"><option>25</option><option selected>50</option><option>100</option><option>150</option></select>';
+  actions.appendChild(wrap);
+  var prev = document.getElementById("pgPrev");
+  var next = document.getElementById("pgNext");
+  var size = document.getElementById("pgSize");
+  if(prev) prev.addEventListener("click", function(){ if(Paging.page>1) loadPage(Paging.page-1); });
+  if(next) next.addEventListener("click", function(){ var maxPage = Math.max(1, Math.ceil(Paging.total / Paging.size)); if(Paging.page < maxPage) loadPage(Paging.page+1); });
+  if(size) size.addEventListener("change", function(e){ var v = parseInt(e.target.value,10)||50; Paging.size = v; loadPage(1); });
+}
+
+function updatePagerUi(){
+  var info = document.getElementById("pgInfo");
+  if(!info) return;
+  var maxPage = Math.max(1, Math.ceil(Paging.total / Paging.size));
+  info.textContent = "Página " + Paging.page + " / " + maxPage + " · " + Paging.total + " registros";
+}
+
+// Compatibilidad: si existe hardRefresh, lo sobreescribimos para usar paginación remota.
+// Si no existe, lo definimos.
+try {
+  if (typeof hardRefresh === "function") {
+    hardRefresh = async function(){ ensurePagerUi(); await loadPage(1); };
+  } else {
+    async function hardRefresh(){ ensurePagerUi(); await loadPage(1); }
+  }
+} catch (e) {
+  async function hardRefresh(){ ensurePagerUi(); await loadPage(1); }
+}
+
+// Redefinir applyFilters para que filtre en servidor
+try {
+  function applyFilters(){
+    ensurePagerUi();
+    loadPage(1);
+  }
+} catch (e) {}
+
+;
 
 /** ========= MultiSelect ========= */
 function createMultiSelect(selector, placeholder="Seleccione…", onChange=()=>{}){
@@ -1900,7 +2114,7 @@ async function authMe(){
     return await res.json();
   }catch{ return null; }
 }
-async function authLogout(){ try{ await fetch(Auth.logout, { method:"POST" }); }catch{} }
+async function authLogout(){ try{ await fetch(Auth.logout, { method:"POST" }); }catch (e) { } }
 
 function showLogin(){ const app=document.getElementById("appShell"); if(app) app.style.display="none"; const s=document.getElementById("secLogin"); if(s) s.style.display="flex"; }
 function showApp(){ const s=document.getElementById("secLogin"); if(s) s.style.display="none"; const app=document.getElementById("appShell"); if(app) app.style.display="block"; }
