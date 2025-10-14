@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es"> 
+<html lang="es">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
@@ -508,38 +508,45 @@ const API = { _facturasCtl:null,
 return arr.map(normalizeRow).filter(r=>r); // no filtramos por nº factura todavía
   },
   // Nueva: lectura paginada + filtros en backend
-  async getFacturasPage(params = {}){
-    const {
-      limit = Page.limit, offset = Page.offset,
-      sector = [], estado = [],
-      nombre = "", placa = "", numero = "",
-      fechaFrom = "", fechaTo = "",
-      fechaRevFrom = "", fechaRevTo = ""
-    } = params;
+  
+async getFacturasPage(params = {}){
+  const {
+    limit = Page.limit, offset = Page.offset,
+    sector = [], estado = [],
+    nombre = "", placa = "", numero = "",
+    fechaFrom = "", fechaTo = "",
+    fechaRevFrom = "", fechaRevTo = ""
+  } = params;
 
-    const u = new URL(Config.api.leerFacturas);
-    u.searchParams.set("leerFacturas", "true");
-    u.searchParams.set("limit", String(limit));
-    u.searchParams.set("offset", String(offset));
-    if (sector && sector.length) u.searchParams.set("sector", sector.join(","));
-    if (estado && estado.length) u.searchParams.set("estado", estado.join(","));
-    if (nombre) u.searchParams.set("nombre", nombre);
-    if (placa)  u.searchParams.set("placa", placa);
-    if (numero) u.searchParams.set("numero", numero);
-    if (fechaFrom && fechaTo){ u.searchParams.set("fechaFrom", fechaFrom); u.searchParams.set("fechaTo", fechaTo); }
-    if (fechaRevFrom && fechaRevTo){ u.searchParams.set("fechaRevFrom", fechaRevFrom); u.searchParams.set("fechaRevTo", fechaRevTo); }
+  const u = new URL(Config.api.leerFacturas);
+  u.searchParams.set("leerFacturas", "true");
+  u.searchParams.set("limit", String(limit));
+  u.searchParams.set("offset", String(offset));
+  if (sector && sector.length) u.searchParams.set("sector", sector.join(","));
+  if (estado && estado.length) u.searchParams.set("estado", estado.join(","));
+  if (nombre) u.searchParams.set("nombre", nombre);
+  if (placa)  u.searchParams.set("placa", placa);
+  if (numero) u.searchParams.set("numero", numero);
+  if (fechaFrom && fechaTo){ u.searchParams.set("fechaFrom", fechaFrom); u.searchParams.set("fechaTo", fechaTo); }
+  if (fechaRevFrom && fechaRevTo){ u.searchParams.set("fechaRevFrom", fechaRevFrom); u.searchParams.set("fechaRevTo", fechaRevTo); }
 
-    if(this._facturasCtl) try{ this._facturasCtl.abort(); }catch(_){}
-    const ctl = new AbortController();
-    this._facturasCtl = ctl;
+  if(this._facturasCtl) try{ this._facturasCtl.abort(); }catch(_){}
+  const ctl = new AbortController();
+  this._facturasCtl = ctl;
+  try{
     const res = await fetch(u.toString(), { cache: "no-store", mode: "cors", signal: ctl.signal });
     if (!res.ok) throw new Error("No se pudo leer facturas");
     const json = await res.json();
-    if(ctl.signal.aborted) throw new Error('ABORTED');
+    if(ctl.signal.aborted) return { rows: [], total: 0, aborted: true };
     const rows = (json.rows || json || []).map(normalizeRow).filter(Boolean);
     const total = json.total ?? rows.length;
-    return { rows, total };
-  },
+    return { rows, total, aborted: false };
+  }catch(e){
+    if (e.name === "AbortError") return { rows: [], total: 0, aborted: true };
+    throw e;
+  }
+},
+
 
   async getFacturasAll(filters = {}){
     const { rows } = await this.getFacturasPage({ ...filters, limit: 0, offset: 0 });
@@ -1105,25 +1112,27 @@ function clearFilters(){
 }
 
 
-function applyFilters(){
+
+async function applyFilters(silent=false){
   if(!table) return;
-  overlay.show("Aplicando filtros…");
-  (async ()=>{
-    try{
-      Page.offset = 0;
-      const { rows, total } = await API.getFacturasPage(currentFilters());
-      State.raw = rows;
-      Page.total = total;
-      await (async function safeReplace(){ 
-        try { const p = table.replaceData(State.raw); if(p && p.then) await p; }
-        catch(_){ try{ table.setData(State.raw); }catch(__){} }
-      })();
-      updateKpis(); try{ updateKpisRevRange(); }catch(_){}
-      toggleShowMore();
-    }catch(e){ console.error(e); }
-    finally{ overlay.hide(); }
-  })();
+  if(!silent) overlay.show("Aplicando filtros…");
+  try{
+    Page.offset = 0;
+    const res = await API.getFacturasPage(currentFilters());
+    if(res.aborted) return; // ignorar
+    const { rows, total } = res;
+    State.raw = rows;
+    Page.total = total;
+    try{ const p = table.replaceData(State.raw); if(p && p.then) await p; }catch(_){ try{ table.setData(State.raw);}catch(__){} }
+    updateKpis(); try{ updateKpisRevRange(); }catch(_){}
+    toggleShowMore();
+  }catch(e){
+    console.error(e);
+  }finally{
+    if(!silent) overlay.hide();
+  }
 }
+
 
 
 /** =========================
@@ -1940,6 +1949,10 @@ async function bootstrap(){
   navigateTo("secInicio");}
 
 
+function hasActiveFilters(){
+  const f = currentFilters();
+  return (f.sector&&f.sector.length) || (f.estado&&f.estado.length) || f.nombre || f.placa || f.numero || (f.fechaFrom&&f.fechaTo) || (f.fechaRevFrom&&f.fechaRevTo);
+}
 function currentFilters(){
   const sVals = (typeof sectorMS !== 'undefined' && sectorMS && sectorMS.getSelected)? sectorMS.getSelected() : [];
   const eVals = (typeof estadoMS !== 'undefined' && estadoMS && estadoMS.getSelected)? estadoMS.getSelected() : [];
@@ -1954,6 +1967,7 @@ function currentFilters(){
     fechaRevFrom: dr2? dr2[0].toISOString() : "", fechaRevTo: dr2? dr2[1].toISOString() : ""
   };
 }
+
 async function loadData(){
   overlay.show("Cargando facturas…");
   try{
@@ -1962,30 +1976,30 @@ async function loadData(){
     const { rows, total } = await API.getFacturasPage(filters);
     State.raw = rows;
     Page.total = total;
-    // poblar selects dinámicamente (si existen)
-    const sectores = Array.from(new Set(rows.map(r=>r.Sector).filter(Boolean))).sort();
-    const estados  = Array.from(new Set(rows.map(r=>r.Estado||"Registrada"))).sort();
-    if(typeof sectorMS !== 'undefined' && sectorMS){ sectorMS.setItems(sectores); }
-    if(typeof estadoMS !== 'undefined' && estadoMS){ estadoMS.setItems(estados); }
+    // poblar selects (si existen)
+    try{
+      const sectores = Array.from(new Set(rows.map(r=>r.Sector).filter(Boolean))).sort();
+      const estados  = Array.from(new Set(rows.map(r=>r.Estado||"Registrada"))).sort();
+      if(typeof sectorMS!=='undefined' && sectorMS){ sectorMS.setItems(sectores); }
+      if(typeof estadoMS!=='undefined' && estadoMS){ estadoMS.setItems(estados); }
+    }catch(_){}
     buildTable();
-    if(tableBuilt){
-      applyFilters();
+    // Carga inicial: si NO hay filtros activos, no dispares applyFilters ni overlay
+    if(hasActiveFilters()){
+      await applyFilters(true); // silent=true
     }else{
-      (function(){
-        const handler = ()=>{
-          try{ table.off("tableBuilt", handler); }catch(e){}
-          applyFilters();
-        };
-        table.on("tableBuilt", handler);
-      })();
+      // sólo pintar la página recibida
+      try{ const p = table.replaceData(State.raw); if(p && p.then) await p; }catch(_){ try{ table.setData(State.raw);}catch(__){} }
+      updateKpis(); try{ updateKpisRevRange(); }catch(_){}
+      toggleShowMore();
     }
-    toggleShowMore();
   }catch(e){
     console.error(e);
   }finally{
     overlay.hide();
   }
 }
+
 window.addEventListener("DOMContentLoaded", bootstrap);
 </script>
 </div>
