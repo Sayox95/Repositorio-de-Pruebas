@@ -1926,7 +1926,6 @@ async function loadData(){
     State.raw = data;
     // poblar selects dinámicamente
     const sectores = Array.from(new Set(data.map(r=>r.Sector).filter(Boolean))).sort();
-    const estados  = Array.from(new Set(data.map(r=>r.Estado||"Registrada"))).sort();
     if(sectorMS){ sectorMS.setItems(sectores); }
     if(estadoMS){ estadoMS.setItems(estados); }
     buildTable();
@@ -2173,9 +2172,21 @@ function buildPagoTable(){
 async function cargarPago(){
   if(typeof overlay!=="undefined") overlay.show("Cargando facturas…");
   try{
-    const arr = await (typeof API!=="undefined" ? API.getFacturas() : Promise.resolve([]));
-    Pago.raw = (arr||[]).filter(r=> ["Revisada","Pagada"].includes(String(r.Estado||"")));
-    // Alimentar MS como en Revisión
+    let arr = null;
+    if (typeof API!=="undefined" && typeof API.getFacturas === "function") {
+      try{
+        arr = await API.getFacturas({ estados: ["Revisada","Pagada"] });
+      }catch(_){ arr = null; }
+    }
+    // Fallback: pedir todo y filtrar en cliente si el backend no soporta el parámetro
+    let data = Array.isArray(arr) ? arr : [];
+    if (!data.length || !data.every(r => r && "Estado" in r)) {
+      const all = await (typeof API!=="undefined" ? API.getFacturas() : Promise.resolve([]));
+      data = (all||[]).filter(r => ["Revisada","Pagada"].includes(String(r.Estado||"")));
+    }
+    Pago.raw = data;
+
+    // Repoblar multiselects
     const sectores = Array.from(new Set((Pago.raw||[]).map(r=>r.Sector).filter(Boolean))).sort((a,b)=>a.localeCompare(b));
     if(pagoSectorMS && pagoSectorMS.setItems){ pagoSectorMS.setItems(sectores); }
     const estados = Array.from(new Set((Pago.raw||[]).map(r=>r.Estado).filter(Boolean)));
@@ -2184,13 +2195,15 @@ async function cargarPago(){
     await waitForTabulatorAndContainer();
     buildPagoTable();
     const list = Pago.filtered;
-    if(pagoTableReady) pagoTable.replaceData(list); else pagoPendingData = list;
+    if(pagoTableReady){ pagoTable.replaceData(list); } else { pagoPendingData = list; }
     updatePagoKpis();
     setLastUpdatedPago();
-  }catch(e){ console.error(e); }
-  finally{ if(typeof overlay!=="undefined") overlay.hide(); }
+  }catch(e){
+    console.error(e);
+  }finally{
+    if(typeof overlay!=="undefined") overlay.hide();
+  }
 }
-
 function updatePagoKpis(){
   const rows = pagoTable? pagoTable.getData("active") : [];
   let pend=0, pag=0, sp=0, sg=0;
