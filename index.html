@@ -190,6 +190,27 @@
       .filters{ display:grid; grid-template-columns: 180px 180px 220px 160px 1fr 220px 220px auto; }
     }
   </style>
+<style>
+  /* Override row 'Pagar' button style to match previous green pill */
+  #secPago .tabulator-cell .btn-pagar{
+    background: #18A05C; /* green pill */
+    color: #fff;
+    border: 0;
+    border-radius: 9999px;
+    font-weight: 700;
+    padding: 6px 12px;
+    height: 28px;
+    line-height: 16px;
+    cursor: pointer;
+    box-shadow: 0 1px 1px rgba(0,0,0,.04);
+  }
+  #secPago .tabulator-cell .btn-pagar:hover{
+    filter: brightness(0.95);
+  }
+  #secPago .tabulator-cell .btn-pagar:active{
+    transform: translateY(1px);
+  }
+</style>
 </head>
 <body>
 
