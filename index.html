@@ -247,8 +247,7 @@
         <div class="actions">
           <span id="lastUpdated" class="last-updated" title="Última actualización">—</span>
           <button id="btnActualizar" class="btn"><i class="lucide-rotate-cw"></i> Actualizar</button>
-          <button id="btnAgrupar" class="btn btn-ghost"><i class="lucide-layers-2"></i> Agrupar por colaborador</button>
-          <button id="btnMostrarMas" class="btn btn-ghost"><i class="lucide-plus"></i> Mostrar más</button>          <button id="btnExportXLSX" class="btn btn-ghost"><i class="lucide-download"></i> Excel</button>
+          <button id="btnAgrupar" class="btn btn-ghost"><i class="lucide-layers-2"></i> Agrupar por colaborador</button>          <button id="btnExportXLSX" class="btn btn-ghost"><i class="lucide-download"></i> Excel</button>
           <button id="btnDescargar" class="btn btn-primary"><i class="lucide-file-down"></i> Descargar PDFs</button>
         </div>
       </div>
@@ -507,52 +506,6 @@ const API = { _facturasCtl:null,
     const arr = Array.isArray(data)? data : [];
 return arr.map(normalizeRow).filter(r=>r); // no filtramos por nº factura todavía
   },
-  // Nueva: lectura paginada + filtros en backend
-  
-async getFacturasPage(params = {}){
-  const {
-    limit = Page.limit, offset = Page.offset,
-    sector = [], estado = [],
-    nombre = "", placa = "", numero = "",
-    fechaFrom = "", fechaTo = "",
-    fechaRevFrom = "", fechaRevTo = ""
-  } = params;
-
-  const u = new URL(Config.api.leerFacturas);
-  u.searchParams.set("leerFacturas", "true");
-  u.searchParams.set("limit", String(limit));
-  u.searchParams.set("offset", String(offset));
-  if (sector && sector.length) u.searchParams.set("sector", sector.join(","));
-  if (estado && estado.length) u.searchParams.set("estado", estado.join(","));
-  if (nombre) u.searchParams.set("nombre", nombre);
-  if (placa)  u.searchParams.set("placa", placa);
-  if (numero) u.searchParams.set("numero", numero);
-  if (fechaFrom && fechaTo){ u.searchParams.set("fechaFrom", fechaFrom); u.searchParams.set("fechaTo", fechaTo); }
-  if (fechaRevFrom && fechaRevTo){ u.searchParams.set("fechaRevFrom", fechaRevFrom); u.searchParams.set("fechaRevTo", fechaRevTo); }
-
-  if(this._facturasCtl) try{ this._facturasCtl.abort(); }catch(_){}
-  const ctl = new AbortController();
-  this._facturasCtl = ctl;
-  try{
-    const res = await fetch(u.toString(), { cache: "no-store", mode: "cors", signal: ctl.signal });
-    if (!res.ok) throw new Error("No se pudo leer facturas");
-    const json = await res.json();
-    if(ctl.signal.aborted) return { rows: [], total: 0, aborted: true };
-    const rows = (json.rows || json || []).map(normalizeRow).filter(Boolean);
-    const total = json.total ?? rows.length;
-    return { rows, total, aborted: false };
-  }catch(e){
-    if (e.name === "AbortError") return { rows: [], total: 0, aborted: true };
-    throw e;
-  }
-},
-
-
-  async getFacturasAll(filters = {}){
-    const { rows } = await this.getFacturasPage({ ...filters, limit: 0, offset: 0 });
-    return rows;
-  },
-
   proxied(url){
     const base = Config.api.proxyBase.replace(/\/$/,"");
     const u = encodeURIComponent(url);
@@ -712,10 +665,6 @@ const State = {
     });
   }
 };
-
-// Estado de paginado para Revisión
-let Page = { limit: 200, offset: 0, total: 0 };
-
 
 /** Opciones de estado a partir de datos o valores por defecto */
 function getEstadoOptions(){
@@ -1021,7 +970,6 @@ function updateKpisRevRange(){
 
 let sectorMS, estadoMS;
 
-const TYPING_DEBOUNCE_MS = 650;
 function initFilters(){
   // Flatpickr range
   const fp = flatpickr("#fFecha", {
@@ -1029,17 +977,16 @@ function initFilters(){
     dateFormat:"Y-m-d",
     onChange(selectedDates){
       if(selectedDates.length===2){
+        // normalizamos a extremos del día
         selectedDates[0].setHours(0,0,0,0);
         selectedDates[1].setHours(23,59,59,999);
         $("#fFecha")._range = selectedDates;
-        applyFilters(false);
-      }else if(selectedDates.length===0){
-        $("#fFecha")._range = null;
-        applyFilters(false);
       }else{
-        // sólo primer click: no aplicar hasta que tengamos ambas fechas
         $("#fFecha")._range = null;
+  $("#fFechaRev").value = "";
+  $("#fFechaRev")._range = null;
       }
+      applyFilters();
     }
   });
   const fpRev = flatpickr("#fFechaRev", {
@@ -1050,18 +997,15 @@ function initFilters(){
         selectedDates[0].setHours(0,0,0,0);
         selectedDates[1].setHours(23,59,59,999);
         $("#fFechaRev")._range = selectedDates;
-        applyFilters(false);
-      }else if(selectedDates.length===0){
-        $("#fFechaRev")._range = null;
-        applyFilters(false);
       }else{
         $("#fFechaRev")._range = null;
       }
+      applyFilters();
     }
   });
   // MultiSelect con checkboxes
-  sectorMS = createMultiSelect("#msSector", "Sector", ()=>applyFilters(false));
-  estadoMS = createMultiSelect("#msEstado", "Estado", ()=>applyFilters(false));
+  sectorMS = createMultiSelect("#msSector", "Sector", applyFilters);
+  estadoMS = createMultiSelect("#msEstado", "Estado", applyFilters);
 
   // Asegurar input de Placa
   const filtersRow = document.querySelector(".filters");
@@ -1078,7 +1022,7 @@ function initFilters(){
       filtersRow.insertBefore(placaEl, filtersRow.children[2] || null);
     }
   }
-  const debouncedPlaca = debounce(()=>applyFilters(false), 250);
+  const debouncedPlaca = debounce(applyFilters, 250);
   const placaInput = document.getElementById("fPlaca");
   if(placaInput){ placaInput.addEventListener("input", debouncedPlaca); }
   // Asegurar input de Nombre (acento-insensible)
@@ -1094,19 +1038,13 @@ function initFilters(){
       filtersRow.appendChild(nombreEl);
     }
   }
-  const debouncedNombre = debounce(()=>applyFilters(false), 250);
+  const debouncedNombre = debounce(applyFilters, 250);
   const nombreInput = document.getElementById("fNombre");
   if(nombreInput){ nombreInput.addEventListener("input", debouncedNombre); }
 
-  const debouncedNumero = debounce(()=>applyFilters(false), TYPING_DEBOUNCE_MS);
-const numEl = $("#fNumero");
-if(numEl){
-  numEl.addEventListener("input", debouncedNumero);
-  numEl.addEventListener("change", ()=>applyFilters(false));
-  numEl.addEventListener("blur", ()=>applyFilters(false));
-  numEl.addEventListener("keydown", (e)=>{ if(e.key === "Enter") applyFilters(false); });
-}
-$("#btnLimpiar").addEventListener("click", clearFilters);
+  const debouncedNumero = debounce(applyFilters, 250);
+  $("#fNumero").addEventListener("input", debouncedNumero);
+  $("#btnLimpiar").addEventListener("click", clearFilters);
 }
 
 function clearFilters(){
@@ -1119,58 +1057,41 @@ function clearFilters(){
   $("#fFecha")._range = null;
   $("#fFechaRev").value = "";
   $("#fFechaRev")._range = null;
-  applyFilters(false);
+  applyFilters();
 }
 
-
-
-async function applyFilters(silent=false){
-  if(!table) return;
-  if(!silent) overlay.show("Aplicando filtros…");
-  try{
-    Page.offset = 0;
-    const res = await API.getFacturasPage(currentFilters());
-    if(res.aborted) return; // ignorar
-    const { rows, total } = res;
-    State.raw = rows;
-    Page.total = total;
-    await replaceDataSafe(State.raw);
-      updateKpis(); try{ updateKpisRevRange(); }catch(_){}
-      toggleShowMore();
-  }catch(e){
-    console.error(e);
-  }finally{
-    if(!silent) overlay.hide();
+function applyFilters(){
+  if(!table){ return; }
+  const doReplace = ()=>{
+    const maybePromise = table.replaceData(State.filtered);
+    if(maybePromise && typeof maybePromise.then === "function"){
+      maybePromise.then(()=>{ updateKpis(); updateButtons(); try{ updateKpisRevRange(); }catch(_){ } }).catch(()=>{ updateKpis(); updateButtons(); try{ updateKpisRevRange(); }catch(_){ } });
+    }else{
+      // fallback si la versión de Tabulator no retorna promesa
+      setTimeout(()=>{ updateKpis(); updateButtons(); }, 0);
+    }
+  };
+  if(!tableBuilt){
+    (function(){
+      const handler = ()=>{
+        try{ table.off("tableBuilt", handler); }catch(e){}
+        doReplace();
+      };
+      table.on("tableBuilt", handler);
+    })();
+    return;
   }
+  doReplace();
 }
-
-
 
 /** =========================
  *  Exportaciones CSV/XLSX
  *  ========================= */
-
-async function exportXLSX(){
-  overlay.show("Preparando Excel…");
-  (async ()=>{
-    try{
-      const allRows = await API.getFacturasAll(currentFilters());
-      const fname = `Facturas_UTCD_${new Date().toISOString().slice(0,10)}.xlsx`;
-      const wb = XLSX.utils.book_new();
-      const ws = XLSX.utils.json_to_sheet(allRows);
-      XLSX.utils.book_append_sheet(wb, ws, "Revisión");
-      XLSX.writeFile(wb, fname);
-    }catch(e){
-      console.error(e);
-      // Fallback: exportar lo visible
-      if(window.table){
-        const fname = `Facturas_UTCD_${new Date().toISOString().slice(0,10)}.xlsx`;
-        table.download("xlsx", fname, { sheetName:"Revisión", rowRange:"active" });
-      }
-    }finally{
-      overlay.hide();
-    }
-  })();
+function exportXLSX(){
+  if(!table) return;
+  const fname = `Facturas_UTCD_${new Date().toISOString().slice(0,10)}.xlsx`;
+  // Usa el downloader nativo de Tabulator (requiere XLSX global)
+  table.download("xlsx", fname, { sheetName:"Revisión", rowRange:"active" });
 }
 
 /** =========================
@@ -1927,31 +1848,6 @@ function wirePlacaLiveValidation(){
       }
     }
     
-
-// Botón "Mostrar más" para paginar
-(function(){
-  const btn = document.getElementById("btnMostrarMas");
-  if(btn){
-    btn.addEventListener("click", async ()=>{
-      overlay.show("Cargando más…");
-      try{
-        Page.offset += Page.limit;
-        const { rows } = await API.getFacturasPage({ ...currentFilters(), limit: Page.limit, offset: Page.offset });
-        State.raw = State.raw.concat(rows);
-        try{ await table.addData(rows); }catch(_){}
-        toggleShowMore();
-      }catch(e){ console.error(e); }
-      finally{ overlay.hide(); }
-    });
-  }
-})();
-
-function toggleShowMore(){
-  const btn = document.getElementById("btnMostrarMas");
-  if(!btn || !table) return;
-  const shown = State.raw.length;
-  btn.style.display = (shown < Page.total) ? "inline-flex" : "none";
-}
 async function bootstrap(){
   initFilters();
   $("#btnActualizar").addEventListener("click", hardRefresh);
@@ -1959,71 +1855,27 @@ async function bootstrap(){
   $("#btnDescargar").addEventListener("click", descargarZip);  $("#btnExportXLSX").addEventListener("click", exportXLSX);
   navigateTo("secInicio");}
 
-
-function hasActiveFilters(){
-  const f = currentFilters();
-  return (f.sector&&f.sector.length) || (f.estado&&f.estado.length) || f.nombre || f.placa || f.numero || (f.fechaFrom&&f.fechaTo) || (f.fechaRevFrom&&f.fechaRevTo);
-}
-async function replaceDataSafe(rows){
-  // Espera a que Tabulator emita 'tableBuilt' antes de reemplazar datos
-  if(typeof tableBuilt !== 'undefined' && !tableBuilt){
-    await new Promise((resolve)=>{
-      try{
-        const handler = ()=>{ try{ table.off("tableBuilt", handler); }catch(_){ } resolve(); };
-        table.on("tableBuilt", handler);
-      }catch(_){ resolve(); }
-    });
-  }
-  try{
-    const p = table.replaceData(rows);
-    if(p && typeof p.then === "function") await p;
-  }catch(e){
-    try{ table.setData(rows); }catch(_){}
-  }
-}
-function currentFilters(){
-  const sVals = (typeof sectorMS !== 'undefined' && sectorMS && sectorMS.getSelected)? sectorMS.getSelected() : [];
-  const eVals = (typeof estadoMS !== 'undefined' && estadoMS && estadoMS.getSelected)? estadoMS.getSelected() : [];
-  const nombre = (document.getElementById("fNombre")?.value || "").trim();
-  const placa  = (document.getElementById("fPlaca")?.value || "").trim();
-  const numero = (document.getElementById("fNumero")?.value || "").trim();
-  const dr  = document.getElementById("fFecha")? (document.getElementById("fFecha")._range || null) : null;
-  const dr2 = document.getElementById("fFechaRev")? (document.getElementById("fFechaRev")._range || null) : null;
-  return {
-    sector: sVals, estado: eVals, nombre, placa, numero,
-    fechaFrom: dr? dr[0].toISOString() : "", fechaTo: dr? dr[1].toISOString() : "",
-    fechaRevFrom: dr2? dr2[0].toISOString() : "", fechaRevTo: dr2? dr2[1].toISOString() : ""
-  };
-}
-
 async function loadData(){
   overlay.show("Cargando facturas…");
   try{
-    Page.offset = 0;
-    const filters = currentFilters();
-    const { rows, total } = await API.getFacturasPage(filters);
-    State.raw = rows;
-    Page.total = total;
-    // poblar selects (si existen)
-    try{
-      const sectores = Array.from(new Set(rows.map(r=>r.Sector).filter(Boolean))).sort();
-      const estados  = Array.from(new Set(rows.map(r=>r.Estado||"Registrada"))).sort();
-      if(typeof sectorMS!=='undefined' && sectorMS){ sectorMS.setItems(sectores); }
-      if(typeof estadoMS!=='undefined' && estadoMS){ estadoMS.setItems(estados); }
-    }catch(_){}
+    const data = await API.getFacturas();
+    State.raw = data;
+    // poblar selects dinámicamente
+    const sectores = Array.from(new Set(data.map(r=>r.Sector).filter(Boolean))).sort();
+    const estados  = Array.from(new Set(data.map(r=>r.Estado||"Registrada"))).sort();
+    if(sectorMS){ sectorMS.setItems(sectores); }
+    if(estadoMS){ estadoMS.setItems(estados); }
     buildTable();
-    // Carga inicial: si NO hay filtros activos, no dispares applyFilters ni overlay
-    if(hasActiveFilters()){
-      await applyFilters(true); // silent=true
-    }else{
-      // sólo pintar la página recibida
-      await replaceDataSafe(State.raw);
-      updateKpis(); try{ updateKpisRevRange(); }catch(_){}
-      toggleShowMore();
+    if(tableBuilt){ applyFilters(); } else {
+      (function(){
+        const handler = ()=>{
+          try{ table.off("tableBuilt", handler); }catch(e){}
+          applyFilters();
+        };
+        table.on("tableBuilt", handler);
+      })();
     }
-  }catch(e){
-    console.error(e);
-  }finally{
+}catch(e){ if(String(e&&e.message)==="ABORTED"){ /* silencioso */ } else { alert("No fue posible cargar las facturas."); } }finally{
     overlay.hide();
   }
 }
