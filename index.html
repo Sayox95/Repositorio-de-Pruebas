@@ -1028,16 +1028,17 @@ function initFilters(){
     dateFormat:"Y-m-d",
     onChange(selectedDates){
       if(selectedDates.length===2){
-        // normalizamos a extremos del día
         selectedDates[0].setHours(0,0,0,0);
         selectedDates[1].setHours(23,59,59,999);
         $("#fFecha")._range = selectedDates;
-      }else{
+        applyFilters();
+      }else if(selectedDates.length===0){
         $("#fFecha")._range = null;
-  $("#fFechaRev").value = "";
-  $("#fFechaRev")._range = null;
+        applyFilters();
+      }else{
+        // sólo primer click: no aplicar hasta que tengamos ambas fechas
+        $("#fFecha")._range = null;
       }
-      applyFilters();
     }
   });
   const fpRev = flatpickr("#fFechaRev", {
@@ -1048,10 +1049,13 @@ function initFilters(){
         selectedDates[0].setHours(0,0,0,0);
         selectedDates[1].setHours(23,59,59,999);
         $("#fFechaRev")._range = selectedDates;
+        applyFilters();
+      }else if(selectedDates.length===0){
+        $("#fFechaRev")._range = null;
+        applyFilters();
       }else{
         $("#fFechaRev")._range = null;
       }
-      applyFilters();
     }
   });
   // MultiSelect con checkboxes
@@ -2140,4 +2144,4 @@ async function doLogout(){ await authLogout(); showLogin(); }
 </script>
 
 </body>
-</html> 
+</html>
