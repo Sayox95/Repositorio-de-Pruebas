@@ -30,7 +30,7 @@ export async function onRequestPost({ request }) {
   let resp;
   try {
     resp = await fetch(
-     "https://script.google.com/macros/s/AKfycbw0feZUq0OzNvxkhMs1ecMMNfC9NVKUkUZWVwZrNB0wMSyvIuYWL3mrHTwKpPt9pEucQQ/exec", 
+     "https://script.google.com/macros/s/AKfycbyVxRUiWhDAf6hGA7qfMNYWy_oTEjueQOaHCJlE0xT4smIuQ3Z3z9-ORPdFRBlbz7HG/exec", 
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
