@@ -28,52 +28,6 @@ document.addEventListener("DOMContentLoaded", ()=>{
 });
 
 
-// === Pago: botón "Pagar seleccionadas" (IIFE robusto, sin dependencias globales) ===
-(function(){
-  function getPagoTable(){
-    if (window.pagoTable) return window.pagoTable;
-    if (window.Tabulator && typeof Tabulator.findTable === "function"){
-      const arr = Tabulator.findTable("#tablaPago");
-      return Array.isArray(arr) && arr.length ? arr[0] : null;
-    }
-    return null;
-  }
-  function toggleBtn(){
-    const btn = document.getElementById("btnPagoAbrirModal");
-    if(!btn) return;
-    const t = getPagoTable();
-    if(!t){ btn.style.display = "none"; return; }
-    let count = 0;
-    try {
-      if (typeof t.getSelectedRows === "function"){
-        count = t.getSelectedRows().length;
-      } else if (Array.isArray(t.selectedRows)){
-        count = t.selectedRows.length;
-      }
-    } catch(_) {}
-    btn.style.display = (count >= 2) ? "inline-flex" : "none";
-  }
-  function bind(){
-    const btn = document.getElementById("btnPagoAbrirModal");
-    if(!btn){ setTimeout(bind, 200); return; }
-    const t = getPagoTable();
-    if(!t){ setTimeout(bind, 300); return; }
-    try{
-      if (typeof t.off === "function") t.off("rowSelectionChanged", toggleBtn);
-      if (typeof t.on  === "function") t.on("rowSelectionChanged", toggleBtn);
-    }catch(_){}
-    toggleBtn();
-  }
-  document.addEventListener("DOMContentLoaded", ()=>{
-    if (location.hash === "#pago") setTimeout(bind, 400);
-  });
-  window.addEventListener("hashchange", ()=>{
-    if (location.hash === "#pago") setTimeout(bind, 400);
-  });
-  // También intenta enlazar tras 1s por si la tabla tardó en crearse
-  setTimeout(bind, 1000);
-})();
-
 </script>
   <!-- Flatpickr -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
@@ -391,7 +345,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
         <button id="btnPagoActualizar" class="btn"><i class="lucide-rotate-cw"></i> Actualizar</button>
         <button id="btnPagoAgrupar" class="btn btn-ghost"><i class="lucide-layers-2"></i> Agrupar por colaborador</button>
         <button id="btnPagoExportXLSX" class="btn btn-ghost"><i class="lucide-download"></i> Excel</button>
-        <button id="btnPagoAbrirModal" style="display:none" style="display:none" class="btn btn-primary" disabled><i class="lucide-credit-card"></i> Pagar seleccionadas</button>
+        <button id="btnPagoAbrirModal" style="display:none" style="display:none" style="display:none" class="btn btn-primary" disabled><i class="lucide-credit-card"></i> Pagar seleccionadas</button>
       </div>
     </div>
 
@@ -2717,6 +2671,64 @@ document.addEventListener("DOMContentLoaded", function(){
     }catch(_){ alert(msg); }
   }
 })();
+
+// === Pago: botón "Pagar seleccionadas" (muestra si 2+ y ninguna está 'Pagada') ===
+(function(){
+  function lc(x){ return String(x||"").trim().toLowerCase(); }
+  function getPagoTable(){
+    if (window.pagoTable) return window.pagoTable;
+    if (window.Tabulator && typeof Tabulator.findTable === "function"){
+      const arr = Tabulator.findTable("#tablaPago");
+      return Array.isArray(arr) && arr.length ? arr[0] : null;
+    }
+    return null;
+  }
+  function selectedData(t){
+    try{
+      if (typeof t.getSelectedData === "function") return t.getSelectedData();
+      if (typeof t.getSelectedRows === "function") return t.getSelectedRows().map(r=>r.getData());
+    }catch(_){}
+    return [];
+  }
+  function toggleBtn(){
+    const btn = document.getElementById("btnPagoAbrirModal");
+    if(!btn) return;
+    const t = getPagoTable();
+    if(!t){ btn.style.display = "none"; return; }
+    const data = selectedData(t);
+    const count = Array.isArray(data) ? data.length : 0;
+    const hasPaid = (data||[]).some(r => lc(r && r.Estado) === "pagada");
+    btn.style.display = (count >= 2 && !hasPaid) ? "inline-flex" : "none";
+  }
+  function bind(){
+    const btn = document.getElementById("btnPagoAbrirModal");
+    if(!btn){ setTimeout(bind, 200); return; }
+    const t = getPagoTable();
+    if(!t){ setTimeout(bind, 300); return; }
+    try{
+      if (typeof t.off === "function"){
+        t.off("rowSelectionChanged", toggleBtn);
+        t.off("dataLoaded", toggleBtn);
+        t.off("dataFiltered", toggleBtn);
+      }
+      if (typeof t.on  === "function"){
+        t.on("rowSelectionChanged", toggleBtn);
+        t.on("dataLoaded", toggleBtn);
+        t.on("dataFiltered", toggleBtn);
+      }
+    }catch(_){}
+    toggleBtn();
+  }
+  document.addEventListener("DOMContentLoaded", ()=>{
+    if (location.hash === "#pago") setTimeout(bind, 400);
+  });
+  window.addEventListener("hashchange", ()=>{
+    if (location.hash === "#pago") setTimeout(bind, 400);
+  });
+  // Intento tardío por si la tabla demora
+  setTimeout(()=>{ if (location.hash === "#pago") bind(); }, 1200);
+})();
+
 </script>
 
 </body>
