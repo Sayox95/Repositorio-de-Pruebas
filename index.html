@@ -6,7 +6,25 @@
   <title>UTCD · Revisión de Facturas</title>
   <!-- Tabulator -->
   <link href="https://unpkg.com/tabulator-tables@6.2.5/dist/css/tabulator.min.css" rel="stylesheet">
-  <script src="https://unpkg.com/tabulator-tables@6.2.5/dist/js/tabulator.min.js"></script>
+  <script src="https://unpkg.com/tabulator-tables@6.2.5/dist/js/tabulator.min.js">
+// Refrescar KPI de Otros Cargos al pulsar "Actualizar" en Pago
+try{
+  const _btnPagoActualizar = document.getElementById("btnPagoActualizar");
+  if(_btnPagoActualizar){
+    _btnPagoActualizar.addEventListener("click", async ()=>{
+      await refreshPagoData(); await cargarOtrosCargosKpi();
+    });
+  }
+}catch(_){}
+
+// Si se carga con hash #pago directo, cargar KPI
+try{
+  if(location.hash === "#pago"){
+    setTimeout(()=>{ cargarOtrosCargosKpi().catch(()=>{}); }, 0);
+  }
+}catch(_){}
+
+</script>
   <!-- Flatpickr -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
@@ -589,16 +607,23 @@ function toDirectDriveUrl(url){
  *  Capa de datos (API)
  *  ========================= */
 const API = { _facturasCtl:null,
-  async getFacturas(){
+  async getFacturas(opts){
+    const estados = (opts && Array.isArray(opts.estados)) ? opts.estados.filter(Boolean) : null;
     if(this._facturasCtl) try{ this._facturasCtl.abort(); }catch(_){}
     const ctl = new AbortController();
     this._facturasCtl = ctl;
-    const res = await fetch(Config.api.leerFacturas, {cache:"no-store", mode:"cors", signal: ctl.signal});
+    let url = Config.api.leerFacturas;
+    // Ensure we append leerFacturas=true
+    url += (url.includes('?') ? '&' : '?') + 'leerFacturas=true';
+    if (estados && estados.length){
+      url += '&estados=' + encodeURIComponent(estados.join(','));
+    }
+    const res = await fetch(url, {cache:"no-store", mode:"cors", signal: ctl.signal});
     if(!res.ok) throw new Error("No se pudo leer facturas");
     const data = await res.json();
     if(ctl.signal.aborted) throw new Error('ABORTED');
     const arr = Array.isArray(data)? data : [];
-return arr.map(normalizeRow).filter(r=>r); // no filtramos por nº factura todavía
+    return arr.map(normalizeRow).filter(r=>r);
   },
   proxied(url){
     const base = Config.api.proxyBase.replace(/\/$/,"");
@@ -1292,8 +1317,107 @@ async function cargarOtrosCargosKpi(){
       lup.textContent = `Actualizado: ${yyyy}-${mm}-${dd} ${hh}:${mi}`;
     }
   }catch(e){
-    // Silencioso: el KPI queda en 0.00 si falla
+    // Silencio en UI; ver consola si se requiere
     // console.warn("No se pudo leer otros cargos:", e);
+  }
+}
+
+
+/** =========================
+ *  Pago: tabla y KPIs (solo Revisada + Pagada desde backend)
+ *  ========================= */
+let tablePago;
+let tablePagoBuilt = false;
+
+function updatePagoKpis(rows){
+  try{
+    rows = Array.isArray(rows) ? rows : [];
+    const revisadas = rows.filter(r=> (r.Estado||"") === "Revisada");
+    const pagadas   = rows.filter(r=> (r.Estado||"") === "Pagada");
+    const sum = (acc, v)=> acc + (Number(v)||0);
+
+    const totalPend = revisadas.reduce((acc,r)=> sum(acc, r.Total), 0);
+    const totalPag  = pagadas.reduce((acc,r)=> sum(acc, r.Total), 0);
+
+    const elPendCnt = document.getElementById("kpiPagoPendientes");
+    const elPagCnt  = document.getElementById("kpiPagoPagadas");
+    const elPendSum = document.getElementById("kpiPagoTotalPend");
+    const elPagSum  = document.getElementById("kpiPagoTotalPag");
+    if(elPendCnt) elPendCnt.textContent = String(revisadas.length);
+    if(elPagCnt)  elPagCnt.textContent  = String(pagadas.length);
+    if(elPendSum) elPendSum.textContent = fmt.money(totalPend);
+    if(elPagSum)  elPagSum.textContent  = fmt.money(totalPag);
+  }catch(_){}
+}
+
+async function buildPagoTableOnce(){
+  if(tablePago) return;
+  tablePago = new Tabulator("#tablaPago", {
+    height: Config.tablaHeight,
+    data: [],
+    layout:"fitColumns",
+    placeholder:"Sin datos",
+    selectable:true,
+    pagination:false,
+    reactiveData:false,
+    columns:[
+      { formatter:"rowSelection", titleFormatter:"rowSelection", hozAlign:"center", headerSort:false, width:40 },
+      { title:"Sector", field:"Sector", width:120 },
+      { title:"Placa", field:"Placa", width:110 },
+      { title:"Proceso", field:"Proceso", width:130 },
+      { title:"Nombre", field:"Nombre", width:180 },
+      { title:"Identidad", field:"Identidad", width:150 },
+      { title:"Total Gastado", field:"Total", hozAlign:"right", width:140, formatter:(c)=>fmt.money(c.getValue())},
+      { title:"Fecha", field:"Fecha", width:120,
+        formatter:(c)=>{ const v=c.getValue(); return v? String(v).slice(0,10):""; },
+        accessorDownload:(value)=>{
+          if(!value) return "";
+          const s = String(value);
+          if(s.includes("T")) return s.slice(0,10);
+          try{ const d=new Date(value); if(!isNaN(d)) return d.toISOString().slice(0,10);}catch(e){}
+          return s.length>=10? s.slice(0,10): s;
+        }
+      },
+      { title:"Nombre del comercio", field:"Nombre del comercio", width:220, tooltip:true, formatter:(cell)=>{
+          const v = String(cell.getValue() ?? ""); const max = 28; return v.length>max? v.slice(0,max)+"…": v;
+      }},
+      { title:"Número de Factura", field:"Numero de Factura", width:150 },
+      { title:"Enlace PDF", field:"Enlace PDF", width:110, formatter:(cell)=>{
+          const v = cell.getValue() || cell.getRow().getData().Enlace || cell.getRow().getData().PDF || "";
+          return v? `<a href="${API.proxied(v)}" target="_blank" title="Abrir PDF">📄</a>` : "";
+      }},
+      { title:"Estado", field:"Estado", width:120, formatter:(c)=>{
+          const v = c.getValue()||"Registrada";
+          const color = estadoColor(v);
+          return `<span class="status-pill disabled" title="No editable en Pago"><span class="dot" style="background:${color}"></span>${v}</span>`;
+      }}
+    ]
+  });
+  await new Promise(res => tablePago.once("tableBuilt", ()=>{ tablePagoBuilt = true; res(); }));
+}
+
+async function refreshPagoData(){
+  try{
+    overlay.show("Cargando facturas de Pago…");
+    await buildPagoTableOnce();
+    // Fetch ONLY Revisada + Pagada from backend. No fallback.
+    const rows = await API.getFacturas({ estados: ["Revisada","Pagada"] });
+    await tablePago.replaceData(rows);
+    updatePagoKpis(rows);
+    const lup = document.getElementById("lastUpdatedPago");
+    if(lup){
+      const now = new Date();
+      const yyyy = now.getFullYear();
+      const mm = String(now.getMonth()+1).padStart(2,"0");
+      const dd = String(now.getDate()).padStart(2,"0");
+      const hh = String(now.getHours()).padStart(2,"0");
+      const mi = String(now.getMinutes()).padStart(2,"0");
+      lup.textContent = `Actualizado: ${yyyy}-${mm}-${dd} ${hh}:${mi}`;
+    }
+  }catch(e){
+    alert("No se pudieron cargar facturas de Pago.");
+  }finally{
+    overlay.hide();
   }
 }
 
@@ -1324,7 +1448,7 @@ document.querySelectorAll('.sidebar .nav-btn').forEach(a=>{
     const href = a.getAttribute('href')||'';
     if(href==='#inicio') return navigateTo('secInicio');
     if(href==='#revision') return navigateTo('secRevision', async()=>{ await hardRefresh(); });
-    if(href==='#pago')     return navigateTo('secPago', async()=>{ await cargarOtrosCargosKpi(); });
+    if(href==='#pago')     return navigateTo('secPago', async()=>{ await refreshPagoData(); await refreshPagoData(); await cargarOtrosCargosKpi(); });
     if(href==='#anticipos')return navigateTo('secAnticipos');
     if(href==='#placas')   return navigateTo('secPlacas', async()=>{ await cargarPlacas(); });
   });
