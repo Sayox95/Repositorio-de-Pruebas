@@ -2358,24 +2358,7 @@ function openPagoModal(){
 }
 function closePagoModal(){ const el = document.getElementById("modalPago"); if(el) el.style.display="none"; }
 
-async function confirmPago(){
-  try{
-    const fondoPeriodo = (document.getElementById("mpFondoPeriodo")?.value||"").trim();
-    const fechaPago    = (document.getElementById("mpFechaPago")?.value||"").trim();
-    if(!fondoPeriodo || !fechaPago){ alert("Completa Fondo/Periodo y Fecha de pago."); return; }
-    const rows = pagoTable.getSelectedData();
-    if(!rows?.length){ alert("Selecciona al menos una factura."); return; }
 
-    if(typeof overlay!=="undefined") overlay.show("Registrando pago…");
-    await API.pagarFacturas(rows, fondoPeriodo, fechaPago);
-    await cargarPago();
-    closePagoModal();
-  }catch(e){
-    alert("No se pudo registrar el pago. " + e.message);
-  }finally{
-    if(typeof overlay!=="undefined") overlay.hide();
-  }
-}
 
 // ========= Filtros =========
 function applyPagoFilters(){
@@ -2463,9 +2446,7 @@ document.addEventListener("DOMContentLoaded", function(){
   $("#btnPagoActualizar")?.addEventListener("click", cargarPago);
   $("#btnPagoExportXLSX")?.addEventListener("click", ()=> pagoTable?.download("xlsx", "Pago_UTCD_" + new Date().toISOString().slice(0,10) + ".xlsx", {sheetName:"Pago", rowRange:"active"}));
   $("#btnPagoAgrupar")?.addEventListener("click", togglePagoGrouping);
-  $("#btnPagoAbrirModal")?.addEventListener("click", openPagoModal);
   $("#mpCancelar")?.addEventListener("click", closePagoModal);
-  $("#mpConfirmar")?.addEventListener("click", confirmPago);
   $("#fPagoNombre")?.addEventListener("input", applyPagoFilters);
   $("#fPagoNumero")?.addEventListener("input", applyPagoFilters);
 
@@ -2550,18 +2531,7 @@ document.addEventListener("DOMContentLoaded", function(){
   window._pagoResumen = { recomputePagoResumen, getSelectedSubtotal, readCargos, addCargoRow, generateIdPago, fmtL };
 
   if(typeof API !== "undefined"){
-    API.pagarFacturasLote = async function(rows, _fondoPeriodo, fechaPago, idPago, cargos){
-      const filas = (rows || []).map(r => r.fila || r._fila).filter(Boolean);
-      if (!filas.length) throw new Error("No hay filas válidas para el pago.");
-      const url = (Config && Config.api && Config.api.guardar) ? Config.api.guardar : "/api/guardar";
-      const body = { accion: "pagoLote", filas, fechaPago, idPago, cargos: Array.isArray(cargos)?cargos:[] };
-      const res = await fetch(url, { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body) });
-      const json = await res.json().catch(()=>null);
-      if(!res.ok || !json || json.status!=="OK"){
-        throw new Error((json && json.message) || ("Error HTTP " + res.status));
-      }
-      return json;
-    };
+    
   }
 
   window.openPagoModal = function(){
@@ -2577,52 +2547,10 @@ document.addEventListener("DOMContentLoaded", function(){
     const el = document.getElementById("modalPago"); if(!el) return;
     el.style.display = "none";
   };
-  window.confirmPago = async function(){
-  try{
-    const fechaPago = (document.getElementById("mpFechaPago")?.value||"").trim();
-    const idPago    = (document.getElementById("mpIdPago")?.value||"").trim();
-    if(!fechaPago){ alert("Completa la Fecha de pago."); return; }
-
-    const rowsSel = (typeof pagoTable!=="undefined" && pagoTable.getSelectedData)
-      ? pagoTable.getSelectedData() : [];
-    const rowComps = (typeof pagoTable!=="undefined" && pagoTable.getSelectedRows)
-      ? pagoTable.getSelectedRows() : [];
-
-    if(!rowsSel?.length || !rowComps?.length){
-      alert("Selecciona al menos una factura."); return;
-    }
-
-    const cargos = (window._pagoResumen && _pagoResumen.readCargos) ? _pagoResumen.readCargos() : [];
-
-    if(typeof overlay!=="undefined") overlay.show("Registrando pago…");
-    await API.pagarFacturasLote(rowsSel, null, fechaPago, idPago, cargos);
-
-    // ✅ Actualización optimista por row component (no requiere index)
-    try {
-      rowComps.forEach(rc => {
-        rc.update({ Estado: "Pagada", "Fecha de Pago": fechaPago, "ID_PAGO": idPago });
-      });
-    } catch(_){ /* ignore */ }
-
-    // Limpiar selección y KPIs si aplica
-    try { pagoTable.deselectRow(); } catch(_) {}
-    if (typeof updatePagoKpis === "function") updatePagoKpis();
-    if (typeof _pagoResumen !== "undefined" && _pagoResumen.recomputePagoResumen) _pagoResumen.recomputePagoResumen();
-
-    // Cierra modal y muestra toast
-    if(typeof closePagoModal === "function") closePagoModal();
-    if (typeof toast === "function") toast("Pago registrado");
-
-  }catch(e){
-    alert("No se pudo registrar el pago. " + (e?.message || e));
-  }finally{
-    if(typeof overlay!=="undefined") overlay.hide();
-  }
-};
+  
 
   document.addEventListener("DOMContentLoaded", function(){
     document.getElementById("mpCancelar")?.addEventListener("click", closePagoModal);
-    document.getElementById("mpConfirmar")?.addEventListener("click", confirmPago);
     document.getElementById("mpAddCargo")?.addEventListener("click", function(){ addCargoRow(); });
     if (typeof pagoTable !== "undefined" && pagoTable && pagoTable.on) {
       try { pagoTable.on("rowSelectionChanged", recomputePagoResumen); } catch(_) {}
@@ -2709,8 +2637,12 @@ function updatePagoButtonVisibility(){
 function genIdPago(){
   const d = new Date();
   const pad = n => String(n).padStart(2,"0");
-  return `PAGO-${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+  const basePart = `PAGO-${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+  const rand = Math.floor(Math.random() * Math.pow(36,4)); // 0..36^4-1
+  const suffix = rand.toString(36).toUpperCase().padStart(4,"0").slice(-4);
+  return `${basePart}-${suffix}`;
 }
+
 
 function addCargoRow(){
   const list = document.getElementById("mpCargosList");
