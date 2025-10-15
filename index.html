@@ -7,20 +7,21 @@
   <!-- Tabulator -->
   <link href="https://unpkg.com/tabulator-tables@6.2.5/dist/css/tabulator.min.css" rel="stylesheet">
   <script src="https://unpkg.com/tabulator-tables@6.2.5/dist/js/tabulator.min.js">
-// Refrescar KPI de Otros Cargos al pulsar "Actualizar" en Pago
+// Pago: botón "Actualizar" refresca tabla + KPI
 try{
   const _btnPagoActualizar = document.getElementById("btnPagoActualizar");
   if(_btnPagoActualizar){
     _btnPagoActualizar.addEventListener("click", async ()=>{
-      await refreshPagoData(); await cargarOtrosCargosKpi();
+      await refreshPagoData();
+      await cargarOtrosCargosKpi();
     });
   }
 }catch(_){}
 
-// Si se carga con hash #pago directo, cargar KPI
+// Si se entra directo con #pago, lanzar carga
 try{
   if(location.hash === "#pago"){
-    setTimeout(()=>{ cargarOtrosCargosKpi().catch(()=>{}); }, 0);
+    setTimeout(()=>{ refreshPagoData().then(()=>cargarOtrosCargosKpi()).catch(()=>{}); }, 0);
   }
 }catch(_){}
 
@@ -607,23 +608,16 @@ function toDirectDriveUrl(url){
  *  Capa de datos (API)
  *  ========================= */
 const API = { _facturasCtl:null,
-  async getFacturas(opts){
-    const estados = (opts && Array.isArray(opts.estados)) ? opts.estados.filter(Boolean) : null;
+  async getFacturas(){
     if(this._facturasCtl) try{ this._facturasCtl.abort(); }catch(_){}
     const ctl = new AbortController();
     this._facturasCtl = ctl;
-    let url = Config.api.leerFacturas;
-    // Ensure we append leerFacturas=true
-    url += (url.includes('?') ? '&' : '?') + 'leerFacturas=true';
-    if (estados && estados.length){
-      url += '&estados=' + encodeURIComponent(estados.join(','));
-    }
-    const res = await fetch(url, {cache:"no-store", mode:"cors", signal: ctl.signal});
+    const res = await fetch(Config.api.leerFacturas, {cache:"no-store", mode:"cors", signal: ctl.signal});
     if(!res.ok) throw new Error("No se pudo leer facturas");
     const data = await res.json();
     if(ctl.signal.aborted) throw new Error('ABORTED');
     const arr = Array.isArray(data)? data : [];
-    return arr.map(normalizeRow).filter(r=>r);
+return arr.map(normalizeRow).filter(r=>r); // no filtramos por nº factura todavía
   },
   proxied(url){
     const base = Config.api.proxyBase.replace(/\/$/,"");
@@ -1317,17 +1311,26 @@ async function cargarOtrosCargosKpi(){
       lup.textContent = `Actualizado: ${yyyy}-${mm}-${dd} ${hh}:${mi}`;
     }
   }catch(e){
-    // Silencio en UI; ver consola si se requiere
-    // console.warn("No se pudo leer otros cargos:", e);
+    // Silencioso
   }
 }
 
 
 /** =========================
- *  Pago: tabla y KPIs (solo Revisada + Pagada desde backend)
+ *  Pago: tabla y KPIs (server-filter: Revisada + Pagada)
  *  ========================= */
 let tablePago;
 let tablePagoBuilt = false;
+
+async function fetchPagoFacturas(){
+  const base = Config.api.leerFacturas;
+  const url = base + (base.includes('?') ? '&' : '?') + 'estados=' + encodeURIComponent('Revisada,Pagada');
+  const res = await fetch(url, { cache: 'no-store', mode: 'cors' });
+  if(!res.ok) throw new Error('HTTP ' + res.status);
+  const data = await res.json();
+  const arr = Array.isArray(data) ? data : [];
+  return arr.map(normalizeRow).filter(Boolean);
+}
 
 function updatePagoKpis(rows){
   try{
@@ -1400,8 +1403,7 @@ async function refreshPagoData(){
   try{
     overlay.show("Cargando facturas de Pago…");
     await buildPagoTableOnce();
-    // Fetch ONLY Revisada + Pagada from backend. No fallback.
-    const rows = await API.getFacturas({ estados: ["Revisada","Pagada"] });
+    const rows = await fetchPagoFacturas(); // SOLO Revisada+Pagada, sin fallback
     await tablePago.replaceData(rows);
     updatePagoKpis(rows);
     const lup = document.getElementById("lastUpdatedPago");
@@ -1448,7 +1450,7 @@ document.querySelectorAll('.sidebar .nav-btn').forEach(a=>{
     const href = a.getAttribute('href')||'';
     if(href==='#inicio') return navigateTo('secInicio');
     if(href==='#revision') return navigateTo('secRevision', async()=>{ await hardRefresh(); });
-    if(href==='#pago')     return navigateTo('secPago', async()=>{ await refreshPagoData(); await refreshPagoData(); await cargarOtrosCargosKpi(); });
+    if(href==='#pago')     return navigateTo('secPago', async()=>{ await refreshPagoData(); await cargarOtrosCargosKpi(); });
     if(href==='#anticipos')return navigateTo('secAnticipos');
     if(href==='#placas')   return navigateTo('secPlacas', async()=>{ await cargarPlacas(); });
   });
