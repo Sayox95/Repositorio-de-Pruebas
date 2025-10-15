@@ -331,8 +331,11 @@
       <div class="card kpi"><span class="label">Pendientes (Revisadas)</span><span id="kpiPagoPendientes" class="value">0</span></div>
       <div class="card kpi"><span class="label">Pagadas</span><span id="kpiPagoPagadas" class="value">0</span></div>
       <div class="card kpi"><span class="label">Total Pendiente</span><span id="kpiPagoTotalPend" class="value">L 0.00</span></div>
+      <div class="card kpi"><span class="label">Subtotal Pagado</span><span id="kpiPagoSubtotalPag" class="value">L 0.00</span></div>
+      <div class="card kpi"><span class="label">Otros Cargos</span><span id="kpiPagoOtrosCargos" class="value">L 0.00</span></div>
       <div class="card kpi"><span class="label">Total Pagado</span><span id="kpiPagoTotalPag" class="value">L 0.00</span></div>
     </div>
+  </div>
 
     <div class="card" style="margin-top:10px;">
       <div class="filters" style="grid-template-columns: 220px 220px 220px 160px 1fr 220px auto;">
@@ -2621,6 +2624,31 @@ document.addEventListener("DOMContentLoaded", function(){
       }, timeoutMs);
     }catch(_){ alert(msg); }
   }
+})();
+</script>
+
+
+<script>
+(function(){
+  if (typeof API === "undefined") window.API = {};
+  API.getOtrosCargosTotal = async function(){
+    try{
+      var baseUrl = (Config && Config.api && Config.api.leerFacturas) ? Config.api.leerFacturas : "";
+      if (!baseUrl) return 0;
+      var u = new URL(baseUrl, location.origin);
+      // limpiar cualquier query previa y poner otrosCargos=total
+      u.search = "";
+      u.searchParams.set("otrosCargos", "total");
+      const res = await fetch(u.toString(), { cache: "no-store", mode: "cors" });
+      if (!res.ok) return 0;
+      const json = await res.json().catch(()=>null);
+      if (json && (json.totalOtrosCargos !== undefined || json.total !== undefined)){
+        return Number(json.totalOtrosCargos ?? json.total) || 0;
+      }
+      if (json && json.ok && typeof json.totalOtrosCargos === "number") return json.totalOtrosCargos;
+      return 0;
+    }catch(e){ return 0; }
+  };
 })();
 </script>
 
