@@ -348,7 +348,7 @@
         <button id="btnPagoActualizar" class="btn"><i class="lucide-rotate-cw"></i> Actualizar</button>
         <button id="btnPagoAgrupar" class="btn btn-ghost"><i class="lucide-layers-2"></i> Agrupar por colaborador</button>
         <button id="btnPagoExportXLSX" class="btn btn-ghost"><i class="lucide-download"></i> Excel</button>
-        <button id="btnPagoAbrirModal" class="btn btn-primary" style="display:none" disabled><i class="lucide-credit-card"></i> Pagar seleccionadas</button>
+        <button id="btnPagoAbrirModal" class="btn btn-primary hidden" disabled><i class="lucide-credit-card"></i> Pagar seleccionadas</button>
       </div>
     </div>
 
@@ -1349,7 +1349,7 @@ document.querySelectorAll('.sidebar .nav-btn').forEach(a=>{
     const href = a.getAttribute('href')||'';
     if(href==='#inicio') return navigateTo('secInicio');
     if(href==='#revision') return navigateTo('secRevision', async()=>{ await hardRefresh(); });
-    if(href==='#pago')     return navigateTo('secPago', async()=>{ await cargarOtrosCargosKpi(); });
+    if(href==='#pago')     return navigateTo('secPago', async()=>{ await cargarOtrosCargosKpi(); await initPagoMassPay(); });
     if(href==='#anticipos')return navigateTo('secAnticipos');
     if(href==='#placas')   return navigateTo('secPlacas', async()=>{ await cargarPlacas(); });
   });
@@ -2352,9 +2352,8 @@ if (typeof API !== "undefined") {
 function openPagoModal(){
   const el = document.getElementById("modalPago"); if(!el) return;
   const dft = (typeof fmt!=="undefined" && fmt.dateISO) ? fmt.dateISO(new Date()) : new Date().toISOString().slice(0,10);
-  const fFecha = document.getElementById("mpFechaPago"); if(fFecha) fFecha.value = dft;
-  const fId    = document.getElementById("mpIdPago");    if(fId && typeof generateIdPago==="function") fId.value = generateIdPago();
-  if (typeof recomputePagoResumen === "function") { try{ recomputePagoResumen(); }catch(_){} }
+  document.getElementById("mpFondoPeriodo").value = "";
+  document.getElementById("mpFechaPago").value = dft;
   el.style.display = "grid";
 }
 function closePagoModal(){ const el = document.getElementById("modalPago"); if(el) el.style.display="none"; }
@@ -2677,108 +2676,207 @@ document.addEventListener("DOMContentLoaded", function(){
     }catch(_){ alert(msg); }
   }
 })();
-</script>
 
+/** =========================
+ *  Pago masivo (seleccionar 2+ no pagadas)
+ *  ========================= */
+let pagoSetupDone = false;
+function getPagoTable(){
+  try{
+    const arr = Tabulator.findTable("#tablaPago");
+    return (arr && arr.length) ? arr[0] : null;
+  }catch(_){ return null; }
+}
 
-<script>
-// === Bulk pay binder: show/hide button, open modal, confirm lote ===
-(function(){
-  const lc = (x)=>String(x||"").trim().toLowerCase();
-  const $ = (sel)=>document.querySelector(sel);
-  const money = (n)=>{ try{return fmt.money(n);}catch(_){return "L " + Number(n||0).toFixed(2);} }
+function updatePagoButtonVisibility(){
+  const btn = document.getElementById("btnPagoAbrirModal");
+  const table = getPagoTable();
+  if(!btn || !table) return;
+  const sel = table.getSelectedData ? table.getSelectedData() : [];
+  const eligible = sel.filter(r => (String(r.Estado||"")) !== "Pagada");
+  if(eligible.length >= 2){
+    btn.classList.remove("hidden");
+    btn.style.display = "inline-flex";
+    btn.disabled = false;
+  }else{
+    btn.classList.add("hidden");
+    btn.style.display = "none";
+    btn.disabled = true;
+  }
+  window._pagoEligibleSelected = eligible;
+}
 
-  function getT(){
-    try{ if (window.pagoTable) return window.pagoTable; }catch(_){}
-    try{
-      if (window.Tabulator && typeof Tabulator.findTable==="function"){
-        const arr = Tabulator.findTable("#tablaPago");
-        if (arr && arr.length) return arr[0];
-      }
-      const el = document.querySelector("#tablaPago");
-      if (el && el.tabulator) return el.tabulator;
-    }catch(_){}
-    return null;
-  }
-  function getSel(){
-    const t = getT(); if(!t) return {rows:[],data:[]};
-    let rows=[], data=[];
-    try{ rows = (typeof t.getSelectedRows==="function") ? t.getSelectedRows() : []; }catch(_){}
-    try{ data = (typeof t.getSelectedData==="function") ? t.getSelectedData() : (rows.map(r=>r.getData())); }catch(_){ data = rows.map(r=>r.getData()); }
-    return {rows,data};
-  }
-  function updateBtn(){
-    const btn = $("#btnPagoAbrirModal"); if(!btn) return;
-    const {data} = getSel();
-    const ok = Array.isArray(data) && data.length>=2 && data.every(r => lc(r.Estado)!=="pagada");
-    btn.style.display = ok ? "inline-flex" : "none";
-  }
-  function bindEvents(){
-    const t = getT();
-    if(!t){ setTimeout(bindEvents, 250); return; }
-    if (t._bulkBound) return;
-    t._bulkBound = true;
-    try{
-      t.on("rowSelectionChanged", updateBtn);
-      t.on("dataFiltered", updateBtn);
-      t.on("dataLoaded", updateBtn);
-      t.on("tableBuilt", updateBtn);
-    }catch(_){}
-    updateBtn();
-  }
-  function openBulk(){
-    const {data} = getSel();
-    if (!(Array.isArray(data) && data.length>=2)) return;
-    // Rellenar resumen manual (si no lo hace recomputePagoResumen)
-    try{
-      const count = data.length;
-      const subtotal = data.reduce((a,r)=> a + (Number(r.Total)||Number(r["Total Gastado"])||0), 0);
-      const elN = document.getElementById("mpCount") || document.getElementById("mpResumenNum");
-      const elS = document.getElementById("mpSubtotal") || document.getElementById("mpResumenSubtotal");
-      if (elN) elN.textContent = String(count);
-      if (elS) elS.textContent = money(subtotal);
-    }catch(_){}
-    openPagoModal();
-  }
-  async function confirmarLote(ev){
-    const {data} = getSel();
-    if (!(Array.isArray(data) && data.length>=2)) return;
-    if (ev){ ev.preventDefault(); ev.stopPropagation(); }
-    const fechaPago = ($("#mpFechaPago")||{}).value || "";
-    const idPago    = ($("#mpIdPago")||{}).value || "";
-    let cargos = [];
-    try{ if (typeof readCargos==="function") cargos = readCargos(); }catch(_){}
-    const filas = data.map(r => parseInt(r.fila||r._fila||r.RowIndex||r.rowIndex, 10)).filter(Boolean);
-    if (!filas.length || !fechaPago || !idPago){ alert("Faltan datos para el pago en lote."); return; }
-    try{
-      const res = await fetch(Config.api.guardar, {
-        method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({ accion:"pagoLote", filas, fechaPago, idPago, cargos })
-      });
-      const j = await res.json().catch(()=>({status:"ERROR"}));
-      if(!res.ok || j.status==="ERROR"){ alert(j.message || "No se pudo registrar el pago en lote."); return; }
-    }catch(e){ alert("Error de red al registrar el pago en lote."); return; }
-    try{ ($("#modalPago")||{}).style.display = "none"; }catch(_){}
-    try{ if (typeof cargarPago==="function") await cargarPago(); }catch(_){}
-    try{ if (typeof cargarOtrosCargosKpi==="function") await cargarOtrosCargosKpi(); }catch(_){}
-  }
-  function bindButtons(){
-    const btn = $("#btnPagoAbrirModal");
-    if (btn && !btn._bound){ btn._bound = true; btn.addEventListener("click", openBulk); }
-    const ok = $("#mpConfirmar"); 
-    if (ok && !ok._bulkBound){ ok._bulkBound = true; ok.addEventListener("click", confirmarLote); }
-  }
-  document.addEventListener("DOMContentLoaded", function(){
-    const btn = document.getElementById("btnPagoAbrirModal"); if (btn) btn.style.display="none";
-    if (location.hash==="#pago"){ bindEvents(); bindButtons(); }
+function genIdPago(){
+  const d = new Date();
+  const pad = n => String(n).padStart(2,"0");
+  return `PAGO-${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+}
+
+function addCargoRow(){
+  const list = document.getElementById("mpCargosList");
+  if(!list) return;
+  const row = document.createElement("div");
+  row.className = "cargo-row";
+  row.style.display = "grid";
+  row.style.gridTemplateColumns = "1fr 1fr 140px 32px";
+  row.style.gap = "8px";
+  row.innerHTML = `
+    <input class="input cargo-codigo cargo-codigo" placeholder="Código / Ref." />
+    <input class="input cargo-tipo" placeholder="Tipo de cargo" />
+    <input class="input cargo-monto" placeholder="Monto" inputmode="decimal" />
+    <button type="button" class="btn btn-ghost cargo-del" title="Quitar"><i class="lucide-x"></i></button>
+  `;
+  list.appendChild(row);
+  row.querySelector(".cargo-del").addEventListener("click", ()=>{ row.remove(); updateOtrosCargosTotal(); });
+  row.querySelector(".cargo-monto").addEventListener("input", debounce(updateOtrosCargosTotal, 200));
+  const tipo = row.querySelector(".cargo-tipo"); if(tipo) tipo.focus();
+}
+
+function updateOtrosCargosTotal(){
+  const list = document.getElementById("mpCargosList");
+  if(!list) return;
+  const montos = Array.from(list.querySelectorAll(".cargo-monto")).map(i=>{
+    const raw = (i.value||"").replace(",", ".").replace(/[^0-9.\-]/g,"");
+    return Number(raw)||0;
   });
-  window.addEventListener("hashchange", function(){
-    if (location.hash==="#pago"){ setTimeout(bindEvents, 200); setTimeout(bindButtons, 200); }
+  const total = montos.reduce((a,b)=>a+b,0);
+  window._otrosCargosTotal = total;
+  const sub = Number(window._mpSubtotalRaw||0);
+  const grand = sub + total;
+  const mpCargosEl = document.getElementById("mpCargos");
+  const mpTotalEl  = document.getElementById("mpTotal");
+  if(mpCargosEl) mpCargosEl.textContent = fmt.money(total);
+  if(mpTotalEl)  mpTotalEl.textContent  = fmt.money(grand);
+}
+
+function openPagoModalForSelection(){
+  const table = getPagoTable(); if(!table) return;
+  const sel = table.getSelectedData ? table.getSelectedData() : [];
+  const eligible = sel.filter(r => (String(r.Estado||"")) !== "Pagada");
+  if(eligible.length < 2){ alert("Seleccione al menos 2 facturas no pagadas."); return; }
+
+  // Subtotal de las facturas
+  const subtotal = eligible.reduce((acc, r)=> acc + (Number(r.Total)||0), 0);
+  window._mpSubtotalRaw = subtotal;
+
+  // UI: resumen
+  const mpCountEl = document.getElementById("mpCount");
+  const mpSubtotalEl = document.getElementById("mpSubtotal");
+  const mpCargosList = document.getElementById("mpCargosList");
+  if(mpCountEl) mpCountEl.textContent = String(eligible.length);
+  if(mpSubtotalEl) mpSubtotalEl.textContent = fmt.money(subtotal);
+  if(mpCargosList) mpCargosList.innerHTML = "";
+
+  // Reiniciar cargos y totales
+  window._otrosCargosTotal = 0;
+  updateOtrosCargosTotal();
+
+  // Fecha hoy + ID_PAGO autogenerado
+  const f = document.getElementById("mpFechaPago");
+  const id = document.getElementById("mpIdPago");
+  if(f) f.value = fmt.dateISO(new Date());
+  if(id) id.value = genIdPago();
+
+  // Guardar selección elegible
+  window._pagoEligibleSelected = eligible;
+
+  // Mostrar modal
+  const modal = document.getElementById("modalPago");
+  if(modal) modal.style.display = "grid";
+}
+
+async function confirmarPagoLote(){
+  try{
+    const table = getPagoTable(); if(!table) return;
+    const eligible = Array.isArray(window._pagoEligibleSelected)? window._pagoEligibleSelected : [];
+    if(eligible.length < 2){ alert("Seleccione al menos 2 facturas no pagadas."); return; }
+
+    const fechaPago = (document.getElementById("mpFechaPago")?.value || "").trim();
+    const idPago    = (document.getElementById("mpIdPago")?.value || "").trim();
+    if(!fechaPago || !idPago){ alert("Falta Fecha de pago o ID_PAGO"); return; }
+
+    const filas = eligible.map(r => r.fila || r._fila).filter(Boolean);
+
+    // Extraer cargos
+    const list = document.getElementById("mpCargosList");
+    const cargos = list ? Array.from(list.children).map(row => {
+      const tipo   = row.querySelector(".cargo-tipo")?.value || "";
+      const monto  = Number((row.querySelector(".cargo-monto")?.value || "").replace(",", ".").replace(/[^0-9.\-]/g,"")) || 0;
+      const codigo = row.querySelector(".cargo-codigo")?.value || "";
+      return (tipo || monto || codigo) ? { tipo, monto, codigo } : null;
+    }).filter(Boolean) : [];
+
+    overlay.show("Registrando pago…");
+    const payload = { accion:"pagoLote", filas, fechaPago, idPago, cargos };
+    const res = await fetch(Config.api.guardar, {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify(payload)
+    });
+    if(!res.ok){ throw new Error("Error HTTP: "+res.status); }
+    const json = await res.json().catch(()=>({status:"ERROR"}));
+    if(json.status !== "OK" || !json.pagoLote){
+      throw new Error(json.message || "El backend no confirmó el pago en lote.");
+    }
+
+    // Actualización optimista de la tabla Pago
+    const rows = table.getRows ? table.getRows() : [];
+    eligible.forEach(item => {
+      const rc = rows.find(r => (r.getData()?.fila) === item.fila);
+      if(rc) rc.update({ Estado: "Pagada" });
+    });
+
+    // Cerrar modal, refrescar KPI "Otros Cargos", limpiar selección
+    const modal = document.getElementById("modalPago");
+    if(modal) modal.style.display = "none";
+    try{ await cargarOtrosCargosKpi(); }catch(_){}
+    if(table.deselectRow) table.deselectRow();
+    updatePagoButtonVisibility();
+
+  }catch(e){
+    alert("No se pudo completar el pago en lote. " + (e && e.message ? e.message : ""));
+  }finally{
+    overlay.hide();
+  }
+}
+
+function initPagoMassPay(force=false){
+  if(pagoSetupDone && !force) return;
+  const table = getPagoTable();
+  const btn   = document.getElementById("btnPagoAbrirModal");
+  if(!btn){
+    // botón aún no en el DOM
+    setTimeout(()=>initPagoMassPay(force), 300);
+    return;
+  }
+  if(!table){
+    // la tabla puede construirse de forma asíncrona; reintenta
+    setTimeout(()=>initPagoMassPay(force), 400);
+    return;
+  }
+  pagoSetupDone = true;
+
+  // Ocultar/inhabilitar por defecto
+  btn.classList.add("hidden");
+  btn.style.display = "none";
+  btn.disabled = true;
+
+  // Eventos
+  table.on("rowSelectionChanged", ()=>{
+    updatePagoButtonVisibility();
   });
-  // Por si la sección se re-renderiza
-  const sec = document.getElementById("secPago") || document.body;
-  const obs = new MutationObserver(()=>{ if(location.hash==="#pago"){ bindEvents(); updateBtn(); bindButtons(); }});
-  obs.observe(sec, {childList:true, subtree:true});
-})();
+  btn.addEventListener("click", openPagoModalForSelection);
+
+  // Controles del modal
+  const cancelBtn = document.getElementById("mpCancelar");
+  const addCargo  = document.getElementById("mpAddCargo");
+  const confirm   = document.getElementById("mpConfirmar");
+  if(cancelBtn) cancelBtn.addEventListener("click", ()=>{
+    const modal = document.getElementById("modalPago"); if(modal) modal.style.display = "none";
+  });
+  if(addCargo) addCargo.addEventListener("click", addCargoRow);
+  if(confirm)  confirm.addEventListener("click", confirmarPagoLote);
+}
 </script>
 
 </body>
