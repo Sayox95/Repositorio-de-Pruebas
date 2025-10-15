@@ -6,62 +6,7 @@
   <title>UTCD · Revisión de Facturas</title>
   <!-- Tabulator -->
   <link href="https://unpkg.com/tabulator-tables@6.2.5/dist/css/tabulator.min.css" rel="stylesheet">
-  <script src="https://unpkg.com/tabulator-tables@6.2.5/dist/js/tabulator.min.js">
-// === Pago: mostrar/ocultar botón "Pagar seleccionadas" según selección ===
-function wirePagoSelectionButton(){
-  try{
-    const btn = document.getElementById("btnPagoAbrirModal");
-    if(!btn) return;
-    btn.style.display = "none";
-    // usa instancia global si existe; si no, intenta encontrar por selector
-    const t = (typeof pagoTable!=="undefined" && pagoTable) ? pagoTable 
-              : (Tabulator && Tabulator.findTable ? (Tabulator.findTable("#tablaPago")[0]||null) : null);
-    if(!t){ setTimeout(wirePagoSelectionButton, 300); return; }
-    t.on("rowSelectionChanged", function(data, rows){
-      btn.style.display = (Array.isArray(data) && data.length>=2) ? "inline-flex" : "none";
-    });
-  }catch(e){}
-}
-// Llama al wiring cuando la vista de Pago se monta
-document.addEventListener("DOMContentLoaded", ()=>{
-  if(location.hash==="#pago") setTimeout(wirePagoSelectionButton, 400);
-});
-
-
-
-// === Pago: abrir modal con totales de seleccion ===
-(function(){
-  function bindOpen(){
-    const btn = document.getElementById("btnPagoAbrirModal");
-    if(!btn){ setTimeout(bindOpen, 300); return; }
-    btn.addEventListener("click", ()=>{
-      try{
-        // ID_PAGO autogenerado
-        if (typeof generateIdPago === "function") {
-          const id = generateIdPago();
-          const idEl = document.getElementById("mpIdPago");
-          if (idEl) idEl.value = id;
-        }
-        // Recalcular resumen con la selección actual
-        if (typeof recomputePagoResumen === "function") {
-          recomputePagoResumen();
-        }
-        // Abrir modal
-        if (typeof openPagoModal === "function") openPagoModal();
-        else {
-          const el = document.getElementById("modalPago");
-          if (el) el.style.display = "grid";
-        }
-      }catch(e){ console.warn("No se pudo abrir modal de pago:", e); }
-    }, { once:false });
-  }
-  document.addEventListener("DOMContentLoaded", bindOpen);
-  window.addEventListener("hashchange", ()=>{
-    if (location.hash === "#pago") setTimeout(bindOpen, 200);
-  });
-})();
-
-</script>
+  <script src="https://unpkg.com/tabulator-tables@6.2.5/dist/js/tabulator.min.js"></script>
   <!-- Flatpickr -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
@@ -259,6 +204,31 @@ document.addEventListener("DOMContentLoaded", ()=>{
   }
 
 </style>
+
+<style id="modalPago-wide-tweaks">
+  /* Ensancha contenidos internos del modal de pago */
+  #modalPago .bubble .card { width: 100%; }
+  #modalPago .input, 
+  #modalPago .msel, 
+  #modalPago select, 
+  #modalPago textarea { width: 100%; max-width: none; }
+  /* Si hay filas de cargos con inputs internos */
+  #modalPago #mpCargosList .input { width: 100%; max-width: none; }
+  /* Mejor separación del resumen superior */
+  #modalPago .card[style*="grid-template-columns:1fr 1fr"] { gap: 14px !important; }
+  /* Alinea el header de Otros Cargos (label + botón) si existe en línea */
+  #modalPago .otros-cargos-toolbar { display:flex; align-items:center; justify-content:space-between; gap:12px; width:100%; }
+</style>
+
+
+<style id="modalPago-field-widen">
+  #modalPago #mpFechaPago,
+  #modalPago #mpIdPago { width: 100%; max-width: none; font-size: 16px; padding: 12px 14px; letter-spacing: 0.3px; }
+  #modalPago .field, #modalPago .field > .input { width: 100%; max-width: none; }
+  #modalPago .cargo-row { grid-template-columns: 1fr 1fr 140px 32px !important; }
+  #modalPago .cargo-row .cargo-codigo { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+</style>
+
 </head>
 <body>
 
@@ -378,7 +348,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
         <button id="btnPagoActualizar" class="btn"><i class="lucide-rotate-cw"></i> Actualizar</button>
         <button id="btnPagoAgrupar" class="btn btn-ghost"><i class="lucide-layers-2"></i> Agrupar por colaborador</button>
         <button id="btnPagoExportXLSX" class="btn btn-ghost"><i class="lucide-download"></i> Excel</button>
-        <button id="btnPagoAbrirModal" style="display:none" style="display:none" style="display:none" style="display:none" class="btn btn-primary" disabled><i class="lucide-credit-card"></i> Pagar seleccionadas</button>
+        <button id="btnPagoAbrirModal" class="btn btn-primary" disabled><i class="lucide-credit-card"></i> Pagar seleccionadas</button>
       </div>
     </div>
 
@@ -407,7 +377,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
 
     <!-- Modal pago -->
 <div id="modalPago" class="overlay" style="display:none;">
-  <div class="bubble" style="display:flex;flex-direction:column;gap:12px;min-width:420px;max-width:560px;">
+  <div class="bubble" style="display:flex;flex-direction:column;gap:12px;min-width:520px;max-width:700px;">
     <div style="font-weight:800;font-size:16px;display:flex;align-items:center;gap:8px;">
       <i class="lucide-credit-card"></i> Registrar pago
     </div>
@@ -1379,7 +1349,7 @@ document.querySelectorAll('.sidebar .nav-btn').forEach(a=>{
     const href = a.getAttribute('href')||'';
     if(href==='#inicio') return navigateTo('secInicio');
     if(href==='#revision') return navigateTo('secRevision', async()=>{ await hardRefresh(); });
-    if(href==='#pago')     return navigateTo('secPago', async()=>{ /* wiring handled by IIFE */ await cargarOtrosCargosKpi(); });
+    if(href==='#pago')     return navigateTo('secPago', async()=>{ await cargarOtrosCargosKpi(); });
     if(href==='#anticipos')return navigateTo('secAnticipos');
     if(href==='#placas')   return navigateTo('secPlacas', async()=>{ await cargarPlacas(); });
   });
@@ -2382,8 +2352,9 @@ if (typeof API !== "undefined") {
 function openPagoModal(){
   const el = document.getElementById("modalPago"); if(!el) return;
   const dft = (typeof fmt!=="undefined" && fmt.dateISO) ? fmt.dateISO(new Date()) : new Date().toISOString().slice(0,10);
-  document.getElementById("mpFondoPeriodo").value = "";
-  document.getElementById("mpFechaPago").value = dft;
+  const fFecha = document.getElementById("mpFechaPago"); if (fFecha) fFecha.value = dft;
+  const fId = document.getElementById("mpIdPago"); if (fId && typeof generateIdPago === "function") fId.value = generateIdPago();
+  if (typeof recomputePagoResumen === "function") { try{ recomputePagoResumen(); }catch(_){} }
   el.style.display = "grid";
 }
 function closePagoModal(){ const el = document.getElementById("modalPago"); if(el) el.style.display="none"; }
@@ -2530,7 +2501,7 @@ document.addEventListener("DOMContentLoaded", function(){
     const div = document.createElement("div");
     div.className = "cargo-row";
     div.style.display = "grid";
-    div.style.gridTemplateColumns = "1fr 160px 32px";
+    div.style.gridTemplateColumns = "1fr 1fr 140px 32px";
     div.style.gap = "8px";
     div.innerHTML = `
       <select class="input cargo-tipo">
@@ -2538,6 +2509,7 @@ document.addEventListener("DOMContentLoaded", function(){
         <option value="ACH"${'ACH'===type?' selected':''}>ACH</option>
         <option value="Otro"${'Otro'===type?' selected':''}>Otro</option>
       </select>
+      <input class="input cargo-codigo" type="text" placeholder="Código de transacción"/>
       <input class="input cargo-monto" type="number" step="0.01" min="0" placeholder="0.00" value="${amount}"/>
       <button class="cargo-remove" title="Eliminar"
               style="border:1px solid #EF4444;color:#EF4444;background:transparent;border-radius:10px;width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;font-weight:900;">✕</button>
@@ -2553,8 +2525,9 @@ document.addEventListener("DOMContentLoaded", function(){
     const out = [];
     wrap.querySelectorAll(".cargo-row").forEach(row => {
       const tipo = row.querySelector(".cargo-tipo")?.value || "";
+      const codigo = row.querySelector(".cargo-codigo")?.value || "";
       const monto = Number(row.querySelector(".cargo-monto")?.value || 0) || 0;
-      if(monto>0) out.push({ tipo, monto });
+      if(monto>0) out.push({ tipo, codigo, monto });
     });
     return out;
   }
@@ -2704,75 +2677,6 @@ document.addEventListener("DOMContentLoaded", function(){
     }catch(_){ alert(msg); }
   }
 })();
-
-
-// === Pago: botón "Pagar seleccionadas" (2+ y ninguna 'Pagada') ===
-(function(){
-  function lc(x){ return String(x||"").trim().toLowerCase(); }
-  function getPagoTable(){
-    if (window.pagoTable) return window.pagoTable;
-    if (window.Tabulator && typeof Tabulator.findTable === "function"){
-      const arr = Tabulator.findTable("#tablaPago");
-      if (Array.isArray(arr) && arr.length) return arr[0];
-    }
-    const el = document.querySelector("#tablaPago");
-    if (el && el.tabulator) return el.tabulator; // instanciada en el DOM
-    return null;
-  }
-  function selectedData(t){
-    try{
-      if (typeof t.getSelectedData === "function") return t.getSelectedData();
-      if (typeof t.getSelectedRows === "function") return t.getSelectedRows().map(r=>r.getData());
-    }catch(_){}
-    return [];
-  }
-  function toggleBtn(){
-    const btn = document.getElementById("btnPagoAbrirModal");
-    if(!btn) return;
-    const t = getPagoTable();
-    if(!t){ btn.style.display = "none"; return; }
-    const data = selectedData(t);
-    const count = Array.isArray(data) ? data.length : 0;
-    const hasPaid = (data||[]).some(r => lc(r && (r.Estado || r.estado)) === "pagada");
-    btn.style.display = (count >= 2 && !hasPaid) ? "inline-flex" : "none";
-  }
-  function bind(){
-    const btn = document.getElementById("btnPagoAbrirModal");
-    if(!btn){ setTimeout(bind, 250); return; }
-    const t = getPagoTable();
-    if(!t){ setTimeout(bind, 300); return; }
-    try{
-      if (typeof t.off === "function"){
-        t.off("rowSelectionChanged", toggleBtn);
-        t.off("dataLoaded", toggleBtn);
-        t.off("dataFiltered", toggleBtn);
-        t.off("dataChanged", toggleBtn);
-      }
-      if (typeof t.on  === "function"){
-        t.on("rowSelectionChanged", toggleBtn);
-        t.on("dataLoaded", toggleBtn);
-        t.on("dataFiltered", toggleBtn);
-        t.on("dataChanged", toggleBtn);
-      }
-    }catch(_){}
-    toggleBtn();
-  }
-
-  // Observa cambios en el contenedor del pago para engancharse cuando aparezca la tabla
-  const pagoSec = document.getElementById("secPago") || document.body;
-  const obs = new MutationObserver(()=>{ bind(); });
-  obs.observe(pagoSec, { childList:true, subtree:true });
-
-  document.addEventListener("DOMContentLoaded", ()=>{
-    if (location.hash === "#pago") setTimeout(bind, 400);
-  });
-  window.addEventListener("hashchange", ()=>{
-    if (location.hash === "#pago") setTimeout(bind, 400);
-  });
-  // Último intento
-  setTimeout(()=>{ if (location.hash === "#pago") bind(); }, 1500);
-})();
-
 </script>
 
 </body>
