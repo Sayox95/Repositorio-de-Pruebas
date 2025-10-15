@@ -2101,6 +2101,328 @@ async function doLogout(){ await authLogout(); showLogin(); }
 
 
 <script>
+// ============ Util Pago ============
+function setLastUpdatedPago(){
+  const el=document.getElementById("lastUpdatedPago"); if(!el) return;
+  const t=new Date(), pad=n=>String(n).padStart(2,"0");
+  el.textContent = "Actualizado: " + t.getFullYear()+"-"+pad(t.getMonth()+1)+"-"+pad(t.getDate())+" "+pad(t.getHours())+":"+pad(t.getMinutes());
+}
+
+let pagoTable=null, pagoTableReady=false, pagoPendingData=null, pagoGrouped=false;
+let pagoSectorMS=null, pagoEstadoMS=null;
+
+const Pago = {
+  raw: [],
+  get filtered(){
+    const sectores = pagoSectorMS ? pagoSectorMS.getSelected() : [];
+    const estados  = pagoEstadoMS ? pagoEstadoMS.getSelected() : [];
+    const nroQ     = (document.querySelector("#fPagoNumero")?.value || "").trim().toLowerCase();
+    const nomQ     = (document.querySelector("#fPagoNombre")?.value || "")
+                      .toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+    const dr = document.getElementById("fPagoFecha") ? document.getElementById("fPagoFecha")._range : null;
+
+    const getFirst = (o, keys)=>{ for (const k of keys){ if (o && o[k] != null && o[k] !== "") return o[k]; } return ""; };
+    const canon = (v)=> String(v||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+
+    return (Pago.raw||[]).filter(r=>{
+      const sector = String(r.Sector||"");
+      const estado = String(r.Estado||"");
+
+      const num = getFirst(r, ["Numero de Factura","Número de Factura","Nº Factura","No. Factura","Nro Factura","Factura","N Factura"]);
+      const numCanon = canon(num);
+
+      const nombre = getFirst(r, ["Nombre","Nombre Colaborador","Nombre del colaborador","Colaborador","Empleado"]);
+      const nombreCanon = canon(nombre);
+
+      const fecha = String(getFirst(r, ["Fecha","Fecha de compra","Fecha Emisión"]) || "");
+
+      if(sectores.length && !sectores.includes(sector)) return false;
+      if(estados.length  && !estados.includes(estado)) return false;
+      if(nroQ && !numCanon.includes(nroQ)) return false;
+      if(nomQ && !nombreCanon.includes(nomQ)) return false;
+      if(dr){
+        const d = new Date(fecha);
+        if(isNaN(d) || d < dr[0] || d > dr[1]) return false;
+      }
+      return true;
+    });
+  }
+};
+
+function waitForTabulatorAndContainer(){
+  return new Promise(function(resolve){
+    function tick(){
+      const ready = typeof window.Tabulator!=="undefined" && document.querySelector("#tablaPago");
+      if(ready) resolve(); else requestAnimationFrame(tick);
+    }
+    tick();
+  });
+}
+
+function buildPagoTable(){
+  if(pagoTable) return;
+  pagoTable = new Tabulator("#tablaPago", {
+    height: (typeof Config!=="undefined" && Config.tablaHeight) ? Config.tablaHeight : "560px",
+    data: [], layout: "fitColumns", selectable: true, placeholder: "Sin datos",
+    columns: [
+      { formatter:"rowSelection", titleFormatter:"rowSelection", hozAlign:"center", headerSort:false, width:40 },
+      { title:"#", formatter:"rownum", hozAlign:"center", width:60 },
+      { title:"Sector", field:"Sector", width:120 },
+      { title:"Placa", field:"Placa", width:110 },
+      { title:"Proceso", field:"Proceso", width:130 },
+      { title:"Nombre", field:"Nombre", width:180 },
+      { title:"Identidad", field:"Identidad", width:150 },
+      { title:"Total Gastado", field:"Total", hozAlign:"right", width:140,
+        formatter:(c)=> (typeof fmt!=="undefined" && fmt.money) ? fmt.money(c.getValue() ?? c.getRow().getData()["Total Gastado"]) : c.getValue() },
+      { title:"Fecha", field:"Fecha", width:120,
+        formatter:(c)=>{ const v=c.getValue(); return v? String(v).slice(0,10):""; } },
+      { title:"Nombre del comercio", field:"Nombre del comercio", width:220, tooltip:true,
+        formatter:(cell)=>{ const v=String(cell.getValue()??""); const m=28; return v.length>m? v.slice(0,m)+"…": v; } },
+      { title:"Número de Factura", field:"Numero de Factura", width:150 },
+      { title:"Enlace PDF", field:"Enlace PDF", width:110,
+        formatter:(cell)=>{
+          const r=cell.getRow().getData(); const v=cell.getValue()||r.Enlace||r.PDF||"";
+          return v? "<a href=\""+((typeof API!=='undefined' && API.proxied)? API.proxied(v): v)+"\" target=\"_blank\" title=\"Abrir PDF\">📄</a>":"";
+        } },
+      { title:"Estado", field:"Estado", width:120, formatter:(c)=> {
+          const v=(c.getValue()||"").toString();
+          if(v==="Pagada") return "<span class=\"status-pill disabled\"><span class=\"dot\" style=\"background:" + (typeof estadoColor==='function'? estadoColor('Pagada'): '#0FA47E') + "\"></span>Pagada</span>";
+          return "<button class=\"btn-pagar\" title=\"Pagar esta factura\">Pagar</button>";
+        },
+        cellClick: (e, cell)=>{
+          const d = cell.getRow().getData();
+          if((d.Estado||"")==="Pagada") return;
+          pagoTable.deselectRow && pagoTable.deselectRow();
+          cell.getRow().select(); openPagoModal();
+        }
+      },
+    ],
+    dataLoaded: updatePagoKpis,
+    dataFiltered: updatePagoKpis,
+    rowSelectionChanged: ()=>{ const b=document.getElementById("btnPagoAbrirModal"); if(b) b.disabled = (pagoTable.getSelectedRows().length===0); }
+  });
+
+  pagoTable.on("tableBuilt", function(){
+    pagoTableReady = true;
+    if(pagoPendingData){
+      try{ pagoTable.replaceData(pagoPendingData); }catch(_){}
+      pagoPendingData = null;
+      updatePagoKpis();
+    }
+  });
+}
+
+function updatePagoKpis(){
+  const rows = pagoTable? pagoTable.getData("active") : [];
+  let pend=0, pag=0, sp=0, sg=0;
+  for(const r of rows){
+    const total = Number(r["Total Gastado"] ?? r.Total) || 0;
+    if((r.Estado||"")==="Revisada"){ pend++; sp += total; }
+    if((r.Estado||"")==="Pagada"){ pag++; sg += total; }
+  }
+  const fmtMoney = (v)=> "L " + (Number(v)||0).toLocaleString("es-HN",{minimumFractionDigits:2,maximumFractionDigits:2});
+  const $ = (sel)=>document.querySelector(sel);
+  $("#kpiPagoPendientes").textContent = String(pend);
+  $("#kpiPagoPagadas").textContent = String(pag);
+  $("#kpiPagoTotalPend").textContent = fmtMoney(sp);
+  $("#kpiPagoTotalPag").textContent  = fmtMoney(sg);
+}
+
+function clearPagoFilters(){
+  pagoSectorMS && pagoSectorMS.clear();
+  pagoEstadoMS && pagoEstadoMS.clear();
+  const $ = (sel)=>document.querySelector(sel);
+  $("#fPagoNombre").value = "";
+  $("#fPagoNumero").value = "";
+  $("#fPagoFecha").value = "";
+  const f = document.getElementById("fPagoFecha"); if(f) f._range = null;
+  applyPagoFilters();
+}
+
+function togglePagoGrouping(){
+  if(!pagoTable) return;
+  pagoGrouped = !pagoGrouped;
+  if(pagoGrouped){
+    pagoTable.setGroupBy(["Identidad"]);
+    const b = document.getElementById("btnPagoAgrupar"); if(b) b.innerHTML = '<i class="lucide-layers-2"></i> Desagrupar';
+  }else{
+    pagoTable.setGroupBy(false);
+    const b = document.getElementById("btnPagoAgrupar"); if(b) b.innerHTML = '<i class="lucide-layers-2"></i> Agrupar por colaborador';
+  }
+}
+
+// ——— API: extender getFacturas(opts) y pagarFacturas ———
+if (typeof API !== "undefined") {
+  const buildUrl = (base)=>{
+    try{
+      if(/^https?:\/\//i.test(base)) return new URL(base);
+      if(base.startsWith("/") && location.origin && /^https?:/i.test(location.origin)) return new URL(location.origin + base);
+      return new URL(base, location.origin || undefined);
+    }catch(_){
+      return new URL(base, "http://localhost");
+    }
+  };
+  const _origGet = API.getFacturas?.bind(API);
+  API.getFacturas = async function(opts = {}){
+    if(this._facturasCtl) try{ this._facturasCtl.abort(); }catch(_){}
+    const ctl = new AbortController();
+    this._facturasCtl = ctl;
+
+    const base = Config?.api?.leerFacturas || "/api/leer";
+    const url  = buildUrl(base);
+    if (opts && Array.isArray(opts.estados) && opts.estados.length){
+      url.searchParams.set("estados", opts.estados.join(","));
+    }
+
+    const res = await fetch(url.toString(), { cache:"no-store", mode:"cors", signal: ctl.signal });
+    if(!res.ok) throw new Error("No se pudo leer facturas");
+    const data = await res.json().catch(()=>[]);
+    if(ctl.signal.aborted) throw new Error("ABORTED");
+    const arr = Array.isArray(data) ? data : [];
+    return arr.map(normalizeRow).filter(Boolean);
+  };
+
+  API.pagarFacturas = async function(rows, fondoPeriodo, fechaPago){
+    const errs = [];
+    for (const r of (rows||[])){
+      const fila = r.fila || r._fila;
+      if(!fila){ errs.push("Fila sin 'fila' real"); continue; }
+      const url = (Config && Config.api && Config.api.guardar) ? Config.api.guardar : "/api/guardar";
+      const res = await fetch(url, { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ fondoPeriodo, fechaPago, fila }) });
+      let json=null; try{ json=await res.json(); }catch(_){}
+      if(!res.ok || !json || json.status!=="OK"){ errs.push("Fallo fila " + fila + ": " + (json && json.message || res.status)); }
+    }
+    if(errs.length) throw new Error(errs.join(" · "));
+  };
+}
+
+// ========= Modal =========
+function openPagoModal(){
+  const el = document.getElementById("modalPago"); if(!el) return;
+  const dft = (typeof fmt!=="undefined" && fmt.dateISO) ? fmt.dateISO(new Date()) : new Date().toISOString().slice(0,10);
+  document.getElementById("mpFondoPeriodo").value = "";
+  document.getElementById("mpFechaPago").value = dft;
+  el.style.display = "grid";
+}
+function closePagoModal(){ const el = document.getElementById("modalPago"); if(el) el.style.display="none"; }
+
+async function confirmPago(){
+  try{
+    const fondoPeriodo = (document.getElementById("mpFondoPeriodo")?.value||"").trim();
+    const fechaPago    = (document.getElementById("mpFechaPago")?.value||"").trim();
+    if(!fondoPeriodo || !fechaPago){ alert("Completa Fondo/Periodo y Fecha de pago."); return; }
+    const rows = pagoTable.getSelectedData();
+    if(!rows?.length){ alert("Selecciona al menos una factura."); return; }
+
+    if(typeof overlay!=="undefined") overlay.show("Registrando pago…");
+    await API.pagarFacturas(rows, fondoPeriodo, fechaPago);
+    await cargarPago();
+    closePagoModal();
+  }catch(e){
+    alert("No se pudo registrar el pago. " + e.message);
+  }finally{
+    if(typeof overlay!=="undefined") overlay.hide();
+  }
+}
+
+// ========= Filtros =========
+function applyPagoFilters(){
+  if(!pagoTable) return;
+  const list = Pago.filtered;
+  const maybe = pagoTable.replaceData(list);
+  if(maybe && typeof maybe.then === "function"){ maybe.then(updatePagoKpis); } else { setTimeout(updatePagoKpis,0); }
+}
+
+function clearPagoFilters(){
+  pagoSectorMS && pagoSectorMS.clear();
+  pagoEstadoMS && pagoEstadoMS.clear();
+  const $ = (sel)=>document.querySelector(sel);
+  $("#fPagoNombre").value = "";
+  $("#fPagoNumero").value = "";
+  $("#fPagoFecha").value = "";
+  const f = document.getElementById("fPagoFecha"); if(f) f._range = null;
+  applyPagoFilters();
+}
+
+// ========= Carga principal =========
+async function cargarPago(){
+  try{ console.time("[Pago] cargar"); }catch(_e){}
+
+  if(typeof overlay!=="undefined") overlay.show("Cargando facturas…");
+  try {
+    let arr = null;
+    const TARGET = new Set(["Revisada","Pagada"]);
+
+    if (typeof API!=="undefined" && typeof API.getFacturas === "function") {
+      try { arr = await API.getFacturas({ estados: ["Revisada","Pagada"] }); } catch(_){ arr = null; }
+    }
+    let data = Array.isArray(arr) ? arr : [];
+
+    const serverFiltered = data.length>0 && data.every(r => TARGET.has(String((r && r.Estado) || "")));
+    if (!serverFiltered) {
+      const all = await (typeof API!=="undefined" ? API.getFacturas() : Promise.resolve([]));
+      data = (all || []).filter(r => TARGET.has(String((r && r.Estado) || "")));
+    }
+
+    Pago.raw = data;
+
+    const sectores = Array.from(new Set((Pago.raw||[]).map(r=>r.Sector).filter(Boolean))).sort((a,b)=>a.localeCompare(b));
+    if(pagoSectorMS && pagoSectorMS.setItems){ pagoSectorMS.setItems(sectores); }
+    const estados = Array.from(new Set((Pago.raw||[]).map(r=>r.Estado).filter(Boolean)));
+    if(pagoEstadoMS && pagoEstadoMS.setItems){ pagoEstadoMS.setItems(estados); }
+
+    await waitForTabulatorAndContainer();
+    buildPagoTable();
+    const list = Pago.filtered;
+    if(pagoTableReady){ await pagoTable.replaceData(list); } else { pagoPendingData = list; }
+    updatePagoKpis();
+    setLastUpdatedPago();
+  } catch(e) {
+  } finally {
+    if(typeof overlay!=="undefined") overlay.hide();
+  }
+
+  try{ console.timeEnd("[Pago] cargar"); }catch(_e){}
+}
+
+// ========= Wire-up =========
+document.addEventListener("DOMContentLoaded", function(){
+  try{ pagoSectorMS = createMultiSelect("#msPagoSector", "Sector", applyPagoFilters); }catch(_){}
+  try{ pagoEstadoMS = createMultiSelect("#msPagoEstado", "Estado", applyPagoFilters); }catch(_){}
+
+  if (typeof flatpickr !== "undefined") {
+    flatpickr("#fPagoFecha", {
+      mode:"range", dateFormat:"Y-m-d",
+      onChange(selectedDates){
+        if(selectedDates.length===2){
+          selectedDates[0].setHours(0,0,0,0);
+          selectedDates[1].setHours(23,59,59,999);
+          document.getElementById("fPagoFecha")._range = selectedDates;
+        }else{
+          document.getElementById("fPagoFecha")._range = null;
+        }
+        applyPagoFilters();
+      }
+    });
+  }
+
+  const $ = (sel)=>document.querySelector(sel);
+  $("#btnPagoLimpiar")?.addEventListener("click", clearPagoFilters);
+  $("#btnPagoActualizar")?.addEventListener("click", cargarPago);
+  $("#btnPagoExportXLSX")?.addEventListener("click", ()=> pagoTable?.download("xlsx", "Pago_UTCD_" + new Date().toISOString().slice(0,10) + ".xlsx", {sheetName:"Pago", rowRange:"active"}));
+  $("#btnPagoAgrupar")?.addEventListener("click", togglePagoGrouping);
+  $("#btnPagoAbrirModal")?.addEventListener("click", openPagoModal);
+  $("#mpCancelar")?.addEventListener("click", closePagoModal);
+  $("#mpConfirmar")?.addEventListener("click", confirmPago);
+  $("#fPagoNombre")?.addEventListener("input", applyPagoFilters);
+  $("#fPagoNumero")?.addEventListener("input", applyPagoFilters);
+
+  // Carga cuando se navega a #pago o al hacer click en su pestaña
+  const navPago = document.querySelector('.sidebar .nav-btn[href="#pago"]');
+  if(navPago){ navPago.addEventListener("click", function(){ setTimeout(function(){ cargarPago(); }, 0); }); }
+  window.addEventListener("hashchange", function(){ if(location.hash==="#pago"){ setTimeout(function(){ cargarPago(); }, 0); } });
+});
+
 /* ====== Pago: resumen, cargos e integración pagoLote (sin Fondo/Periodo) ====== */
 (function(){
   function generateIdPago(){
@@ -2191,12 +2513,8 @@ async function doLogout(){ await authLogout(); showLogin(); }
   window.openPagoModal = function(){
     const el = document.getElementById("modalPago"); if(!el) return;
     const dft = (typeof fmt!=="undefined" && fmt.dateISO) ? fmt.dateISO(new Date()) : new Date().toISOString().slice(0,10);
-    const fecha = document.getElementById("mpFechaPago"); if (fecha) fecha.value = dft;
-    const idp = document.getElementById("mpIdPago"); if (idp) {
-      const d = new Date(); const pad=n=>String(n).padStart(2,"0");
-      const rnd = Math.random().toString(36).slice(2,6).toUpperCase();
-      idp.value = `PAGO-${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}-${rnd}`;
-    }
+    const f = document.getElementById("mpFechaPago"); if (f) f.value = dft;
+    const idp = document.getElementById("mpIdPago"); if (idp) idp.value = generateIdPago();
     const list = document.getElementById("mpCargosList"); if(list){ list.innerHTML=""; }
     recomputePagoResumen();
     el.style.display = "grid";
@@ -2212,6 +2530,7 @@ async function doLogout(){ await authLogout(); showLogin(); }
       if(!fechaPago){ alert("Completa la Fecha de pago."); return; }
       const rows = (typeof pagoTable!=="undefined" && pagoTable.getSelectedData) ? pagoTable.getSelectedData() : [];
       if(!rows?.length){ alert("Selecciona al menos una factura."); return; }
+
       const cargos = readCargos();
       if(typeof overlay!=="undefined") overlay.show("Registrando pago…");
       await API.pagarFacturasLote(rows, null, fechaPago, idPago, cargos);
