@@ -4,7 +4,7 @@ export async function onRequestGet({ request }) {
   const otrosCargos = incoming.searchParams.get("otrosCargos"); // "total" (opcional)
   const estados  = incoming.searchParams.get("estados");        // opcional
 
-  const url = new URL("https://script.google.com/macros/s/AKfycbzqGcEiGbjGJan11czUrje4ixUTPYc0NDuanO9IPRnmkP3GM2EaiQu9PEiNfD6Abd9bFA/exec");
+  const url = new URL("https://script.google.com/macros/s/AKfycbzQ5V4tnf1mLVfuUXczynOXN4H4fSUKYyPrHqrgyizFhbKGKRPc0ho6tqE0l0ck8YoEgA/exec");
 
   if (otrosCargos) {
     url.searchParams.set("otrosCargos", otrosCargos);
