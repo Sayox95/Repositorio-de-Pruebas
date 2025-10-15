@@ -2708,8 +2708,11 @@ function updatePagoButtonVisibility(){
 
 function genIdPago(){
   const d = new Date();
-  const pad = n => String(n).padStart(2,"0");
-  return `PAGO-${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+  const pad = n => String(n).padStart(2, "0");
+  const basePart = `PAGO-${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+  const rand = Math.floor(Math.random() * Math.pow(36, 4)); // 0–36^4−1
+  const suffix = rand.toString(36).toUpperCase().padStart(4, "0").slice(-4);
+  return `${basePart}-${suffix}`;
 }
 
 function addCargoRow(){
