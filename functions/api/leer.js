@@ -6,7 +6,7 @@ export async function onRequestGet({ request }) {
   const estados  = incoming.searchParams.get("estados"); // "Revisada,Pagada" (opcional)
 
   // Construye la URL al Apps Script
-  const url = new URL("https://script.google.com/macros/s/AKfycbziq8_WcIiZvoWBNKfp0T0sxp8r7fKd2S_rIG_nWnfBccLpzcsscpiZJGMgMS67wN0fVw/exec");
+  const url = new URL("https://script.google.com/macros/s/AKfycbw0feZUq0OzNvxkhMs1ecMMNfC9NVKUkUZWVwZrNB0wMSyvIuYWL3mrHTwKpPt9pEucQQ/exec");
   url.searchParams.set("leerFacturas", "true");
   if (estados) url.searchParams.set("estados", estados);
 
