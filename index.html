@@ -28,6 +28,39 @@ document.addEventListener("DOMContentLoaded", ()=>{
 });
 
 
+
+// === Pago: abrir modal con totales de seleccion ===
+(function(){
+  function bindOpen(){
+    const btn = document.getElementById("btnPagoAbrirModal");
+    if(!btn){ setTimeout(bindOpen, 300); return; }
+    btn.addEventListener("click", ()=>{
+      try{
+        // ID_PAGO autogenerado
+        if (typeof generateIdPago === "function") {
+          const id = generateIdPago();
+          const idEl = document.getElementById("mpIdPago");
+          if (idEl) idEl.value = id;
+        }
+        // Recalcular resumen con la selección actual
+        if (typeof recomputePagoResumen === "function") {
+          recomputePagoResumen();
+        }
+        // Abrir modal
+        if (typeof openPagoModal === "function") openPagoModal();
+        else {
+          const el = document.getElementById("modalPago");
+          if (el) el.style.display = "grid";
+        }
+      }catch(e){ console.warn("No se pudo abrir modal de pago:", e); }
+    }, { once:false });
+  }
+  document.addEventListener("DOMContentLoaded", bindOpen);
+  window.addEventListener("hashchange", ()=>{
+    if (location.hash === "#pago") setTimeout(bindOpen, 200);
+  });
+})();
+
 </script>
   <!-- Flatpickr -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
@@ -2738,49 +2771,6 @@ document.addEventListener("DOMContentLoaded", function(){
   });
   // Último intento
   setTimeout(()=>{ if (location.hash === "#pago") bind(); }, 1500);
-})();
-
-
-// === Pago: abrir modal con selección (N facturas y subtotal) ===
-(function(){
-  function ensureTableBuilt(cb){
-    try{
-      if (window.pagoTable && typeof pagoTable.getSelectedData === "function"){
-        cb(); return;
-      }
-    }catch(_){}
-    // último intento: buscar instancia en el DOM
-    try{
-      const el = document.querySelector("#tablaPago");
-      if (el && el.tabulator){ window.pagoTable = el.tabulator; cb(); return; }
-    }catch(_){}
-    alert("La tabla de Pago aún no está lista. Intenta nuevamente.");
-  }
-  function onOpenBulk(){
-    ensureTableBuilt(()=>{
-      const rows = pagoTable.getSelectedData ? pagoTable.getSelectedData() : [];
-      if (!Array.isArray(rows) || rows.length < 2){
-        alert("Selecciona al menos 2 facturas no pagadas.");
-        return;
-      }
-      // Abre modal y rellena resumen
-      if (typeof openPagoModal === "function") openPagoModal();
-      if (typeof generateIdPago === "function"){
-        const el = document.getElementById("mpIdPago");
-        if (el) el.value = generateIdPago();
-      }
-      if (typeof recomputePagoResumen === "function") recomputePagoResumen();
-    });
-  }
-  document.addEventListener("DOMContentLoaded", function(){
-    const btn = document.getElementById("btnPagoAbrirModal");
-    if (btn){
-      btn.addEventListener("click", function(e){
-        e.preventDefault();
-        onOpenBulk();
-      });
-    }
-  });
 })();
 
 </script>
