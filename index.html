@@ -203,6 +203,54 @@
     cursor: pointer;
   }
 
+
+/* KPIs Pago: grid responsivo y compacto */
+.pago-kpis{
+  display:grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap:12px;
+  width:100%;
+  align-items:stretch;
+}
+.pago-kpis .kpi{
+  border:1px solid #e6e8eb;
+  border-radius:10px;
+  padding:10px 12px;
+  background:#fff;
+}
+.pago-kpis .kpi .label{
+  display:block;
+  font-size:12px;
+  color:#6b7280;
+  margin-bottom:6px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.pago-kpis .kpi .value{
+  font-weight:800;
+  font-size:18px;
+  line-height:1.15;
+}
+#secPago .content-wrap{
+  display:flex;
+  flex-direction:column;
+  gap:16px;
+  min-width:0;
+}
+#secPago .table-wrap{
+  flex:1 1 auto;
+  min-height:240px;
+  min-width:0;
+  overflow:hidden;
+}
+@media (max-width: 1100px){
+  .pago-kpis{
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap:10px;
+  }
+  .pago-kpis .kpi .value{ font-size:16px; }
+}
 </style>
 </head>
 <body>
@@ -327,14 +375,14 @@
       </div>
     </div>
 
-    <div class="grid cols-4">
-      <div class="card kpi"><span class="label">Pendientes (Revisadas)</span><span id="kpiPagoPendientes" class="value">0</span></div>
-      <div class="card kpi"><span class="label">Pagadas</span><span id="kpiPagoPagadas" class="value">0</span></div>
-      <div class="card kpi"><span class="label">Total Pendiente</span><span id="kpiPagoTotalPend" class="value">L 0.00</span></div>
-      <div class="card kpi"><span class="label">Subtotal Pagado</span><span id="kpiPagoSubtotalPag" class="value">L 0.00</span></div>
-      <div class="card kpi"><span class="label">Otros Cargos</span><span id="kpiPagoOtrosCargos" class="value">L 0.00</span></div>
-      <div class="card kpi"><span class="label">Total Pagado</span><span id="kpiPagoTotalPag" class="value">L 0.00</span></div>
-    </div>
+    <div class="content-wrap">
+  <div class="pago-kpis">
+    <div class="card kpi"><span class="label">Pendientes (Revisadas)</span><span id="kpiPagoPendientes" class="value">0</span></div>
+    <div class="card kpi"><span class="label">Pagadas</span><span id="kpiPagoPagadas" class="value">0</span></div>
+    <div class="card kpi"><span class="label">Total Pendiente</span><span id="kpiPagoTotalPend" class="value">L 0.00</span></div>
+    <div class="card kpi"><span class="label">Subtotal Pagado</span><span id="kpiPagoSubtotalPag" class="value">L 0.00</span></div>
+    <div class="card kpi"><span class="label">Otros Cargos</span><span id="kpiPagoOtrosCargos" class="value">L 0.00</span></div>
+    <div class="card kpi"><span class="label">Total Pagado</span><span id="kpiPagoTotalPag" class="value">L 0.00</span></div>
   </div>
 
     <div class="card" style="margin-top:10px;">
@@ -2636,11 +2684,10 @@ document.addEventListener("DOMContentLoaded", function(){
       var baseUrl = (Config && Config.api && Config.api.leerFacturas) ? Config.api.leerFacturas : "";
       if (!baseUrl) return 0;
       var u = new URL(baseUrl, location.origin);
-      // limpiar cualquier query previa y poner otrosCargos=total
       u.search = "";
       u.searchParams.set("otrosCargos", "total");
-      const res = await fetch(u.toString(), { cache: "no-store", mode: "cors" });
-      if (!res.ok) return 0;
+      const res = await fetch(u.toString(), { cache:"no-store", mode:"cors" });
+      if(!res.ok) return 0;
       const json = await res.json().catch(()=>null);
       if (json && (json.totalOtrosCargos !== undefined || json.total !== undefined)){
         return Number(json.totalOtrosCargos ?? json.total) || 0;
@@ -2649,6 +2696,28 @@ document.addEventListener("DOMContentLoaded", function(){
       return 0;
     }catch(e){ return 0; }
   };
+})();
+</script>
+
+<script>
+(function(){
+  const hook = () => {
+    if (window.pagoTable && typeof pagoTable.on === "function"){
+      try{
+        pagoTable.on("dataLoaded", updatePagoKpis);
+        pagoTable.on("dataFiltered", updatePagoKpis);
+        pagoTable.on("rowSelectionChanged", updatePagoKpis);
+      }catch(e){}
+      // disparo inicial
+      try{ updatePagoKpis(); }catch(e){}
+      return true;
+    }
+    return false;
+  };
+  if(!hook()){
+    const iv = setInterval(()=>{ if(hook()) clearInterval(iv); }, 400);
+    setTimeout(()=>clearInterval(iv), 8000);
+  }
 })();
 </script>
 
