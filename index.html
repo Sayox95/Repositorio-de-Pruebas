@@ -266,7 +266,7 @@
         </div>
       </div>
 
-      <div class="grid cols-3">
+      <div class="grid cols-4">
         <div class="card kpi">
           <span class="label">Registradas</span>
           <span id="kpiRegistradas" class="value">0</span>
@@ -327,13 +327,12 @@
       </div>
     </div>
 
-    <div class="grid cols-3">
+    <div class="grid cols-4">
       <div class="card kpi"><span class="label">Pendientes (Revisadas)</span><span id="kpiPagoPendientes" class="value">0</span></div>
       <div class="card kpi"><span class="label">Pagadas</span><span id="kpiPagoPagadas" class="value">0</span></div>
       <div class="card kpi"><span class="label">Total Pendiente</span><span id="kpiPagoTotalPend" class="value">L 0.00</span></div>
-      <div class="card kpi"><span class="label">Subtotal Pagado</span><span id="kpiPagoSubtotalPag" class="value">L 0.00</span></div>
-      <div class="card kpi"><span class="label">Otros Cargos</span><span id="kpiPagoOtrosCargos" class="value">L 0.00</span></div>
       <div class="card kpi"><span class="label">Total Pagado</span><span id="kpiPagoTotalPag" class="value">L 0.00</span></div>
+      <div class="card kpi"><span class="label">Otros Cargos (registrados)</span><span id="kpiPagoOtrosCargos" class="value">L 0.00</span></div>
     </div>
 
     <div class="card" style="margin-top:10px;">
@@ -612,18 +611,7 @@ return arr.map(normalizeRow).filter(r=>r); // no filtramos por nº factura todav
     if(!filaId){
       throw new Error("No se encontró 'fila' para actualizar (el dataset debe incluir 'fila' o '_fila').");
     }
-    const payload = { actualizarEstado:true, fila: filaId, nuevoEstado: nuevoEstado 
-  ,
-  async getOtrosCargosTotal(){
-    const u = new URL(Config.api.leerFacturas);
-    u.searchParams.set("otrosCargos","total");
-    const res = await fetch(u.toString(), { cache:"no-store", mode:"cors" });
-    if(!res.ok) throw new Error("No se pudo leer Otros Cargos");
-    const json = await res.json().catch(()=>({}));
-    const n = Number(json.totalOtrosCargos);
-    return Number.isFinite(n) ? n : 0;
-  }
-};
+    const payload = { actualizarEstado:true, fila: filaId, nuevoEstado: nuevoEstado };
     const res = await fetch(Config.api.guardar, {
       method:"POST",
       headers:{"Content-Type":"application/json"},
@@ -1283,6 +1271,32 @@ function toggleGrouping(){
   }
 }
 
+
+async function cargarOtrosCargosKpi(){
+  try{
+    const base = Config.api.leerFacturas;
+    const url = base.includes('?') ? (base + '&otrosCargos=total') : (base + '?otrosCargos=total');
+    const res = await fetch(url, { cache: "no-store", mode: "cors" });
+    const json = await res.json().catch(()=>null);
+    const total = Number(json && json.totalOtrosCargos || 0);
+    const el = document.getElementById("kpiPagoOtrosCargos");
+    if(el){ el.textContent = fmt.money(total); }
+    const lup = document.getElementById("lastUpdatedPago");
+    if(lup){
+      const now = new Date();
+      const yyyy = now.getFullYear();
+      const mm = String(now.getMonth()+1).padStart(2,"0");
+      const dd = String(now.getDate()).padStart(2,"0");
+      const hh = String(now.getHours()).padStart(2,"0");
+      const mi = String(now.getMinutes()).padStart(2,"0");
+      lup.textContent = `Actualizado: ${yyyy}-${mm}-${dd} ${hh}:${mi}`;
+    }
+  }catch(e){
+    // Silencioso: el KPI queda en 0.00 si falla
+    // console.warn("No se pudo leer otros cargos:", e);
+  }
+}
+
 /** =========================
  *  Navegación (overlay al cambiar de sección)
  *  ========================= */
@@ -1310,7 +1324,7 @@ document.querySelectorAll('.sidebar .nav-btn').forEach(a=>{
     const href = a.getAttribute('href')||'';
     if(href==='#inicio') return navigateTo('secInicio');
     if(href==='#revision') return navigateTo('secRevision', async()=>{ await hardRefresh(); });
-    if(href==='#pago')     return navigateTo('secPago');
+    if(href==='#pago')     return navigateTo('secPago', async()=>{ await cargarOtrosCargosKpi(); });
     if(href==='#anticipos')return navigateTo('secAnticipos');
     if(href==='#placas')   return navigateTo('secPlacas', async()=>{ await cargarPlacas(); });
   });
@@ -2225,39 +2239,20 @@ function buildPagoTable(){
   });
 }
 
-
-async function refreshOtrosCargosKpi(){
-  try{
-    const n = await API.getOtrosCargosTotal();
-    if(typeof Pago!=="undefined") Pago.otrosCargosTotal = n;
-    const fmtMoney = (v)=> "L " + (Number(v)||0).toLocaleString("es-HN",{minimumFractionDigits:2,maximumFractionDigits:2});
-    const elOC = document.querySelector("#kpiPagoOtrosCargos");
-    if(elOC){ elOC.textContent = fmtMoney(n); }
-    const rawSub = Number(document.querySelector("#kpiPagoSubtotalPag")?.dataset.raw || 0);
-    const elTot = document.querySelector("#kpiPagoTotalPag");
-    if(elTot){ elTot.textContent = fmtMoney(rawSub + n); }
-  }catch(_){ /* ignore */ }
-}
-
-async function updatePagoKpis(){
-  // calcula KPIs locales (pendientes, pagadas, totales) y combina con "Otros Cargos"
-
+function updatePagoKpis(){
   const rows = pagoTable? pagoTable.getData("active") : [];
-  let pend=0, pag=0, sp=0, subtotal=0;
+  let pend=0, pag=0, sp=0, sg=0;
   for(const r of rows){
     const total = Number(r["Total Gastado"] ?? r.Total) || 0;
     if((r.Estado||"")==="Revisada"){ pend++; sp += total; }
-    if((r.Estado||"")==="Pagada"){ pag++; subtotal += total; }
+    if((r.Estado||"")==="Pagada"){ pag++; sg += total; }
   }
   const fmtMoney = (v)=> "L " + (Number(v)||0).toLocaleString("es-HN",{minimumFractionDigits:2,maximumFractionDigits:2});
   const $ = (sel)=>document.querySelector(sel);
   $("#kpiPagoPendientes").textContent = String(pend);
   $("#kpiPagoPagadas").textContent = String(pag);
   $("#kpiPagoTotalPend").textContent = fmtMoney(sp);
-  const elSub = $("#kpiPagoSubtotalPag"); if(elSub){ elSub.textContent = fmtMoney(subtotal); elSub.dataset.raw = String(subtotal); }
-  const oc = (typeof Pago!=="undefined" && typeof Pago.otrosCargosTotal==="number") ? Pago.otrosCargosTotal : 0;
-  const elOC = $("#kpiPagoOtrosCargos"); if(elOC){ elOC.textContent = fmtMoney(oc); }
-  $("#kpiPagoTotalPag").textContent  = fmtMoney(subtotal + oc);
+  $("#kpiPagoTotalPag").textContent  = fmtMoney(sg);
 }
 
 function clearPagoFilters(){
@@ -2379,8 +2374,6 @@ function clearPagoFilters(){
 // ========= Carga principal =========
 async function cargarPago(){
   try{ console.time("[Pago] cargar"); }catch(_e){}
-  // Refrescar Otros Cargos (histórico del backend)
-  refreshOtrosCargosKpi();
 
   if(typeof overlay!=="undefined") overlay.show("Cargando facturas…");
   try {
@@ -2656,14 +2649,6 @@ document.addEventListener("DOMContentLoaded", function(){
     }catch(_){ alert(msg); }
   }
 })();
-</script>
-
-
-<script>
-document.addEventListener("DOMContentLoaded", () => {
-  // re-eval KPIs and Otros Cargos shortly after load
-  setTimeout(()=>{ try{ updatePagoKpis(); }catch(e){} }, 800);
-});
 </script>
 
 </body>
