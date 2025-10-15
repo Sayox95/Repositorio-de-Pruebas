@@ -286,6 +286,125 @@ document.addEventListener("DOMContentLoaded", ()=>{
   if(btn){ btn.style.display = "none"; }
 });
 
+
+/** =========================
+ *  Pago - Watcher genérico de selección (compatible con tabla existente)
+ *  ========================= */
+function getPagoTableInstance(){
+  try{
+    if (typeof pagoTable !== "undefined" && pagoTable && typeof pagoTable.getSelectedData === "function") {
+      return pagoTable;
+    }
+    if (typeof Tabulator !== "undefined" && Tabulator.findTable) {
+      const t = Tabulator.findTable("#tablaPago");
+      if (t && t[0]) return t[0];
+    }
+  }catch(_){}
+  return null;
+}
+
+function getSelectedNotPagadasGeneric(){
+  try{
+    const t = getPagoTableInstance();
+    if (t && typeof t.getSelectedData === "function") {
+      const sel = t.getSelectedData() || [];
+      return sel.filter(r => String(r?.Estado || "") !== "Pagada");
+    }
+  }catch(_){}
+  // Fallback DOM-based (por si Tabulator no expone API): cuenta filas con .tabulator-selected
+  try{
+    const root = document.querySelector("#tablaPago");
+    const rows = Array.from(root?.querySelectorAll(".tabulator-row.tabulator-selected") || []);
+    // Sin acceso a datos, hacemos que el botón se muestre si hay >=2 seleccionadas
+    return rows.length >= 2 ? [{}, {}] : [];
+  }catch(_){}
+  return [];
+}
+
+function updatePagoButtonGeneric(){
+  const btn = document.getElementById("btnPagoAbrirModal");
+  if(!btn) return;
+  const sel = getSelectedNotPagadasGeneric();
+  btn.style.display = (sel.length >= 2) ? "" : "none";
+}
+
+// Intenta suscribirse a eventos de selección de Tabulator si existe
+function attachPagoSelectionWatcher(){
+  const t = getPagoTableInstance();
+  if (t && typeof t.on === "function") {
+    try{
+      t.off && t.off("rowSelectionChanged", updatePagoButtonGeneric);
+    }catch(_){}
+    try{
+      t.on("rowSelectionChanged", updatePagoButtonGeneric);
+    }catch(_){}
+    // Ejecuta una primera vez
+    updatePagoButtonGeneric();
+    return true;
+  }
+  return false;
+}
+
+// Observa cambios DOM en #tablaPago como último recurso (cuando no tenemos instancia)
+const pagoDomObserver = (function(){
+  let obs = null;
+  function start(){
+    try{
+      const host = document.getElementById("tablaPago");
+      if(!host) return;
+      if(obs) obs.disconnect();
+      obs = new MutationObserver(()=> updatePagoButtonGeneric());
+      obs.observe(host, {attributes:true, childList:true, subtree:true});
+    }catch(_){}
+  }
+  return { start };
+})();
+
+// Hook al cargar y al entrar a la sección de Pago
+document.addEventListener("DOMContentLoaded", ()=>{
+  // Oculta por defecto
+  updatePagoButtonGeneric();
+
+  // Intenta adjuntar watcher de selección
+  if(!attachPagoSelectionWatcher()){
+    // si la tabla aún no existe, reintenta
+    setTimeout(()=>{
+      if(!attachPagoSelectionWatcher()){
+        // activa observer DOM como fallback
+        pagoDomObserver.start();
+      }
+    }, 400);
+  }
+
+  // Abrir modal reutilizando la selección genérica si nuestra versión openPagoModal falla
+  const btn = document.getElementById("btnPagoAbrirModal");
+  if(btn){
+    const prev = btn.onclick;
+    btn.addEventListener("click", (ev)=>{
+      try{
+        if (typeof openPagoModal === "function") {
+          // nuestra función ya maneja reintentos
+          return;
+        }
+      }catch(_){}
+      // Fallback: si no hay openPagoModal definida, mostramos el modal y rellenamos solo el conteo/subtotal
+      ev.preventDefault();
+      const sel = getPagoTableInstance()?.getSelectedData?.() || [];
+      const valid = sel.filter(r => String(r?.Estado || "") !== "Pagada");
+      if (valid.length < 2) { alert("Selecciona al menos 2 facturas (no pagadas)."); return; }
+      const subtotal = valid.reduce((a,r)=> a + (Number(r.Total)||0), 0);
+      document.getElementById("mpCount").textContent = String(valid.length);
+      document.getElementById("mpSubtotal").textContent = fmt.money(subtotal);
+      document.getElementById("mpCargos").textContent = fmt.money(0);
+      document.getElementById("mpTotal").textContent = fmt.money(subtotal);
+      const todayISO = fmt.dateISO(new Date());
+      const f = document.getElementById("mpFechaPago"); if(f && !f.value) f.value = todayISO;
+      const idEl = document.getElementById("mpIdPago"); if(idEl) idEl.value = generatePagoId();
+      document.getElementById("modalPago").style.display = "grid";
+    }, true);
+  }
+});
+
 </script>
   <!-- Flatpickr -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
