@@ -118,15 +118,7 @@
     .kpi{
       display:flex; flex-direction:column; gap:4px;
     }
-    
-    /* Responsive KPI grid for Pago */
-    .kpi-grid {
-      display:grid;
-      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-      gap:14px;
-    }
-    .kpi .value.compact { font-size:22px; }
-.kpi .label{ color:var(--muted); font-size:13px; font-weight:600}
+    .kpi .label{ color:var(--muted); font-size:13px; font-weight:600}
     .kpi .value{ font-size:28px; font-weight:800}
     .filters{ display:grid; grid-template-columns: 180px 180px 220px 160px 1fr 220px 220px auto; gap:10px; align-items:center;
       margin-top:10px;
@@ -274,7 +266,7 @@
         </div>
       </div>
 
-      <div class="grid cols-4">
+      <div class="grid cols-3">
         <div class="card kpi">
           <span class="label">Registradas</span>
           <span id="kpiRegistradas" class="value">0</span>
@@ -335,18 +327,12 @@
       </div>
     </div>
 
-    
-    <div class="kpi-grid">
-      <div class="card kpi"><span class="label">Pendientes (Revisadas)</span><span id="kpiPagoPendientes" class="value compact">0</span></div>
-      <div class="card kpi"><span class="label">Pagadas</span><span id="kpiPagoPagadas" class="value compact">0</span></div>
-      <div class="card kpi"><span class="label">Total Pendiente</span><span id="kpiPagoTotalPend" class="value compact">L 0.00</span></div>
-      <div class="card kpi"><span class="label">Subtotal Pagado</span><span id="kpiPagoSubtotalPag" class="value compact">L 0.00</span></div>
-      <div class="card kpi"><span class="label">Otros Cargos</span><span id="kpiPagoOtrosCargos" class="value compact">L 0.00</span></div>
-      <div class="card kpi"><span class="label">Total Pagado</span><span id="kpiPagoTotalPag" class="value compact">L 0.00</span></div>
-    </div>
-
+    <div class="grid cols-3">
+      <div class="card kpi"><span class="label">Pendientes (Revisadas)</span><span id="kpiPagoPendientes" class="value">0</span></div>
       <div class="card kpi"><span class="label">Pagadas</span><span id="kpiPagoPagadas" class="value">0</span></div>
       <div class="card kpi"><span class="label">Total Pendiente</span><span id="kpiPagoTotalPend" class="value">L 0.00</span></div>
+      <div class="card kpi"><span class="label">Subtotal Pagado</span><span id="kpiPagoSubtotalPag" class="value">L 0.00</span></div>
+      <div class="card kpi"><span class="label">Otros Cargos</span><span id="kpiPagoOtrosCargos" class="value">L 0.00</span></div>
       <div class="card kpi"><span class="label">Total Pagado</span><span id="kpiPagoTotalPag" class="value">L 0.00</span></div>
     </div>
 
@@ -626,75 +612,18 @@ return arr.map(normalizeRow).filter(r=>r); // no filtramos por nº factura todav
     if(!filaId){
       throw new Error("No se encontró 'fila' para actualizar (el dataset debe incluir 'fila' o '_fila').");
     }
-    const payload = { actualizarEstado:true, fila: filaId, nuevoEstado: nuevoEstado };
-/** ===== KPIs Pago: Otros Cargos + Subtotales ===== */
-async function API_getOtrosCargosTotal(){
-  try{
-    const base = new URL(Config.api.leerFacturas);
-    // si la URL ya tiene query, la reseteamos a solo origin+path
-    base.search = "";
-    base.searchParams.set("otrosCargos", "total");
-    const res = await fetch(base.toString(), { cache:"no-store", mode:"cors" });
-    if(!res.ok) throw new Error("HTTP "+res.status);
-    // Puede venir application/json o text/plain
-    const ct = (res.headers.get("content-type")||"").toLowerCase();
-    if(ct.includes("application/json")){
-      const j = await res.json();
-      const v = j && (j.totalOtrosCargos ?? j.total ?? j.value);
-      const n = Number(v);
-      return Number.isFinite(n) ? n : 0;
-    }else{
-      const t = await res.text();
-      const n = Number(t);
-      return Number.isFinite(n) ? n : 0;
-    }
-  }catch(e){
-    return 0;
+    const payload = { actualizarEstado:true, fila: filaId, nuevoEstado: nuevoEstado 
+  ,
+  async getOtrosCargosTotal(){
+    const u = new URL(Config.api.leerFacturas);
+    u.searchParams.set("otrosCargos","total");
+    const res = await fetch(u.toString(), { cache:"no-store", mode:"cors" });
+    if(!res.ok) throw new Error("No se pudo leer Otros Cargos");
+    const json = await res.json().catch(()=>({}));
+    const n = Number(json.totalOtrosCargos);
+    return Number.isFinite(n) ? n : 0;
   }
-}
-
-async function updatePagoKpis(){
-  try{
-    // Obtener filas activas de la tabla de pago si existe; si no, intentar de tabla general
-    const pagoTableEl = document.querySelector("#tablaPago");
-    let rows = [];
-    if (window.pagoTable && typeof window.pagoTable.getData === "function"){
-      rows = window.pagoTable.getData("active");
-    } else if (typeof table !== "undefined" && table && typeof table.getData === "function") {
-      rows = table.getData("active");
-    } else {
-      rows = [];
-    }
-
-    let pendientes = 0, pagadas = 0;
-    let totalPend = 0, subtotalPag = 0;
-
-    for(const r of rows){
-      const estado = (r.Estado||"").toString();
-      const total  = Number(r.Total||r["Total Gastado"]||0) || 0;
-      if(estado === "Revisada"){ pendientes++; totalPend += total; }
-      if(estado === "Pagada"){ pagadas++; subtotalPag += total; }
-    }
-
-    const otros = await API_getOtrosCargosTotal();
-    const totalPag = subtotalPag + otros;
-
-    const fmtMoney = (v)=>{
-      const n=Number(v||0);
-      try{ return "L " + n.toLocaleString("es-HN",{minimumFractionDigits:2, maximumFractionDigits:2}); }
-      catch(_){ return "L " + n.toFixed(2); }
-    };
-
-    const byId = (id, val)=>{ const el=document.getElementById(id); if(el) el.textContent = val; };
-    byId("kpiPagoPendientes", String(pendientes));
-    byId("kpiPagoPagadas", String(pagadas));
-    byId("kpiPagoTotalPend", fmtMoney(totalPend));
-    byId("kpiPagoSubtotalPag", fmtMoney(subtotalPag));
-    byId("kpiPagoOtrosCargos", fmtMoney(otros));
-    byId("kpiPagoTotalPag", fmtMoney(totalPag));
-  }catch(_){}
-}
-
+};
     const res = await fetch(Config.api.guardar, {
       method:"POST",
       headers:{"Content-Type":"application/json"},
@@ -1381,7 +1310,7 @@ document.querySelectorAll('.sidebar .nav-btn').forEach(a=>{
     const href = a.getAttribute('href')||'';
     if(href==='#inicio') return navigateTo('secInicio');
     if(href==='#revision') return navigateTo('secRevision', async()=>{ await hardRefresh(); });
-    if(href==='#pago')     return navigateTo('secPago', async()=>{ try{ await updatePagoKpis(); }catch(_){} });
+    if(href==='#pago')     return navigateTo('secPago');
     if(href==='#anticipos')return navigateTo('secAnticipos');
     if(href==='#placas')   return navigateTo('secPlacas', async()=>{ await cargarPlacas(); });
   });
@@ -2296,20 +2225,39 @@ function buildPagoTable(){
   });
 }
 
+
+async function refreshOtrosCargosKpi(){
+  try{
+    const n = await API.getOtrosCargosTotal();
+    if(typeof Pago!=="undefined") Pago.otrosCargosTotal = n;
+    const fmtMoney = (v)=> "L " + (Number(v)||0).toLocaleString("es-HN",{minimumFractionDigits:2,maximumFractionDigits:2});
+    const elOC = document.querySelector("#kpiPagoOtrosCargos");
+    if(elOC){ elOC.textContent = fmtMoney(n); }
+    const rawSub = Number(document.querySelector("#kpiPagoSubtotalPag")?.dataset.raw || 0);
+    const elTot = document.querySelector("#kpiPagoTotalPag");
+    if(elTot){ elTot.textContent = fmtMoney(rawSub + n); }
+  }catch(_){ /* ignore */ }
+}
+
 function updatePagoKpis(){
+  // calcula KPIs locales (pendientes, pagadas, totales) y combina con "Otros Cargos"
+
   const rows = pagoTable? pagoTable.getData("active") : [];
-  let pend=0, pag=0, sp=0, sg=0;
+  let pend=0, pag=0, sp=0, subtotal=0;
   for(const r of rows){
     const total = Number(r["Total Gastado"] ?? r.Total) || 0;
     if((r.Estado||"")==="Revisada"){ pend++; sp += total; }
-    if((r.Estado||"")==="Pagada"){ pag++; sg += total; }
+    if((r.Estado||"")==="Pagada"){ pag++; subtotal += total; }
   }
   const fmtMoney = (v)=> "L " + (Number(v)||0).toLocaleString("es-HN",{minimumFractionDigits:2,maximumFractionDigits:2});
   const $ = (sel)=>document.querySelector(sel);
   $("#kpiPagoPendientes").textContent = String(pend);
   $("#kpiPagoPagadas").textContent = String(pag);
   $("#kpiPagoTotalPend").textContent = fmtMoney(sp);
-  $("#kpiPagoTotalPag").textContent  = fmtMoney(sg);
+  const elSub = $("#kpiPagoSubtotalPag"); if(elSub){ elSub.textContent = fmtMoney(subtotal); elSub.dataset.raw = String(subtotal); }
+  const oc = (typeof Pago!=="undefined" && typeof Pago.otrosCargosTotal==="number") ? Pago.otrosCargosTotal : 0;
+  const elOC = $("#kpiPagoOtrosCargos"); if(elOC){ elOC.textContent = fmtMoney(oc); }
+  $("#kpiPagoTotalPag").textContent  = fmtMoney(subtotal + oc);
 }
 
 function clearPagoFilters(){
@@ -2431,6 +2379,8 @@ function clearPagoFilters(){
 // ========= Carga principal =========
 async function cargarPago(){
   try{ console.time("[Pago] cargar"); }catch(_e){}
+  // Refrescar Otros Cargos (histórico del backend)
+  refreshOtrosCargosKpi();
 
   if(typeof overlay!=="undefined") overlay.show("Cargando facturas…");
   try {
@@ -2706,19 +2656,7 @@ document.addEventListener("DOMContentLoaded", function(){
     }catch(_){ alert(msg); }
   }
 })();
-
-document.addEventListener("DOMContentLoaded", ()=>{
-  try{
-    const btn = document.getElementById("btnPagoActualizar");
-    if(btn){ btn.addEventListener("click", ()=>{ setTimeout(()=>{ updatePagoKpis(); }, 300); }); }
-    const fids = ["fPagoNombre","fPagoNumero","fPagoFecha"];
-    fids.forEach(id=>{
-      const el = document.getElementById(id);
-      if(el){ el.addEventListener("input", ()=>{ setTimeout(()=>{ updatePagoKpis(); }, 250); }); }
-    });
-  }catch(_){}
-});
-
 </script>
+
 </body>
 </html>
