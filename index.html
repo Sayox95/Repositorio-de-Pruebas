@@ -364,27 +364,19 @@
       <div><small class="muted">Total a pagar</small><div id="mpTotal" style="font-weight:800;font-size:18px;">L 0.00</div></div>
     </div>
 
-    <div style="display:grid;gap:10px;grid-template-columns:1fr 1fr;">
-      <label style="display:grid;gap:6px;">
-        <small class="muted" style="font-weight:700;">Fondo / Periodo</small>
-        <input id="mpFondoPeriodo" class="input" placeholder="Ej. Combustible · 2025-09"/>
-      </label>
-      <label style="display:grid;gap:6px;">
-        <small class="muted" style="font-weight:700;">Fecha de pago</small>
-        <input id="mpFechaPago" class="input" placeholder="YYYY-MM-DD"/>
-      </label>
-    </div>
+    <div style="display:grid;gap:10px;grid-template-columns:1fr;">
+  <label style="display:grid;gap:6px;">
+    <small class="muted" style="font-weight:700;">Fecha de pago</small>
+    <input id="mpFechaPago" class="input" placeholder="YYYY-MM-DD"/>
+  </label>
+</div>
 
-    <div style="display:grid;gap:10px;grid-template-columns:1fr 1fr;">
-      <label style="display:grid;gap:6px;">
-        <small class="muted" style="font-weight:700;">ID_PAGO</small>
-        <input id="mpIdPago" class="input" readonly />
-      </label>
-      <label style="display:flex;align-items:center;gap:8px;margin-top:22px;">
-        <input id="mpAnotarEnFondo" type="checkbox" />
-        <span class="muted">Anotar ID_PAGO y cargos en "Fondo / Periodo"</span>
-      </label>
-    </div>
+    <div style="display:grid;gap:10px;grid-template-columns:1fr;">
+  <label style="display:grid;gap:6px;">
+    <small class="muted" style="font-weight:700;">ID_PAGO</small>
+    <input id="mpIdPago" class="input" readonly />
+  </label>
+</div>
 
     <!-- Otros cargos -->
     <div class="card" style="padding:12px;display:flex;flex-direction:column;gap:8px;">
@@ -2431,7 +2423,7 @@ document.addEventListener("DOMContentLoaded", function(){
   window.addEventListener("hashchange", function(){ if(location.hash==="#pago"){ setTimeout(function(){ cargarPago(); }, 0); } });
 });
 
-/* ====== Pago: resumen, cargos e integración pagoLote ====== */
+/* ====== Pago: resumen, cargos e integración pagoLote (sin Fondo/Periodo) ====== */
 (function(){
   function generateIdPago(){
     const d = new Date();
@@ -2465,7 +2457,8 @@ document.addEventListener("DOMContentLoaded", function(){
         <option value="Otro"${'Otro'===type?' selected':''}>Otro</option>
       </select>
       <input class="input cargo-monto" type="number" step="0.01" min="0" placeholder="0.00" value="${amount}"/>
-      <button class="btn btn-ghost cargo-remove" title="Eliminar"><i class="lucide-trash-2"></i></button>
+      <button class="cargo-remove" title="Eliminar"
+              style="border:1px solid #EF4444;color:#EF4444;background:transparent;border-radius:10px;width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;font-weight:900;">✕</button>
     `;
     wrap.appendChild(div);
     div.querySelector(".cargo-monto").addEventListener("input", recomputePagoResumen);
@@ -2500,23 +2493,14 @@ document.addEventListener("DOMContentLoaded", function(){
     if(elTotal) elTotal.textContent = fmtL(total);
   }
 
-  // Exponer para que lo usen otros handlers si existen
-  window._pagoResumen = { recomputePagoResumen, getSelectedSubtotal, readCargos, addCargoRow, generateIdPago };
+  window._pagoResumen = { recomputePagoResumen, getSelectedSubtotal, readCargos, addCargoRow, generateIdPago, fmtL };
 
-  // API: pago en lote
   if(typeof API !== "undefined"){
-    API.pagarFacturasLote = async function(rows, fondoPeriodo, fechaPago, idPago, cargos){
+    API.pagarFacturasLote = async function(rows, _fondoPeriodo, fechaPago, idPago, cargos){
       const filas = (rows || []).map(r => r.fila || r._fila).filter(Boolean);
       if (!filas.length) throw new Error("No hay filas válidas para el pago.");
       const url = (Config && Config.api && Config.api.guardar) ? Config.api.guardar : "/api/guardar";
-      const body = {
-        accion: "pagoLote",
-        filas,
-        fondoPeriodo,
-        fechaPago,
-        idPago,
-        cargos: Array.isArray(cargos) ? cargos : []
-      };
+      const body = { accion: "pagoLote", filas, fechaPago, idPago, cargos: Array.isArray(cargos)?cargos:[] };
       const res = await fetch(url, { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body) });
       const json = await res.json().catch(()=>null);
       if(!res.ok || !json || json.status!=="OK"){
@@ -2526,13 +2510,11 @@ document.addEventListener("DOMContentLoaded", function(){
     };
   }
 
-  // Override modal handlers (sin tocar filtros ni tabla)
   window.openPagoModal = function(){
     const el = document.getElementById("modalPago"); if(!el) return;
     const dft = (typeof fmt!=="undefined" && fmt.dateISO) ? fmt.dateISO(new Date()) : new Date().toISOString().slice(0,10);
-    document.getElementById("mpFondoPeriodo").value = "";
-    document.getElementById("mpFechaPago").value = dft;
-    document.getElementById("mpIdPago").value = generateIdPago();
+    const f = document.getElementById("mpFechaPago"); if (f) f.value = dft;
+    const idp = document.getElementById("mpIdPago"); if (idp) idp.value = generateIdPago();
     const list = document.getElementById("mpCargosList"); if(list){ list.innerHTML=""; }
     recomputePagoResumen();
     el.style.display = "grid";
@@ -2581,12 +2563,10 @@ document.addEventListener("DOMContentLoaded", function(){
   }
 };
 
-  // Wire botones del modal cuando el DOM exista
   document.addEventListener("DOMContentLoaded", function(){
     document.getElementById("mpCancelar")?.addEventListener("click", closePagoModal);
     document.getElementById("mpConfirmar")?.addEventListener("click", confirmPago);
     document.getElementById("mpAddCargo")?.addEventListener("click", function(){ addCargoRow(); });
-    // Recalcular si se cambia selección antes de abrir modal
     if (typeof pagoTable !== "undefined" && pagoTable && pagoTable.on) {
       try { pagoTable.on("rowSelectionChanged", recomputePagoResumen); } catch(_) {}
     }
