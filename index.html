@@ -911,7 +911,7 @@ function buildTable(){
     ],
     dataLoaded:()=>{ updateKpis(); },
     dataFiltered:()=>{ updateKpis(); },
-    rowSelectionChanged:()=>{ updateButtons(); },
+    rowSelectionChanged: ()=>{  const btn=document.getElementById('btnPagoAbrirModal');  if(!btn || !pagoTable||!pagoTable.getSelectedData) return;  const rows=pagoTable.getSelectedData();  const allNoPagada = rows.every(r => String(r.Estado||'')!=='Pagada');  const show = rows.length>=2 && allNoPagada;  btn.style.display = show ? 'inline-flex' : 'none';  if(window._pagoResumen&&_pagoResumen.recomputePagoResumen){ _pagoResumen.recomputePagoResumen(); }},
   });
   table.on("tableBuilt", ()=>{
     // Fallback: delegado por si el cellClick no se dispara en algunos navegadores
@@ -2251,7 +2251,7 @@ function buildPagoTable(){
     ],
     dataLoaded: updatePagoKpis,
     dataFiltered: updatePagoKpis,
-    rowSelectionChanged: ()=>{ const b=document.getElementById("btnPagoAbrirModal"); if(b) b.disabled = (pagoTable.getSelectedRows().length===0); }
+    rowSelectionChanged: ()=>{  const btn=document.getElementById('btnPagoAbrirModal');  if(!btn || !pagoTable||!pagoTable.getSelectedData) return;  const rows=pagoTable.getSelectedData();  const allNoPagada = rows.every(r => String(r.Estado||'')!=='Pagada');  const show = rows.length>=2 && allNoPagada;  btn.style.display = show ? 'inline-flex' : 'none';  if(window._pagoResumen&&_pagoResumen.recomputePagoResumen){ _pagoResumen.recomputePagoResumen(); }}
   });
 
   pagoTable.on("tableBuilt", function(){
@@ -2352,9 +2352,8 @@ if (typeof API !== "undefined") {
 function openPagoModal(){
   const el = document.getElementById("modalPago"); if(!el) return;
   const dft = (typeof fmt!=="undefined" && fmt.dateISO) ? fmt.dateISO(new Date()) : new Date().toISOString().slice(0,10);
-  const fFecha = document.getElementById("mpFechaPago"); if (fFecha) fFecha.value = dft;
-  const fId = document.getElementById("mpIdPago"); if (fId && typeof generateIdPago === "function") fId.value = generateIdPago();
-  if (typeof recomputePagoResumen === "function") { try{ recomputePagoResumen(); }catch(_){} }
+  document.getElementById("mpFondoPeriodo").value = "";
+  document.getElementById("mpFechaPago").value = dft;
   el.style.display = "grid";
 }
 function closePagoModal(){ const el = document.getElementById("modalPago"); if(el) el.style.display="none"; }
@@ -2679,5 +2678,11 @@ document.addEventListener("DOMContentLoaded", function(){
 })();
 </script>
 
+<script>
+document.addEventListener("DOMContentLoaded", function(){
+  const _btnSel = document.getElementById("btnPagoAbrirModal");
+  if(_btnSel){ _btnSel.style.display = "none"; }
+});
+</script>
 </body>
 </html>
