@@ -2239,7 +2239,7 @@ async function refreshOtrosCargosKpi(){
   }catch(_){ /* ignore */ }
 }
 
-function updatePagoKpis(){
+async function updatePagoKpis(){
   // calcula KPIs locales (pendientes, pagadas, totales) y combina con "Otros Cargos"
 
   const rows = pagoTable? pagoTable.getData("active") : [];
@@ -2656,6 +2656,14 @@ document.addEventListener("DOMContentLoaded", function(){
     }catch(_){ alert(msg); }
   }
 })();
+</script>
+
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  // re-eval KPIs and Otros Cargos shortly after load
+  setTimeout(()=>{ try{ updatePagoKpis(); }catch(e){} }, 800);
+});
 </script>
 
 </body>
