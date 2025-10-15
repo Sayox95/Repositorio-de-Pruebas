@@ -2621,12 +2621,13 @@ function updatePagoButtonVisibility(){
   const table = getPagoTable();
   if(!btn || !table) return;
   const sel = table.getSelectedData ? table.getSelectedData() : [];
-  const eligible = sel.filter(r => (String(r.Estado||"")) !== "Pagada");
-  if(eligible.length >= 2){
+  const eligible = sel.filter(r => String(r.Estado||"").trim().toLowerCase() !== "pagada");
+  const show = eligible.length >= 2;
+  if (show) {
     btn.classList.remove("hidden");
     btn.style.display = "inline-flex";
     btn.disabled = false;
-  }else{
+  } else {
     btn.classList.add("hidden");
     btn.style.display = "none";
     btn.disabled = true;
@@ -2691,7 +2692,7 @@ function updateOtrosCargosTotal(){
 function openPagoModalForSelection(){
   const table = getPagoTable(); if(!table) return;
   const sel = table.getSelectedData ? table.getSelectedData() : [];
-  const eligible = sel.filter(r => (String(r.Estado||"")) !== "Pagada");
+  const eligible = sel.filter(r => String(r.Estado||"").trim().toLowerCase() !== "pagada");
   if(eligible.length < 2){ alert("Seleccione al menos 2 facturas no pagadas."); return; }
 
   // Subtotal de las facturas
