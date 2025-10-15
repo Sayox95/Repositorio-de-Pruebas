@@ -100,8 +100,40 @@ function generatePagoId(){
 }
 
 function openPagoModal(){
-  const sel = getSelectedNotPagadas();
-  if(sel.length < 2){ alert("Selecciona al menos 2 facturas (no pagadas)."); return; }
+  const tryOpen = ()=>{
+    const sel = getSelectedNotPagadas();
+    if(sel.length < 2){
+      alert("Selecciona al menos 2 facturas (no pagadas).");
+      return;
+    }
+    // Resumen
+    const count = sel.length;
+    const subtotal = sel.reduce((a,r)=> a + (Number(r.Total)||0), 0);
+    const cargos = computeOtrosCargosSum();
+
+    document.getElementById("mpCount").textContent = String(count);
+    document.getElementById("mpSubtotal").textContent = fmt.money(subtotal);
+    document.getElementById("mpCargos").textContent = fmt.money(cargos);
+    document.getElementById("mpTotal").textContent = fmt.money(subtotal + cargos);
+    // Prefill fecha & id
+    const todayISO = fmt.dateISO(new Date());
+    const f = document.getElementById("mpFechaPago"); if(f && !f.value) f.value = todayISO;
+    const idEl = document.getElementById("mpIdPago"); if(idEl) idEl.value = generatePagoId();
+
+    // Limpia lista de cargos
+    const lst = document.getElementById("mpCargosList"); if(lst) lst.innerHTML = "";
+    // Mostrar modal
+    document.getElementById("modalPago").style.display = "grid";
+  };
+
+  if(!pagoTableBuilt){
+    try{ buildPagoTableIfNeeded(); }catch(_){}
+    // reintentar una vez tras un pequeño delay
+    setTimeout(tryOpen, 300);
+  }else{
+    tryOpen();
+  }
+}
 
   // Resumen
   const count = sel.length;
@@ -246,6 +278,13 @@ document.addEventListener("DOMContentLoaded", ()=>{
     link.addEventListener('click', ()=>{ buildPagoTableIfNeeded(); });
   }
 })();
+
+
+// Salvaguarda: ocultar el botón al cargar el documento por si algún estilo lo muestra
+document.addEventListener("DOMContentLoaded", ()=>{
+  const btn = document.getElementById("btnPagoAbrirModal");
+  if(btn){ btn.style.display = "none"; }
+});
 
 </script>
   <!-- Flatpickr -->
@@ -443,6 +482,10 @@ document.addEventListener("DOMContentLoaded", ()=>{
     border: 0;
     cursor: pointer;
   }
+
+
+/* Forzar ocultar por defecto el botón de Pagar Seleccionadas en la sección Pago */
+#secPago #btnPagoAbrirModal{ display:none !important; }
 
 </style>
 
@@ -1590,8 +1633,7 @@ document.querySelectorAll('.sidebar .nav-btn').forEach(a=>{
     const href = a.getAttribute('href')||'';
     if(href==='#inicio') return navigateTo('secInicio');
     if(href==='#revision') return navigateTo('secRevision', async()=>{ await hardRefresh(); });
-    if(href==='#pago')     return navigateTo('secPago', async()=>{ await cargarOtrosCargosKpi(); });
-    if(href==='#anticipos')return navigateTo('secAnticipos');
+    if(href==='#pago')     return navigateTo('secPago', async()=>{ await cargarOtrosCargosKpi(); try{ buildPagoTableIfNeeded(); }catch(_){ } });if(href==='#anticipos')return navigateTo('secAnticipos');
     if(href==='#placas')   return navigateTo('secPlacas', async()=>{ await cargarPlacas(); });
   });
 });
@@ -2591,11 +2633,39 @@ if (typeof API !== "undefined") {
 
 // ========= Modal =========
 function openPagoModal(){
-  const el = document.getElementById("modalPago"); if(!el) return;
-  const dft = (typeof fmt!=="undefined" && fmt.dateISO) ? fmt.dateISO(new Date()) : new Date().toISOString().slice(0,10);
-  document.getElementById("mpFondoPeriodo").value = "";
-  document.getElementById("mpFechaPago").value = dft;
-  el.style.display = "grid";
+  const tryOpen = ()=>{
+    const sel = getSelectedNotPagadas();
+    if(sel.length < 2){
+      alert("Selecciona al menos 2 facturas (no pagadas).");
+      return;
+    }
+    // Resumen
+    const count = sel.length;
+    const subtotal = sel.reduce((a,r)=> a + (Number(r.Total)||0), 0);
+    const cargos = computeOtrosCargosSum();
+
+    document.getElementById("mpCount").textContent = String(count);
+    document.getElementById("mpSubtotal").textContent = fmt.money(subtotal);
+    document.getElementById("mpCargos").textContent = fmt.money(cargos);
+    document.getElementById("mpTotal").textContent = fmt.money(subtotal + cargos);
+    // Prefill fecha & id
+    const todayISO = fmt.dateISO(new Date());
+    const f = document.getElementById("mpFechaPago"); if(f && !f.value) f.value = todayISO;
+    const idEl = document.getElementById("mpIdPago"); if(idEl) idEl.value = generatePagoId();
+
+    // Limpia lista de cargos
+    const lst = document.getElementById("mpCargosList"); if(lst) lst.innerHTML = "";
+    // Mostrar modal
+    document.getElementById("modalPago").style.display = "grid";
+  };
+
+  if(!pagoTableBuilt){
+    try{ buildPagoTableIfNeeded(); }catch(_){}
+    // reintentar una vez tras un pequeño delay
+    setTimeout(tryOpen, 300);
+  }else{
+    tryOpen();
+  }
 }
 function closePagoModal(){ const el = document.getElementById("modalPago"); if(el) el.style.display="none"; }
 
