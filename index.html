@@ -2546,7 +2546,9 @@ document.addEventListener("DOMContentLoaded", function(){
     const fechaPago = (document.getElementById("mpFechaPago")?.value||"").trim();
     const idPago    = (document.getElementById("mpIdPago")?.value||"").trim();
     if(!fechaPago){ alert("Completa la Fecha de pago."); return; }
-    const rowsSel = (typeof pagoTable!=="undefined" && pagoTable.getSelectedData) ? pagoTable.getSelectedData() : [];
+
+    const rowsSel = (typeof pagoTable!=="undefined" && pagoTable.getSelectedData)
+      ? pagoTable.getSelectedData() : [];
     if(!rowsSel?.length){ alert("Selecciona al menos una factura."); return; }
 
     const cargos = (window._pagoResumen && _pagoResumen.readCargos) ? _pagoResumen.readCargos() : [];
@@ -2554,21 +2556,23 @@ document.addEventListener("DOMContentLoaded", function(){
     if(typeof overlay!=="undefined") overlay.show("Registrando pago…");
     await API.pagarFacturasLote(rowsSel, null, fechaPago, idPago, cargos);
 
-    // ✅ Actualización optimista en la tabla (sin recargar)
+    // ✅ Actualización optimista (sin recargar)
     const updates = rowsSel.map(r => ({
-      fila: r.fila,
+      fila: r.fila,                 // Tabulator debe usar index:"fila"
       Estado: "Pagada",
       "Fecha de Pago": fechaPago,
       "ID_PAGO": idPago
     }));
     try { if (typeof pagoTable!=="undefined" && pagoTable.updateData) pagoTable.updateData(updates); } catch(_) {}
 
+    // Limpia selección y KPIs si corresponde
     try { pagoTable.deselectRow(); } catch(_) {}
     if (typeof updatePagoKpis === "function") updatePagoKpis();
     if (typeof _pagoResumen !== "undefined" && _pagoResumen.recomputePagoResumen) _pagoResumen.recomputePagoResumen();
 
+    // Cierra modal y confirma al usuario
     if(typeof closePagoModal === "function") closePagoModal();
-    if (typeof toast === "function") { toast("Pago registrado"); } else { alert("Pago registrado"); }
+    if (typeof toast === "function") toast("Pago registrado"); else alert("Pago registrado");
 
   }catch(e){
     alert("No se pudo registrar el pago. " + (e?.message || e));
