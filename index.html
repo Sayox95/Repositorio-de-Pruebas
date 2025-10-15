@@ -2621,8 +2621,10 @@ function updatePagoButtonVisibility(){
   const table = getPagoTable();
   if(!btn || !table) return;
   const sel = table.getSelectedData ? table.getSelectedData() : [];
+  const estados = sel.map(r => String(r.Estado||"").trim().toLowerCase());
+  const anyPaid = estados.some(s => s === "pagada");
   const eligible = sel.filter(r => String(r.Estado||"").trim().toLowerCase() !== "pagada");
-  const show = eligible.length >= 2;
+  const show = !anyPaid && eligible.length >= 2;
   if (show) {
     btn.classList.remove("hidden");
     btn.style.display = "inline-flex";
@@ -2692,10 +2694,11 @@ function updateOtrosCargosTotal(){
 function openPagoModalForSelection(){
   const table = getPagoTable(); if(!table) return;
   const sel = table.getSelectedData ? table.getSelectedData() : [];
+  const estados = sel.map(r => String(r.Estado||"").trim().toLowerCase());
+  const anyPaid = estados.some(s => s === "pagada");
   const eligible = sel.filter(r => String(r.Estado||"").trim().toLowerCase() !== "pagada");
-  if(eligible.length < 2){ alert("Seleccione al menos 2 facturas no pagadas."); return; }
-
-  // Subtotal de las facturas
+  if (anyPaid || eligible.length < 2) { alert("Seleccione al menos 2 facturas y ninguna debe estar Pagada."); return; }
+// Subtotal de las facturas
   const subtotal = eligible.reduce((acc, r)=> acc + (Number(r.Total)||0), 0);
   window._mpSubtotalRaw = subtotal;
 
