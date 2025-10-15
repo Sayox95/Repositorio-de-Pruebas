@@ -6,14 +6,134 @@
   <title>UTCD · Revisión de Facturas</title>
   <!-- Tabulator -->
   <link href="https://unpkg.com/tabulator-tables@6.2.5/dist/css/tabulator.min.css" rel="stylesheet">
-  <script src="https://unpkg.com/tabulator-tables@6.2.5/dist/js/tabulator.min.js"></script>
+  <script src="https://unpkg.com/tabulator-tables@6.2.5/dist/js/tabulator.min.js">/** Auto-actualizar KPIs de Pago al mostrar la sección y cuando se filtren/recarguen datos */
+(function(){
+  const sec = document.getElementById("secPago");
+  if(!sec) return;
+  const refreshIfPossible = ()=>{ if(typeof updatePagoKpis==='function'){ updatePagoKpis().catch(()=>{}); } };
+  const mo = new MutationObserver(()=>{
+    if(getComputedStyle(sec).display !== "none"){ refreshIfPossible(); }
+  });
+  mo.observe(sec, {attributes:true, attributeFilter:["style","class"]});
+
+  // Si existe pagoTable, enganchamos eventos comunes
+  const tryHook = ()=>{
+    if(window.pagoTable && typeof window.pagoTable.on === "function"){
+      try{ pagoTable.on("dataLoaded", refreshIfPossible); }catch(_){}
+      try{ pagoTable.on("dataFiltered", refreshIfPossible); }catch(_){}
+      try{ pagoTable.on("rowSelectionChanged", refreshIfPossible); }catch(_){}
+    } else {
+      setTimeout(tryHook, 600);
+    }
+  };
+  tryHook();
+  // Primer disparo por si ya está visible
+  if(getComputedStyle(sec).display !== "none"){ refreshIfPossible(); }
+})();
+</script>
   <!-- Flatpickr -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr">/** Auto-actualizar KPIs de Pago al mostrar la sección y cuando se filtren/recarguen datos */
+(function(){
+  const sec = document.getElementById("secPago");
+  if(!sec) return;
+  const refreshIfPossible = ()=>{ if(typeof updatePagoKpis==='function'){ updatePagoKpis().catch(()=>{}); } };
+  const mo = new MutationObserver(()=>{
+    if(getComputedStyle(sec).display !== "none"){ refreshIfPossible(); }
+  });
+  mo.observe(sec, {attributes:true, attributeFilter:["style","class"]});
+
+  // Si existe pagoTable, enganchamos eventos comunes
+  const tryHook = ()=>{
+    if(window.pagoTable && typeof window.pagoTable.on === "function"){
+      try{ pagoTable.on("dataLoaded", refreshIfPossible); }catch(_){}
+      try{ pagoTable.on("dataFiltered", refreshIfPossible); }catch(_){}
+      try{ pagoTable.on("rowSelectionChanged", refreshIfPossible); }catch(_){}
+    } else {
+      setTimeout(tryHook, 600);
+    }
+  };
+  tryHook();
+  // Primer disparo por si ya está visible
+  if(getComputedStyle(sec).display !== "none"){ refreshIfPossible(); }
+})();
+</script>
   <!-- JSZip + FileSaver -->
-  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js">/** Auto-actualizar KPIs de Pago al mostrar la sección y cuando se filtren/recarguen datos */
+(function(){
+  const sec = document.getElementById("secPago");
+  if(!sec) return;
+  const refreshIfPossible = ()=>{ if(typeof updatePagoKpis==='function'){ updatePagoKpis().catch(()=>{}); } };
+  const mo = new MutationObserver(()=>{
+    if(getComputedStyle(sec).display !== "none"){ refreshIfPossible(); }
+  });
+  mo.observe(sec, {attributes:true, attributeFilter:["style","class"]});
+
+  // Si existe pagoTable, enganchamos eventos comunes
+  const tryHook = ()=>{
+    if(window.pagoTable && typeof window.pagoTable.on === "function"){
+      try{ pagoTable.on("dataLoaded", refreshIfPossible); }catch(_){}
+      try{ pagoTable.on("dataFiltered", refreshIfPossible); }catch(_){}
+      try{ pagoTable.on("rowSelectionChanged", refreshIfPossible); }catch(_){}
+    } else {
+      setTimeout(tryHook, 600);
+    }
+  };
+  tryHook();
+  // Primer disparo por si ya está visible
+  if(getComputedStyle(sec).display !== "none"){ refreshIfPossible(); }
+})();
+</script>
+  <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js">/** Auto-actualizar KPIs de Pago al mostrar la sección y cuando se filtren/recarguen datos */
+(function(){
+  const sec = document.getElementById("secPago");
+  if(!sec) return;
+  const refreshIfPossible = ()=>{ if(typeof updatePagoKpis==='function'){ updatePagoKpis().catch(()=>{}); } };
+  const mo = new MutationObserver(()=>{
+    if(getComputedStyle(sec).display !== "none"){ refreshIfPossible(); }
+  });
+  mo.observe(sec, {attributes:true, attributeFilter:["style","class"]});
+
+  // Si existe pagoTable, enganchamos eventos comunes
+  const tryHook = ()=>{
+    if(window.pagoTable && typeof window.pagoTable.on === "function"){
+      try{ pagoTable.on("dataLoaded", refreshIfPossible); }catch(_){}
+      try{ pagoTable.on("dataFiltered", refreshIfPossible); }catch(_){}
+      try{ pagoTable.on("rowSelectionChanged", refreshIfPossible); }catch(_){}
+    } else {
+      setTimeout(tryHook, 600);
+    }
+  };
+  tryHook();
+  // Primer disparo por si ya está visible
+  if(getComputedStyle(sec).display !== "none"){ refreshIfPossible(); }
+})();
+</script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js">/** Auto-actualizar KPIs de Pago al mostrar la sección y cuando se filtren/recarguen datos */
+(function(){
+  const sec = document.getElementById("secPago");
+  if(!sec) return;
+  const refreshIfPossible = ()=>{ if(typeof updatePagoKpis==='function'){ updatePagoKpis().catch(()=>{}); } };
+  const mo = new MutationObserver(()=>{
+    if(getComputedStyle(sec).display !== "none"){ refreshIfPossible(); }
+  });
+  mo.observe(sec, {attributes:true, attributeFilter:["style","class"]});
+
+  // Si existe pagoTable, enganchamos eventos comunes
+  const tryHook = ()=>{
+    if(window.pagoTable && typeof window.pagoTable.on === "function"){
+      try{ pagoTable.on("dataLoaded", refreshIfPossible); }catch(_){}
+      try{ pagoTable.on("dataFiltered", refreshIfPossible); }catch(_){}
+      try{ pagoTable.on("rowSelectionChanged", refreshIfPossible); }catch(_){}
+    } else {
+      setTimeout(tryHook, 600);
+    }
+  };
+  tryHook();
+  // Primer disparo por si ya está visible
+  if(getComputedStyle(sec).display !== "none"){ refreshIfPossible(); }
+})();
+</script>
   <!-- Icons -->
   <link rel="stylesheet" href="https://unpkg.com/lucide-static@0.453.0/font/lucide.css">
   <style>
@@ -203,53 +323,13 @@
     cursor: pointer;
   }
 
-
-/* KPIs Pago: grid responsivo y compacto */
-.pago-kpis{
-  display:grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap:12px;
-  width:100%;
-  align-items:stretch;
+/* --kpi-compact: evitas desborde en sección Pago */
+@media (max-width: 1280px){
+  #secPago .grid.cols-3{ grid-template-columns: repeat(2, minmax(0,1fr)); }
+  #secPago .kpi .value{ font-size:22px; }
 }
-.pago-kpis .kpi{
-  border:1px solid #e6e8eb;
-  border-radius:10px;
-  padding:10px 12px;
-  background:#fff;
-}
-.pago-kpis .kpi .label{
-  display:block;
-  font-size:12px;
-  color:#6b7280;
-  margin-bottom:6px;
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
-}
-.pago-kpis .kpi .value{
-  font-weight:800;
-  font-size:18px;
-  line-height:1.15;
-}
-#secPago .content-wrap{
-  display:flex;
-  flex-direction:column;
-  gap:16px;
-  min-width:0;
-}
-#secPago .table-wrap{
-  flex:1 1 auto;
-  min-height:240px;
-  min-width:0;
-  overflow:hidden;
-}
-@media (max-width: 1100px){
-  .pago-kpis{
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap:10px;
-  }
-  .pago-kpis .kpi .value{ font-size:16px; }
+@media (max-width: 900px){
+  #secPago .grid.cols-3{ grid-template-columns: 1fr; }
 }
 </style>
 </head>
@@ -375,15 +455,16 @@
       </div>
     </div>
 
-    <div class="content-wrap">
-  <div class="pago-kpis">
-    <div class="card kpi"><span class="label">Pendientes (Revisadas)</span><span id="kpiPagoPendientes" class="value">0</span></div>
-    <div class="card kpi"><span class="label">Pagadas</span><span id="kpiPagoPagadas" class="value">0</span></div>
-    <div class="card kpi"><span class="label">Total Pendiente</span><span id="kpiPagoTotalPend" class="value">L 0.00</span></div>
-    <div class="card kpi"><span class="label">Subtotal Pagado</span><span id="kpiPagoSubtotalPag" class="value">L 0.00</span></div>
-    <div class="card kpi"><span class="label">Otros Cargos</span><span id="kpiPagoOtrosCargos" class="value">L 0.00</span></div>
-    <div class="card kpi"><span class="label">Total Pagado</span><span id="kpiPagoTotalPag" class="value">L 0.00</span></div>
-  </div>
+    <div class="grid cols-4">
+<div class="grid cols-3">
+  <div class="card kpi"><span class="label">Pendientes (Revisadas)</span><span id="kpiPagoPendientes" class="value">0</span></div>
+  <div class="card kpi"><span class="label">Pagadas</span><span id="kpiPagoPagadas" class="value">0</span></div>
+  <div class="card kpi"><span class="label">Total Pendiente</span><span id="kpiPagoTotalPend" class="value">L 0.00</span></div>
+  <div class="card kpi"><span class="label">Subtotal Pagado</span><span id="kpiPagoSubtotalPag" class="value">L 0.00</span></div>
+  <div class="card kpi"><span class="label">Otros Cargos</span><span id="kpiPagoOtrosCargos" class="value">L 0.00</span></div>
+  <div class="card kpi"><span class="label">Total Pagado</span><span id="kpiPagoTotalPag" class="value">L 0.00</span></div>
+</div>
+</div>
 
     <div class="card" style="margin-top:10px;">
       <div class="filters" style="grid-template-columns: 220px 220px 220px 160px 1fr 220px auto;">
@@ -662,6 +743,31 @@ return arr.map(normalizeRow).filter(r=>r); // no filtramos por nº factura todav
       throw new Error("No se encontró 'fila' para actualizar (el dataset debe incluir 'fila' o '_fila').");
     }
     const payload = { actualizarEstado:true, fila: filaId, nuevoEstado: nuevoEstado };
+
+/** ===== Otros Cargos (desde backend) ===== */
+async function getOtrosCargosTotal(){
+  try{
+    const base = Config.api.leerFacturas;
+    const u = new URL(base, window.location.origin);
+    // si base ya es absoluta, URL(base) sin segundo arg sería suficiente; este fallback evita errores con rutas relativas
+    const abs = (u.origin === "null") ? new URL(base) : u;
+    abs.search = "?otrosCargos=total";
+    const res = await fetch(abs.toString(), {cache:"no-store", mode:"cors"});
+    const text = await res.text();
+    let json;
+    try{ json = JSON.parse(text); }catch(_){ json = null; }
+    if(json && typeof json.totalOtrosCargos !== "undefined"){
+      const n = Number(json.totalOtrosCargos);
+      return Number.isFinite(n) ? n : 0;
+    }
+    // si no viene como JSON, intentar parsear numerico básico
+    const maybe = Number((text||"").trim());
+    return Number.isFinite(maybe) ? maybe : 0;
+  }catch(_){
+    return 0;
+  }
+}
+
     const res = await fetch(Config.api.guardar, {
       method:"POST",
       headers:{"Content-Type":"application/json"},
@@ -2029,6 +2135,30 @@ async function loadData(){
 }
 
 window.addEventListener("DOMContentLoaded", bootstrap);
+/** Auto-actualizar KPIs de Pago al mostrar la sección y cuando se filtren/recarguen datos */
+(function(){
+  const sec = document.getElementById("secPago");
+  if(!sec) return;
+  const refreshIfPossible = ()=>{ if(typeof updatePagoKpis==='function'){ updatePagoKpis().catch(()=>{}); } };
+  const mo = new MutationObserver(()=>{
+    if(getComputedStyle(sec).display !== "none"){ refreshIfPossible(); }
+  });
+  mo.observe(sec, {attributes:true, attributeFilter:["style","class"]});
+
+  // Si existe pagoTable, enganchamos eventos comunes
+  const tryHook = ()=>{
+    if(window.pagoTable && typeof window.pagoTable.on === "function"){
+      try{ pagoTable.on("dataLoaded", refreshIfPossible); }catch(_){}
+      try{ pagoTable.on("dataFiltered", refreshIfPossible); }catch(_){}
+      try{ pagoTable.on("rowSelectionChanged", refreshIfPossible); }catch(_){}
+    } else {
+      setTimeout(tryHook, 600);
+    }
+  };
+  tryHook();
+  // Primer disparo por si ya está visible
+  if(getComputedStyle(sec).display !== "none"){ refreshIfPossible(); }
+})();
 </script>
 </div>
 
@@ -2148,6 +2278,30 @@ async function doLogout(){ await authLogout(); showLogin(); }
   });
 })();
 
+/** Auto-actualizar KPIs de Pago al mostrar la sección y cuando se filtren/recarguen datos */
+(function(){
+  const sec = document.getElementById("secPago");
+  if(!sec) return;
+  const refreshIfPossible = ()=>{ if(typeof updatePagoKpis==='function'){ updatePagoKpis().catch(()=>{}); } };
+  const mo = new MutationObserver(()=>{
+    if(getComputedStyle(sec).display !== "none"){ refreshIfPossible(); }
+  });
+  mo.observe(sec, {attributes:true, attributeFilter:["style","class"]});
+
+  // Si existe pagoTable, enganchamos eventos comunes
+  const tryHook = ()=>{
+    if(window.pagoTable && typeof window.pagoTable.on === "function"){
+      try{ pagoTable.on("dataLoaded", refreshIfPossible); }catch(_){}
+      try{ pagoTable.on("dataFiltered", refreshIfPossible); }catch(_){}
+      try{ pagoTable.on("rowSelectionChanged", refreshIfPossible); }catch(_){}
+    } else {
+      setTimeout(tryHook, 600);
+    }
+  };
+  tryHook();
+  // Primer disparo por si ya está visible
+  if(getComputedStyle(sec).display !== "none"){ refreshIfPossible(); }
+})();
 </script>
 
 
@@ -2263,34 +2417,20 @@ function buildPagoTable(){
   });
 }
 
-
-async function updatePagoKpis(){
-  const rows = pagoTable ? pagoTable.getData("active") : [];
-  let pendientes = 0, pagadas = 0, sumaPendiente = 0, sumaPagada = 0;
+function updatePagoKpis(){
+  const rows = pagoTable? pagoTable.getData("active") : [];
+  let pend=0, pag=0, sp=0, sg=0;
   for(const r of rows){
     const total = Number(r["Total Gastado"] ?? r.Total) || 0;
-    const estado = (r.Estado || "").toString();
-    if(estado === "Revisada"){ pendientes++; sumaPendiente += total; }
-    if(estado === "Pagada"){   pagadas++;   sumaPagada   += total; }
+    if((r.Estado||"")==="Revisada"){ pend++; sp += total; }
+    if((r.Estado||"")==="Pagada"){ pag++; sg += total; }
   }
   const fmtMoney = (v)=> "L " + (Number(v)||0).toLocaleString("es-HN",{minimumFractionDigits:2,maximumFractionDigits:2});
   const $ = (sel)=>document.querySelector(sel);
-
-  // KPIs principales
-  $("#kpiPagoPendientes").textContent = String(pendientes);
-  $("#kpiPagoPagadas").textContent    = String(pagadas);
-  $("#kpiPagoTotalPend").textContent  = fmtMoney(sumaPendiente);
-  $("#kpiPagoSubtotalPag").textContent = fmtMoney(sumaPagada);
-
-  // Otros cargos desde el backend (sin caché, siempre en vivo)
-  let otros = 0;
-  try {
-    if (API && typeof API.getOtrosCargosTotal === "function") {
-      otros = await API.getOtrosCargosTotal();
-    }
-  } catch(_) { otros = 0; }
-  $("#kpiPagoOtrosCargos").textContent = fmtMoney(otros);
-  $("#kpiPagoTotalPag").textContent    = fmtMoney(sumaPagada + (Number(otros)||0));
+  $("#kpiPagoPendientes").textContent = String(pend);
+  $("#kpiPagoPagadas").textContent = String(pag);
+  $("#kpiPagoTotalPend").textContent = fmtMoney(sp);
+  $("#kpiPagoTotalPag").textContent  = fmtMoney(sg);
 }
 
 function clearPagoFilters(){
@@ -2640,6 +2780,30 @@ document.addEventListener("DOMContentLoaded", function(){
     }
   });
 })();
+/** Auto-actualizar KPIs de Pago al mostrar la sección y cuando se filtren/recarguen datos */
+(function(){
+  const sec = document.getElementById("secPago");
+  if(!sec) return;
+  const refreshIfPossible = ()=>{ if(typeof updatePagoKpis==='function'){ updatePagoKpis().catch(()=>{}); } };
+  const mo = new MutationObserver(()=>{
+    if(getComputedStyle(sec).display !== "none"){ refreshIfPossible(); }
+  });
+  mo.observe(sec, {attributes:true, attributeFilter:["style","class"]});
+
+  // Si existe pagoTable, enganchamos eventos comunes
+  const tryHook = ()=>{
+    if(window.pagoTable && typeof window.pagoTable.on === "function"){
+      try{ pagoTable.on("dataLoaded", refreshIfPossible); }catch(_){}
+      try{ pagoTable.on("dataFiltered", refreshIfPossible); }catch(_){}
+      try{ pagoTable.on("rowSelectionChanged", refreshIfPossible); }catch(_){}
+    } else {
+      setTimeout(tryHook, 600);
+    }
+  };
+  tryHook();
+  // Primer disparo por si ya está visible
+  if(getComputedStyle(sec).display !== "none"){ refreshIfPossible(); }
+})();
 </script>
 
 
@@ -2687,51 +2851,29 @@ document.addEventListener("DOMContentLoaded", function(){
     }catch(_){ alert(msg); }
   }
 })();
-</script>
-
-
-<script>
+/** Auto-actualizar KPIs de Pago al mostrar la sección y cuando se filtren/recarguen datos */
 (function(){
-  if (typeof API === "undefined") window.API = {};
-  API.getOtrosCargosTotal = async function(){
-    try{
-      var baseUrl = (Config && Config.api && Config.api.leerFacturas) ? Config.api.leerFacturas : "";
-      if (!baseUrl) return 0;
-      var u = new URL(baseUrl, location.origin);
-      u.search = "";
-      u.searchParams.set("otrosCargos", "total");
-      const res = await fetch(u.toString(), { cache:"no-store", mode:"cors" });
-      if(!res.ok) return 0;
-      const json = await res.json().catch(()=>null);
-      if (json && (json.totalOtrosCargos !== undefined || json.total !== undefined)){
-        return Number(json.totalOtrosCargos ?? json.total) || 0;
-      }
-      if (json && json.ok && typeof json.totalOtrosCargos === "number") return json.totalOtrosCargos;
-      return 0;
-    }catch(e){ return 0; }
-  };
-})();
-</script>
+  const sec = document.getElementById("secPago");
+  if(!sec) return;
+  const refreshIfPossible = ()=>{ if(typeof updatePagoKpis==='function'){ updatePagoKpis().catch(()=>{}); } };
+  const mo = new MutationObserver(()=>{
+    if(getComputedStyle(sec).display !== "none"){ refreshIfPossible(); }
+  });
+  mo.observe(sec, {attributes:true, attributeFilter:["style","class"]});
 
-<script>
-(function(){
-  const hook = () => {
-    if (window.pagoTable && typeof pagoTable.on === "function"){
-      try{
-        pagoTable.on("dataLoaded", updatePagoKpis);
-        pagoTable.on("dataFiltered", updatePagoKpis);
-        pagoTable.on("rowSelectionChanged", updatePagoKpis);
-      }catch(e){}
-      // disparo inicial
-      try{ updatePagoKpis(); }catch(e){}
-      return true;
+  // Si existe pagoTable, enganchamos eventos comunes
+  const tryHook = ()=>{
+    if(window.pagoTable && typeof window.pagoTable.on === "function"){
+      try{ pagoTable.on("dataLoaded", refreshIfPossible); }catch(_){}
+      try{ pagoTable.on("dataFiltered", refreshIfPossible); }catch(_){}
+      try{ pagoTable.on("rowSelectionChanged", refreshIfPossible); }catch(_){}
+    } else {
+      setTimeout(tryHook, 600);
     }
-    return false;
   };
-  if(!hook()){
-    const iv = setInterval(()=>{ if(hook()) clearInterval(iv); }, 400);
-    setTimeout(()=>clearInterval(iv), 8000);
-  }
+  tryHook();
+  // Primer disparo por si ya está visible
+  if(getComputedStyle(sec).display !== "none"){ refreshIfPossible(); }
 })();
 </script>
 
