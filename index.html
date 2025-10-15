@@ -2531,30 +2531,33 @@ document.addEventListener("DOMContentLoaded", function(){
 
     const rowsSel = (typeof pagoTable!=="undefined" && pagoTable.getSelectedData)
       ? pagoTable.getSelectedData() : [];
-    if(!rowsSel?.length){ alert("Selecciona al menos una factura."); return; }
+    const rowComps = (typeof pagoTable!=="undefined" && pagoTable.getSelectedRows)
+      ? pagoTable.getSelectedRows() : [];
+
+    if(!rowsSel?.length || !rowComps?.length){
+      alert("Selecciona al menos una factura."); return;
+    }
 
     const cargos = (window._pagoResumen && _pagoResumen.readCargos) ? _pagoResumen.readCargos() : [];
 
     if(typeof overlay!=="undefined") overlay.show("Registrando pago…");
     await API.pagarFacturasLote(rowsSel, null, fechaPago, idPago, cargos);
 
-    // ✅ Actualización optimista (sin recargar)
-    const updates = rowsSel.map(r => ({
-      fila: r.fila,                 // Tabulator debe usar index:"fila"
-      Estado: "Pagada",
-      "Fecha de Pago": fechaPago,
-      "ID_PAGO": idPago
-    }));
-    try { if (typeof pagoTable!=="undefined" && pagoTable.updateData) pagoTable.updateData(updates); } catch(_) {}
+    // ✅ Actualización optimista por row component (no requiere index)
+    try {
+      rowComps.forEach(rc => {
+        rc.update({ Estado: "Pagada", "Fecha de Pago": fechaPago, "ID_PAGO": idPago });
+      });
+    } catch(_){ /* ignore */ }
 
-    // Limpia selección y KPIs si corresponde
+    // Limpiar selección y KPIs si aplica
     try { pagoTable.deselectRow(); } catch(_) {}
     if (typeof updatePagoKpis === "function") updatePagoKpis();
     if (typeof _pagoResumen !== "undefined" && _pagoResumen.recomputePagoResumen) _pagoResumen.recomputePagoResumen();
 
-    // Cierra modal y confirma al usuario
+    // Cierra modal y muestra toast
     if(typeof closePagoModal === "function") closePagoModal();
-    if (typeof toast === "function") toast("Pago registrado"); else alert("Pago registrado");
+    if (typeof toast === "function") toast("Pago registrado");
 
   }catch(e){
     alert("No se pudo registrar el pago. " + (e?.message || e));
@@ -2571,6 +2574,53 @@ document.addEventListener("DOMContentLoaded", function(){
       try { pagoTable.on("rowSelectionChanged", recomputePagoResumen); } catch(_) {}
     }
   });
+})();
+</script>
+
+
+<script>
+// Simple toast (bottom-center) that fades out
+(function(){
+  window.toast = function(msg, timeoutMs){
+    try{
+      timeoutMs = timeoutMs || 2200;
+      let host = document.getElementById("toast-host");
+      if(!host){
+        host = document.createElement("div");
+        host.id = "toast-host";
+        host.style.position="fixed";
+        host.style.left="50%";
+        host.style.bottom="28px";
+        host.style.transform="translateX(-50%)";
+        host.style.zIndex="99999";
+        host.style.display="flex";
+        host.style.flexDirection="column";
+        host.style.gap="8px";
+        document.body.appendChild(host);
+      }
+      const el = document.createElement("div");
+      el.textContent = msg;
+      el.style.padding = "10px 14px";
+      el.style.borderRadius = "10px";
+      el.style.background = "rgba(17,17,17,0.92)";
+      el.style.color = "white";
+      el.style.fontWeight = "700";
+      el.style.boxShadow = "0 8px 20px rgba(0,0,0,0.35)";
+      el.style.opacity = "0";
+      el.style.transition = "opacity .25s ease, transform .25s ease";
+      el.style.transform = "translateY(8px)";
+      host.appendChild(el);
+      requestAnimationFrame(()=>{
+        el.style.opacity = "1";
+        el.style.transform = "translateY(0)";
+      });
+      setTimeout(()=>{
+        el.style.opacity = "0";
+        el.style.transform = "translateY(8px)";
+        setTimeout(()=>{ el.remove(); }, 300);
+      }, timeoutMs);
+    }catch(_){ alert(msg); }
+  }
 })();
 </script>
 
