@@ -1,14 +1,18 @@
 export async function onRequestGet({ request }) {
   const origin = request.headers.get("Origin") || "*";
-
-  // Lee los parámetros que lleguen al proxy
   const incoming = new URL(request.url);
-  const estados  = incoming.searchParams.get("estados"); // "Revisada,Pagada" (opcional)
+  const otrosCargos = incoming.searchParams.get("otrosCargos"); // "total" (opcional)
+  const estados  = incoming.searchParams.get("estados");        // opcional
 
-  // Construye la URL al Apps Script
-  const url = new URL("https://script.google.com/macros/s/AKfycbw0feZUq0OzNvxkhMs1ecMMNfC9NVKUkUZWVwZrNB0wMSyvIuYWL3mrHTwKpPt9pEucQQ/exec");
-  url.searchParams.set("leerFacturas", "true");
-  if (estados) url.searchParams.set("estados", estados);
+  const url = new URL("https://script.google.com/macros/s/AKfycbzqruigcXdjOr3xOvn5I0codc4TVgIr_WNQLDf5NuiggBSJwaYnOBX4Xwtr7SCVExdkLw/exec");
+
+  if (otrosCargos) {
+    url.searchParams.set("otrosCargos", otrosCargos);
+  } else {
+    // Modo facturas (existente)
+    url.searchParams.set("leerFacturas", "true");
+    if (estados) url.searchParams.set("estados", estados);
+  }
 
   try {
     const resp  = await fetch(url.toString(), { method: "GET" });
@@ -35,16 +39,4 @@ export async function onRequestGet({ request }) {
       }
     });
   }
-}
-
-export async function onRequestOptions({ request }) {
-  const origin = request.headers.get("Origin") || "*";
-  return new Response(null, {
-    status: 204,
-    headers: {
-      "Access-Control-Allow-Origin": origin,
-      "Access-Control-Allow-Methods": "GET, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type"
-    }
-  });
 }
