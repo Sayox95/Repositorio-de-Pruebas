@@ -2263,20 +2263,34 @@ function buildPagoTable(){
   });
 }
 
-function updatePagoKpis(){
-  const rows = pagoTable? pagoTable.getData("active") : [];
-  let pend=0, pag=0, sp=0, sg=0;
+
+async function updatePagoKpis(){
+  const rows = pagoTable ? pagoTable.getData("active") : [];
+  let pendientes = 0, pagadas = 0, sumaPendiente = 0, sumaPagada = 0;
   for(const r of rows){
     const total = Number(r["Total Gastado"] ?? r.Total) || 0;
-    if((r.Estado||"")==="Revisada"){ pend++; sp += total; }
-    if((r.Estado||"")==="Pagada"){ pag++; sg += total; }
+    const estado = (r.Estado || "").toString();
+    if(estado === "Revisada"){ pendientes++; sumaPendiente += total; }
+    if(estado === "Pagada"){   pagadas++;   sumaPagada   += total; }
   }
   const fmtMoney = (v)=> "L " + (Number(v)||0).toLocaleString("es-HN",{minimumFractionDigits:2,maximumFractionDigits:2});
   const $ = (sel)=>document.querySelector(sel);
-  $("#kpiPagoPendientes").textContent = String(pend);
-  $("#kpiPagoPagadas").textContent = String(pag);
-  $("#kpiPagoTotalPend").textContent = fmtMoney(sp);
-  $("#kpiPagoTotalPag").textContent  = fmtMoney(sg);
+
+  // KPIs principales
+  $("#kpiPagoPendientes").textContent = String(pendientes);
+  $("#kpiPagoPagadas").textContent    = String(pagadas);
+  $("#kpiPagoTotalPend").textContent  = fmtMoney(sumaPendiente);
+  $("#kpiPagoSubtotalPag").textContent = fmtMoney(sumaPagada);
+
+  // Otros cargos desde el backend (sin caché, siempre en vivo)
+  let otros = 0;
+  try {
+    if (API && typeof API.getOtrosCargosTotal === "function") {
+      otros = await API.getOtrosCargosTotal();
+    }
+  } catch(_) { otros = 0; }
+  $("#kpiPagoOtrosCargos").textContent = fmtMoney(otros);
+  $("#kpiPagoTotalPag").textContent    = fmtMoney(sumaPagada + (Number(otros)||0));
 }
 
 function clearPagoFilters(){
