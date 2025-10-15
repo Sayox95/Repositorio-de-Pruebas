@@ -2715,6 +2715,13 @@ function genIdPago(){
 function addCargoRow(){
   const list = document.getElementById("mpCargosList");
   if(!list) return;
+  // Si ya existe una última fila vacía, no agregues otra; solo enfócala.
+  const last = list.lastElementChild;
+  if (last) {
+    const inputs = last.querySelectorAll("input");
+    const empty = Array.from(inputs).every(i => !String(i.value||"").trim());
+    if (empty) { (inputs[1]||inputs[0]||last).focus(); return; }
+  }
   const row = document.createElement("div");
   row.className = "cargo-row";
   row.style.display = "grid";
@@ -2874,7 +2881,7 @@ function initPagoMassPay(force=false){
   if(cancelBtn) cancelBtn.addEventListener("click", ()=>{
     const modal = document.getElementById("modalPago"); if(modal) modal.style.display = "none";
   });
-  if(addCargo) addCargo.addEventListener("click", addCargoRow);
+  if(addCargo && !addCargo.dataset.bound){ addCargo.addEventListener("click", addCargoRow); addCargo.dataset.bound="1"; }
   if(confirm)  confirm.addEventListener("click", confirmarPagoLote);
 }
 </script>
