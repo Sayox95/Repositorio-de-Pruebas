@@ -345,7 +345,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
         <button id="btnPagoActualizar" class="btn"><i class="lucide-rotate-cw"></i> Actualizar</button>
         <button id="btnPagoAgrupar" class="btn btn-ghost"><i class="lucide-layers-2"></i> Agrupar por colaborador</button>
         <button id="btnPagoExportXLSX" class="btn btn-ghost"><i class="lucide-download"></i> Excel</button>
-        <button id="btnPagoAbrirModal" style="display:none" style="display:none" style="display:none" class="btn btn-primary" disabled><i class="lucide-credit-card"></i> Pagar seleccionadas</button>
+        <button id="btnPagoAbrirModal" style="display:none" style="display:none" style="display:none" style="display:none" class="btn btn-primary" disabled><i class="lucide-credit-card"></i> Pagar seleccionadas</button>
       </div>
     </div>
 
@@ -2672,15 +2672,18 @@ document.addEventListener("DOMContentLoaded", function(){
   }
 })();
 
-// === Pago: botón "Pagar seleccionadas" (muestra si 2+ y ninguna está 'Pagada') ===
+
+// === Pago: botón "Pagar seleccionadas" (2+ y ninguna 'Pagada') ===
 (function(){
   function lc(x){ return String(x||"").trim().toLowerCase(); }
   function getPagoTable(){
     if (window.pagoTable) return window.pagoTable;
     if (window.Tabulator && typeof Tabulator.findTable === "function"){
       const arr = Tabulator.findTable("#tablaPago");
-      return Array.isArray(arr) && arr.length ? arr[0] : null;
+      if (Array.isArray(arr) && arr.length) return arr[0];
     }
+    const el = document.querySelector("#tablaPago");
+    if (el && el.tabulator) return el.tabulator; // instanciada en el DOM
     return null;
   }
   function selectedData(t){
@@ -2697,12 +2700,12 @@ document.addEventListener("DOMContentLoaded", function(){
     if(!t){ btn.style.display = "none"; return; }
     const data = selectedData(t);
     const count = Array.isArray(data) ? data.length : 0;
-    const hasPaid = (data||[]).some(r => lc(r && r.Estado) === "pagada");
+    const hasPaid = (data||[]).some(r => lc(r && (r.Estado || r.estado)) === "pagada");
     btn.style.display = (count >= 2 && !hasPaid) ? "inline-flex" : "none";
   }
   function bind(){
     const btn = document.getElementById("btnPagoAbrirModal");
-    if(!btn){ setTimeout(bind, 200); return; }
+    if(!btn){ setTimeout(bind, 250); return; }
     const t = getPagoTable();
     if(!t){ setTimeout(bind, 300); return; }
     try{
@@ -2710,23 +2713,31 @@ document.addEventListener("DOMContentLoaded", function(){
         t.off("rowSelectionChanged", toggleBtn);
         t.off("dataLoaded", toggleBtn);
         t.off("dataFiltered", toggleBtn);
+        t.off("dataChanged", toggleBtn);
       }
       if (typeof t.on  === "function"){
         t.on("rowSelectionChanged", toggleBtn);
         t.on("dataLoaded", toggleBtn);
         t.on("dataFiltered", toggleBtn);
+        t.on("dataChanged", toggleBtn);
       }
     }catch(_){}
     toggleBtn();
   }
+
+  // Observa cambios en el contenedor del pago para engancharse cuando aparezca la tabla
+  const pagoSec = document.getElementById("secPago") || document.body;
+  const obs = new MutationObserver(()=>{ bind(); });
+  obs.observe(pagoSec, { childList:true, subtree:true });
+
   document.addEventListener("DOMContentLoaded", ()=>{
     if (location.hash === "#pago") setTimeout(bind, 400);
   });
   window.addEventListener("hashchange", ()=>{
     if (location.hash === "#pago") setTimeout(bind, 400);
   });
-  // Intento tardío por si la tabla demora
-  setTimeout(()=>{ if (location.hash === "#pago") bind(); }, 1200);
+  // Último intento
+  setTimeout(()=>{ if (location.hash === "#pago") bind(); }, 1500);
 })();
 
 </script>
