@@ -856,7 +856,7 @@ function buildTable(){
       // data-group-key: usamos value (Identidad) + un hash simple para evitar colisiones visuales
       const key = String(value ?? "").replace(/"/g,"&quot;");
       return `<label class="group-toggle">
-                <input type="checkbox" class="group-select" data-group-key="${key}">
+                <input type="checkbox" class="group-select-pago" data-group-key="${key}">
                 <span>${nombre} (${count})</span>
               </label>
               <span class="kpi-mini">L ${totalTxt}</span>`;
@@ -1735,6 +1735,28 @@ document.addEventListener("change", (ev)=>{
   try{ updateButtons(); }catch(_){}
 });
 
+
+// Selección masiva por grupo (Pago)
+document.addEventListener("change", (ev)=>{
+  const chk = ev.target.closest(".group-select-pago");
+  if(!chk || !pagoTable) return;
+  const key = chk.getAttribute("data-group-key") || "";
+  const groups = pagoTable.getGroups ? pagoTable.getGroups() : [];
+  let target = null;
+  for(const g of groups){
+    try{
+      if(String(g.getKey ? g.getKey() : g.key) === String(key)){ target = g; break; }
+    }catch(_){}
+  }
+  if(!target) return;
+  const rows = target.getRows ? target.getRows() : [];
+  if(chk.checked){
+    rows.forEach(r => { try{ r.select && r.select(); }catch(_){ } });
+  }else{
+    rows.forEach(r => { try{ r.deselect && r.deselect(); }catch(_){ } });
+  }
+  try{ updatePagoButtonVisibility(); }catch(_){}
+});
 /** =========================
  *  Bootstrap
  *  ========================= */
@@ -2216,6 +2238,19 @@ function buildPagoTable(){
   pagoTable = new Tabulator("#tablaPago", {
     height: (typeof Config!=="undefined" && Config.tablaHeight) ? Config.tablaHeight : "560px",
     data: [], layout: "fitColumns", selectable: true, placeholder: "Sin datos",
+    groupStartOpen:false,
+    groupHeader:function(value, count, data, group){
+      const nombre = (data && data[0] && (data[0].Nombre||data[0].Identidad)) || value;
+      const suma = (data||[]).reduce((acc,r)=> acc + (Number(r.Total)||0), 0);
+      const totalTxt = new Intl.NumberFormat("es-HN",{minimumFractionDigits:2, maximumFractionDigits:2}).format(suma);
+      const key = String(value ?? "").replace(/"/g,"&quot;");
+      return `<label class="group-toggle">
+                <input type="checkbox" class="group-select group-select-pago" data-group-key="${key}">
+                <span>${nombre} (${count})</span>
+              </label>
+              <span class="kpi-mini">L ${totalTxt}</span>`;
+    },
+    
     columns: [
       { formatter:"rowSelection", titleFormatter:"rowSelection", hozAlign:"center", headerSort:false, width:40 },
       { title:"#", formatter:"rownum", hozAlign:"center", width:60 },
