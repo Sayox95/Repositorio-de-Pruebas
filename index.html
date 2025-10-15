@@ -6,7 +6,248 @@
   <title>UTCD · Revisión de Facturas</title>
   <!-- Tabulator -->
   <link href="https://unpkg.com/tabulator-tables@6.2.5/dist/css/tabulator.min.css" rel="stylesheet">
-  <script src="https://unpkg.com/tabulator-tables@6.2.5/dist/js/tabulator.min.js"></script>
+  <script src="https://unpkg.com/tabulator-tables@6.2.5/dist/js/tabulator.min.js">
+/** =========================
+ *  Pago - Tabla y Modal (Pagos masivos)
+ *  ========================= */
+let pagoTable;
+let pagoTableBuilt = false;
+let pagoSelection = []; // rows data selected (not pagadas)
+
+function buildPagoTableIfNeeded(){
+  if (pagoTable) return;
+  // Creamos tabla de Pago usando los datos globales State.raw (si no, los cargamos)
+  const ensureData = async () => {
+    if (!State.raw || !State.raw.length) {
+      try { overlay.show("Cargando facturas…"); const arr = await API.getFacturas(); State.raw = arr; }
+      finally { overlay.hide(); }
+    }
+  };
+  const build = () => {
+    pagoTable = new Tabulator("#tablaPago", {
+      height: Config.tablaHeight,
+      data: (State.raw||[]).filter(r => (r.Estado||"") !== "Pagada"),
+      layout: "fitColumns",
+      placeholder: "Sin datos",
+      selectable: true,
+      pagination: false,
+      reactiveData: false,
+      columns: [
+        { formatter:"rowSelection", titleFormatter:"rowSelection", hozAlign:"center", headerSort:false, width:40 },
+        { title:"Sector", field:"Sector", width:120 },
+        { title:"Placa", field:"Placa", width:110 },
+        { title:"Proceso", field:"Proceso", width:130 },
+        { title:"Nombre", field:"Nombre", width:180 },
+        { title:"Identidad", field:"Identidad", width:150 },
+        { title:"Total", field:"Total", hozAlign:"right", width:140, formatter:(c)=>fmt.money(c.getValue()) },
+        { title:"Fecha", field:"Fecha", width:120, formatter:(c)=>{ const v=c.getValue(); return v? String(v).slice(0,10):""; } },
+        { title:"Estado", field:"Estado", width:120, formatter:(c)=>{
+            const v = c.getValue()||"Registrada"; const color = estadoColor(v);
+            return `<span class="status-pill"><span class="dot" style="background:${color}"></span>${v}</span>`;
+        }}
+      ],
+      dataLoaded:()=>{ updatePagoKpisFromTable(); updatePagoButton(); },
+      dataFiltered:()=>{ updatePagoKpisFromTable(); updatePagoButton(); },
+      rowSelectionChanged:()=>{ updatePagoButton(); },
+    });
+    pagoTable.on("tableBuilt", ()=>{
+      pagoTableBuilt = true;
+      updatePagoKpisFromTable();
+      updatePagoButton();
+    });
+  };
+  ensureData().then(build);
+}
+
+function updatePagoKpisFromTable(){
+  // Actualiza KPIs de sección Pago (si existen)
+  try{
+    const rows = pagoTable ? pagoTable.getData("active") : [];
+    const pagadas   = rows.filter(r=> (r.Estado||"") === "Pagada").length;
+    const pendientes= rows.filter(r=> (r.Estado||"") !== "Pagada").length;
+    const totalPend = rows.filter(r=> (r.Estado||"") !== "Pagada").reduce((a,r)=>a+(Number(r.Total)||0),0);
+    const totalPag  = 0; // no lo calculamos aquí (fuera del scope)
+    const $id = (sel)=>document.getElementById(sel);
+    if($id("kpiPagoPendientes")) $id("kpiPagoPendientes").textContent = pendientes;
+    if($id("kpiPagoPagadas"))    $id("kpiPagoPagadas").textContent    = pagadas;
+    if($id("kpiPagoTotalPend"))  $id("kpiPagoTotalPend").textContent  = fmt.money(totalPend);
+    if($id("kpiPagoTotalPag"))   $id("kpiPagoTotalPag").textContent   = fmt.money(totalPag);
+  }catch(_){}
+}
+
+function getSelectedNotPagadas(){
+  const sel = pagoTable ? (pagoTable.getSelectedData ? pagoTable.getSelectedData() : []) : [];
+  return (sel||[]).filter(r => (r.Estado||"") !== "Pagada");
+}
+
+function updatePagoButton(){
+  const btn = document.getElementById("btnPagoAbrirModal");
+  if(!btn) return;
+  const validSel = getSelectedNotPagadas();
+  if (validSel.length >= 2) {
+    btn.style.display = ""; // show
+  } else {
+    btn.style.display = "none"; // hide
+  }
+}
+
+/** ===== Modal de Pago ===== */
+function generatePagoId(){
+  const now = new Date();
+  const pad = (n)=> String(n).padStart(2,"0");
+  const id = `PAGO-${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+  return id;
+}
+
+function openPagoModal(){
+  const sel = getSelectedNotPagadas();
+  if(sel.length < 2){ alert("Selecciona al menos 2 facturas (no pagadas)."); return; }
+
+  // Resumen
+  const count = sel.length;
+  const subtotal = sel.reduce((a,r)=> a + (Number(r.Total)||0), 0);
+  const cargos = computeOtrosCargosSum();
+
+  document.getElementById("mpCount").textContent = String(count);
+  document.getElementById("mpSubtotal").textContent = fmt.money(subtotal);
+  document.getElementById("mpCargos").textContent = fmt.money(cargos);
+  document.getElementById("mpTotal").textContent = fmt.money(subtotal + cargos);
+  // Prefill fecha & id
+  const todayISO = fmt.dateISO(new Date());
+  const f = document.getElementById("mpFechaPago"); if(f && !f.value) f.value = todayISO;
+  const idEl = document.getElementById("mpIdPago"); if(idEl) idEl.value = generatePagoId();
+
+  // Limpia lista de cargos
+  const lst = document.getElementById("mpCargosList"); if(lst) lst.innerHTML = "";
+  // Mostrar modal
+  document.getElementById("modalPago").style.display = "grid";
+}
+
+function closePagoModal(){
+  const modal = document.getElementById("modalPago");
+  if(modal) modal.style.display = "none";
+}
+
+function computeOtrosCargosSum(){
+  const root = document.getElementById("mpCargosList");
+  if(!root) return 0;
+  const inputs = Array.from(root.querySelectorAll('input[data-field="monto"]'));
+  return inputs.reduce((a,inp)=> a + (Number(inp.value)||0), 0);
+}
+
+function recalcPagoModalTotals(){
+  const subtotalTxt = document.getElementById("mpSubtotal")?.textContent || "L 0";
+  const numFromMoney = (t)=> Number(String(t).replace(/[^\d.,-]/g,"").replace(/\./g,"").replace(",", ".")) || 0;
+  const subtotal = numFromMoney(subtotalTxt);
+  const cargos = computeOtrosCargosSum();
+  document.getElementById("mpCargos").textContent = fmt.money(cargos);
+  document.getElementById("mpTotal").textContent = fmt.money(subtotal + cargos);
+}
+
+function addCargoRow(){
+  const root = document.getElementById("mpCargosList"); if(!root) return;
+  const row = document.createElement("div");
+  row.className = "cargo-row";
+  row.style.display = "grid";
+  row.style.gridTemplateColumns = "1fr 1fr 140px 32px";
+  row.style.gap = "8px";
+  row.innerHTML = `
+    <input class="input cargo-codigo" placeholder="Código (opcional)" data-field="codigo">
+    <input class="input" placeholder="Tipo de cargo" data-field="tipo">
+    <input class="input" placeholder="Monto" data-field="monto" inputmode="decimal">
+    <button class="btn btn-ghost" title="Quitar" aria-label="Quitar cargo">&times;</button>
+  `;
+  root.appendChild(row);
+  const monto = row.querySelector('input[data-field="monto"]');
+  const quitar = row.querySelector("button");
+  if(monto){ monto.addEventListener("input", recalcPagoModalTotals); }
+  if(quitar){
+    quitar.addEventListener("click", ()=>{ row.remove(); recalcPagoModalTotals(); });
+  }
+  recalcPagoModalTotals();
+}
+
+function collectCargos(){
+  const root = document.getElementById("mpCargosList"); if(!root) return [];
+  const rows = Array.from(root.children||[]);
+  return rows.map(r => {
+    const tipo = r.querySelector('input[data-field="tipo"]')?.value || "";
+    const monto = Number(r.querySelector('input[data-field="monto"]')?.value || 0) || 0;
+    const codigo = r.querySelector('input[data-field="codigo"]')?.value || "";
+    const fecha = document.getElementById("mpFechaPago")?.value || "";
+    return { tipo, monto, codigo, fecha };
+  }).filter(c => c.monto && c.tipo);
+}
+
+async function confirmarPagoLote(){
+  try{
+    const sel = getSelectedNotPagadas();
+    if(sel.length < 2){ alert("Selecciona al menos 2 facturas (no pagadas)."); return; }
+    const filas = sel.map(r => parseInt(r.fila||r._fila||0, 10)).filter(Boolean);
+    const fechaPago = (document.getElementById("mpFechaPago")?.value || "").trim();
+    const idPago = (document.getElementById("mpIdPago")?.value || "").trim();
+    if(!filas.length || !fechaPago || !idPago){
+      alert("Faltan datos: filas, fecha de pago o ID_PAGO."); return;
+    }
+    const cargos = collectCargos();
+
+    overlay.show("Registrando pago…");
+    const resp = await fetch(Config.api.guardar, {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({ accion: "pagoLote", filas, fechaPago, idPago, cargos })
+    });
+    const json = await resp.json().catch(()=>({status:"ERROR"}));
+    if(!resp.ok || json.status !== "OK"){
+      throw new Error(json.message || "Error al registrar el pago");
+    }
+
+    // Éxito: refrescar datos globales y tabla de pago
+    // Actualizamos Estado=Pagada e ID_PAGO de forma optimista también
+    sel.forEach(r => { try{ r.Estado = "Pagada"; }catch(_){} });
+    try{
+      overlay.show("Actualizando datos…");
+      const arr = await API.getFacturas();
+      State.raw = arr;
+      if(pagoTable){
+        await pagoTable.replaceData((State.raw||[]).filter(r => (r.Estado||"") !== "Pagada"));
+      }
+      updatePagoKpisFromTable();
+      updatePagoButton();
+      try{ await cargarOtrosCargosKpi(); }catch(_){}
+    }finally{ overlay.hide(); }
+
+    closePagoModal();
+    alert("Pago en lote registrado correctamente.");
+  }catch(e){
+    overlay.hide();
+    alert("No se pudo completar el pago en lote: " + (e.message||e));
+  }
+}
+
+// Wire-up botones del modal y de la sección Pago
+document.addEventListener("DOMContentLoaded", ()=>{
+  const btnOpen = document.getElementById("btnPagoAbrirModal");
+  if(btnOpen){ btnOpen.addEventListener("click", openPagoModal); }
+  const btnCancel = document.getElementById("mpCancelar");
+  if(btnCancel){ btnCancel.addEventListener("click", closePagoModal); }
+  const btnConfirm = document.getElementById("mpConfirmar");
+  if(btnConfirm){ btnConfirm.addEventListener("click", confirmarPagoLote); }
+  const btnAddCargo = document.getElementById("mpAddCargo");
+  if(btnAddCargo){ btnAddCargo.addEventListener("click", addCargoRow); }
+});
+
+// Al navegar a la sección de Pago, construimos la tabla (y actualizamos KPI Otros Cargos)
+(function(){
+  const sidebar = document.querySelector('.sidebar');
+  if(!sidebar) return;
+  const link = sidebar.querySelector('a.nav-btn[href="#pago"]');
+  if(link){
+    link.addEventListener('click', ()=>{ buildPagoTableIfNeeded(); });
+  }
+})();
+
+</script>
   <!-- Flatpickr -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
@@ -348,7 +589,7 @@
         <button id="btnPagoActualizar" class="btn"><i class="lucide-rotate-cw"></i> Actualizar</button>
         <button id="btnPagoAgrupar" class="btn btn-ghost"><i class="lucide-layers-2"></i> Agrupar por colaborador</button>
         <button id="btnPagoExportXLSX" class="btn btn-ghost"><i class="lucide-download"></i> Excel</button>
-        <button id="btnPagoAbrirModal" style="display:none" class="btn btn-primary" disabled><i class="lucide-credit-card"></i> Pagar seleccionadas</button>
+        <button id="btnPagoAbrirModal" class="btn btn-primary" disabled><i class="lucide-credit-card"></i> Pagar seleccionadas</button>
       </div>
     </div>
 
@@ -2675,121 +2916,6 @@ document.addEventListener("DOMContentLoaded", function(){
       }, timeoutMs);
     }catch(_){ alert(msg); }
   }
-})();
-</script>
-
-
-<!-- === Bulk Pay: bind only after Tabulator tableBuilt === -->
-<script>
-(function(){
-  function lc(x){ return String(x||"").trim().toLowerCase(); }
-  function money(n){ try{ return fmt && fmt.money ? fmt.money(n) : Number(n||0).toFixed(2); }catch(_){ return Number(n||0).toFixed(2); } }
-  function todayISO(){ try{ return (fmt && fmt.dateISO) ? fmt.dateISO(new Date()) : new Date().toISOString().slice(0,10); }catch(_){ return new Date().toISOString().slice(0,10); } }
-
-  function bindWhenBuilt(){
-    const btn = document.getElementById("btnPagoAbrirModal");
-    if(btn) btn.style.display = "none"; // oculto por defecto
-
-    function tryBind(){
-      if(!(window.Tabulator && typeof Tabulator.findTable==="function")){ setTimeout(tryBind, 300); return; }
-      const arr = Tabulator.findTable("#tablaPago");
-      if(!arr || !arr.length){ setTimeout(tryBind, 300); return; }
-
-      const t = arr[0];
-      if(t._bulkBound) return; // evitar múltiples
-      t._bulkBound = true;
-
-      function updateBtn(){
-        const rows = t.getSelectedData(); // ahora la tabla ya está inicializada
-        const ok = rows.length >= 2 && rows.every(r => lc(r.Estado) !== "pagada");
-        if(btn) btn.style.display = ok ? "inline-flex" : "none";
-      }
-
-      // Eventos de Tabulator seguros (post tableBuilt)
-      t.on("rowSelectionChanged", updateBtn);
-      t.on("dataFiltered", updateBtn);
-      t.on("dataLoaded", updateBtn);
-      updateBtn();
-
-      // Abrir modal con resumen
-      if(btn && !btn._openBound){
-        btn._openBound = true;
-        btn.addEventListener("click", ()=>{
-          try{
-            const el = document.getElementById("modalPago");
-            const fFecha = document.getElementById("mpFechaPago");
-            const fId = document.getElementById("mpIdPago");
-            if(fFecha) fFecha.value = todayISO();
-            if(fId && typeof generateIdPago==="function") fId.value = generateIdPago();
-
-            // Resumen
-            const rows = t.getSelectedData();
-            const n = rows.length;
-            const sum = rows.reduce((a,r)=>a+(Number(r.Total)||0),0);
-            const numEl = document.getElementById("mpResumenNum");
-            const subEl = document.getElementById("mpResumenSubtotal");
-            if(numEl) numEl.textContent = String(n);
-            if(subEl) subEl.textContent = money(sum);
-            if(typeof recomputePagoResumen==="function") { try{ recomputePagoResumen(); }catch(_){} }
-
-            if(el) el.style.display = "grid";
-          }catch(e){ console.warn("No se pudo abrir modal pago lote:", e); }
-        });
-      }
-
-      // Confirmar: si hay 2+ seleccionadas, hace pagoLote
-      const confirmBtn = document.getElementById("mpConfirmar");
-      if(confirmBtn && !confirmBtn._bulkBound){
-        confirmBtn._bulkBound = true;
-        confirmBtn.addEventListener("click", async (ev)=>{
-          const rows = t.getSelectedData();
-          if(rows.length < 2) return; // el flujo puntual ya existente se encarga
-          ev.preventDefault();
-          ev.stopPropagation();
-
-          const fechaPago = (document.getElementById("mpFechaPago")||{}).value || "";
-          const idPago    = (document.getElementById("mpIdPago")||{}).value || "";
-          let cargos = [];
-          try{ if(typeof readCargos==="function") cargos = readCargos(); }catch(_){}
-          const filas = rows.map(r => parseInt(r.fila,10)).filter(Boolean);
-
-          if(!filas.length || !fechaPago || !idPago){
-            alert("Faltan datos: filas/fecha/id de pago.");
-            return;
-          }
-
-          try{
-            const res = await fetch(Config.api.guardar, {
-              method: "POST",
-              headers: { "Content-Type":"application/json" },
-              body: JSON.stringify({ accion:"pagoLote", filas, fechaPago, idPago, cargos })
-            });
-            const j = await res.json().catch(()=>({}));
-            if(!res.ok || j.status==="ERROR"){
-              alert("No se pudo registrar el pago en lote.");
-              return;
-            }
-          }catch(e){
-            alert("Error de red al registrar el pago en lote.");
-            return;
-          }
-
-          // Cierra modal y refresca
-          const modal = document.getElementById("modalPago");
-          if(modal) modal.style.display = "none";
-          try{ if(typeof cargarOtrosCargosKpi==="function") await cargarOtrosCargosKpi(); }catch(_){}
-          try{
-            if(typeof refreshPagoData==="function"){ await refreshPagoData(); }
-            else if (typeof _btnPagoActualizar!=="undefined" && _btnPagoActualizar && _btnPagoActualizar.click){ _btnPagoActualizar.click(); }
-          }catch(_){}
-        });
-      }
-    }
-    tryBind();
-  }
-
-  document.addEventListener("DOMContentLoaded", bindWhenBuilt);
-  window.addEventListener("hashchange", ()=>{ if(location.hash==="#pago") setTimeout(bindWhenBuilt, 200); });
 })();
 </script>
 
