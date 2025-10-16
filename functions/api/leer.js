@@ -1,13 +1,23 @@
 export async function onRequestGet({ request }) {
   const origin = request.headers.get("Origin") || "*";
   const incoming = new URL(request.url);
-  const otrosCargos = incoming.searchParams.get("otrosCargos"); // "total" (opcional)
-  const estados  = incoming.searchParams.get("estados");        // opcional
 
-  const url = new URL("https://script.google.com/macros/s/AKfycbzQ5V4tnf1mLVfuUXczynOXN4H4fSUKYyPrHqrgyizFhbKGKRPc0ho6tqE0l0ck8YoEgA/exec");
+  const otrosCargos = incoming.searchParams.get("otrosCargos"); // "total" | "byId" (opcional)
+  const estados     = incoming.searchParams.get("estados");     // opcional
+  const ids         = incoming.searchParams.getAll("ids");      // múltiples ids para byId
+
+  const url = new URL("https://script.google.com/macros/s/AKfycbxv0ww7Iho9fekeF8TaqW8U2zCmlCXKJSTZPaCSXdyPvNcniE9BTakyJEVl9wVEU7OdKg/exec");
 
   if (otrosCargos) {
+    // Modo "Otros Cargos"
     url.searchParams.set("otrosCargos", otrosCargos);
+
+    // Si se pidieron totales por ID_PAGO, reenvía todos los ids recibidos
+    if (ids && ids.length) {
+      ids.forEach(id => {
+        if (id) url.searchParams.append("ids", id);
+      });
+    }
   } else {
     // Modo facturas (existente)
     url.searchParams.set("leerFacturas", "true");
@@ -15,8 +25,8 @@ export async function onRequestGet({ request }) {
   }
 
   try {
-    const resp  = await fetch(url.toString(), { method: "GET" });
-    const text  = await resp.text();
+    const resp = await fetch(url.toString(), { method: "GET" });
+    const text = await resp.text();
 
     return new Response(text, {
       status: resp.status,
