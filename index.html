@@ -1316,6 +1316,7 @@ function toggleGrouping(){
 
 
 
+
 /** === KPI Pago: Otros Cargos (sensibles a filtros por ID_PAGO) === */
 (function(){
   const elId = "kpiPagoOtrosCargos";
@@ -1323,59 +1324,66 @@ function toggleGrouping(){
   const fmtMoney = (v)=> "L " + (Number(v)||0).toLocaleString("es-HN",{minimumFractionDigits:2,maximumFractionDigits:2});
 
   const PagoKPI = {
-    _t:null,
-    schedule(){
-      clearTimeout(this._t);
-      this._t = setTimeout(()=>this.recalc().catch(()=>{}), 150);
-    },
+    _ctl:null,
+    _lastKey:"",
+    schedule(){ this.recalc().catch(()=>{}); },  // llamada inmediata (sin debounce)
     async recalc(){
       const el = document.getElementById(elId);
       if (!el) return;
-      // Tomar rows visibles (post-filter) desde pagoTable
+      // Rows visibles tras filtros
       const t = (typeof pagoTable!=="undefined" && pagoTable) ? pagoTable : (typeof tablaPago!=="undefined" ? tablaPago : null);
       const rows = (t && typeof t.getData==="function") ? (t.getData("active")||[]) : [];
       const ids = Array.from(new Set(rows.map(r => String(r.ID_PAGO||"").trim()).filter(Boolean)));
+      const key = ids.join("|");
       if (!ids.length){
         el.textContent = fmtMoney(0);
+        this._lastKey = "";
         return;
       }
+      // Evitar fetch innecesario si los IDs no cambiaron
+      if (this._lastKey === key) return;
+      this._lastKey = key;
+
+      // Cancelar request anterior si sigue viva
+      try{ this._ctl && this._ctl.abort(); }catch(_){}
+      this._ctl = new AbortController();
+
+      // Fetch por IDs visibles
       const url = apiBase + (apiBase.includes('?') ? '&' : '?') + 'otrosCargos=byId';
       const u = new URL(url, location.origin);
       ids.forEach(id => u.searchParams.append("ids", id));
-      const res = await fetch(u.toString(), { cache:"no-store", mode:"cors" });
+      const res = await fetch(u.toString(), { cache:"no-store", mode:"cors", signal:this._ctl.signal });
       const data = await res.json().catch(()=>({byId:{}}));
+      if (this._ctl.signal.aborted) return; // no pintar si ya hay uno nuevo
       const map = data && data.byId ? data.byId : {};
       const total = ids.reduce((acc,id)=> acc + (Number(map[id])||0), 0);
       el.textContent = fmtMoney(total);
       if (typeof setLastUpdatedPago === "function") setLastUpdatedPago();
-      // cache para headers por ID_PAGO
       window._cargosByIdPago = Object.assign({}, map);
     }
   };
 
-  // Exponer por si se quiere forzar desde fuera
   window._PagoKPI = PagoKPI;
 
-  // Adjuntar observadores cuando la tabla esté lista
   function attach(){
     const t = (typeof pagoTable!=="undefined" && pagoTable) ? pagoTable : (typeof tablaPago!=="undefined" ? tablaPago : null);
     if(!t || typeof t.on!=="function") return false;
     if(t._kpiOCAttached) return true;
     const h = ()=> PagoKPI.schedule();
-    try{ t.on("dataLoaded", h); }catch(_){}
-    try{ t.on("dataFiltered", h); }catch(_){}
-    try{ t.on("rowSelectionChanged", h); }catch(_){}
     try{ t.on("dataProcessed", h); }catch(_){}
+    try{ t.on("dataFiltered",  h); }catch(_){}
+    try{ t.on("dataLoaded",    h); }catch(_){}
+    try{ t.on("rowSelectionChanged", h); }catch(_){}
     t._kpiOCAttached = true;
+    // Recálculo inmediato al adjuntar
     PagoKPI.schedule();
     return true;
   }
 
   (function wait(){
-    if(!attach()) setTimeout(wait, 300);
+    if(!attach()) setTimeout(wait, 200);
   })();
 })();
-
 /** =========================
  *  Navegación (overlay al cambiar de sección)
  *  ========================= */
