@@ -1,4 +1,4 @@
-<!DOCTYPE html> 
+<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
@@ -226,10 +226,38 @@
   #modalPago .field, #modalPago .field > .input { width: 100%; max-width: none; }
   #modalPago .cargo-row { grid-template-columns: 1fr 1fr 140px 32px !important; }
   #modalPago .cargo-row .cargo-codigo { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+
+  /* ==== Toast agrupación ==== */
+  .toast {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    display: none;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border: 1px solid #e5e7eb;
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 10px 24px rgba(2,8,23,.18);
+    z-index: 60;
+    font-weight: 700;
+  }
+  .toast.show { display: flex; }
+  .toast .spinner { width:16px;height:16px;border:2px solid #e5e7eb;border-top-color:#0FA47E;border-radius:50%; animation:spin .9s linear infinite }
+
 </style>
 
 </head>
 <body>
+
+
+<!-- Toast Agrupación -->
+<div id="toastGroup" class="toast" role="status" aria-live="polite">
+  <div class="spinner"></div>
+  <span id="toastText">Generando agrupación…</span>
+</div>
+
 
 <!-- ===== Login Section ===== -->
 <section id="secLogin" style="display:none;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0f172a10;">
@@ -1289,6 +1317,7 @@ function toggleGrouping(){
     if(btn) btn.innerHTML = '<i class="lucide-layers-2"></i> Desagrupar';
   }else{
     table.setGroupBy(false);
+      hideGroupToast();
     const btn = document.getElementById("btnAgrupar");
     if(btn) btn.innerHTML = '<i class="lucide-layers-2"></i> Agrupar por colaborador';
   }
@@ -2878,6 +2907,24 @@ function initPagoMassPay(force=false){
 (function(){
   let pagoGroupById = false;
   let otrosCargosById = {};
+    hideGroupToast();
+
+  function showGroupToast(msg){
+    try{
+      const el = document.getElementById("toastGroup");
+      if(!el) return;
+      const t = document.getElementById("toastText");
+      if(t && msg) t.textContent = msg;
+      el.classList.add("show");
+    }catch(e){}
+  }
+  function hideGroupToast(){
+    try{
+      const el = document.getElementById("toastGroup");
+      if(!el) return;
+      el.classList.remove("show");
+    }catch(e){}
+  }
 
   function getPagoTable(){
     try {
@@ -2887,7 +2934,8 @@ function initPagoMassPay(force=false){
     return null;
   }
 async function fetchOtrosCargos(ids){
-    if(!ids || !ids.length) { otrosCargosById = {}; return; }
+    if(!ids || !ids.length) { otrosCargosById = {};
+    hideGroupToast(); return; }
     const url = new URL(Config.api.leerFacturas);
     url.searchParams.set("otrosCargos", "byId");
     ids.forEach(id => url.searchParams.append("ids", id));
@@ -2897,6 +2945,7 @@ async function fetchOtrosCargos(ids){
       otrosCargosById = (json && json.byId) ? json.byId : {};
     } catch (e){
       otrosCargosById = {};
+    hideGroupToast();
     }
   }
 
@@ -2914,10 +2963,10 @@ async function fetchOtrosCargos(ids){
     if(pagoGroupById){
       const rows = table.getData("active") || [];
       const ids = Array.from(new Set(rows.map(r => String(r.ID_PAGO || "").trim()).filter(Boolean)));
-      /* fetch otros cargos async to avoid UI delay */
-      const needIds = ids.slice();
+      await fetchOtrosCargos(ids);
+
       table.setGroupBy(["ID_PAGO"]);
-      (async ()=>{ try{ await fetchOtrosCargos(needIds); table.redraw(true); }catch(e){} })();
+      hideGroupToast();
       table.setGroupHeader(function(value, count, data){
         const id = (value && String(value).trim()) || "(sin ID_PAGO)";
         const subtotal = (data || []).reduce((acc, r) => acc + (Number(r.Total) || 0), 0);
@@ -2933,6 +2982,7 @@ async function fetchOtrosCargos(ids){
       if(btn) btn.innerHTML = '<i class="lucide-layers-2"></i> Desagrupar ID_PAGO';
     }else{
       table.setGroupBy(false);
+      hideGroupToast();
       const btn = document.getElementById("btnPagoAgruparId");
       if(btn) btn.innerHTML = '<i class="lucide-layers-2"></i> Agrupar por ID_PAGO';
     }
@@ -2940,7 +2990,9 @@ async function fetchOtrosCargos(ids){
 
   function togglePagoGroupingById(){
     pagoGroupById = !pagoGroupById;
+    if(pagoGroupById){ showGroupToast('Generando agrupación…'); }
     applyPagoGroupingById();
+    if(!pagoGroupById){ hideGroupToast(); }
   }
 
   function handleGroupCheckboxClicks(){
