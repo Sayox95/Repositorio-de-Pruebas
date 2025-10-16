@@ -33,21 +33,22 @@ async function fetchOtrosCargosByIds(ids=[]) {
 }
 
 async function togglePagoGroupById(){
-  if(!window.pagoTable){ return; }
+  let t = window.pagoTable || (window.Tabulator && window.Tabulator.findTable ? (Tabulator.findTable('#tablaPago')[0]||null) : null);
+  if(!t){ return; }
   pagoGroupedById = !pagoGroupedById;
   const btn = document.getElementById("btnPagoAgruparIdPago");
   if(pagoGroupedById){
-    const rows = pagoTable.getData("active")||[];
+    const rows = t.getData("active")||[];
     const ids = Array.from(new Set(rows.map(r => String(r.ID_PAGO||'').trim()).filter(Boolean)));
     const map = await fetchOtrosCargosByIds(ids);
     window._cargosByIdPago = Object.assign({}, (window._cargosByIdPago||{}), map);
 
-    pagoTable.setGroupBy(["ID_PAGO"]);
-    pagoTable.setGroupHeader(formatPagoHeaderById);
+    t.setGroupBy(["ID_PAGO"]);
+    t.setGroupHeader(formatPagoHeaderById);
     if(btn) btn.innerHTML = '<i class="lucide-layers"></i> Desagrupar ID_PAGO';
   }else{
-    pagoTable.setGroupBy(false);
-    pagoTable.setGroupHeader(null);
+    t.setGroupBy(false);
+    t.setGroupHeader(null);
     if(btn) btn.innerHTML = '<i class="lucide-layers"></i> Agrupar por ID_PAGO';
   }
 }
@@ -2278,7 +2279,7 @@ function buildPagoTable(){
       { title:"Nombre del comercio", field:"Nombre del comercio", width:220, tooltip:true,
         formatter:(cell)=>{ const v=String(cell.getValue()??""); const m=28; return v.length>m? v.slice(0,m)+"…": v; } },
       { title:"Número de Factura", field:"Numero de Factura", width:150 },
-      { title:"ID_PAGO", field:"ID_PAGO", width:180 },
+      { title:"ID_PAGO", field:"ID_PAGO", width:180 , accessor:function(value,data,type,params,column){ return (data.ID_PAGO||data.IdPago||data.idPago||""); }},
       { title:"Enlace PDF", field:"Enlace PDF", width:110,
         formatter:(cell)=>{
           const r=cell.getRow().getData(); const v=cell.getValue()||r.Enlace||r.PDF||"";
@@ -2343,10 +2344,10 @@ function togglePagoGrouping(){
   if(!pagoTable) return;
   pagoGrouped = !pagoGrouped;
   if(pagoGrouped){
-    pagoTable.setGroupBy(["Identidad"]);
+    t.setGroupBy(["Identidad"]);
     const b = document.getElementById("btnPagoAgrupar"); if(b) b.innerHTML = '<i class="lucide-layers-2"></i> Desagrupar';
   }else{
-    pagoTable.setGroupBy(false);
+    t.setGroupBy(false);
     const b = document.getElementById("btnPagoAgrupar"); if(b) b.innerHTML = '<i class="lucide-layers-2"></i> Agrupar por colaborador';
   }
 }
