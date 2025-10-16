@@ -347,7 +347,7 @@
         <span id="lastUpdatedPago" class="last-updated" title="Última actualización">—</span>
         <button id="btnPagoActualizar" class="btn"><i class="lucide-rotate-cw"></i> Actualizar</button>
         <button id="btnPagoAgrupar" class="btn btn-ghost"><i class="lucide-layers-2"></i> Agrupar por colaborador</button>
-        <button id="btnPagoAgruparIdPago" class="btn btn-ghost"><i class="lucide-hash"></i> Agrupar por ID_PAGO</button>
+        <button id="btnPagoAgruparIdPago" class="btn btn-ghost" onclick="togglePagoGroupingByIdPago()"><i class="lucide-hash"></i> Agrupar por ID_PAGO</button>
         <button id="btnPagoExportXLSX" class="btn btn-ghost"><i class="lucide-download"></i> Excel</button>
         <button id="btnPagoAbrirModal" class="btn btn-primary hidden" disabled><i class="lucide-credit-card"></i> Pagar seleccionadas</button>
       </div>
@@ -2939,13 +2939,6 @@ function initPagoMassPay(force=false){
   });
   if(addCargo && !addCargo.dataset.bound){ addCargo.addEventListener("click", addCargoRow); addCargo.dataset.bound="1"; }
   if(confirm)  confirm.addEventListener("click", confirmarPago);
-
-  // Botón Agrupar por ID_PAGO
-  const btnIdPago = document.getElementById("btnPagoAgruparIdPago");
-  if(btnIdPago && !btnIdPago.dataset.bound){
-    btnIdPago.addEventListener("click", ()=>{ togglePagoGroupingByIdPago(); });
-    btnIdPago.dataset.bound = "1";
-  }
 }
 </script>
 
