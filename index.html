@@ -3171,6 +3171,32 @@ async function fetchOtrosCargos(ids){
     window.initPagoMassPay.__wrapped = true;
   }
 })();
+
+  // Delegated click for pagar button (ensures it's never "blocked")
+  (function(){
+    if (document.getElementById("tablaPago")) {
+      const root = document.getElementById("tablaPago");
+      if(!root.__bindPagar){
+        root.addEventListener("click", function(e){
+          const btn = e.target && e.target.closest && e.target.closest(".btn-pagar");
+          if(!btn) return;
+          e.stopPropagation();
+          e.preventDefault();
+          try{
+            const fila = parseInt(btn.getAttribute("data-fila"), 10);
+            const table = (Tabulator.findTable("#tablaPago")||[])[0];
+            if(!table || !fila) return;
+            const row = (table.getRows()||[]).find(r => (r.getData()?.fila) === fila);
+            if(!row) return;
+            table.deselectRow && table.deselectRow();
+            row.select && row.select();
+            openPagoModalSingle && openPagoModalSingle(row.getData());
+          }catch(_){}
+        }, {passive:false});
+        root.__bindPagar = true;
+      }
+    }
+  })();
 </script>
 
 </body>
