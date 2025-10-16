@@ -2563,21 +2563,8 @@ document.addEventListener("DOMContentLoaded", function(){
     if(elTotal) elTotal.textContent = fmtL(total);
   }
 
-  window._pagoResumen = { recomputePagoResumen, getSelectedSubtotal, readCargos, addCargoRow, generateIdPago, fmtL };
+  
 
-  if(typeof API !== "undefined"){
-    
-  }
-
-  window.openPagoModal = function(){
-    const el = document.getElementById("modalPago"); if(!el) return;
-    const dft = (typeof fmt!=="undefined" && fmt.dateISO) ? fmt.dateISO(new Date()) : new Date().toISOString().slice(0,10);
-    const f = document.getElementById("mpFechaPago"); if (f) f.value = dft;
-    const idp = document.getElementById("mpIdPago"); if (idp) idp.value = generateIdPago();
-    const list = document.getElementById("mpCargosList"); if(list){ list.innerHTML=""; }
-    recomputePagoResumen();
-    el.style.display = "grid";
-  };
   window.closePagoModal = function(){
     const el = document.getElementById("modalPago"); if(!el) return;
     el.style.display = "none";
