@@ -6,68 +6,7 @@
   <title>UTCD · Revisión de Facturas</title>
   <!-- Tabulator -->
   <link href="https://unpkg.com/tabulator-tables@6.2.5/dist/css/tabulator.min.css" rel="stylesheet">
-  <script src="https://unpkg.com/tabulator-tables@6.2.5/dist/js/tabulator.min.js">
-// === Agrupar por ID_PAGO en Pago (usa estrictamente el campo "ID_PAGO") ===
-let pagoGroupedById = false;
-function _fmtL(v){ return "L " + (Number(v)||0).toLocaleString("es-HN",{minimumFractionDigits:2, maximumFractionDigits:2}); }
-
-function formatPagoHeaderById(value, count, data){
-  const id = String(value||"").trim() || "(sin ID_PAGO)";
-  const sum = (data||[]).reduce((acc,r)=> acc + (Number(r.Total)||0), 0);
-  const cargosMap = (window._cargosByIdPago||{});
-  const otros = Number(cargosMap[id]||0);
-  return `${id} (${count}) · ${_fmtL(sum)}${otros>0?` + otros cargos ${_fmtL(otros)}`:''}`;
-}
-
-async function fetchOtrosCargosByIds_IDPAGO(ids){
-  if(!ids || !ids.length) return {};
-  try{
-    const base = (Config.api && Config.api.leerFacturas) ? Config.api.leerFacturas : "/api/leer";
-    const u = new URL(base + (base.includes('?')?'&':'?') + 'otrosCargos=byId', location.origin);
-    ids.forEach(id => u.searchParams.append('ids', id));
-    const res = await fetch(u.toString(), {cache:"no-store", mode:"cors"});
-    const j = await res.json().catch(()=>({byId:{}}));
-    return j.byId || {};
-  }catch(e){ return {}; }
-}
-
-async function _refreshOtrosCargosForVisibleGroups(t){
-  try{
-    const rows = t.getData("active") || [];
-    const ids = Array.from(new Set(rows.map(r => String(r.ID_PAGO||'').trim()).filter(Boolean)));
-    if(!ids.length) return;
-    const map = await fetchOtrosCargosByIds_IDPAGO(ids);
-    window._cargosByIdPago = Object.assign({}, (window._cargosByIdPago||{}), map);
-    t.redraw(true);
-  }catch(_){}
-}
-
-async function togglePagoGroupById(){
-  const t = (window.pagoTable) || (window.Tabulator && Tabulator.findTable ? (Tabulator.findTable('#tablaPago')[0]||null) : null);
-  if(!t) return;
-  pagoGroupedById = !pagoGroupedById;
-  const btn = document.getElementById("btnPagoAgruparIdPago");
-  if(pagoGroupedById){
-    t.setGroupBy(["ID_PAGO"]);
-    t.setGroupHeader(formatPagoHeaderById);
-    if(btn) btn.innerHTML = '<i class="lucide-layers"></i> Desagrupar ID_PAGO';
-    await _refreshOtrosCargosForVisibleGroups(t);
-    try{
-      // Auto-refresh al filtrar / procesar datos
-      t.off("dataFiltered", _refreshOtrosCargosForVisibleGroups); // evitar duplicados
-    }catch(_){}
-    try{ t.on("dataFiltered", ()=>_refreshOtrosCargosForVisibleGroups(t)); }catch(_){}
-    try{ t.on("dataProcessed", ()=>_refreshOtrosCargosForVisibleGroups(t)); }catch(_){}
-  }else{
-    t.setGroupBy(false);
-    t.setGroupHeader(null);
-    if(btn) btn.innerHTML = '<i class="lucide-layers"></i> Agrupar por ID_PAGO';
-    try{ t.off("dataFiltered", _refreshOtrosCargosForVisibleGroups); }catch(_){}
-    try{ t.off("dataProcessed", _refreshOtrosCargosForVisibleGroups); }catch(_){}
-  }
-}
-
-</script>
+  <script src="https://unpkg.com/tabulator-tables@6.2.5/dist/js/tabulator.min.js"></script>
   <!-- Flatpickr -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
@@ -405,8 +344,8 @@ async function togglePagoGroupById(){
       <div class="actions">
         <span id="lastUpdatedPago" class="last-updated" title="Última actualización">—</span>
         <button id="btnPagoActualizar" class="btn"><i class="lucide-rotate-cw"></i> Actualizar</button>
-        <button id="btnPagoAgrupar" class="btn btn-ghost"><i class="lucide-layers-2"></i> Agrupar por colaborador</button></button>
-        <button id="btnPagoAgruparIdPago" class="btn btn-ghost"><i class="lucide-layers"></i> Agrupar por ID_PAGO</button>
+        <button id="btnPagoAgrupar" class="btn btn-ghost"><i class="lucide-layers-2"></i> Agrupar por colaborador</button>
+        <button id="btnPagoAgruparIdPago" class="btn btn-ghost"><i class="lucide-layers-2"></i> Agrupar por ID_PAGO</button>
         <button id="btnPagoExportXLSX" class="btn btn-ghost"><i class="lucide-download"></i> Excel</button>
         <button id="btnPagoAbrirModal" class="btn btn-primary hidden" disabled><i class="lucide-credit-card"></i> Pagar seleccionadas</button>
       </div>
@@ -2293,7 +2232,6 @@ function buildPagoTable(){
       { title:"Nombre del comercio", field:"Nombre del comercio", width:220, tooltip:true,
         formatter:(cell)=>{ const v=String(cell.getValue()??""); const m=28; return v.length>m? v.slice(0,m)+"…": v; } },
       { title:"Número de Factura", field:"Numero de Factura", width:150 },
-      { title:"ID_PAGO", field:"ID_PAGO", width:200, headerTooltip:"ID del pago" },
       { title:"Enlace PDF", field:"Enlace PDF", width:110,
         formatter:(cell)=>{
           const r=cell.getRow().getData(); const v=cell.getValue()||r.Enlace||r.PDF||"";
@@ -2932,6 +2870,120 @@ function initPagoMassPay(force=false){
   if(addCargo && !addCargo.dataset.bound){ addCargo.addEventListener("click", addCargoRow); addCargo.dataset.bound="1"; }
   if(confirm)  confirm.addEventListener("click", confirmarPago);
 }
+
+/* ==== Agrupar por ID_PAGO (Pago) ========================================= */
+let pagoGroupByIdEnabled = false;
+const PagoOtrosCargosCache = {};
+
+function getPagoTable(){
+  try{
+    const arr = Tabulator.findTable("#tablaPago");
+    return (arr && arr[0]) || null;
+  }catch(_){ return null; }
+}
+
+async function fetchOtrosCargosByIds(ids=[]){
+  const need = ids.filter(id => id && (PagoOtrosCargosCache[id] == null));
+  if(!need.length) return;
+  const url = new URL(Config.api.leerFacturas);
+  url.searchParams.set("otrosCargos","byId");
+  need.forEach(id=> url.searchParams.append("ids", id));
+  try{
+    const resp = await fetch(url.toString(), {cache:"no-store"});
+    const json = await resp.json().catch(()=>({}));
+    if(json && json.ok && json.byId){
+      Object.keys(json.byId).forEach(id => {
+        PagoOtrosCargosCache[id] = Number(json.byId[id]) || 0;
+        document.querySelectorAll(`.oc-amt[data-idp="${CSS.escape(id)}"]`).forEach(el=>{
+          try{
+            el.textContent = new Intl.NumberFormat("es-HN",{minimumFractionDigits:2, maximumFractionDigits:2}).format(PagoOtrosCargosCache[id]||0);
+          }catch(_){
+            el.textContent = (PagoOtrosCargosCache[id]||0).toFixed(2);
+          }
+        });
+      });
+    }
+  }catch(_){}
+}
+
+function updatePagoGroupHeaders(){
+  const table = getPagoTable();
+  if(!table || !pagoGroupByIdEnabled) return;
+  const groups = table.getGroups ? table.getGroups() : [];
+  const ids = [];
+  for(const g of groups){
+    const id = String(g.getKey()||"").trim();
+    if(!id) continue; // omit groups sin ID_PAGO
+    const rows = g.getRows ? g.getRows() : [];
+    const subtotal = rows.reduce((acc,r)=> acc + (Number(r.getData()?.Total)||0), 0);
+    const count = rows.length;
+    ids.push(id);
+    const el = g.getElement ? g.getElement() : null;
+    if(!el) continue;
+    const titleEl = el.querySelector(".tabulator-group-title");
+    if(!titleEl) continue;
+    const subtotalTxt = new Intl.NumberFormat("es-HN",{minimumFractionDigits:2, maximumFractionDigits:2}).format(subtotal);
+    const otrosTxt = (PagoOtrosCargosCache[id] != null)
+      ? new Intl.NumberFormat("es-HN",{minimumFractionDigits:2, maximumFractionDigits:2}).format(PagoOtrosCargosCache[id]||0)
+      : "…";
+    titleEl.innerHTML = `
+      <label class="group-toggle" style="display:inline-flex; align-items:center; gap:8px;">
+        <input type="checkbox" class="group-select-idp" data-idp="${id}">
+        <span>${id} (${count}) · L ${subtotalTxt} + otros cargos L <span class="oc-amt" data-idp="${id}">${otrosTxt}</span></span>
+      </label>
+    `;
+  }
+  fetchOtrosCargosByIds(Array.from(new Set(ids)));
+}
+
+function togglePagoGroupById(){
+  const table = getPagoTable();
+  if(!table) return;
+  pagoGroupByIdEnabled = !pagoGroupByIdEnabled;
+  const btn = document.getElementById("btnPagoAgruparIdPago");
+  if(pagoGroupByIdEnabled){
+    try{ table.setGroupBy(["ID_PAGO"]); }catch(_){ table.setGroupBy && table.setGroupBy("ID_PAGO"); }
+    if(btn) btn.innerHTML = '<i class="lucide-layers-2"></i> Desagrupar ID_PAGO';
+    setTimeout(updatePagoGroupHeaders, 0);
+    try{
+      table.off && table.off("dataProcessed", updatePagoGroupHeaders);
+      table.on && table.on("dataProcessed", updatePagoGroupHeaders);
+    }catch(_){}
+  }else{
+    try{ table.setGroupBy(false); }catch(_){}
+    if(btn) btn.innerHTML = '<i class="lucide-layers-2"></i> Agrupar por ID_PAGO';
+  }
+}
+
+// Delegación: checkbox de grupo
+(function(){
+  const root = document.getElementById("tablaPago");
+  if(root){
+    root.addEventListener("change", (ev)=>{
+      const cb = ev.target.closest(".group-select-idp");
+      if(!cb) return;
+      const id = cb.getAttribute("data-idp") || "";
+      const table = getPagoTable();
+      if(!table || !id) return;
+      const rows = table.getRows ? table.getRows() : [];
+      for(const r of rows){
+        const d = r.getData ? r.getData() : null;
+        if(d && String(d.ID_PAGO||"").trim() === id){
+          try{ cb.checked ? r.select() : r.deselect(); }catch(_){}
+        }
+      }
+    }, {passive:true});
+  }
+})();
+
+// Wire botón
+(function(){
+  const btn = document.getElementById("btnPagoAgruparIdPago");
+  if(btn){
+    btn.addEventListener("click", (e)=>{ e.preventDefault(); togglePagoGroupById(); });
+  }
+})();
+/* ==== /Agrupar por ID_PAGO (Pago) ======================================== */
 </script>
 
 </body>
