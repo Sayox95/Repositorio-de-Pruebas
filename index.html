@@ -590,7 +590,7 @@ function normalizeRow(src){
     Total:     g(["Total Gastado","Total","TOTAL","VALOR","Valor","Importe","Monto"], 0),
     FechaRevision: g(["FechaRevision","Fecha de Revisión","Fecha de Revision","Fecha_Revision","Fecha_Revisión","Fecha Revisada","FechaRevisionISO"]),
     Estado:    g(["Estado","ESTADO","estado"], "Registrada"),
-    ID_PAGO: g(["ID_PAGO","ID-PAGO","IDPAGO","Id_Pago","IdPago","id_pago"]),
+    ID_PAGO:  g(["ID_PAGO","ID-PAGO","IDPAGO","Id_Pago","IdPago","id_pago"]),
   };
   return row;
 }
@@ -847,54 +847,20 @@ function buildTable(){
     pagination:false,
     reactiveData:false,
     groupStartOpen:false,
-    
-      
-      groupHeader:function(value, count, data, group){
-        try {
-          const current = (pagoTable && pagoTable.getGroupBy) ? pagoTable.getGroupBy() : null;
-          const isByPago = Array.isArray(current) && current.length && String(current[0])==="ID_PAGO";
-          const fmtL = (v)=> "L " + (Number(v)||0).toLocaleString("es-HN",{minimumFractionDigits:2, maximumFractionDigits:2});
-
-          if (isByPago) {
-            const id = String(value || "SIN ID_PAGO");
-            const sumaFact = (data||[]).reduce((acc,r)=> acc + (Number(r["Total Gastado"] ?? r.Total) || 0), 0);
-
-            let otros = 0;
-            try {
-              otros = Number((window._otrosById && window._otrosById[id]) || 0) || 0;
-            } catch (_e) {
-              otros = 0;
-            }
-
-            const key = id.replace(/"/g,"&quot;");
-            return `<label class="group-toggle">
-                      <input type="checkbox" class="group-select group-select-pago" data-group-key="${key}">
-                      <span>${id} (${count})</span>
-                    </label>
-                    <span class="kpi-mini">${fmtL(sumaFact)} + otros cargos ${fmtL(otros)}</span>`;
-          }
-
-          // Fallback (agrupación original por Identidad)
-          const nombre = (data && data[0] && (data[0].Nombre||data[0].Identidad)) || value;
-          const suma = (data||[]).reduce((acc,r)=> acc + (Number(r.Total)||0), 0);
-          const totalTxt = new Intl.NumberFormat("es-HN",{minimumFractionDigits:2, maximumFractionDigits:2}).format(suma);
-          const key = String(value ?? "").replace(/"/g,"&quot;");
-          return `<label class="group-toggle">
-                    <input type="checkbox" class="group-select group-select-pago" data-group-key="${key}">
-                    <span>${nombre} (${count})</span>
-                  </label>
-                  <span class="kpi-mini">L ${totalTxt}</span>`;
-        } catch (err) {
-          const key = String(value ?? "").replace(/"/g,"&quot;");
-          return `<label class="group-toggle">
-                    <input type="checkbox" class="group-select group-select-pago" data-group-key="${key}">
-                    <span>${String(value)}</span>
-                  </label>`;
-        }
-      },
-
-    columns:[      { title:"ID_PAGO", field:"ID_PAGO", width:200, visible:false },
-
+    groupHeader:function(value, count, data, group){
+      // value = Identidad
+      const nombre = (data && data[0] && (data[0].Nombre||data[0].Identidad)) || value;
+      const suma = (data||[]).reduce((acc,r)=> acc + (Number(r.Total)||0), 0);
+      const totalTxt = new Intl.NumberFormat("es-HN",{minimumFractionDigits:2, maximumFractionDigits:2}).format(suma);
+      // data-group-key: usamos value (Identidad) + un hash simple para evitar colisiones visuales
+      const key = String(value ?? "").replace(/"/g,"&quot;");
+      return `<label class="group-toggle">
+                <input type="checkbox" class="group-select-pago" data-group-key="${key}">
+                <span>${nombre} (${count})</span>
+              </label>
+              <span class="kpi-mini">L ${totalTxt}</span>`;
+    },
+    columns:[
       { formatter:"rowSelection", titleFormatter:"rowSelection", hozAlign:"center", headerSort:false, width:40 },
       { title:"Sector", field:"Sector", width:120 },
       { title:"Placa", field:"Placa", width:110 },
@@ -941,8 +907,7 @@ function buildTable(){
           return `<span class="${cls}" title="${title}"><span class="dot" style="background:${color}"></span>${v}</span>`;
       } }
 
-    ,
-      { title:"ID_PAGO", field:"ID_PAGO", width:200, visible:false }],
+    ],
     dataLoaded:()=>{ updateKpis(); },
     dataFiltered:()=>{ updateKpis(); },
     rowSelectionChanged:()=>{ updateButtons(); },
@@ -2242,15 +2207,14 @@ function buildPagoTable(){
     data: [], layout: "fitColumns", selectable: true, placeholder: "Sin datos",
     groupStartOpen:false,
     groupHeader:function(value, count, data, group){
-      try {
+      try{
         const current = (pagoTable && pagoTable.getGroupBy) ? pagoTable.getGroupBy() : null;
         const isByPago = Array.isArray(current) && current.length && String(current[0])==="ID_PAGO";
         const fmtL = (v)=> "L " + (Number(v)||0).toLocaleString("es-HN",{minimumFractionDigits:2, maximumFractionDigits:2});
-        if (isByPago) {
+        if(isByPago){
           const id = String(value || "SIN ID_PAGO");
           const sumaFact = (data||[]).reduce((acc,r)=> acc + (Number(r["Total Gastado"] ?? r.Total) || 0), 0);
-          let otros = 0;
-          try { otros = Number((window._otrosById && window._otrosById[id]) || 0) || 0; } catch(_) { otros = 0; }
+          let otros = 0; try{ otros = Number((window._otrosById && window._otrosById[id]) || 0) || 0; }catch(_){}
           const key = id.replace(/"/g,"&quot;");
           return `<label class="group-toggle">
                     <input type="checkbox" class="group-select-pago" data-group-key="${key}">
@@ -2258,7 +2222,7 @@ function buildPagoTable(){
                   </label>
                   <span class="kpi-mini">${fmtL(sumaFact)} + otros cargos ${fmtL(otros)}</span>`;
         }
-        // default: by Identidad
+        // default (por Identidad)
         const nombre = (data && data[0] && (data[0].Nombre||data[0].Identidad)) || value;
         const suma = (data||[]).reduce((acc,r)=> acc + (Number(r.Total)||0), 0);
         const totalTxt = new Intl.NumberFormat("es-HN",{minimumFractionDigits:2, maximumFractionDigits:2}).format(suma);
@@ -2268,7 +2232,7 @@ function buildPagoTable(){
                   <span>${nombre} (${count})</span>
                 </label>
                 <span class="kpi-mini">L ${totalTxt}</span>`;
-      } catch(err) {
+      }catch(_){
         const key = String(value ?? "").replace(/"/g,"&quot;");
         return `<label class="group-toggle">
                   <input type="checkbox" class="group-select-pago" data-group-key="${key}">
@@ -2931,15 +2895,9 @@ function initPagoMassPay(force=false){
   if(addCargo && !addCargo.dataset.bound){ addCargo.addEventListener("click", addCargoRow); addCargo.dataset.bound="1"; }
   if(confirm)  confirm.addEventListener("click", confirmarPago);
 }
-</script>
 
-</body>
-</html>
-
-
-// Cache para totales de Otros Cargos por ID_PAGO
+// === Agrupación por ID_PAGO en Pago ===
 window._otrosById = window._otrosById || {};
-
 async function fetchOtrosCargosByIds(ids){
   try{
     if(!ids || !ids.length) return {};
@@ -2953,18 +2911,26 @@ async function fetchOtrosCargosByIds(ids){
     return (j && j.byId) ? j.byId : {};
   }catch(_){ return {}; }
 }
+
 function togglePagoGroupingByIdPago(){
-  if(!pagoTable) return;
+  if(!window.pagoTable) return;
   const current = pagoTable.getGroupBy ? pagoTable.getGroupBy() : null;
   const isByPago = Array.isArray(current) && current.length && String(current[0])==="ID_PAGO";
   if(isByPago){
     pagoTable.setGroupBy(false);
     const b = document.getElementById("btnPagoAgruparIdPago"); if(b) b.innerHTML = '<i class="lucide-layers-2"></i> Agrupar por ID_PAGO';
   }else{
+    const rows = pagoTable ? (pagoTable.getData("active") || []) : [];
+    const ids = Array.from(new Set(rows.map(r => String(r.ID_PAGO||"").trim()).filter(Boolean)));
     pagoTable.setGroupBy(["ID_PAGO"]);
     const b = document.getElementById("btnPagoAgruparIdPago"); if(b) b.innerHTML = '<i class="lucide-layers-2"></i> Desagrupar';
+    fetchOtrosCargosByIds(ids).then(map => { window._otrosById = map||{}; try{ pagoTable.redraw(true); }catch(_){ } });
   }
 }
 document.addEventListener("DOMContentLoaded", function(){
   document.getElementById("btnPagoAgruparIdPago")?.addEventListener("click", togglePagoGroupingByIdPago);
 });
+
+</script>
+</body>
+</html>
