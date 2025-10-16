@@ -2303,9 +2303,8 @@ function buildPagoTable(){
           if(v==="Pagada") return "<span class=\"status-pill disabled\"><span class=\"dot\" style=\"background:" + (typeof estadoColor==='function'? estadoColor('Pagada'): '#0FA47E') + "\"></span>Pagada</span>";
           return "<button class=\"btn-pagar\" title=\"Pagar esta factura\">Pagar</button>";
         },
-        cellClick: (e, cell)=>{
-          const d = cell.getRow().getData();
-          if((d.Estado||"")==="Pagada") return;
+        cellClick: (e, cell)=>{ const d = cell.getRow().getData();
+          if((d.Estado||"")==="Pagada" || (d.Estado||"")==="Enviada") return;
           pagoTable.deselectRow && pagoTable.deselectRow();
           cell.getRow().select(); openPagoModalSingle(cell.getRow().getData());
         }
