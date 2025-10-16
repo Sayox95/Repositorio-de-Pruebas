@@ -847,25 +847,22 @@ function buildTable(){
     reactiveData:false,
     groupStartOpen:false,
     
+      
       groupHeader:function(value, count, data, group){
-        try{
+        try {
           const current = (pagoTable && pagoTable.getGroupBy) ? pagoTable.getGroupBy() : null;
           const isByPago = Array.isArray(current) && current.length && String(current[0])==="ID_PAGO";
-
-          // Format money helper
           const fmtL = (v)=> "L " + (Number(v)||0).toLocaleString("es-HN",{minimumFractionDigits:2, maximumFractionDigits:2});
 
-          if(isByPago){
+          if (isByPago) {
             const id = String(value || "SIN ID_PAGO");
-            // Sum of invoice totals in the group
             const sumaFact = (data||[]).reduce((acc,r)=> acc + (Number(r["Total Gastado"] ?? r.Total) || 0), 0);
 
-            // Otros cargos por ID_PAGO: intentar inferir desde filas (si vienen propagados), evitando duplicar
             let otros = 0;
-            let seen = false;
-            for(const r of (data||[])){
-              const oc = Number(r.OtrosCargos ?? r["Otros Cargos"] ?? r.Cargos ?? 0) || 0;
-              if(oc && !seen){ otros += oc; seen = true; } // contar una vez por ID_PAGO
+            try {
+              otros = Number((window._otrosById && window._otrosById[id]) || 0) || 0;
+            } catch (_e) {
+              otros = 0;
             }
 
             const key = id.replace(/"/g,"&quot;");
@@ -876,7 +873,7 @@ function buildTable(){
                     <span class="kpi-mini">${fmtL(sumaFact)} + otros cargos ${fmtL(otros)}</span>`;
           }
 
-          // === Fallback (agrupación original por Identidad) ===
+          // Fallback (agrupación original por Identidad)
           const nombre = (data && data[0] && (data[0].Nombre||data[0].Identidad)) || value;
           const suma = (data||[]).reduce((acc,r)=> acc + (Number(r.Total)||0), 0);
           const totalTxt = new Intl.NumberFormat("es-HN",{minimumFractionDigits:2, maximumFractionDigits:2}).format(suma);
@@ -886,8 +883,7 @@ function buildTable(){
                     <span>${nombre} (${count})</span>
                   </label>
                   <span class="kpi-mini">L ${totalTxt}</span>`;
-        }catch(_){
-          // Si algo falla, usa el valor simple
+        } catch (err) {
           const key = String(value ?? "").replace(/"/g,"&quot;");
           return `<label class="group-toggle">
                     <input type="checkbox" class="group-select group-select-pago" data-group-key="${key}">
@@ -895,6 +891,7 @@ function buildTable(){
                   </label>`;
         }
       },
+
     columns:[
       { formatter:"rowSelection", titleFormatter:"rowSelection", hozAlign:"center", headerSort:false, width:40 },
       { title:"Sector", field:"Sector", width:120 },
@@ -2911,6 +2908,23 @@ function initPagoMassPay(force=false){
 </body>
 </html>
 
+
+// Cache para totales de Otros Cargos por ID_PAGO
+window._otrosById = window._otrosById || {};
+
+async function fetchOtrosCargosByIds(ids){
+  try{
+    if(!ids || !ids.length) return {};
+    const base = (Config && Config.api && Config.api.leerFacturas) ? Config.api.leerFacturas : "";
+    if(!base) return {};
+    const q = (base.includes("?") ? "&" : "?") + "otrosCargos=byId&ids=" + encodeURIComponent(ids.join(","));
+    const url = base + q;
+    const res = await fetch(url, { cache:"no-store", mode:"cors" });
+    if(!res.ok) return {};
+    const j = await res.json().catch(()=>({}));
+    return (j && j.byId) ? j.byId : {};
+  }catch(_){ return {}; }
+}
 function togglePagoGroupingByIdPago(){
   if(!pagoTable) return;
   const current = pagoTable.getGroupBy ? pagoTable.getGroupBy() : null;
