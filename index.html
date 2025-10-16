@@ -606,7 +606,7 @@ function toDirectDriveUrl(url){
     const m2 = u.match(/[?&]id=([\w-]+)/);
     if(m2 && m2[1]) return `https://drive.google.com/uc?export=download&id=${m2[1]}`;
     return url;
-  }catch(_){ return url; }
+  } catch (e){ return url; }
 }
 
 /** =========================
@@ -614,7 +614,7 @@ function toDirectDriveUrl(url){
  *  ========================= */
 const API = { _facturasCtl:null,
   async getFacturas(){
-    if(this._facturasCtl) try{ this._facturasCtl.abort(); }catch(_){}
+    if(this._facturasCtl) try{ this._facturasCtl.abort(); } catch (e){}
     const ctl = new AbortController();
     this._facturasCtl = ctl;
     const res = await fetch(Config.api.leerFacturas, {cache:"no-store", mode:"cors", signal: ctl.signal});
@@ -818,9 +818,9 @@ async function refreshAfterEstado(){
     const dr2 = document.getElementById("fFechaRev")? document.getElementById("fFechaRev")._range : null;
     const arr = await API.getFacturas();
     State.raw = arr;
-    try{ sectorMS.setItems(Array.from(new Set(State.raw.map(r=>r.Sector).filter(Boolean)))); }catch(_){ }
-    try{ estadoMS.setItems(getEstadoOptions()); }catch(_){ }
-    try{ sectorMS.select(currentSector); estadoMS.select(currentEstado); }catch(_){ }
+    try{ sectorMS.setItems(Array.from(new Set(State.raw.map(r=>r.Sector).filter(Boolean)))); } catch (e){ }
+    try{ estadoMS.setItems(getEstadoOptions()); } catch (e){ }
+    try{ sectorMS.select(currentSector); estadoMS.select(currentEstado); } catch (e){ }
     if(document.getElementById("fNombre")) document.getElementById("fNombre").value = qNombre;
     if(document.getElementById("fPlaca"))  document.getElementById("fPlaca").value = qPlaca;
     document.getElementById("fNumero").value = qNum;
@@ -828,9 +828,9 @@ async function refreshAfterEstado(){
     if(document.getElementById("fFechaRev")) document.getElementById("fFechaRev")._range = dr2;
     if(table){ await table.replaceData(State.filtered); }
     updateKpis();
-    try{ updateKpisRevRange(); }catch(_){}
+    try{ updateKpisRevRange(); } catch (e){}
     setLastUpdatedNow();
-  }catch(_){
+  } catch (e){
   }finally{
     overlay.hide();
   }
@@ -1058,7 +1058,7 @@ function updateKpis(){
   $("#kpiPagadas").textContent   = pagadas;
   $("#kpiAnuladas").textContent  = anuladas;
   updateButtons();
-  try{ updateKpisRevRange(); }catch(_){}
+  try{ updateKpisRevRange(); } catch (e){}
 }
 
 function updateKpisRevRange(){
@@ -1078,7 +1078,7 @@ function updateKpisRevRange(){
   }
   wrap.style.display = "block";
   countEl.textContent = String(cnt);
-  try{ sumEl.textContent = new Intl.NumberFormat("es-HN",{minimumFractionDigits:2, maximumFractionDigits:2}).format(sum); }catch(_){ sumEl.textContent = sum.toFixed(2); }
+  try{ sumEl.textContent = new Intl.NumberFormat("es-HN",{minimumFractionDigits:2, maximumFractionDigits:2}).format(sum); } catch (e){ sumEl.textContent = sum.toFixed(2); }
 }
 
 /** =========================
@@ -1182,7 +1182,7 @@ function applyFilters(){
   const doReplace = ()=>{
     const maybePromise = table.replaceData(State.filtered);
     if(maybePromise && typeof maybePromise.then === "function"){
-      maybePromise.then(()=>{ updateKpis(); updateButtons(); try{ updateKpisRevRange(); }catch(_){ } }).catch(()=>{ updateKpis(); updateButtons(); try{ updateKpisRevRange(); }catch(_){ } });
+      maybePromise.then(()=>{ updateKpis(); updateButtons(); try{ updateKpisRevRange(); } catch (e){ } }).catch(()=>{ updateKpis(); updateButtons(); try{ updateKpisRevRange(); } catch (e){ } });
     }else{
       // fallback si la versión de Tabulator no retorna promesa
       setTimeout(()=>{ updateKpis(); updateButtons(); }, 0);
@@ -1294,7 +1294,6 @@ function toggleGrouping(){
   }
 }
 
-
 /** =========================
  *  Navegación (overlay al cambiar de sección)
  *  ========================= */
@@ -1395,7 +1394,7 @@ async function loadProcesosOptions(){
     async function cargarPlacas(){
   overlay.show("Cargando placas…");
   // cancelar carga previa si existe
-  try{ Placas.controller?.abort(); }catch(_){}
+  try{ Placas.controller?.abort(); } catch (e){}
   const __ctl = new AbortController();
   Placas.controller = __ctl;
   try{
@@ -1452,14 +1451,14 @@ async function loadProcesosOptions(){
       document.getElementById("btnPlacasLimpiar").addEventListener("click", limpiarFiltrosPlacas);
       const selSec = document.getElementById("fPlacasSector"); if(selSec){ selSec.addEventListener("change", ()=>{ aplicarFiltrosPlacas(); if(Placas.table) Placas.table.replaceData(Placas.filtered); actualizarKpisPlacas(); }); }
       document.getElementById("fPlacasEstado").addEventListener("change", ()=>{ aplicarFiltrosPlacas(); Placas.table.replaceData(Placas.filtered); actualizarKpisPlacas();
-    try{ if(Placas.table){ const cols=Placas.table.getColumns(); const col=(cols||[]).find(c=>c.getField && c.getField()==='Sector'); if(col){ col.updateDefinition({ editor:'list', editorParams:function(){ return {values:getUniqueSectors()}; }, cellEdited:onSectorEdited }); } } }catch(_){ } });
+    try{ if(Placas.table){ const cols=Placas.table.getColumns(); const col=(cols||[]).find(c=>c.getField && c.getField()==='Sector'); if(col){ col.updateDefinition({ editor:'list', editorParams:function(){ return {values:getUniqueSectors()}; }, cellEdited:onSectorEdited }); } } } catch (e){ } });
       document.getElementById("fPlacasPlaca").addEventListener("input", ()=>{ aplicarFiltrosPlacas(); Placas.table.replaceData(Placas.filtered); actualizarKpisPlacas();
-    try{ if(Placas.table){ const cols=Placas.table.getColumns(); const col=(cols||[]).find(c=>c.getField && c.getField()==='Sector'); if(col){ col.updateDefinition({ editor:'list', editorParams:function(){ return {values:getUniqueSectors()}; }, cellEdited:onSectorEdited }); } } }catch(_){ } });
+    try{ if(Placas.table){ const cols=Placas.table.getColumns(); const col=(cols||[]).find(c=>c.getField && c.getField()==='Sector'); if(col){ col.updateDefinition({ editor:'list', editorParams:function(){ return {values:getUniqueSectors()}; }, cellEdited:onSectorEdited }); } } } catch (e){ } });
       document.getElementById("fPlacasNombre").addEventListener("input", ()=>{ aplicarFiltrosPlacas(); Placas.table.replaceData(Placas.filtered); actualizarKpisPlacas();
-    try{ if(Placas.table){ const cols=Placas.table.getColumns(); const col=(cols||[]).find(c=>c.getField && c.getField()==='Sector'); if(col){ col.updateDefinition({ editor:'list', editorParams:function(){ return {values:getUniqueSectors()}; }, cellEdited:onSectorEdited }); } } }catch(_){ } });
+    try{ if(Placas.table){ const cols=Placas.table.getColumns(); const col=(cols||[]).find(c=>c.getField && c.getField()==='Sector'); if(col){ col.updateDefinition({ editor:'list', editorParams:function(){ return {values:getUniqueSectors()}; }, cellEdited:onSectorEdited }); } } } catch (e){ } });
     }
     actualizarKpisPlacas();
-    try{ if(Placas.table){ const cols=Placas.table.getColumns(); const col=(cols||[]).find(c=>c.getField && c.getField()==='Sector'); if(col){ col.updateDefinition({ editor:'list', editorParams:function(){ return {values:getUniqueSectors()}; }, cellEdited:onSectorEdited }); } } }catch(_){ }
+    try{ if(Placas.table){ const cols=Placas.table.getColumns(); const col=(cols||[]).find(c=>c.getField && c.getField()==='Sector'); if(col){ col.updateDefinition({ editor:'list', editorParams:function(){ return {values:getUniqueSectors()}; }, cellEdited:onSectorEdited }); } } } catch (e){ }
     fillSectorOptions();
     fillSectorFilterOptions();
     document.getElementById("placasNotice").style.display = placasEndpointsReady()? "none":"inline-block";
@@ -1470,7 +1469,7 @@ async function loadProcesosOptions(){
     overlay.hide();
   }
 
-  try{ wirePlacaLiveValidation(); }catch(_){}
+  try{ wirePlacaLiveValidation(); } catch (e){}
 
 }
 function aplicarFiltrosPlacas(){
@@ -1503,7 +1502,7 @@ document.getElementById("fPlacasEstado").value = "";
   aplicarFiltrosPlacas();
   if(Placas.table) Placas.table.replaceData(Placas.filtered);
   actualizarKpisPlacas();
-    try{ if(Placas.table){ const cols=Placas.table.getColumns(); const col=(cols||[]).find(c=>c.getField && c.getField()==='Sector'); if(col){ col.updateDefinition({ editor:'list', editorParams:function(){ return {values:getUniqueSectors()}; }, cellEdited:onSectorEdited }); } } }catch(_){ }
+    try{ if(Placas.table){ const cols=Placas.table.getColumns(); const col=(cols||[]).find(c=>c.getField && c.getField()==='Sector'); if(col){ col.updateDefinition({ editor:'list', editorParams:function(){ return {values:getUniqueSectors()}; }, cellEdited:onSectorEdited }); } } } catch (e){ }
 }
 function toggleFormPlaca(show){ document.getElementById("placasFormWrap").style.display = show? "block":"none"; }
 async function guardarNuevaPlaca(){
@@ -1584,13 +1583,13 @@ async function onPlacaEdited(cell){
 
   // Helper para revertir sin re-disparar eventos y mostrar mensaje
   function revertWithMessage(msg){
-    try{ if (typeof cell.restoreOldValue === "function") { cell.restoreOldValue(); } else { cell.setValue(before, true); } }catch(_){}
-    try{ if (typeof cell.cancelEdit === "function") cell.cancelEdit(); }catch(_){}
+    try{ if (typeof cell.restoreOldValue === "function") { cell.restoreOldValue(); } else { cell.setValue(before, true); } } catch (e){}
+    try{ if (typeof cell.cancelEdit === "function") cell.cancelEdit(); } catch (e){}
     // Usar toast no bloqueante si existe; de lo contrario alert
     try{
       if (typeof quickToast === "function") { quickToast(msg || "Valor inválido"); }
       else { alert(msg || "Valor inválido"); }
-    }catch(_){
+    } catch (e){
       alert(msg || "Valor inválido");
     }
   }
@@ -1634,7 +1633,7 @@ async function onPlacaEdited(cell){
     });
     const ok = res.ok;
     let out = {};
-    try{ out = await res.json(); }catch(_){}
+    try{ out = await res.json(); } catch (e){}
     if(!ok || (out && out.error)){
       overlay.hide();
       revertWithMessage(out && out.error ? out.error : "No fue posible actualizar la placa.");
@@ -1645,7 +1644,7 @@ async function onPlacaEdited(cell){
     try{
       const row = Placas.data.find(r => String(r.IDvehiculo||"") === String(currentRow.IDvehiculo||""));
       if(row){ row.Placa = candidate; }
-    }catch(_){}
+    } catch (e){}
 
     // Confirmación rápida
     overlay.show("✅ Placa actualizada");
@@ -1692,18 +1691,18 @@ document.addEventListener("change", (ev)=>{
   for(const g of groups){
     try{
       if(String(g.getKey ? g.getKey() : g.key) === String(key)){ target = g; break; }
-    }catch(_){}
+    } catch (e){}
   }
   if(!target) return;
 
   const rows = target.getRows ? target.getRows() : [];
   if(chk.checked){
-    rows.forEach(r => { try{ r.select && r.select(); }catch(_){ } });
+    rows.forEach(r => { try{ r.select && r.select(); } catch (e){ } });
   }else{
-    rows.forEach(r => { try{ r.deselect && r.deselect(); }catch(_){ } });
+    rows.forEach(r => { try{ r.deselect && r.deselect(); } catch (e){ } });
   }
   // refrescar botones por si depende de selección
-  try{ updateButtons(); }catch(_){}
+  try{ updateButtons(); } catch (e){}
 });
 
 // Selección masiva por grupo (Pago)
@@ -1716,16 +1715,16 @@ document.addEventListener("change", (ev)=>{
   for(const g of groups){
     try{
       if(String(g.getKey ? g.getKey() : g.key) === String(key)){ target = g; break; }
-    }catch(_){}
+    } catch (e){}
   }
   if(!target) return;
   const rows = target.getRows ? target.getRows() : [];
   if(chk.checked){
-    rows.forEach(r => { try{ r.select && r.select(); }catch(_){ } });
+    rows.forEach(r => { try{ r.select && r.select(); } catch (e){ } });
   }else{
-    rows.forEach(r => { try{ r.deselect && r.deselect(); }catch(_){ } });
+    rows.forEach(r => { try{ r.deselect && r.deselect(); } catch (e){ } });
   }
-  try{ updatePagoButtonVisibility(); }catch(_){}
+  try{ updatePagoButtonVisibility(); } catch (e){}
 });
 /** =========================
  *  Bootstrap
@@ -1900,7 +1899,7 @@ function wirePlacaLiveValidation(){
   function existsDuplicate(cleanOnly){
     try{
       return (Placas.data||[]).some(r => normalizeAlnum(String((r.Placa||r.PLACA||'')).replace(/_/g,'')) === cleanOnly);
-    }catch(_){ return false; }
+    } catch (e){ return false; }
   }
   function isValidNow(cleanOnly){
     if(cleanOnly.length === 0) return false;
@@ -1956,7 +1955,7 @@ function wirePlacaLiveValidation(){
     if(formatted !== before){
       inp.value = formatted;
       const end = formatted.length;
-      try{ inp.setSelectionRange(end,end); }catch(_){}
+      try{ inp.setSelectionRange(end,end); } catch (e){}
     }
     updateLive();
   });
@@ -1983,7 +1982,7 @@ function wirePlacaLiveValidation(){
         const p = table.replaceData(rows);
         if (p && typeof p.then === "function") await p;
       }catch(e){
-        try{ table.setData(rows); }catch(_){}
+        try{ table.setData(rows); } catch (e){}
       }
     }
     
@@ -2037,9 +2036,9 @@ async function authMe(){
     const res = await fetch(Auth.me, { method: "GET", cache:"no-store" });
     if(!res.ok) return null;
     return await res.json();
-  }catch{ return null; }
+  } catch (e){ return null; }
 }
-async function authLogout(){ try{ await fetch(Auth.logout, { method:"POST" }); }catch{} }
+async function authLogout(){ try{ await fetch(Auth.logout, { method:"POST" }); } catch (e){} }
 
 function showLogin(){ const app=document.getElementById("appShell"); if(app) app.style.display="none"; const s=document.getElementById("secLogin"); if(s) s.style.display="flex"; }
 function showApp(){ const s=document.getElementById("secLogin"); if(s) s.style.display="none"; const app=document.getElementById("appShell"); if(app) app.style.display="block"; }
@@ -2058,7 +2057,7 @@ function showApp(){ const s=document.getElementById("secLogin"); if(s) s.style.d
       btn.disabled = true;
       await authLogin(user, pass);
       showApp();
-      try{ navigateTo('inicio'); }catch(_){}
+      try{ navigateTo('inicio'); } catch (e){}
     }catch(e){
       if(err){ err.textContent = "Credenciales inválidas o usuario inactivo."; err.style.display = "inline"; }
     }finally{ btn.disabled = false; }
@@ -2134,7 +2133,7 @@ async function doLogout(){ await authLogout(); showLogin(); }
       btn.disabled = true;
       btn.innerHTML = '<span class="spinner"></span> Cerrando…';
       await fetch('/api/auth/logout', { method:'POST' });
-    }catch(_){}
+    } catch (e){}
     location.reload();
   });
 })();
@@ -2260,7 +2259,7 @@ function buildPagoTable(){
   pagoTable.on("tableBuilt", function(){
     pagoTableReady = true;
     if(pagoPendingData){
-      try{ pagoTable.replaceData(pagoPendingData); }catch(_){}
+      try{ pagoTable.replaceData(pagoPendingData); } catch (e){}
       pagoPendingData = null;
       updatePagoKpis();
     }
@@ -2313,13 +2312,13 @@ if (typeof API !== "undefined") {
       if(/^https?:\/\//i.test(base)) return new URL(base);
       if(base.startsWith("/") && location.origin && /^https?:/i.test(location.origin)) return new URL(location.origin + base);
       return new URL(base, location.origin || undefined);
-    }catch(_){
+    } catch (e){
       return new URL(base, "http://localhost");
     }
   };
   const _origGet = API.getFacturas?.bind(API);
   API.getFacturas = async function(opts = {}){
-    if(this._facturasCtl) try{ this._facturasCtl.abort(); }catch(_){}
+    if(this._facturasCtl) try{ this._facturasCtl.abort(); } catch (e){}
     const ctl = new AbortController();
     this._facturasCtl = ctl;
 
@@ -2344,7 +2343,7 @@ if (typeof API !== "undefined") {
       if(!fila){ errs.push("Fila sin 'fila' real"); continue; }
       const url = (Config && Config.api && Config.api.guardar) ? Config.api.guardar : "/api/guardar";
       const res = await fetch(url, { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ fondoPeriodo, fechaPago, fila }) });
-      let json=null; try{ json=await res.json(); }catch(_){}
+      let json=null; try{ json=await res.json(); } catch (e){}
       if(!res.ok || !json || json.status!=="OK"){ errs.push("Fallo fila " + fila + ": " + (json && json.message || res.status)); }
     }
     if(errs.length) throw new Error(errs.join(" · "));
@@ -2390,7 +2389,7 @@ async function cargarPago(){
     const TARGET = new Set(["Revisada","Pagada"]);
 
     if (typeof API!=="undefined" && typeof API.getFacturas === "function") {
-      try { arr = await API.getFacturas({ estados: ["Revisada","Pagada"] }); } catch(_){ arr = null; }
+      try { arr = await API.getFacturas({ estados: ["Revisada","Pagada"] }); } catch (e){ arr = null; }
     }
     let data = Array.isArray(arr) ? arr : [];
 
@@ -2423,8 +2422,8 @@ async function cargarPago(){
 
 // ========= Wire-up =========
 document.addEventListener("DOMContentLoaded", function(){
-  try{ pagoSectorMS = createMultiSelect("#msPagoSector", "Sector", applyPagoFilters); }catch(_){}
-  try{ pagoEstadoMS = createMultiSelect("#msPagoEstado", "Estado", applyPagoFilters); }catch(_){}
+  try{ pagoSectorMS = createMultiSelect("#msPagoSector", "Sector", applyPagoFilters); } catch (e){}
+  try{ pagoEstadoMS = createMultiSelect("#msPagoEstado", "Estado", applyPagoFilters); } catch (e){}
 
   if (typeof flatpickr !== "undefined") {
     flatpickr("#fPagoFecha", {
@@ -2588,7 +2587,7 @@ document.addEventListener("DOMContentLoaded", function(){
         el.style.transform = "translateY(8px)";
         setTimeout(()=>{ el.remove(); }, 300);
       }, timeoutMs);
-    }catch(_){ alert(msg); }
+    } catch (e){ alert(msg); }
   }
 })();
 
@@ -2600,7 +2599,7 @@ function getPagoTable(){
   try{
     const arr = Tabulator.findTable("#tablaPago");
     return (arr && arr.length) ? arr[0] : null;
-  }catch(_){ return null; }
+  } catch (e){ return null; }
 }
 
 function updatePagoButtonVisibility(){
@@ -2884,23 +2883,10 @@ function initPagoMassPay(force=false){
     try {
       const arr = Tabulator.findTable("#tablaPago");
       if (arr && arr.length) return arr[0];
-    } catch(_){}
+    } catch (e){}
     return null;
   }
-
-  async function ensureIdPagoColumn(table){
-    try{
-      if(!table) table = getPagoTable();
-      if(!table) return;
-      const exists = !!table.getColumn("ID_PAGO");
-      if(!exists){
-        const res = table.addColumn({ title:"ID_PAGO", field:"ID_PAGO", width: 220, headerSort:true, visible:true });
-        if(res && typeof res.then === "function"){ try{ await res; }catch(_){} }
-      }
-    }catch(_){}
-  }
-
-  async function fetchOtrosCargos(ids){
+async function fetchOtrosCargos(ids){
     if(!ids || !ids.length) { otrosCargosById = {}; return; }
     const url = new URL(Config.api.leerFacturas);
     url.searchParams.set("otrosCargos", "byId");
@@ -2909,7 +2895,7 @@ function initPagoMassPay(force=false){
       const resp = await fetch(url.toString(), { cache:"no-store" });
       const json = await resp.json();
       otrosCargosById = (json && json.byId) ? json.byId : {};
-    }catch(_){
+    } catch (e){
       otrosCargosById = {};
     }
   }
@@ -2917,13 +2903,13 @@ function initPagoMassPay(force=false){
   function fmtMoneyHN(n){
     const v = Number(n || 0);
     try{ return new Intl.NumberFormat("es-HN",{minimumFractionDigits:2,maximumFractionDigits:2}).format(v); }
-    catch(_){ return (v || 0).toFixed(2); }
+    catch (e){ return (v || 0).toFixed(2); }
   }
 
   async function applyPagoGroupingById(){
     const table = getPagoTable();
     if(!table) return;
-    await ensureIdPagoColumn(table); // <-- asegura la columna antes de agrupar
+     // <-- asegura la columna antes de agrupar
 
     if(pagoGroupById){
       const rows = table.getData("active") || [];
@@ -2974,16 +2960,16 @@ function initPagoMassPay(force=false){
           if(v === id || (!v && id === "(sin ID_PAGO)")){
             if(shouldSelect) r.select(); else r.deselect();
           }
-        }catch(_){}
+        } catch (e){}
       });
     }, {passive:true});
+
   }
 
   async function initWhenReady(){
     const t = getPagoTable();
     const btn = document.getElementById("btnPagoAgruparId");
     if(t && btn){
-      await ensureIdPagoColumn(t);  // <-- la columna estará visible al entrar
       btn.addEventListener("click", togglePagoGroupingById);
       handleGroupCheckboxClicks();
       // Reaplicar agrupación tras filtros/updates si está activo
