@@ -120,6 +120,37 @@ function bindEnviadasButton(){
   };
 })();
 
+
+// ====== Robust wiring for Enviadas visibility ======
+(function ensureEnviadasWiring(){
+  let tries = 0;
+  const iv = setInterval(()=>{
+    try{
+      const table = (typeof getPagoTable==="function") ? getPagoTable() : null;
+      if(table){
+        table.off && table.off("rowSelectionChanged", updateEnviadasButtonVisibility);
+        table.on("rowSelectionChanged", updateEnviadasButtonVisibility);
+        table.off && table.off("dataLoaded", updateEnviadasButtonVisibility);
+        table.on("dataLoaded", updateEnviadasButtonVisibility);
+        table.off && table.off("renderComplete", updateEnviadasButtonVisibility);
+        table.on("renderComplete", updateEnviadasButtonVisibility);
+        bindEnviadasButton();
+        updateEnviadasButtonVisibility();
+        clearInterval(iv);
+      } else if (++tries > 20){
+        clearInterval(iv);
+      }
+    }catch(_){ clearInterval(iv); }
+  }, 400);
+
+  // Fallback: clicks dentro de la tabla forzarán una actualización
+  document.addEventListener("click", function(e){
+    if(e.target && e.target.closest && e.target.closest("#tablaPago .tabulator-row")){
+      setTimeout(()=>{ try{ updateEnviadasButtonVisibility(); }catch(_){}} , 0);
+    }
+  }, {passive:true});
+})();
+
 </script>
   <!-- Flatpickr -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
