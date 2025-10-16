@@ -403,6 +403,7 @@
         <button id="btnPagoActualizar" class="btn"><i class="lucide-rotate-cw"></i> Actualizar</button>
         <button id="btnPagoAgrupar" class="btn btn-ghost"><i class="lucide-layers-2"></i> Agrupar por colaborador</button>
         <button id="btnPagoAgruparId" class="btn btn-ghost"><i class="lucide-layers-2"></i> Agrupar por ID_PAGO</button>
+        <button id="btnMarcarLiquidada" class="btn btn-primary hidden" disabled><i class="lucide-check-circle"></i> Marcar como Liquidada</button>
         <button id="btnPagoExportXLSX" class="btn btn-ghost"><i class="lucide-download"></i> Excel</button>
         <button id="btnPagoAbrirModal" class="btn btn-primary hidden" disabled><i class="lucide-credit-card"></i> Pagar seleccionadas</button>
       </div>
@@ -1782,7 +1783,7 @@ document.addEventListener("change", (ev)=>{
   }else{
     rows.forEach(r => { try{ r.deselect && r.deselect(); } catch (e){ } });
   }
-  try{ updatePagoButtonVisibility(); } catch (e){}
+  try{ updatePagoButtonVisibility(); updateLiquidadaButtonVisibility(); } catch (e){}
 });
 /** =========================
  *  Bootstrap
@@ -2423,6 +2424,7 @@ function applyPagoFilters(){
   if(!pagoTable) return;
   const list = Pago.filtered;
   const maybe = pagoTable.replaceData(list);
+  setTimeout(updateLiquidadaButtonVisibility, 0);
   if(maybe && typeof maybe.then === "function"){ maybe.then(updatePagoKpis); } else { setTimeout(updatePagoKpis,0); }
 }
 
@@ -2848,7 +2850,7 @@ async function confirmarPago(){
       const modal = document.getElementById("modalPago"); if(modal) modal.style.display = "none";
       
       if(table.deselectRow) table.deselectRow();
-      updatePagoButtonVisibility();
+      updatePagoButtonVisibility(); updateLiquidadaButtonVisibility();
       return;
     }
 
@@ -2883,7 +2885,7 @@ async function confirmarPago(){
     const modal = document.getElementById("modalPago"); if(modal) modal.style.display = "none";
     
     if(table.deselectRow) table.deselectRow();
-    updatePagoButtonVisibility();
+    updatePagoButtonVisibility(); updateLiquidadaButtonVisibility();
 
   }catch(e){
     alert("No se pudo completar el pago. " + (e && e.message ? e.message : ""));
@@ -2915,9 +2917,12 @@ function initPagoMassPay(force=false){
 
   // Eventos
   table.on("rowSelectionChanged", ()=>{
-    updatePagoButtonVisibility();
+    updateLiquidadaButtonVisibility();
+    updatePagoButtonVisibility(); updateLiquidadaButtonVisibility();
   });
   btn.addEventListener("click", openPagoModalForSelection);
+  bindLiquidadaButton();
+  setTimeout(updateLiquidadaButtonVisibility, 0);
 
   // Controles del modal
   const cancelBtn = document.getElementById("mpCancelar");
@@ -2929,6 +2934,76 @@ function initPagoMassPay(force=false){
   if(addCargo && !addCargo.dataset.bound){ addCargo.addEventListener("click", addCargoRow); addCargo.dataset.bound="1"; }
   if(confirm)  confirm.addEventListener("click", confirmarPago);
 }
+
+
+  // === Marcar como Liquidada (de Pagada -> Liquidada) ===
+  function getPagoTable(){ try{ const t = Tabulator.findTable("#tablaPago"); return (t && t.length)? t[0] : null; }catch(e){ return null; } }
+
+  function eligibleLiquidar(rows){
+    return (rows||[]).filter(r => (String(r.Estado||'').trim().toLowerCase() === 'pagada') && (r.fila || r._fila));
+  }
+
+  function updateLiquidadaButtonVisibility(){
+    const table = getPagoTable();
+    const btn = document.getElementById("btnMarcarLiquidada");
+    if(!table || !btn) return;
+    const sel = table.getSelectedData ? table.getSelectedData() : [];
+    const elig = eligibleLiquidar(sel);
+    if(elig.length){
+      btn.classList.remove("hidden");
+      btn.disabled = false;
+    }else{
+      btn.disabled = true;
+      btn.classList.add("hidden");
+    }
+  }
+
+  async function marcarSeleccionComoLiquidada(){
+    const table = getPagoTable();
+    const btn = document.getElementById("btnMarcarLiquidada");
+    if(!table || !btn) return;
+    const sel = table.getSelectedData ? table.getSelectedData() : [];
+    const elig = eligibleLiquidar(sel);
+    if(!elig.length){ return; }
+
+    if(!confirm(`Cambiar ${elig.length} factura(s) de "Pagada" a "Liquidada"?`)) return;
+
+    try{
+      if(typeof overlay!=="undefined") overlay.show("Marcando como Liquidada…");
+      const url = (Config && Config.api && Config.api.guardar) ? Config.api.guardar : "/api/guardar";
+
+      for(const r of elig){
+        const fila = r.fila || r._fila;
+        const payload = { actualizarEstado: true, fila, nuevoEstado: "Liquidada" };
+        const res = await fetch(url, { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(payload) });
+        const j = await res.json().catch(()=>({status:"ERROR"}));
+        if(!res.ok || j.status!=="OK"){
+          throw new Error(j && j.message ? j.message : ("HTTP " + res.status));
+        }
+        // Optimista: actualizar fila en UI
+        const rowObj = (table.getRows()||[]).find(rr => (rr.getData()?.fila) === fila);
+        if(rowObj) rowObj.update({ Estado: "Liquidada" });
+      }
+
+      // Limpiar selección y refrescar botones
+      if(table.deselectRow) table.deselectRow();
+      updateLiquidadaButtonVisibility();
+      if(typeof updatePagoButtonVisibility === "function") updatePagoButtonVisibility(); updateLiquidadaButtonVisibility();
+      alert("Cambio aplicado correctamente.");
+    }catch(e){
+      alert("No se pudo actualizar el estado. " + (e && e.message ? e.message : ""));
+    }finally{
+      if(typeof overlay!=="undefined") overlay.hide();
+    }
+  }
+
+  function bindLiquidadaButton(){
+    const btn = document.getElementById("btnMarcarLiquidada");
+    if(!btn || btn.dataset.bound) return;
+    btn.addEventListener("click", marcarSeleccionComoLiquidada);
+    btn.dataset.bound = "1";
+  }
+
 
 /* =========================
  *  Agrupar por ID_PAGO (Sección Pago) — mejorado
@@ -3006,7 +3081,8 @@ async function fetchOtrosCargos(ids){
         const id = (value && String(value).trim()) || "(sin ID_PAGO)";
         const subtotal = (data || []).reduce((acc, r) => acc + (Number(r.Total) || 0), 0);
         const otros = Number(otrosCargosById[id] || 0);
-        const label = `${id} (${count}) · L ${fmtMoneyHN(subtotal)} + otros cargos L ${fmtMoneyHN(otros)}`;
+        const total = subtotal + otros;
+        const label = `${id} (${count}) · L ${fmtMoneyHN(subtotal)} + otros cargos L ${fmtMoneyHN(otros)} · Total = L ${fmtMoneyHN(total)}`;
         const safeKey = id.replace(/"/g,'&quot;');
         return `<label class="group-toggle">
                   <input type="checkbox" class="group-select-idpago" data-idpago="${safeKey}">
