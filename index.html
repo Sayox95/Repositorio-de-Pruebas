@@ -1299,55 +1299,30 @@ function toggleGrouping(){
 }
 
 
-
-async function cargarOtrosCargosKpi() {
-  try {
-    // Si hay tabla de Pago, usar los ID_PAGO visibles (sensibles a filtros)
-    let ids = [];
-    try {
-      const data = pagoTable ? (pagoTable.getData ? pagoTable.getData("active") : []) : [];
-      ids = Array.from(new Set((data || []).map(r => String(r.ID_PAGO || "").trim()).filter(Boolean)));
-    } catch (_) {
-      ids = [];
-    }
-
-    let total = 0;
-    if (ids.length) {
-      const url = new URL(Config.api.leer);
-      url.searchParams.set("otrosCargos", "byId");
-      ids.forEach(id => url.searchParams.append("ids", id));
-      const res = await fetch(url.toString(), { cache: "no-store", mode: "cors" });
-      const json = await res.json().catch(() => null);
-      const map = (json && json.byId) || {};
-      total = Object.values(map).reduce((a, v) => a + (Number(v) || 0), 0);
-      // Cache para encabezados de grupo
-      window._cargosByIdPago = Object.assign({}, window._cargosByIdPago || {}, map);
-    } else {
-      const url = new URL(Config.api.leer);
-      url.searchParams.set("otrosCargos", "total");
-      const res = await fetch(url.toString(), { cache: "no-store", mode: "cors" });
-      const json = await res.json().catch(() => null);
-      total = Number((json && json.totalOtrosCargos) || 0);
-    }
-
+async function cargarOtrosCargosKpi(){
+  try{
+    const base = Config.api.leerFacturas;
+    const url = base.includes('?') ? (base + '&otrosCargos=total') : (base + '?otrosCargos=total');
+    const res = await fetch(url, { cache: "no-store", mode: "cors" });
+    const json = await res.json().catch(()=>null);
+    const total = Number(json && json.totalOtrosCargos || 0);
     const el = document.getElementById("kpiPagoOtrosCargos");
-    if (el) el.textContent = fmt.money(total);
-
+    if(el){ el.textContent = fmt.money(total); }
     const lup = document.getElementById("lastUpdatedPago");
-    if (lup) {
+    if(lup){
       const now = new Date();
       const yyyy = now.getFullYear();
-      const mm = String(now.getMonth() + 1).padStart(2, "0");
-      const dd = String(now.getDate()).padStart(2, "0");
-      const hh = String(now.getHours()).padStart(2, "0");
-      const mi = String(now.getMinutes()).padStart(2, "0");
+      const mm = String(now.getMonth()+1).padStart(2,"0");
+      const dd = String(now.getDate()).padStart(2,"0");
+      const hh = String(now.getHours()).padStart(2,"0");
+      const mi = String(now.getMinutes()).padStart(2,"0");
       lup.textContent = `Actualizado: ${yyyy}-${mm}-${dd} ${hh}:${mi}`;
     }
-  } catch (e) {
-    console.warn("Error en cargarOtrosCargosKpi:", e);
+  }catch(e){
+    // Silencioso: el KPI queda en 0.00 si falla
+    // console.warn("No se pudo leer otros cargos:", e);
   }
 }
-
 
 /** =========================
  *  Navegación (overlay al cambiar de sección)
@@ -2328,11 +2303,21 @@ function buildPagoTable(){
   });
 }
 
-function updatePagoKpis() {
-  try { cargarKpiPago(); } catch (_) {}
-  try { cargarOtrosCargosKpi(); } catch (_) {}
+function updatePagoKpis(){
+  const rows = pagoTable? pagoTable.getData("active") : [];
+  let pend=0, pag=0, sp=0, sg=0;
+  for(const r of rows){
+    const total = Number(r["Total Gastado"] ?? r.Total) || 0;
+    if((r.Estado||"")==="Revisada"){ pend++; sp += total; }
+    if((r.Estado||"")==="Pagada"){ pag++; sg += total; }
+  }
+  const fmtMoney = (v)=> "L " + (Number(v)||0).toLocaleString("es-HN",{minimumFractionDigits:2,maximumFractionDigits:2});
+  const $ = (sel)=>document.querySelector(sel);
+  $("#kpiPagoPendientes").textContent = String(pend);
+  $("#kpiPagoPagadas").textContent = String(pag);
+  $("#kpiPagoTotalPend").textContent = fmtMoney(sp);
+  $("#kpiPagoTotalPag").textContent  = fmtMoney(sg);
 }
-
 
 function clearPagoFilters(){
   pagoSectorMS && pagoSectorMS.clear();
@@ -2894,51 +2879,68 @@ async function confirmarPago(){
 
 
 
-
-async function fetchOtrosCargosMapForIds(ids){
-  if(!Array.isArray(ids) || !ids.length) return {};
-  const url = new URL(Config.api.leer);
-  url.searchParams.set("otrosCargos", "byId");
-  // enviar multiples ids
-  ids.forEach(id => { if(id) url.searchParams.append("ids", id); });
-  const resp = await fetch(url.toString(), { method:"GET", cache:"no-store" });
-  const json = await resp.json().catch(()=>({ok:false, byId:{}}));
-  return (json && json.ok && json.byId) ? json.byId : {};
-}
-
-async function togglePagoGroupingByIdPago(){
+function togglePagoGroupingByIdPago(){
   if(!pagoTable) return;
   const current = pagoTable.getGrouped ? pagoTable.getGrouped() : [];
   const already = Array.isArray(current) && current.length===1 && current[0]==="ID_PAGO";
   if(already){
     pagoTable.setGroupBy(false);
     try{ document.getElementById("btnPagoAgruparIdPago").classList.remove("btn-primary"); }catch(_){}
+  }else{
+    pagoTable.setGroupBy("ID_PAGO");
+    pagoTable.updateOption("groupStartOpen", false);
+    pagoTable.updateOption("groupHeader", function(value, count, data, group){
+      const key = String(value||"");
+      const subtotal = (data||[]).reduce((acc,r)=> acc + (Number(r.Total)||0), 0);
+      const fmtL = (n)=> new Intl.NumberFormat("es-HN",{minimumFractionDigits:2, maximumFractionDigits:2}).format(n);
+      const cargoMap = (window._cargosByIdPago || {});
+      const cargosTotal = Number(cargoMap[key]||0);
+      const idTxt = key || "(sin ID_PAGO)";
+      const cb = `<input type="checkbox" class="group-select-pago" data-group-key="${key}"/>`;
+      return `${cb} <strong>${idTxt}</strong> (${count}) &nbsp; L ${fmtL(subtotal)} &nbsp; <span class="muted">Otros cargos: L ${fmtL(cargosTotal)}</span>`;
+    });
+    try{ document.getElementById("btnPagoAgruparIdPago").classList.add("btn-primary"); }catch(_){}
+  }
+}
+
+function initPagoMassPay(force=false){
+  if(pagoSetupDone && !force) return;
+  const table = getPagoTable();
+  const btn   = document.getElementById("btnPagoAbrirModal");
+  if(!btn){
+    // botón aún no en el DOM
+    setTimeout(()=>initPagoMassPay(force), 300);
     return;
   }
+  if(!table){
+    // la tabla puede construirse de forma asíncrona; reintenta
+    setTimeout(()=>initPagoMassPay(force), 400);
+    return;
+  }
+  pagoSetupDone = true;
 
-  // Agrupar por ID_PAGO
-  pagoTable.setGroupBy("ID_PAGO");
-  pagoTable.updateOption("groupStartOpen", false);
-  pagoTable.updateOption("groupHeader", function(value, count, data, group){
-    const key = String(value||"");
-    const subtotal = (data||[]).reduce((acc,r)=> acc + (Number(r.Total)||0), 0);
-    const fmtL = (n)=> new Intl.NumberFormat("es-HN",{minimumFractionDigits:2, maximumFractionDigits:2}).format(n);
-    const cargoMap = (window._cargosByIdPago || {});
-    const cargosTotal = Number(cargoMap[key]||0);
-    const idTxt = key || "(sin ID_PAGO)";
-    const cb = `<input type="checkbox" class="group-select-pago" data-group-key="${key}"/>`;
-    return `${cb} <strong>${idTxt}</strong> (${count}) &nbsp; L ${fmtL(subtotal)} &nbsp; y sus otros cargos L ${fmtL(cargosTotal)}`;
+  // Ocultar/inhabilitar por defecto
+  btn.classList.add("hidden");
+  btn.style.display = "none";
+  btn.disabled = true;
+
+  // Eventos
+  table.on("rowSelectionChanged", ()=>{
+    updatePagoButtonVisibility();
   });
-  try{ document.getElementById("btnPagoAgruparIdPago").classList.add("btn-primary"); }catch(_){}
+  btn.addEventListener("click", openPagoModalForSelection);
 
-  // Cargar totales de otros cargos para IDs visibles (post-filtro) y refrescar encabezados
-  try{
-    const data = pagoTable.getData ? pagoTable.getData("active") : [];
-    const ids = Array.from(new Set((data||[]).map(r => String(r.ID_PAGO||"").trim()).filter(Boolean)));
-    if(ids.length){
-      const map = await fetchOtrosCargosMapForIds(ids);
-      window._cargosByIdPago = Object.assign({}, window._cargosByIdPago || {}, map);
-      pagoTable.redraw(true);
-    }
-  }catch(_){}
+  // Controles del modal
+  const cancelBtn = document.getElementById("mpCancelar");
+  const addCargo  = document.getElementById("mpAddCargo");
+  const confirm   = document.getElementById("mpConfirmar");
+  if(cancelBtn) cancelBtn.addEventListener("click", ()=>{
+    const modal = document.getElementById("modalPago"); if(modal) modal.style.display = "none";
+  });
+  if(addCargo && !addCargo.dataset.bound){ addCargo.addEventListener("click", addCargoRow); addCargo.dataset.bound="1"; }
+  if(confirm)  confirm.addEventListener("click", confirmarPago);
 }
+</script>
+
+</body>
+</html>
