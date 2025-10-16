@@ -403,7 +403,6 @@
         <button id="btnPagoActualizar" class="btn"><i class="lucide-rotate-cw"></i> Actualizar</button>
         <button id="btnPagoAgrupar" class="btn btn-ghost"><i class="lucide-layers-2"></i> Agrupar por colaborador</button>
         <button id="btnPagoAgruparId" class="btn btn-ghost"><i class="lucide-layers-2"></i> Agrupar por ID_PAGO</button>
-        <button id="btnMarcarEnviadas" class="btn btn-primary hidden" disabled><i class="lucide-check-circle"></i> Marcar como Enviadas</button>
         <button id="btnPagoExportXLSX" class="btn btn-ghost"><i class="lucide-download"></i> Excel</button>
         <button id="btnPagoAbrirModal" class="btn btn-primary hidden" disabled><i class="lucide-credit-card"></i> Pagar seleccionadas</button>
       </div>
@@ -956,15 +955,14 @@ function buildTable(){
       }},
       { title:"Km Actual", field:"Km Actual", width:110, hozAlign:"right" },
       { title:"Litros Consumidos", field:"Litros Consumidos", width:160, hozAlign:"right" },
-      { title:"Estado", field:"Estado", width:120, formatter:(c)=>{
-          const d = c.getRow().getData();
-          const v = String(c.getValue() ?? d?.Estado ?? "").trim().toLowerCase();
-          const pill = (text, color)=> `<span class="status-pill" style="--c:${color};"><span class="dot" style="background:${color};"></span>${text}</span>`;
-          if(v==="pagada")  return pill("Pagada",  "#0FA47E");
-          if(v==="enviada") return pill("Enviada", "#2563EB");
-          const fila = d?.fila ?? d?._fila ?? "";
-          return `<button class="btn-pagar" data-fila="${fila}" title="Pagar esta factura">Pagar</button>`;
-        } }
+      { title:"Estado", field:"Estado", width:150, formatter:(c)=>{
+          const v = c.getValue()||"Registrada";
+          const color = estadoColor(v);
+          const disabled = (v === "Pagada");
+          const cls = disabled? "status-pill disabled" : "status-pill";
+          const title = disabled? "No editable cuando está Pagada" : "Cambiar estado";
+          return `<span class="${cls}" title="${title}"><span class="dot" style="background:${color}"></span>${v}</span>`;
+      } }
 
     ],
     dataLoaded:()=>{ updateKpis(); },
@@ -1784,7 +1782,7 @@ document.addEventListener("change", (ev)=>{
   }else{
     rows.forEach(r => { try{ r.deselect && r.deselect(); } catch (e){ } });
   }
-  try{ updatePagoButtonVisibility(); updateEnviadasButtonVisibility(); } catch (e){}
+  try{ updatePagoButtonVisibility(); } catch (e){}
 });
 /** =========================
  *  Bootstrap
@@ -2298,16 +2296,16 @@ function buildPagoTable(){
           return v? "<a href=\""+((typeof API!=='undefined' && API.proxied)? API.proxied(v): v)+"\" target=\"_blank\" title=\"Abrir PDF\">📄</a>":"";
         } },
             { title:"ID_PAGO", field:"ID_PAGO", width:220 },
-{ title:"Estado", field:"Estado", width:120, formatter:(c)=>{
-          const v = String(c.getValue() ?? "").trim();
-          const pill = (text, color)=> `<span class="status-pill" style="--c:${color};"><span class="dot" style="background:${color};"></span>${text}</span>`;
-          if(v.toLowerCase()==="pagada"){
-            return pill("Pagada", "#0FA47E");
-          }
-          if(v.toLowerCase()==="liquidada" || v.toLowerCase()==="enviada"){
-            return pill("Enviada", "#2563EB");
-          }
+{ title:"Estado", field:"Estado", width:120, formatter:(c)=> {
+          const v=(c.getValue()||"").toString();
+          if(v==="Pagada") return "<span class=\"status-pill disabled\"><span class=\"dot\" style=\"background:" + (typeof estadoColor==='function'? estadoColor('Pagada'): '#0FA47E') + "\"></span>Pagada</span>";
           return "<button class=\"btn-pagar\" title=\"Pagar esta factura\">Pagar</button>";
+        },
+        cellClick: (e, cell)=>{
+          const d = cell.getRow().getData();
+          if((d.Estado||"")==="Pagada") return;
+          pagoTable.deselectRow && pagoTable.deselectRow();
+          cell.getRow().select(); openPagoModalSingle(cell.getRow().getData());
         }
       },
     ],
@@ -2425,7 +2423,6 @@ function applyPagoFilters(){
   if(!pagoTable) return;
   const list = Pago.filtered;
   const maybe = pagoTable.replaceData(list);
-  setTimeout(updateEnviadasButtonVisibility, 0);
   if(maybe && typeof maybe.then === "function"){ maybe.then(updatePagoKpis); } else { setTimeout(updatePagoKpis,0); }
 }
 
@@ -2851,7 +2848,7 @@ async function confirmarPago(){
       const modal = document.getElementById("modalPago"); if(modal) modal.style.display = "none";
       
       if(table.deselectRow) table.deselectRow();
-      updatePagoButtonVisibility(); updateEnviadasButtonVisibility();
+      updatePagoButtonVisibility();
       return;
     }
 
@@ -2886,7 +2883,7 @@ async function confirmarPago(){
     const modal = document.getElementById("modalPago"); if(modal) modal.style.display = "none";
     
     if(table.deselectRow) table.deselectRow();
-    updatePagoButtonVisibility(); updateEnviadasButtonVisibility();
+    updatePagoButtonVisibility();
 
   }catch(e){
     alert("No se pudo completar el pago. " + (e && e.message ? e.message : ""));
@@ -2918,12 +2915,9 @@ function initPagoMassPay(force=false){
 
   // Eventos
   table.on("rowSelectionChanged", ()=>{
-    updateEnviadasButtonVisibility();
-    updatePagoButtonVisibility(); updateEnviadasButtonVisibility();
+    updatePagoButtonVisibility();
   });
   btn.addEventListener("click", openPagoModalForSelection);
-  bindEnviadasButton();
-  setTimeout(updateEnviadasButtonVisibility, 0);
 
   // Controles del modal
   const cancelBtn = document.getElementById("mpCancelar");
@@ -2935,82 +2929,6 @@ function initPagoMassPay(force=false){
   if(addCargo && !addCargo.dataset.bound){ addCargo.addEventListener("click", addCargoRow); addCargo.dataset.bound="1"; }
   if(confirm)  confirm.addEventListener("click", confirmarPago);
 }
-
-
-  // === Marcar como Enviadas (de Pagada -> Liquidada) ===
-  function getPagoTable(){ try{ const t = Tabulator.findTable("#tablaPago"); return (t && t.length)? t[0] : null; }catch(e){ return null; } }
-
-  function eligibleLiquidar(rows){
-    return (rows||[]).filter(r => (String(r.Estado||'').trim().toLowerCase() === 'pagada') && (r.fila || r._fila));
-  }
-
-  function updateEnviadasButtonVisibility(){
-    const table = getPagoTable();
-    const btn = document.getElementById("btnMarcarEnviadas");
-    if(!table || !btn) return;
-    const sel = table.getSelectedData ? table.getSelectedData() : [];
-    const allPagadas = sel.length>0 && sel.every(r => String(r.Estado||'').trim().toLowerCase() === 'pagada');
-    if(allPagadas){
-      btn.classList.remove("hidden");
-      btn.disabled = false;
-    }else{
-      btn.disabled = true;
-      btn.classList.add("hidden");
-    }
-  }
-
-  
-async function marcarSeleccionComoEnviadas(){
-  const table = getPagoTable();
-  const btn = document.getElementById("btnMarcarEnviadas");
-  if(!table || !btn) return;
-  const sel = table.getSelectedData ? table.getSelectedData() : [];
-  const elig = eligibleLiquidar(sel);
-  if(!elig.length){ return; }
-
-  if(!confirm(`Cambiar ${elig.length} factura(s) de "Pagada" a "Enviada"?`)) return;
-
-  try{
-    if(typeof overlay!=="undefined") overlay.show("Marcando como Enviadas…");
-
-    // UI optimista masiva
-    const rowsByFila = new Map((table.getRows()||[]).map(rr => [rr.getData()?.fila, rr]));
-    elig.forEach(r => {
-      const fila = r.fila || r._fila;
-      const rr = rowsByFila.get(fila);
-      if(rr) rr.update({ Estado: "Enviada" });
-    });
-
-    // Un solo POST al backend
-    const url = (Config && Config.api && Config.api.guardar) ? Config.api.guardar : "/api/guardar";
-    const filas = elig.map(r => r.fila || r._fila).filter(Boolean);
-    const payload = { accion:"actualizarEstadoLote", filas, nuevoEstado:"Enviada" };
-
-    const res = await fetch(url, { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(payload) });
-    const j = await res.json().catch(()=>({status:"ERROR"}));
-    if(!res.ok || j.status!=="OK"){
-      throw new Error(j && j.message ? j.message : ("HTTP " + res.status));
-    }
-
-    // Post-UI
-    if(table.deselectRow) table.deselectRow();
-    updateEnviadasButtonVisibility && updateEnviadasButtonVisibility();
-    updatePagoButtonVisibility && updatePagoButtonVisibility();
-    alert("Marcadas como Enviadas correctamente.");
-  }catch(e){
-    alert("No se pudo marcar como Enviadas. " + (e && e.message ? e.message : ""));
-  }finally{
-    if(typeof overlay!=="undefined") overlay.hide();
-  }
-}
-
-function bindEnviadasButton(){
-  const btn = document.getElementById("btnMarcarEnviadas");
-  if(!btn || btn.dataset.bound) return;
-  btn.addEventListener("click", marcarSeleccionComoEnviadas);
-  btn.dataset.bound = "1";
-}
-
 
 /* =========================
  *  Agrupar por ID_PAGO (Sección Pago) — mejorado
@@ -3088,8 +3006,7 @@ async function fetchOtrosCargos(ids){
         const id = (value && String(value).trim()) || "(sin ID_PAGO)";
         const subtotal = (data || []).reduce((acc, r) => acc + (Number(r.Total) || 0), 0);
         const otros = Number(otrosCargosById[id] || 0);
-        const total = subtotal + otros;
-        const label = `${id} (${count}) · L ${fmtMoneyHN(subtotal)} + otros cargos L ${fmtMoneyHN(otros)} · Total = L ${fmtMoneyHN(total)}`;
+        const label = `${id} (${count}) · L ${fmtMoneyHN(subtotal)} + otros cargos L ${fmtMoneyHN(otros)}`;
         const safeKey = id.replace(/"/g,'&quot;');
         return `<label class="group-toggle">
                   <input type="checkbox" class="group-select-idpago" data-idpago="${safeKey}">
@@ -3172,32 +3089,6 @@ async function fetchOtrosCargos(ids){
     window.initPagoMassPay.__wrapped = true;
   }
 })();
-
-  // Delegated click for pagar button (ensures it's never "blocked")
-  (function(){
-    if (document.getElementById("tablaPago")) {
-      const root = document.getElementById("tablaPago");
-      if(!root.__bindPagar){
-        root.addEventListener("click", function(e){
-          const btn = e.target && e.target.closest && e.target.closest(".btn-pagar");
-          if(!btn) return;
-          e.stopPropagation();
-          e.preventDefault();
-          try{
-            const fila = parseInt(btn.getAttribute("data-fila"), 10);
-            const table = (Tabulator.findTable("#tablaPago")||[])[0];
-            if(!table || !fila) return;
-            const row = (table.getRows()||[]).find(r => (r.getData()?.fila) === fila);
-            if(!row) return;
-            table.deselectRow && table.deselectRow();
-            row.select && row.select();
-            openPagoModalSingle && openPagoModalSingle(row.getData());
-          }catch(_){}
-        }, {passive:false});
-        root.__bindPagar = true;
-      }
-    }
-  })();
 </script>
 
 </body>
