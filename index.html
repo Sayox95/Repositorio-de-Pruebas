@@ -2939,6 +2939,13 @@ function initPagoMassPay(force=false){
   });
   if(addCargo && !addCargo.dataset.bound){ addCargo.addEventListener("click", addCargoRow); addCargo.dataset.bound="1"; }
   if(confirm)  confirm.addEventListener("click", confirmarPago);
+
+  // Botón Agrupar por ID_PAGO
+  const btnIdPago = document.getElementById("btnPagoAgruparIdPago");
+  if(btnIdPago && !btnIdPago.dataset.bound){
+    btnIdPago.addEventListener("click", ()=>{ togglePagoGroupingByIdPago(); });
+    btnIdPago.dataset.bound = "1";
+  }
 }
 </script>
 
