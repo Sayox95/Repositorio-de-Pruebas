@@ -589,7 +589,6 @@ function normalizeRow(src){
     "Litros Consumidos": g(["Litros Consumidos","Litros","Consumo (L)","ConsumoL"]),
     Total:     g(["Total Gastado","Total","TOTAL","VALOR","Valor","Importe","Monto"], 0),
     FechaRevision: g(["FechaRevision","Fecha de Revisión","Fecha de Revision","Fecha_Revision","Fecha_Revisión","Fecha Revisada","FechaRevisionISO"]),
-    
     ID_PAGO: g(["ID_PAGO","IdPago","ID PAGO","ID-PAGO","Id_Pago","COD_TRANSACCION"]),
     Estado:    g(["Estado","ESTADO","estado"], "Registrada"),
   };
@@ -2239,7 +2238,8 @@ function buildPagoTable(){
           const r=cell.getRow().getData(); const v=cell.getValue()||r.Enlace||r.PDF||"";
           return v? "<a href=\""+((typeof API!=='undefined' && API.proxied)? API.proxied(v): v)+"\" target=\"_blank\" title=\"Abrir PDF\">📄</a>":"";
         } },
-      { title:"Estado", field:"Estado", width:120, formatter:(c)=> {
+            { title:"ID_PAGO", field:"ID_PAGO", width:220 },
+{ title:"Estado", field:"Estado", width:120, formatter:(c)=> {
           const v=(c.getValue()||"").toString();
           if(v==="Pagada") return "<span class=\"status-pill disabled\"><span class=\"dot\" style=\"background:" + (typeof estadoColor==='function'? estadoColor('Pagada'): '#0FA47E') + "\"></span>Pagada</span>";
           return "<button class=\"btn-pagar\" title=\"Pagar esta factura\">Pagar</button>";
@@ -2874,11 +2874,11 @@ function initPagoMassPay(force=false){
 }
 
 /* =========================
- *  Agrupar por ID_PAGO (Sección Pago)
+ *  Agrupar por ID_PAGO (Sección Pago) — mejorado
  *  ========================= */
 (function(){
   let pagoGroupById = false;
-  let otrosCargosById = {}; // cache para totales de otros cargos por ID_PAGO
+  let otrosCargosById = {};
 
   function getPagoTable(){
     try {
@@ -2888,14 +2888,25 @@ function initPagoMassPay(force=false){
     return null;
   }
 
+  async function ensureIdPagoColumn(table){
+    try{
+      if(!table) table = getPagoTable();
+      if(!table) return;
+      const exists = !!table.getColumn("ID_PAGO");
+      if(!exists){
+        const res = table.addColumn({ title:"ID_PAGO", field:"ID_PAGO", width: 220, headerSort:true, visible:true });
+        if(res && typeof res.then === "function"){ try{ await res; }catch(_){} }
+      }
+    }catch(_){}
+  }
+
   async function fetchOtrosCargos(ids){
     if(!ids || !ids.length) { otrosCargosById = {}; return; }
-    // Reusar el proxy de lectura con modo otrosCargos=byId
     const url = new URL(Config.api.leerFacturas);
     url.searchParams.set("otrosCargos", "byId");
     ids.forEach(id => url.searchParams.append("ids", id));
     try{
-      const resp = await fetch(url.toString(), { cache: "no-store" });
+      const resp = await fetch(url.toString(), { cache:"no-store" });
       const json = await resp.json();
       otrosCargosById = (json && json.byId) ? json.byId : {};
     }catch(_){
@@ -2905,34 +2916,27 @@ function initPagoMassPay(force=false){
 
   function fmtMoneyHN(n){
     const v = Number(n || 0);
-    try{ return new Intl.NumberFormat("es-HN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v); }
+    try{ return new Intl.NumberFormat("es-HN",{minimumFractionDigits:2,maximumFractionDigits:2}).format(v); }
     catch(_){ return (v || 0).toFixed(2); }
   }
 
   async function applyPagoGroupingById(){
     const table = getPagoTable();
     if(!table) return;
-    // Asegurar columna ID_PAGO visible (si ya existe, no duplicar)
-    try{
-      const hasCol = !!table.getColumn("ID_PAGO");
-      if(!hasCol){
-        await table.addColumn({ title:"ID_PAGO", field:"ID_PAGO", width: 220, headerSort:true, visible:true });
-      }
-    }catch(_){}
+    await ensureIdPagoColumn(table); // <-- asegura la columna antes de agrupar
 
     if(pagoGroupById){
-      // Recolectar IDs visibles y traer "Otros Cargos"
       const rows = table.getData("active") || [];
       const ids = Array.from(new Set(rows.map(r => String(r.ID_PAGO || "").trim()).filter(Boolean)));
       await fetchOtrosCargos(ids);
 
       table.setGroupBy(["ID_PAGO"]);
-      table.setGroupHeader(function(value, count, data, group){
+      table.setGroupHeader(function(value, count, data){
         const id = (value && String(value).trim()) || "(sin ID_PAGO)";
         const subtotal = (data || []).reduce((acc, r) => acc + (Number(r.Total) || 0), 0);
         const otros = Number(otrosCargosById[id] || 0);
         const label = `${id} (${count}) · L ${fmtMoneyHN(subtotal)} + otros cargos L ${fmtMoneyHN(otros)}`;
-        const safeKey = id.replace(/"/g, '&quot;');
+        const safeKey = id.replace(/"/g,'&quot;');
         return `<label class="group-toggle">
                   <input type="checkbox" class="group-select-idpago" data-idpago="${safeKey}">
                   <span>${label}</span>
@@ -2955,15 +2959,14 @@ function initPagoMassPay(force=false){
   function handleGroupCheckboxClicks(){
     const root = document.getElementById("tablaPago");
     if(!root) return;
-    root.addEventListener("click", (ev)=>{
+    root.addEventListener("click",(ev)=>{
       const cb = ev.target && ev.target.closest(".group-select-idpago");
       if(!cb) return;
       const id = cb.getAttribute("data-idpago") || "";
       const table = getPagoTable();
       if(!table) return;
-      const rows = table.getRows() || [];
       const shouldSelect = cb.checked;
-      rows.forEach(r => {
+      (table.getRows()||[]).forEach(r=>{
         try{
           const d = r.getData ? r.getData() : null;
           if(!d) return;
@@ -2973,55 +2976,41 @@ function initPagoMassPay(force=false){
           }
         }catch(_){}
       });
-    }, { passive:true });
+    }, {passive:true});
   }
 
-  function bindPagoToolbarButton(){
-    const btn = document.getElementById("btnPagoAgruparId");
-    if(!btn) return;
-    btn.addEventListener("click", togglePagoGroupingById);
-  }
-
-  // Reaplicar la agrupación al filtrar/actualizar datos
-  function hookTableEventsOnce(){
-    const table = getPagoTable();
-    if(!table) return;
-    if(!table.__idpago_hooked){
-      table.on("dataProcessed", function(){ if(pagoGroupById) applyPagoGroupingById(); });
-      table.on("dataFiltered",  function(){ if(pagoGroupById) applyPagoGroupingById(); });
-      table.__idpago_hooked = true;
-    }
-  }
-
-  // Esperar a que exista la tabla y los elementos de Pago
-  function initWhenReady(){
+  async function initWhenReady(){
     const t = getPagoTable();
     const btn = document.getElementById("btnPagoAgruparId");
     if(t && btn){
-      bindPagoToolbarButton();
+      await ensureIdPagoColumn(t);  // <-- la columna estará visible al entrar
+      btn.addEventListener("click", togglePagoGroupingById);
       handleGroupCheckboxClicks();
-      hookTableEventsOnce();
-      // no activar por defecto
+      // Reaplicar agrupación tras filtros/updates si está activo
+      if(!t.__idpago_hooked){
+        t.on("dataProcessed", function(){ if(pagoGroupById) applyPagoGroupingById(); });
+        t.on("dataFiltered",  function(){ if(pagoGroupById) applyPagoGroupingById(); });
+        t.__idpago_hooked = true;
+      }
       return true;
     }
     return false;
   }
 
-  // Polling corto para inicializar sin romper el flujo existente
+  // Polling breve para inicializar
   let tries = 0;
-  const iv = setInterval(()=>{
+  const iv = setInterval(async ()=>{
     tries++;
-    if(initWhenReady() || tries > 80){ clearInterval(iv); }
+    if(await initWhenReady() || tries > 80){ clearInterval(iv); }
   }, 150);
 
-  // Si tu navegación llama a initPagoMassPay(), también puedes enganchar aquí:
+  // Hook si la app reconstruye la tabla en initPagoMassPay()
   const _initPagoMassPay = (typeof window.initPagoMassPay === "function") ? window.initPagoMassPay : null;
   if(_initPagoMassPay && !_initPagoMassPay.__wrapped){
     window.initPagoMassPay = async function(){
-      const result = await _initPagoMassPay.apply(this, arguments);
-      // tras construir la tabla, conectamos los eventos
-      setTimeout(()=>{ initWhenReady(); }, 50);
-      return result;
+      const r = await _initPagoMassPay.apply(this, arguments);
+      setTimeout(()=>{ initWhenReady(); }, 60);
+      return r;
     };
     window.initPagoMassPay.__wrapped = true;
   }
