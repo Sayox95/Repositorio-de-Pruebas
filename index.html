@@ -2671,8 +2671,8 @@ function updatePagoButtonVisibility(){
   if(!btn || !table) return;
   const sel = table.getSelectedData ? table.getSelectedData() : [];
   const estados = sel.map(r => String(r.Estado||"").trim().toLowerCase());
-  const anyPaid = estados.some(s => s === "pagada");
-  const eligible = sel.filter(r => String(r.Estado||"").trim().toLowerCase() !== "pagada");
+const anyBlocked = estados.some(s => s === "pagada" || s === "enviada");
+const eligible = sel.filter(r => { const s=String(r.Estado||"").trim().toLowerCase(); return s !== "pagada" && s !== "enviada"; });
   const show = !anyPaid && eligible.length >= 2;
   if (show) {
     btn.classList.remove("hidden");
@@ -2772,9 +2772,9 @@ function openPagoModalForSelection(){
   const table = getPagoTable(); if(!table) return;
   const sel = table.getSelectedData ? table.getSelectedData() : [];
   const estados = sel.map(r => String(r.Estado||"").trim().toLowerCase());
-  const anyPaid = estados.some(s => s === "pagada");
-  const eligible = sel.filter(r => String(r.Estado||"").trim().toLowerCase() !== "pagada");
-  if (anyPaid || eligible.length < 2) { alert("Seleccione al menos 2 facturas y ninguna debe estar Pagada."); return; }
+const anyBlocked = estados.some(s => s === "pagada" || s === "enviada");
+const eligible = sel.filter(r => { const s=String(r.Estado||"").trim().toLowerCase(); return s !== "pagada" && s !== "enviada"; });
+  if (anyBlocked || eligible.length < 2) { alert("Seleccione al menos 2 facturas y ninguna debe estar Pagada."); return; }
 // Subtotal de las facturas
   const subtotal = eligible.reduce((acc, r)=> acc + (Number(r.Total)||0), 0);
   window._mpSubtotalRaw = subtotal;
@@ -2862,7 +2862,7 @@ async function confirmarPago(){
     const estados  = sel.map(r => String(r.Estado||'').trim().toLowerCase());
     const anyPaid  = estados.some(s => s === 'pagada');
     const eligible = sel.filter(r => String(r.Estado||'').trim().toLowerCase() !== 'pagada');
-    if(anyPaid || eligible.length < 2){
+    if (anyBlocked || eligible.length < 2) {
       alert("Seleccione al menos 2 facturas y ninguna debe estar Pagada.");
       return;
     }
@@ -3122,38 +3122,69 @@ async function fetchOtrosCargos(ids){
   }
 
   async function marcarSeleccionComoEnviadas(){
-    var btn = document.getElementById("btnPagoMarcarEnviadas");
-    if(!btn || typeof getPagoTable !== "function"){ return; }
-    var tbl = getPagoTable();
-    if(!tbl){ return; }
-    var sel = tbl.getSelectedData ? tbl.getSelectedData() : [];
-    if(!sel.length){ return; }
-    // Seguridad: solo si todas son Pagadas
-    if(sel.find(function(r){ return String((r && r.Estado) || "").trim() !== "Pagada"; })){ return; }
-    var filas = sel.map(function(r){ return parseInt(r.fila,10); }).filter(Boolean);
+  const btn = document.getElementById("btnPagoMarcarEnviadas");
+  if(!btn || typeof getPagoTable !== "function") return;
 
+  const tbl = getPagoTable();
+  if(!tbl || typeof tbl.getSelectedData !== "function") return;
+
+  const sel = tbl.getSelectedData() || [];
+  if(!sel.length) return;
+
+  // Solo si TODAS están Pagadas
+  if(sel.find(r => String(r.Estado||"").trim() !== "Pagada")) return;
+
+  // Fila real (1-based)
+  const filas = sel.map(r => parseInt(r.fila,10)).filter(Boolean);
+
+  try{
+    if(window.overlay && typeof overlay.show==="function"){
+      overlay.show("Marcando como Enviadas…");
+    }
+
+    // POST al backend
+    const payload = { accion:"actualizarEstadoLote", filas, nuevoEstado:"Enviada" };
+    const resp = await fetch((Config && Config.api && Config.api.guardar) || "/api/guardar", {
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify(payload)
+    });
+    const json = await resp.json().catch(()=>({status:"ERROR"}));
+    if(!resp.ok || json.status !== "OK"){
+      alert(json.message || "No se pudo actualizar el estado en lote.");
+      return;
+    }
+
+    // ✅ Actualización optimista en la tabla
     try{
-      if(window.overlay && typeof overlay.show==="function"){ overlay.show("Marcando como Enviadas…"); }
-      var payload = { accion:"actualizarEstadoLote", filas: filas, nuevoEstado: "Enviada" };
-      var resp = await fetch((Config && Config.api && Config.api.guardar) || "/api/guardar", {
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body: JSON.stringify(payload)
-      });
-      var json = await resp.json().catch(function(){ return {status:"ERROR"}; });
-      if(!resp.ok || json.status !== "OK"){
-        alert((json && json.message) || "No se pudo actualizar el estado en lote.");
-        return;
+      const rowComps = tbl.getRows ? tbl.getRows() : [];
+      const ids = new Set(filas);
+      for(const r of rowComps){
+        const d = (r.getData && r.getData()) || {};
+        if(ids.has(d.fila)){
+          r.update({ Estado: "Enviada" });
+        }
       }
-      var btnRefresh = document.getElementById("btnPagoActualizar");
-      if(btnRefresh){ btnRefresh.click(); }
-      setTimeout(updatePagoMarcarEnviadasButton, 400);
-    } finally {
-      if(window.overlay && typeof overlay.hide==="function"){ overlay.hide(); }
+    }catch(_){ /* visual only */ }
+
+    // 🔄 Refrescar desde servidor para mantener sincronía
+    const btnRefresh = document.getElementById("btnPagoActualizar");
+    if(btnRefresh){ btnRefresh.click(); }
+
+    // ♻️ Re-evaluar botones/KPIs luego del refresh
+    setTimeout(()=>{
+      if(typeof updatePagoMarcarEnviadasButton === "function") updatePagoMarcarEnviadasButton();
+      if(typeof updatePagoKpis === "function") updatePagoKpis();
+    }, 300);
+
+  } finally {
+    if(window.overlay && typeof overlay.hide==="function"){
+      overlay.hide();
     }
   }
+}
 
-  function hookPagoSelection(){
+function hookPagoSelection(){
     if(typeof getPagoTable !== "function") return false;
     var tbl = getPagoTable();
     if(tbl && typeof tbl.on==="function"){
