@@ -6,67 +6,7 @@
   <title>UTCD · Revisión de Facturas</title>
   <!-- Tabulator -->
   <link href="https://unpkg.com/tabulator-tables@6.2.5/dist/css/tabulator.min.css" rel="stylesheet">
-  <script src="https://unpkg.com/tabulator-tables@6.2.5/dist/js/tabulator.min.js">
-// === Agrupar por ID_PAGO (Pago) ===
-window._otrosById = window._otrosById || {};
-
-async function fetchOtrosCargosByIds(ids){
-  try{
-    if(!ids || !ids.length) return {};
-    const base = (Config && Config.api && Config.api.leerFacturas) ? Config.api.leerFacturas : "";
-    if(!base) return {};
-    const q = (base.includes("?") ? "&" : "?") + "otrosCargos=byId&ids=" + encodeURIComponent(ids.join(","));
-    const url = base + q;
-    const res = await fetch(url, { cache:"no-store", mode:"cors" });
-    if(!res.ok) return {};
-    const j = await res.json().catch(()=>({}));
-    return (j && j.byId) ? j.byId : {};
-  }catch(_){ return {}; }
-}
-
-function getPagoTable(){ try{ return pagoTable; }catch(_){ return null; } }
-
-function togglePagoGroupingByIdPago(){
-  const table = getPagoTable(); if(!table) return;
-  const current = table.getGroupBy ? table.getGroupBy() : null;
-  const isByPago = Array.isArray(current) && current.length && String(current[0])==="ID_PAGO";
-  if(isByPago){
-    table.setGroupBy(false);
-    const b = document.getElementById("btnPagoAgruparIdPago"); if(b) b.innerHTML = '<i class="lucide-layers-2"></i> Agrupar por ID_PAGO';
-  }else{
-    // Obtener IDs visibles
-    const rows = table ? (table.getData("active") || []) : [];
-    const ids = Array.from(new Set(rows.map(r => String(r.ID_PAGO||"").trim()).filter(Boolean)));
-    table.setGroupBy(["ID_PAGO"]);
-    const b = document.getElementById("btnPagoAgruparIdPago"); if(b) b.innerHTML = '<i class="lucide-layers-2"></i> Desagrupar';
-    // Cargar totales de otros cargos por ID_PAGO y refrescar encabezados
-    fetchOtrosCargosByIds(ids).then(map => { window._otrosById = map || {}; try{ table.redraw(true); }catch(_){ } });
-  }
-}
-
-document.addEventListener("DOMContentLoaded", function(){
-  document.getElementById("btnPagoAgruparIdPago")?.addEventListener("click", togglePagoGroupingByIdPago);
-});
-
-// Delegado para checkboxes de grupo (Pago)
-document.addEventListener("change", (ev)=>{
-  const chk = ev.target.closest(".group-select-pago");
-  const t = getPagoTable();
-  if(!chk || !t) return;
-  const key = chk.getAttribute("data-group-key") || "";
-  const groups = t.getGroups ? t.getGroups() : [];
-  let target = null;
-  for(const g of groups){
-    try{ if(String(g.getKey ? g.getKey() : g.key) === String(key)){ target = g; break; } }catch(_){}
-  }
-  if(!target) return;
-  const rows = target.getRows ? target.getRows() : [];
-  if(chk.checked){ rows.forEach(r => { try{ r.select && r.select(); }catch(_){ } }); }
-  else{ rows.forEach(r => { try{ r.deselect && r.deselect(); }catch(_){ } }); }
-  try{ updatePagoButtonVisibility && updatePagoButtonVisibility(); }catch(_){}
-});
-
-</script>
+  <script src="https://unpkg.com/tabulator-tables@6.2.5/dist/js/tabulator.min.js"></script>
   <!-- Flatpickr -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
@@ -649,8 +589,8 @@ function normalizeRow(src){
     "Litros Consumidos": g(["Litros Consumidos","Litros","Consumo (L)","ConsumoL"]),
     Total:     g(["Total Gastado","Total","TOTAL","VALOR","Valor","Importe","Monto"], 0),
     FechaRevision: g(["FechaRevision","Fecha de Revisión","Fecha de Revision","Fecha_Revision","Fecha_Revisión","Fecha Revisada","FechaRevisionISO"]),
+    ID_PAGO:  g(["ID_PAGO","ID-PAGO","IDPAGO","Id_Pago","IdPago","id_pago","Id de Pago","Codigo Pago"]),
     Estado:    g(["Estado","ESTADO","estado"], "Registrada"),
-    ID_PAGO: g(["ID_PAGO","ID-PAGO","IDPAGO","Id_Pago","IdPago","id_pago","Id de Pago","Codigo Pago"]),
   };
   return row;
 }
@@ -2269,13 +2209,12 @@ function buildPagoTable(){
     groupHeader:function(value, count, data, group){
       try {
         const current = (pagoTable && pagoTable.getGroupBy) ? pagoTable.getGroupBy() : null;
-        const isByPago = Array.isArray(current) && current.length && String(current[0])==="ID_PAGO";
+        const byIdPago = Array.isArray(current) && current.length && String(current[0])==="ID_PAGO";
         const fmtL = (v)=> "L " + (Number(v)||0).toLocaleString("es-HN",{minimumFractionDigits:2, maximumFractionDigits:2});
-        if (isByPago) {
+        if (byIdPago) {
           const id = String(value || "SIN ID_PAGO");
           const sumaFact = (data||[]).reduce((acc,r)=> acc + (Number(r["Total Gastado"] ?? r.Total) || 0), 0);
-          let otros = 0;
-          try { otros = Number((window._otrosById && window._otrosById[id]) || 0) || 0; } catch(_) { otros = 0; }
+          let otros = 0; try{ otros = Number((window._otrosById && window._otrosById[id]) || 0) || 0; }catch(_){}
           const key = id.replace(/"/g,"&quot;");
           return `<label class="group-toggle">
                     <input type="checkbox" class="group-select group-select-pago" data-group-key="${key}">
@@ -2283,7 +2222,6 @@ function buildPagoTable(){
                   </label>
                   <span class="kpi-mini">${fmtL(sumaFact)} + otros cargos ${fmtL(otros)}</span>`;
         }
-        // default (por Identidad)
         const nombre = (data && data[0] && (data[0].Nombre||data[0].Identidad)) || value;
         const suma = (data||[]).reduce((acc,r)=> acc + (Number(r.Total)||0), 0);
         const totalTxt = new Intl.NumberFormat("es-HN",{minimumFractionDigits:2, maximumFractionDigits:2}).format(suma);
@@ -2293,7 +2231,7 @@ function buildPagoTable(){
                   <span>${nombre} (${count})</span>
                 </label>
                 <span class="kpi-mini">L ${totalTxt}</span>`;
-      } catch (err) {
+      } catch(err) {
         const key = String(value ?? "").replace(/"/g,"&quot;");
         return `<label class="group-toggle">
                   <input type="checkbox" class="group-select group-select-pago" data-group-key="${key}">
@@ -2956,6 +2894,55 @@ function initPagoMassPay(force=false){
   if(addCargo && !addCargo.dataset.bound){ addCargo.addEventListener("click", addCargoRow); addCargo.dataset.bound="1"; }
   if(confirm)  confirm.addEventListener("click", confirmarPago);
 }
+
+// === Agrupar por ID_PAGO ===
+window._otrosById = window._otrosById || {};
+async function fetchOtrosCargosByIds(ids){
+  try{
+    if(!ids || !ids.length) return {};
+    const base = (Config && Config.api && Config.api.leerFacturas) ? Config.api.leerFacturas : "";
+    if(!base) return {};
+    const url = base + (base.includes("?") ? "&" : "?") + "otrosCargos=byId&ids=" + encodeURIComponent(ids.join(","));
+    const res = await fetch(url, { cache:"no-store" });
+    if(!res.ok) return {};
+    const j = await res.json().catch(()=>({}));
+    return (j && j.byId) ? j.byId : {};
+  }catch(_){ return {}; }
+}
+function togglePagoGroupingByIdPago(){
+  if(!pagoTable) return;
+  const current = pagoTable.getGroupBy ? pagoTable.getGroupBy() : null;
+  const byIdPago = Array.isArray(current) && current.length && String(current[0])==="ID_PAGO";
+  if(byIdPago){
+    pagoTable.setGroupBy(false);
+    const b=document.getElementById("btnPagoAgruparIdPago"); if(b) b.innerHTML='<i class="lucide-layers-2"></i> Agrupar por ID_PAGO';
+  }else{
+    const rows = pagoTable ? (pagoTable.getData("active") || []) : [];
+    const ids = Array.from(new Set(rows.map(r => String(r.ID_PAGO||"").trim()).filter(Boolean)));
+    pagoTable.setGroupBy(["ID_PAGO"]);
+    const b=document.getElementById("btnPagoAgruparIdPago"); if(b) b.innerHTML='<i class="lucide-layers-2"></i> Desagrupar';
+    fetchOtrosCargosByIds(ids).then(map => { window._otrosById = map || {}; try{ pagoTable.redraw(true);}catch(_){ } });
+  }
+}
+document.addEventListener("click", (ev)=>{
+  const btn = ev.target.closest("#btnPagoAgruparIdPago");
+  if(btn){ togglePagoGroupingByIdPago(); }
+});
+document.addEventListener("change", (ev)=>{
+  const chk = ev.target.closest(".group-select-pago");
+  if(!chk || !pagoTable) return;
+  const key = chk.getAttribute("data-group-key") || "";
+  const groups = pagoTable.getGroups ? pagoTable.getGroups() : [];
+  let target = null;
+  for(const g of groups){
+    try{ if(String(g.getKey ? g.getKey() : g.key) === String(key)){ target = g; break; } }catch(_){}
+  }
+  if(!target) return;
+  const rows = target.getRows ? target.getRows() : [];
+  if(chk.checked){ rows.forEach(r => { try{ r.select && r.select(); }catch(_){ } }); }
+  else{ rows.forEach(r => { try{ r.deselect && r.deselect(); }catch(_){ } }); }
+  try{ updatePagoButtonVisibility && updatePagoButtonVisibility(); }catch(_){}
+});
 </script>
 
 </body>
