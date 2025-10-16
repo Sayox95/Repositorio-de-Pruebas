@@ -956,14 +956,15 @@ function buildTable(){
       }},
       { title:"Km Actual", field:"Km Actual", width:110, hozAlign:"right" },
       { title:"Litros Consumidos", field:"Litros Consumidos", width:160, hozAlign:"right" },
-      { title:"Estado", field:"Estado", width:150, formatter:(c)=>{
-          const v = c.getValue()||"Registrada";
-          const color = estadoColor(v);
-          const disabled = (v === "Pagada");
-          const cls = disabled? "status-pill disabled" : "status-pill";
-          const title = disabled? "No editable cuando está Pagada" : "Cambiar estado";
-          return `<span class="${cls}" title="${title}"><span class="dot" style="background:${color}"></span>${v}</span>`;
-      } }
+      { title:"Estado", field:"Estado", width:120, formatter:(c)=>{
+          const d = c.getRow().getData();
+          const v = String(c.getValue() ?? d?.Estado ?? "").trim().toLowerCase();
+          const pill = (text, color)=> `<span class="status-pill" style="--c:${color};"><span class="dot" style="background:${color};"></span>${text}</span>`;
+          if(v==="pagada")  return pill("Pagada",  "#0FA47E");
+          if(v==="enviada") return pill("Enviada", "#2563EB");
+          const fila = d?.fila ?? d?._fila ?? "";
+          return `<button class="btn-pagar" data-fila="${fila}" title="Pagar esta factura">Pagar</button>`;
+        } }
 
     ],
     dataLoaded:()=>{ updateKpis(); },
