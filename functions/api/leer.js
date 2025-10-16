@@ -1,52 +1,2944 @@
-export async function onRequestGet({ request }) {
-  const origin = request.headers.get("Origin") || "*";
-  const incoming = new URL(request.url);
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>UTCD · Revisión de Facturas</title>
+  <!-- Tabulator -->
+  <link href="https://unpkg.com/tabulator-tables@6.2.5/dist/css/tabulator.min.css" rel="stylesheet">
+  <script src="https://unpkg.com/tabulator-tables@6.2.5/dist/js/tabulator.min.js"></script>
+  <!-- Flatpickr -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <!-- JSZip + FileSaver -->
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <!-- Icons -->
+  <link rel="stylesheet" href="https://unpkg.com/lucide-static@0.453.0/font/lucide.css">
+  <style>
+#btnLogout{color:#fff !important;}
 
-  const otrosCargos = incoming.searchParams.get("otrosCargos"); // "total" | "byId" (opcional)
-  const estados     = incoming.searchParams.get("estados");     // opcional
-  const ids         = incoming.searchParams.getAll("ids");      // múltiples ids para byId
-
-  const url = new URL("https://script.google.com/macros/s/AKfycbxv0ww7Iho9fekeF8TaqW8U2zCmlCXKJSTZPaCSXdyPvNcniE9BTakyJEVl9wVEU7OdKg/exec");
-
-  if (otrosCargos) {
-    // Modo "Otros Cargos"
-    url.searchParams.set("otrosCargos", otrosCargos);
-
-    // Si se pidieron totales por ID_PAGO, reenvía todos los ids recibidos
-    if (ids && ids.length) {
-      ids.forEach(id => {
-        if (id) url.searchParams.append("ids", id);
-      });
+    :root{
+      --sidebar-bg:#0F1B2D;
+      --sidebar-hover:#122239;
+      --primary:#0FA47E;
+      --primary-600:#0b8466;
+      --surface:#F3F5F7;
+      --card:#FFFFFF;
+      --text:#0b1220;
+      --muted:#6b7280;
+      --ring:rgba(15,164,126,.35);
+      --danger:#dc2626;
     }
-  } else {
-    // Modo facturas (existente)
-    url.searchParams.set("leerFacturas", "true");
-    if (estados) url.searchParams.set("estados", estados);
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family: ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,"Noto Sans",sans-serif;
+      color:var(--text);
+      background:var(--surface);
+    }
+    /* Layout */
+    .app{
+      display:grid;
+      grid-template-columns: 260px 1fr;
+      grid-template-rows: 100vh;
+      gap:0;
+    }
+    .sidebar{
+      background:var(--sidebar-bg);
+      color:#dbeafe;
+      display:flex;
+      flex-direction:column;
+      padding:18px 14px;
+    }
+    .brand{
+      display:flex;align-items:center;gap:10px;
+      background:#0FA47E10; border:1px solid #0FA47E40;
+      color:#d1fae5; padding:8px 10px; border-radius:12px; font-weight:700;
+      letter-spacing:.2px;
+    }
+    .brand .logo{
+      width:46px;height:28px;border-radius:8px;
+      background:linear-gradient(135deg,#11c29a,#0e9e79);
+      display:grid;place-items:center;color:white; font-weight:800;
+    }
+    .brand .caption{display:flex;flex-direction:column;line-height:1}
+    .brand small{opacity:.8; font-weight:600}
+    nav{margin-top:18px;display:flex;flex-direction:column;gap:6px}
+    .nav-btn{
+      color:#dbeafe; border-radius:10px; padding:10px 12px;
+      display:flex;align-items:center;gap:10px; text-decoration:none;
+      transition: background .15s ease;
+    }
+    .nav-btn:hover{background:var(--sidebar-hover)}
+    .nav-btn.active{background:#ffffff10; border:1px solid #ffffff1f}
+    .spacer{flex:1}
+    .copyright{font-size:12px; color:#93a3b8; opacity:.7}
+
+    /* Main */
+    .main{
+      padding:22px 24px;
+      overflow:auto;
+    }
+    .toolbar{
+      display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:16px;
+    }
+    .toolbar h1{font-size:22px; margin:0}
+    .actions{display:flex; gap:10px}
+
+    .last-updated{
+      font-size:12px; color:#6b7280; font-weight:600;
+      border:1px dashed #e5e7eb; border-radius:10px; padding:6px 8px;
+    }
+    .actions{ display:flex; gap:10px; align-items:center }
+
+    .btn{
+      display:inline-flex; align-items:center; gap:8px;
+      padding:10px 12px; border-radius:12px; border:1px solid #e5e7eb;
+      background:var(--card); cursor:pointer; font-weight:600;
+      box-shadow: 0 1px 0 rgba(15,23,42,.03);
+    }
+    .btn:focus{outline:2px solid var(--ring); outline-offset:2px}
+    .btn-primary{ background:var(--primary); color:white; border-color:transparent}
+    .btn-primary:hover{ background:var(--primary-600)}
+    .btn-ghost{ background:transparent; border-color:#e5e7eb}
+    .btn-danger{ background:var(--danger); color:white; border-color:transparent }
+    /* Grid */
+    .form-grid{ display:grid; grid-template-columns: 160px 1fr 1fr 1fr 1fr 140px auto auto; gap:10px; align-items:center }
+    .grid{
+      display:grid; gap:14px;
+    }
+    .grid.cols-3{ grid-template-columns: repeat(3, minmax(0,1fr)); }
+    .grid.cols-4{ grid-template-columns: repeat(4, minmax(0,1fr)); }
+    .card{
+      background:var(--card); border:1px solid #e5e7eb; border-radius:14px; padding:16px;
+    }
+    .kpi{
+      display:flex; flex-direction:column; gap:4px;
+    }
+    .kpi .label{ color:var(--muted); font-size:13px; font-weight:600}
+    .kpi .value{ font-size:28px; font-weight:800}
+    .filters{ display:grid; grid-template-columns: 180px 180px 220px 160px 1fr 220px 220px auto; gap:10px; align-items:center;
+      margin-top:10px;
+    }
+    .input, select,.choices__inner{
+      width:100%; border:1px solid #e5e7eb; border-radius:12px; padding:10px 12px; background:white;
+      font-size:14px;
+    }
+    .input:focus, select:focus{ outline:2px solid var(--ring); outline-offset:2px}
+    .choices.is-open .choices__inner{ border-color: var(--ring); box-shadow: 0 0 0 2px var(--ring); }
+    .table-wrap{ margin-top:8px }
+    .tabulator{ border-radius:14px; border:1px solid #e5e7eb }
+    .muted{ color:var(--muted) }
+
+    /* MultiSelect (checkbox dropdown) */
+    /* Estado editor (inline dropdown) */
+    .status-pill{ display:inline-flex; align-items:center; gap:6px; padding:4px 8px; border-radius:999px; font-weight:700; cursor:pointer; border:1px solid #e5e7eb; background:#fff; }
+    .status-pill.disabled{ opacity:.6; cursor:not-allowed; }
+    .status-pill .dot{ width:8px; height:8px; border-radius:50% }
+    .status-menu{
+      position:absolute; z-index:2000; background:#fff; border:1px solid #e5e7eb; border-radius:10px; box-shadow:0 12px 24px rgba(2,8,23,.18);
+      padding:6px; display:none; min-width:180px;
+    }
+    .status-menu.open{ display:block }
+    .status-item{ display:flex; align-items:center; gap:8px; padding:8px 8px; border-radius:8px; cursor:pointer; }
+    .status-item:hover{ background:#f3f4f6 }
+    .status-item .dot{ width:8px; height:8px; border-radius:50% }
+
+    .msel{ position:relative; }
+    .msel-toggle{
+      width:100%; border:1px solid #e5e7eb; border-radius:12px; padding:10px 12px; background:white;
+      display:flex; align-items:center; justify-content:space-between; gap:8px; cursor:pointer; font-size:14px;
+    }
+    .msel-toggle .label{ color:#9ca3af }
+    .msel-toggle .value{ color:var(--text) }
+    .msel.open .msel-toggle{ outline:2px solid var(--ring); outline-offset:2px }
+    .msel-panel{
+      position:absolute; top:calc(100% + 6px); left:0; right:0; z-index:40;
+      background:white; border:1px solid #e5e7eb; border-radius:12px; box-shadow:0 12px 24px rgba(2,8,23,.18);
+      padding:8px; max-height:240px; overflow:auto; display:none;
+    }
+    .msel.open .msel-panel{ display:block }
+    .msel-option{ display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:8px; user-select:none; }
+    .msel-option:hover{ background:#f3f4f6 }
+    .msel-option input{ width:16px; height:16px }
+    /* Overlay */
+    /* Progress in overlay */
+    .progress-wrap{ display:none; align-items:center; gap:10px; margin-left:8px; }
+    .progress{ width:240px; height:8px; background:#e5e7eb; border-radius:9999px; overflow:hidden; }
+    .progress .bar{ height:100%; width:0%; background:#2563eb; transition: width .15s ease; }
+    .progress-text{ font-size:12px; color:#6b7280; font-weight:700; }
+
+    .overlay{
+      position: fixed; inset:0; display:none; place-items:center; background:rgba(15, 18, 30, .35); z-index:50;
+    }
+    .overlay .bubble{
+      background:white; border-radius:12px; border:1px solid #e5e7eb; padding:10px 14px;
+      display:flex; align-items:center; gap:10px; font-weight:600;
+      box-shadow: 0 10px 20px rgba(2,8,23,.20);
+    }
+    .spinner{ width:16px;height:16px;border:2px solid #e5e7eb;border-top-color:#0FA47E;border-radius:50%; animation:spin .9s linear infinite }
+    @keyframes spin{ to{ transform: rotate(360deg) } }
+    /* Utilities */
+    .hidden{ display:none !important }
+    @media (max-width:1024px){
+      .app{ grid-template-columns: 82px 1fr}
+      .brand .caption{display:none}
+      .nav-btn span{ display:none }
+      .filters{ display:grid; grid-template-columns: 180px 180px 220px 160px 1fr 220px 220px auto; }
+    }
+  
+  /* Botón "Pagar" en celdas */
+  .tabulator-cell .btn-pagar{
+    padding: 2px 6px;
+    font-size: 12px;
+    line-height: 1;
+    height: 22px;
+    border-radius: 4px;
+    background: var(--primary);
+    color: #fff;
+    border: 0;
+    cursor: pointer;
   }
 
+</style>
+
+<style id="modalPago-wide-tweaks">
+  /* Ensancha contenidos internos del modal de pago */
+  #modalPago .bubble .card { width: 100%; }
+  #modalPago .input, 
+  #modalPago .msel, 
+  #modalPago select, 
+  #modalPago textarea { width: 100%; max-width: none; }
+  /* Si hay filas de cargos con inputs internos */
+  #modalPago #mpCargosList .input { width: 100%; max-width: none; }
+  /* Mejor separación del resumen superior */
+  #modalPago .card[style*="grid-template-columns:1fr 1fr"] { gap: 14px !important; }
+  /* Alinea el header de Otros Cargos (label + botón) si existe en línea */
+  #modalPago .otros-cargos-toolbar { display:flex; align-items:center; justify-content:space-between; gap:12px; width:100%; }
+</style>
+
+
+<style id="modalPago-field-widen">
+  #modalPago #mpFechaPago,
+  #modalPago #mpIdPago { width: 100%; max-width: none; font-size: 16px; padding: 12px 14px; letter-spacing: 0.3px; }
+  #modalPago .field, #modalPago .field > .input { width: 100%; max-width: none; }
+  #modalPago .cargo-row { grid-template-columns: 1fr 1fr 140px 32px !important; }
+  #modalPago .cargo-row .cargo-codigo { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+</style>
+
+</head>
+<body>
+
+<!-- ===== Login Section ===== -->
+<section id="secLogin" style="display:none;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0f172a10;">
+  <div style="width:100%;max-width:440px;background:#fff;border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.08);padding:28px;">
+    <h2 style="margin:0 0 10px 0;">Iniciar sesión</h2>
+    <p style="margin:0 0 18px 0;color:#64748b;">Ingrese sus credenciales.</p>
+    <div style="display:grid;gap:12px;">
+      <input id="loginUsuario" class="input" placeholder="Usuario" autocomplete="username" />
+      <input id="loginPassword" class="input" placeholder="Contraseña" type="password" autocomplete="current-password" />
+      <button id="btnDoLogin" class="btn btn-primary">Ingresar</button>
+      <small id="loginError" style="display:none;color:#b91c1c;font-weight:600;"></small>
+    </div>
+  </div>
+</section>
+<!-- ===== /Login Section ===== -->
+<div id="appShell" style="display:none;">
+
+
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="logo">UTCD</div>
+        <div class="caption">
+          <span>Aplicativo</span>
+          <small>de Facturas</small>
+        </div>
+      </div>
+
+            <nav>
+        <a class="nav-btn active" href="#inicio"><i class="lucide-home"></i><span>Inicio</span></a>
+        <a class="nav-btn" href="#revision"><i class="lucide-list"></i><span>Revisión de Facturas</span></a>
+        <a class="nav-btn" href="#pago"><i class="lucide-wallet"></i><span>Pago</span></a>
+        <a class="nav-btn" href="#anticipos"><i class="lucide-coins"></i><span>Anticipos</span></a>
+        <a class="nav-btn" href="#placas"><i class="lucide-car"></i><span>Placas</span></a>
+      </nav>
+      <div class="spacer"></div>
+      
+      <button id="btnLogout" class="btn btn-ghost" style="margin:10px 0;" style="margin:10px 0; color:#fff;"><i class="lucide-log-out"></i> Cerrar sesión</button>
+<div class="copyright">© UTCD 2025</div>
+    </aside>
+
+    <main class="main">
+  <section id="secInicio" style="display:block;">
+    <div style="display:flex;align-items:center;justify-content:center;height:60vh;flex-direction:column;gap:12px;">
+      <div style="font-size:42px;opacity:.85;">¡Bienvenido!</div>
+      <div style="opacity:.7;">Selecciona una sección en el menú para comenzar.</div>
+    </div>
+  </section>
+
+  <section id="secRevision">
+      <div class="toolbar">
+        <h1>Revisión de Facturas</h1>
+        <div class="actions">
+          <span id="lastUpdated" class="last-updated" title="Última actualización">—</span>
+          <button id="btnActualizar" class="btn"><i class="lucide-rotate-cw"></i> Actualizar</button>
+          <button id="btnAgrupar" class="btn btn-ghost"><i class="lucide-layers-2"></i> Agrupar por colaborador</button>          <button id="btnExportXLSX" class="btn btn-ghost"><i class="lucide-download"></i> Excel</button>
+          <button id="btnDescargar" class="btn btn-primary"><i class="lucide-file-down"></i> Descargar PDFs</button>
+        </div>
+      </div>
+
+      <div class="grid cols-4">
+        <div class="card kpi">
+          <span class="label">Registradas</span>
+          <span id="kpiRegistradas" class="value">0</span>
+        </div>
+        <div class="card kpi">
+          <span class="label">Revisadas</span>
+          <span id="kpiRevisadas" class="value">0</span>
+        </div>
+        <div class="card kpi">
+          <span class="label">Anuladas</span>
+          <span id="kpiAnuladas" class="value">0</span>
+        </div>
+        <div class="card kpi">
+          <span class="label">Pagadas</span>
+          <span id="kpiPagadas" class="value">0</span>
+        </div>
+      </div>
+
+      <div id="kpiRevRangeWrap" class="card" style="margin-top:10px; display:none;">
+  <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+    <span class="label" style="font-size:13px;color:var(--muted);font-weight:700;">Revisadas (rango revisión):</span>
+    <span id="kpiRevRangeCount" class="value" style="font-size:18px;font-weight:800;">0</span>
+    <span class="label" style="font-size:13px;color:var(--muted);font-weight:700;">Total L</span>
+    <span id="kpiRevRangeSum" class="value" style="font-size:18px;font-weight:800;">0.00</span>
+  </div>
+</div>
+
+<div class="card" style="margin-top:10px;">
+        <div class="filters">
+          <div id="msSector" class="msel" data-placeholder="Sector"></div>
+          <div id="msEstado" class="msel" data-placeholder="Estado"></div>
+          <input id="fNombre" class="input" placeholder="Nombre Colaborador…"/>
+          <input id="fNumero" class="input" placeholder="Nº Factura…"/>
+          <input id="fFecha" class="input" placeholder="Rango de fechas"/>
+          <input id="fFechaRev" class="input" placeholder="Rango fecha revisión"/>
+          <button id="btnLimpiar" class="btn btn-ghost"><i class="lucide-broom"></i> Limpiar</button>
+        </div>
+        <div class="table-wrap">
+          <div id="tablaRevision"></div>
+        </div>
+      </div>
+
+      <p class="muted" style="margin-top:10px;">Consejo: usa los filtros para reducir el conjunto y luego “Descargar PDFs”.</p>
+  </section>
+
+  <!-- ============== Sección Pago (placeholder) ============== -->
+  
+  <!-- ============== Sección Pago ============== -->
+  <section id="secPago" style="display:none;">
+    <div class="toolbar">
+      <h1>Pago de Facturas</h1>
+      <div class="actions">
+        <span id="lastUpdatedPago" class="last-updated" title="Última actualización">—</span>
+        <button id="btnPagoActualizar" class="btn"><i class="lucide-rotate-cw"></i> Actualizar</button>
+        <button id="btnPagoAgrupar" class="btn btn-ghost"><i class="lucide-layers-2"></i> Agrupar por colaborador</button>
+        <button id="btnPagoAgruparIdPago" class="btn btn-ghost" onclick="togglePagoGroupingByIdPago()"><i class="lucide-hash"></i> Agrupar por ID_PAGO</button>
+        <button id="btnPagoExportXLSX" class="btn btn-ghost"><i class="lucide-download"></i> Excel</button>
+        <button id="btnPagoAbrirModal" class="btn btn-primary hidden" disabled><i class="lucide-credit-card"></i> Pagar seleccionadas</button>
+      </div>
+    </div>
+
+    <div class="grid cols-4">
+      <div class="card kpi"><span class="label">Pendientes (Revisadas)</span><span id="kpiPagoPendientes" class="value">0</span></div>
+      <div class="card kpi"><span class="label">Pagadas</span><span id="kpiPagoPagadas" class="value">0</span></div>
+      <div class="card kpi"><span class="label">Total Pendiente</span><span id="kpiPagoTotalPend" class="value">L 0.00</span></div>
+      <div class="card kpi"><span class="label">Total Pagado</span><span id="kpiPagoTotalPag" class="value">L 0.00</span></div>
+      <div class="card kpi"><span class="label">Otros Cargos (registrados)</span><span id="kpiPagoOtrosCargos" class="value">L 0.00</span></div>
+    </div>
+
+    <div class="card" style="margin-top:10px;">
+      <div class="filters" style="grid-template-columns: 220px 220px 220px 160px 1fr 220px auto;">
+        <div id="msPagoSector" class="msel" data-placeholder="Sector"></div>
+        <div id="msPagoEstado" class="msel" data-placeholder="Estado"></div>
+        <input id="fPagoNombre" class="input" placeholder="Nombre Colaborador…"/>
+        <input id="fPagoNumero" class="input" placeholder="Nº Factura…"/>
+        <input id="fPagoFecha" class="input" placeholder="Rango de fechas"/>
+        <button id="btnPagoLimpiar" class="btn btn-ghost"><i class="lucide-broom"></i> Limpiar</button>
+      </div>
+
+      <div class="table-wrap">
+        <div id="tablaPago"></div>
+      </div>
+    </div>
+
+    <!-- Modal pago -->
+<div id="modalPago" class="overlay" style="display:none;">
+  <div class="bubble" style="display:flex;flex-direction:column;gap:12px;min-width:520px;max-width:700px;">
+    <div style="font-weight:800;font-size:16px;display:flex;align-items:center;gap:8px;">
+      <i class="lucide-credit-card"></i> Registrar pago
+    </div>
+
+    <!-- Resumen tipo "factura" -->
+    <div class="card" style="padding:12px;display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div><small class="muted">Facturas a pagar</small><div id="mpCount" style="font-weight:700;font-size:16px;">0</div></div>
+      <div><small class="muted">Monto subtotal</small><div id="mpSubtotal" style="font-weight:700;font-size:16px;">L 0.00</div></div>
+      <div><small class="muted">Otros cargos</small><div id="mpCargos" style="font-weight:700;font-size:16px;">L 0.00</div></div>
+      <div><small class="muted">Total a pagar</small><div id="mpTotal" style="font-weight:800;font-size:18px;">L 0.00</div></div>
+    </div>
+
+    <div style="display:grid;gap:10px;grid-template-columns:1fr;">
+  <label style="display:grid;gap:6px;">
+    <small class="muted" style="font-weight:700;">Fecha de pago</small>
+    <input id="mpFechaPago" class="input" placeholder="YYYY-MM-DD"/>
+  </label>
+</div>
+
+    <div style="display:grid;gap:10px;grid-template-columns:1fr;">
+  <label style="display:grid;gap:6px;">
+    <small class="muted" style="font-weight:700;">ID_PAGO</small>
+    <input id="mpIdPago" class="input" readonly />
+  </label>
+</div>
+
+    <!-- Otros cargos -->
+    <div class="card" style="padding:12px;display:flex;flex-direction:column;gap:8px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div style="font-weight:700;">Otros Cargos</div>
+        <button id="mpAddCargo" class="btn btn-ghost"><i class="lucide-plus"></i> Agregar cargo</button>
+      </div>
+      <div id="mpCargosList" style="display:flex;flex-direction:column;gap:8px;"></div>
+    </div>
+
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px;">
+      <button id="mpCancelar" class="btn btn-ghost"><i class="lucide-x"></i> Cancelar</button>
+      <button id="mpConfirmar" class="btn btn-primary"><i class="lucide-check"></i> Confirmar</button>
+    </div>
+  </div>
+</div>
+</section>
+
+
+  <!-- ============== Sección Anticipos (placeholder) ============== -->
+  <section id="secAnticipos" style="display:none;">
+    <div class="card"><h2>Anticipos</h2><p class="muted">Sección en preparación.</p></div>
+  </section>
+
+  <!-- ============== Sección Placas ============== -->
+  <section id="secPlacas" style="display:none;">
+    <div class="header-row" style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;">
+      <h2 class="title" style="margin:0;display:flex;align-items:center;gap:8px;"><i class="lucide-car"></i> Placas</h2>
+      <div class="actions" style="display:flex;gap:10px;">
+        <button id="btnPlacasActualizar" class="btn"><i class="lucide-rotate-cw"></i> Actualizar</button>
+        <button id="btnPlacasActivar" class="btn btn-ghost"><i class="lucide-check-circle-2"></i> Activar</button>
+        <button id="btnPlacasInactivar" class="btn btn-ghost"><i class="lucide-x-circle"></i> Inactivar</button>
+        <button id="btnPlacasNueva" class="btn btn-primary"><i class="lucide-plus"></i> Nueva placa</button>
+      </div>
+    </div>
+
+    <div class="grid cols-3">
+      <div class="card kpi"><span class="label">Total</span><span id="kpiPlacasTotal" class="value">0</span></div>
+      <div class="card kpi"><span class="label">Activas</span><span id="kpiPlacasActivas" class="value">0</span></div>
+      <div class="card kpi"><span class="label">Inactivas</span><span id="kpiPlacasInactivas" class="value">0</span></div>
+    </div>
+
+    <div id="placasFormWrap" class="card" style="margin-top:10px; display:none;">
+  <div class="form-grid">
+    <div style="display:flex; flex-direction:column; gap:4px;">
+      <small id="npPlacaLimit" class="muted">Ingresar Placa/VIN</small>
+      <input id="npPlaca" class="input" placeholder="Placa o VIN (requerido)"/>
+      <small id="npPlacaHint" class="muted">Sin Guiones</small>
+      <small id="npPlacaDup" style="display:none;color:#b91c1c;font-weight:600;">Esta placa/VIN ya existe.</small>
+    </div>
+    <input id="npNombre" class="input" placeholder="Nombre (Conductor)"/>
+    <select id="npSector" class="input"><option value="">Sector…</option></select>
+    <select id="npProceso" class="input"><option value="">Proceso…</option></select>
+    <input id="npDesignacion" class="input" placeholder="Designación (Cargo)"/>
+    <select id="npEstado" class="input">
+      <option value="Activa">Activa</option>
+      <option value="Inactiva">Inactiva</option>
+    </select>
+    <button id="btnPlacaGuardar" class="btn btn-primary"><i class="lucide-save"></i> Guardar</button>
+    <button id="btnPlacaCancelar" class="btn btn-ghost"><i class="lucide-x"></i> Cancelar</button>
+  </div>
+</div>
+        
+<div class="card" style="margin-top:10px;">
+      <div class="filters" style="grid-template-columns: 180px 180px 1fr 1fr auto">
+        <select id="fPlacasEstado">
+          <option value="">Estado</option>
+          <option value="Activa">Activa</option>
+          <option value="Inactiva">Inactiva</option>
+        </select>
+        
+        <select id="fPlacasSector"><option value="">Sector</option></select>
+        <input id="fPlacasPlaca" class="input" placeholder="Placa o VIN…"/>
+        <input id="fPlacasNombre" class="input" placeholder="Nombre Colaborador…"/>
+        <div style="display:flex; gap:10px; align-items:center;">
+          <button id="btnPlacasLimpiar" class="btn btn-ghost"><i class="lucide-broom"></i> Limpiar</button>
+          <span id="placasNotice" class="muted" style="font-size:12px; display:none;">Configura Config.api.placas (un solo endpoint).</span>
+        </div>
+      </div>
+      <div id="tablaPlacas" class="tabulator" style="margin-top:8px;"></div>
+    </div>
+  </section>
+
+    </main>
+  </div>
+
+  <div id="overlay" class="overlay">
+    <div class="bubble"><div class="spinner"></div><span id="overlayMsg">Cargando facturas…</span>
+      <div class="progress-wrap">
+        <div class="progress"><div id="overlayBar" class="bar"></div></div>
+        <div class="progress-text" id="overlayCount">0/0</div>
+      </div>
+    </div>
+  </div>
+
+<script>
+/** =========================
+ *  Configuración
+ *  ========================= */
+const Config = {
+  // Ajusta estas URLs a tu despliegue (coinciden con tu arquitectura actual)
+  api: {
+    leerFacturas: "https://repositorio-de-pruebas.pages.dev/api/leer",
+    guardar: "/api/guardar",
+    anticipos: "/api/Anticipos",
+    procesos: "/api/procesos",
+    guardarAnti: "/api/GuardarAnti",
+    // Proxy para PDFs
+    proxyBase: "https://repositorio-de-pruebas.pages.dev/api",
+      placas: "/api/placas",
+},
+  tablaHeight: "560px",
+};
+
+/** =========================
+ *  Utilidades de UI
+ *  ========================= */
+const $ = (sel)=>document.querySelector(sel);
+
+const overlay = {
+  done: 0, total: 0,
+  show(msg="Cargando…"){
+    $("#overlayMsg").textContent = msg;
+    $("#overlay").style.display = "grid";
+    const pw = document.getElementById("overlay")?.querySelector(".progress-wrap");
+    const b  = $("#overlayBar"); const c = $("#overlayCount");
+    if (pw) pw.style.display = "none";
+    if (b) b.style.width = "0%";
+    if (c) c.textContent = "0/0";
+  },
+  startProgress(total){
+    this.done = 0; this.total = total || 0;
+    const pw = document.getElementById("overlay")?.querySelector(".progress-wrap");
+    const b  = $("#overlayBar"); const c = $("#overlayCount");
+    if (pw) pw.style.display = "flex";
+    if (b) b.style.width = "0%";
+    if (c) c.textContent = `0/${this.total}`;
+  },
+  step(){
+    this.done++;
+    const b = $("#overlayBar"); const c = $("#overlayCount");
+    const pct = this.total ? Math.round(Math.min(100, (this.done/this.total)*100)) : 0;
+    if (b) b.style.width = pct + "%";
+    if (c) c.textContent = `${this.done}/${this.total}`;
+  },
+  hide(){
+    $("#overlay").style.display = "none";
+    this.done = 0; this.total = 0;
+    const pw = document.getElementById("overlay")?.querySelector(".progress-wrap");
+    const b  = $("#overlayBar"); const c = $("#overlayCount");
+    if (pw) pw.style.display = "none";
+    if (b) b.style.width = "0%";
+    if (c) c.textContent = "0/0";
+  }
+};
+
+const fmt = {
+  money(v){ const n=Number(v||0); return "L " + n.toLocaleString("es-HN",{minimumFractionDigits:2, maximumFractionDigits:2}); },
+  dateISO(d){ const x = new Date(d); if(isNaN(x)) return ""; return x.toISOString().slice(0,10); },
+};
+
+/** Mapea alias de campos al esquema esperado por la tabla */
+function normalizeRow(src){
+  if(!src || typeof src!=="object") return null;
+  const g = (keys, fallback="")=>{
+    for(const k of keys){
+      if(src[k]!=null && src[k]!=="" ) return src[k];
+    }
+    return fallback;
+  };
+  const row = {
+    fila:      g(["fila","_fila","Fila","row","Row","RowIndex","rowIndex"]),
+    Sector:    g(["Sector","SECTOR","sector"]),
+    Placa:     g(["Placa","PLACA","placa","Dato Placa","DatoPlaca"]),
+    Proceso:   g(["Proceso","PROCESO","proceso"]),
+    Nombre:    g(["Nombre","NOMBRE","nombre"]),
+    Identidad: g(["Identidad","IDENTIDAD","DNI","Cedula","Documento","NIT"]),
+    Fecha:     g(["Fecha","Fecha Factura","FECHA","fecha"]),
+    "Nº Factura": g(["Nº Factura","NoFactura","No Factura","Numero","NroFactura","Nro Factura","Factura","No_Factura"]),
+    "Numero de Factura": g(["Numero de Factura","Número de Factura","N° Factura","Nº Factura","NoFactura","Factura"]),
+    "Nombre del comercio": g(["Nombre del comercio","Comercio","Proveedor","Razon Social","RazonSocial"]),
+    "Enlace PDF": g(["Enlace PDF","Enlace","URL","Pdf","PDF","Link","Archivo","Ruta","Documento","DocumentoURL"]),
+    Enlace:    g(["Enlace","URL","Pdf","PDF","Link","Archivo","Ruta","Documento","DocumentoURL"]),
+    PDF:       g(["PDF","pdf","EnlacePDF","DocumentoPDF"]),
+    "Km Actual": g(["Km Actual","KM","Km","Kilometraje"]),
+    "Litros Consumidos": g(["Litros Consumidos","Litros","Consumo (L)","ConsumoL"]),
+    Total:     g(["Total Gastado","Total","TOTAL","VALOR","Valor","Importe","Monto"], 0),
+    FechaRevision: g(["FechaRevision","Fecha de Revisión","Fecha de Revision","Fecha_Revision","Fecha_Revisión","Fecha Revisada","FechaRevisionISO"]),
+    Estado:    g(["Estado","ESTADO","estado"], "Registrada"),
+    ID_PAGO:  g(["ID_PAGO","Id_Pago","ID PAGO","Id Pago","IdPago","IDPAGO"]),
+  };
+  return row;
+}
+/** Convierte enlaces de Google Drive a descarga directa */
+function toDirectDriveUrl(url){
+  if(!url) return url;
+  try{
+    const u = String(url);
+    // https://drive.google.com/file/d/FILE_ID/view?usp=sharing
+    const m1 = u.match(/drive\.google\.com\/file\/d\/(.*?)(?:\/|\?|$)/);
+    if(m1 && m1[1]) return `https://drive.google.com/uc?export=download&id=${m1[1]}`;
+    // https://drive.google.com/open?id=FILE_ID
+    const m2 = u.match(/[?&]id=([\w-]+)/);
+    if(m2 && m2[1]) return `https://drive.google.com/uc?export=download&id=${m2[1]}`;
+    return url;
+  }catch(_){ return url; }
+}
+
+/** =========================
+ *  Capa de datos (API)
+ *  ========================= */
+const API = { _facturasCtl:null,
+  async getFacturas(){
+    if(this._facturasCtl) try{ this._facturasCtl.abort(); }catch(_){}
+    const ctl = new AbortController();
+    this._facturasCtl = ctl;
+    const res = await fetch(Config.api.leerFacturas, {cache:"no-store", mode:"cors", signal: ctl.signal});
+    if(!res.ok) throw new Error("No se pudo leer facturas");
+    const data = await res.json();
+    if(ctl.signal.aborted) throw new Error('ABORTED');
+    const arr = Array.isArray(data)? data : [];
+return arr.map(normalizeRow).filter(r=>r); // no filtramos por nº factura todavía
+  },
+  proxied(url){
+    const base = Config.api.proxyBase.replace(/\/$/,"");
+    const u = encodeURIComponent(url);
+    return `${base}/proxy?url=${u}`;
+  },
+  async updateEstado(rowData, nuevoEstado){
+    // Backend original espera: { actualizarEstado:true, fila, nuevoEstado }
+    const filaId = rowData.fila || rowData._fila;
+    if(!filaId){
+      throw new Error("No se encontró 'fila' para actualizar (el dataset debe incluir 'fila' o '_fila').");
+    }
+    const payload = { actualizarEstado:true, fila: filaId, nuevoEstado: nuevoEstado };
+    const res = await fetch(Config.api.guardar, {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify(payload),
+    });
+    if(!res.ok){
+      const txt = await res.text().catch(()=>"");
+      throw new Error("Error HTTP al guardar: "+res.status+" "+txt);
+    }
+    const json = await res.json().catch(()=>({status:"ERROR"}));
+    if(json.status !== "OK"){
+      throw new Error(json.message || "El backend no confirmó el cambio.");
+    }
+    return json;
+  },
+  async fetchPdfBlob(url){
+    // Intenta por proxy, valida header %PDF
+    const tryFetch = async (u)=>{
+      const r = await fetch(u);
+      if(!r.ok) throw new Error("HTTP "+r.status);
+      const b = await r.blob();
+      // Chequeo básico de PDF
+      const head = await b.slice(0,5).text().catch(()=>null);
+      if(head && head.startsWith("%PDF")) return b;
+      // Si el content-type ya es application/pdf, también lo aceptamos
+      const ctype = r.headers.get("content-type")||"";
+      if(ctype.includes("application/pdf")) return b;
+      throw new Error("El recurso no parece ser un PDF");
+    };
+    try{
+      return await tryFetch(API.proxied(url));
+    }catch(e){
+return await tryFetch(url);
+    }
+  }
+};
+
+/** ========= MultiSelect ========= */
+function createMultiSelect(selector, placeholder="Seleccione…", onChange=()=>{}){
+  const root = document.querySelector(selector);
+  root.classList.add("msel");
+  const toggle = document.createElement("button");
+  toggle.type = "button";
+  toggle.className = "msel-toggle";
+  toggle.innerHTML = `<span class="label">${placeholder}</span><i class="lucide-chevron-down"></i>`;
+  const panel = document.createElement("div");
+  panel.className = "msel-panel";
+  root.appendChild(toggle);
+  root.appendChild(panel);
+
+  let items = [];
+  const selected = new Set();
+
+  function render(){
+    // Update toggle text
+    if(selected.size === 0){
+      toggle.innerHTML = `<span class="label">${placeholder}</span><i class="lucide-chevron-down"></i>`;
+    }else{
+      const vals = Array.from(selected);
+      const summary = vals.length<=2 ? vals.join(", ") : `${vals.length} seleccionados`;
+      toggle.innerHTML = `<span class="value">${summary}</span><i class="lucide-chevron-down"></i>`;
+    }
+    // Render options
+    panel.innerHTML = "";
+    for(const val of items){
+      const id = `${selector.replace('#','')}_${val}`.replace(/\s+/g,'_');
+      const lab = document.createElement("label");
+      lab.className = "msel-option";
+      lab.htmlFor = id;
+      lab.innerHTML = `<input id="${id}" type="checkbox" value="${val}"> <span>${val}</span>`;
+      const input = lab.querySelector("input");
+      input.checked = selected.has(val);
+      input.addEventListener("change", ()=>{
+        if(input.checked) selected.add(val); else selected.delete(val);
+        render();
+        onChange();
+      });
+      panel.appendChild(lab);
+    }
+  }
+
+  function open(){ root.classList.add("open"); }
+  function close(){ root.classList.remove("open"); }
+  toggle.addEventListener("click", ()=>{
+    if(root.classList.contains("open")) close(); else open();
+  });
+  document.addEventListener("click", (e)=>{
+    if(!root.contains(e.target)) close();
+  });
+
+  return {
+    setItems(arr){
+      items = Array.from(new Set((arr||[]).filter(Boolean)));
+      // si una selección previa ya no existe, la removemos
+      for(const v of Array.from(selected)){ if(!items.includes(v)) selected.delete(v); }
+      render();
+    },
+    getSelected(){ return Array.from(selected); },
+    clear(){ selected.clear(); render(); onChange(); },
+    select(vals=[]){ selected.clear(); (vals||[]).forEach(v=> items.includes(v)&&selected.add(v)); render(); onChange(); }
+  };
+}
+
+/** =========================
+ *  Estado
+ *  ========================= */
+const State = {
+  raw: [],
+  get filtered(){
+    const sVals = sectorMS? sectorMS.getSelected() : [];
+    const eVals = estadoMS? estadoMS.getSelected() : [];
+    const p = ($("#fPlaca")?.value || "").trim().toLowerCase();
+    const n = $("#fNumero").value.trim().toLowerCase();
+    const dr = $("#fFecha")._range || null;
+    const dr2 = ($("#fFechaRev")? $("#fFechaRev")._range : null);
+    const _normalize = (s)=> String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+    const nombreQ = _normalize(document.getElementById("fNombre")?.value || "");
+
+    return State.raw.filter(row=>{
+      const sector = (row.Sector||"").toString();
+      const estado = (row.Estado||"").toString();
+      const numero = (row["Nº Factura"]||row["Numero de Factura"]||row.NoFactura||"").toString();
+      const placa  = (row.Placa||"").toString();
+      const fecha  = (row.Fecha||row["Fecha Factura"]||row["FechaFactura"]||"").toString();
+      const fechaRev  = (row.FechaRevision||row["Fecha de Revisión"]||row["Fecha de Revision"]||"").toString();
+
+      if(sVals.length && !sVals.includes(sector)) return false;
+      if(eVals.length && !eVals.includes(estado)) return false;
+      if(p && !placa.toLowerCase().includes(p)) return false;
+      if(n && !numero.toLowerCase().includes(n)) return false;
+      const nombreNorm = _normalize(row.Nombre||"");
+      if(nombreQ && !nombreNorm.includes(nombreQ)) return false;
+
+      if(dr){
+        const f = new Date(fecha);
+        if(isNaN(f)) return false;
+        if(f < dr[0] || f > dr[1]) return false;
+      }
+      if(dr2){
+        const fr = new Date(fechaRev);
+        if(isNaN(fr)) return false;
+        if(fr < dr2[0] || fr > dr2[1]) return false;
+      }
+      return true;
+    });
+  }
+};
+
+/** Opciones de estado a partir de datos o valores por defecto */
+function getEstadoOptions(){
+  const vals = Array.from(new Set(State.raw.map(r=>r.Estado).filter(Boolean)));
+  // Orden sugerido
+  const def = ["Registrada","Revisada","Anulada"];
+  const full = def.concat(vals.filter(v=>!def.includes(v)));
+  return full;
+}
+function estadoColor(v){
+  if(v==="Anulada") return "var(--danger)";
+  if(v==="Revisada") return "#2563eb";
+  if(v==="Pagada") return "#0FA47E";
+  return "#111827";
+}
+
+/** =========================
+ *  Tabulator
+ *  ========================= */
+let table;
+let tableBuilt = false;
+
+// Refresca datos tras cambiar estado para tomar FechaRevision del backend
+async function refreshAfterEstado(){
+  try{
+    overlay.show("Actualizando datos…");
+    const currentSector = sectorMS? sectorMS.getSelected():[];
+    const currentEstado = estadoMS? estadoMS.getSelected():[];
+    const qNombre = document.getElementById("fNombre")?.value || "";
+    const qPlaca = document.getElementById("fPlaca")?.value || "";
+    const qNum   = document.getElementById("fNumero")?.value || "";
+    const dr = document.getElementById("fFecha")? document.getElementById("fFecha")._range : null;
+    const dr2 = document.getElementById("fFechaRev")? document.getElementById("fFechaRev")._range : null;
+    const arr = await API.getFacturas();
+    State.raw = arr;
+    try{ sectorMS.setItems(Array.from(new Set(State.raw.map(r=>r.Sector).filter(Boolean)))); }catch(_){ }
+    try{ estadoMS.setItems(getEstadoOptions()); }catch(_){ }
+    try{ sectorMS.select(currentSector); estadoMS.select(currentEstado); }catch(_){ }
+    if(document.getElementById("fNombre")) document.getElementById("fNombre").value = qNombre;
+    if(document.getElementById("fPlaca"))  document.getElementById("fPlaca").value = qPlaca;
+    document.getElementById("fNumero").value = qNum;
+    if(document.getElementById("fFecha")) document.getElementById("fFecha")._range = dr;
+    if(document.getElementById("fFechaRev")) document.getElementById("fFechaRev")._range = dr2;
+    if(table){ await table.replaceData(State.filtered); }
+    updateKpis();
+    try{ updateKpisRevRange(); }catch(_){}
+    setLastUpdatedNow();
+  }catch(_){
+  }finally{
+    overlay.hide();
+  }
+}
+
+function buildTable(){
+  if(table){ return; }
+  table = new Tabulator("#tablaRevision", {
+    height: Config.tablaHeight,
+    data: State.filtered,
+    layout:"fitColumns",
+    placeholder:"Sin datos",
+    selectable:true,
+    pagination:false,
+    reactiveData:false,
+    groupStartOpen:false,
+    groupHeader:function(value, count, data, group){
+      // value = Identidad
+      const nombre = (data && data[0] && (data[0].Nombre||data[0].Identidad)) || value;
+      const suma = (data||[]).reduce((acc,r)=> acc + (Number(r.Total)||0), 0);
+      const totalTxt = new Intl.NumberFormat("es-HN",{minimumFractionDigits:2, maximumFractionDigits:2}).format(suma);
+      // data-group-key: usamos value (Identidad) + un hash simple para evitar colisiones visuales
+      const key = String(value ?? "").replace(/"/g,"&quot;");
+      return `<label class="group-toggle">
+                <input type="checkbox" class="group-select-pago" data-group-key="${key}">
+                <span>${nombre} (${count})</span>
+              </label>
+              <span class="kpi-mini">L ${totalTxt}</span>`;
+    },
+    columns:[
+      { formatter:"rowSelection", titleFormatter:"rowSelection", hozAlign:"center", headerSort:false, width:40 },
+      { title:"Sector", field:"Sector", width:120 },
+      { title:"Placa", field:"Placa", width:110 },
+      { title:"Proceso", field:"Proceso", width:130 },
+      { title:"Nombre", field:"Nombre", width:180 },
+      { title:"Identidad", field:"Identidad", width:150 },
+      { title:"Total Gastado", field:"Total", hozAlign:"right", width:140, formatter:(c)=>fmt.money(c.getValue())},
+      { title:"Fecha", field:"Fecha", width:120,
+        formatter:(c)=>{ const v=c.getValue(); return v? String(v).slice(0,10):""; },
+        accessorDownload:(value)=>{
+          if(!value) return "";
+          const s = String(value);
+          if(s.includes("T")) return s.slice(0,10);
+          try{ const d=new Date(value); if(!isNaN(d)) return d.toISOString().slice(0,10);}catch(e){}
+          return s.length>=10? s.slice(0,10): s;
+        }
+      },
+      { title:"Fecha de Revisión", field:"FechaRevision", width:150,
+        formatter:(c)=>{ const v=c.getValue(); return v? String(v).slice(0,10):""; },
+        accessorDownload:(value)=>{
+          if(!value) return "";
+          const s = String(value);
+          if(s.includes("T")) return s.slice(0,10);
+          try{ const d=new Date(value); if(!isNaN(d)) return d.toISOString().slice(0,10);}catch(e){}
+          return s.length>=10? s.slice(0,10): s;
+        }
+      },
+      { title:"Nombre del comercio", field:"Nombre del comercio", width:220, tooltip:true, formatter:(cell)=>{
+          const v = String(cell.getValue() ?? ""); const max = 28; return v.length>max? v.slice(0,max)+"…": v;
+      }},
+      { title:"Número de Factura", field:"Numero de Factura", width:150 },
+      { title:"Enlace PDF", field:"Enlace PDF", width:110, formatter:(cell)=>{
+          const v = cell.getValue() || cell.getRow().getData().Enlace || cell.getRow().getData().PDF || "";
+          return v? `<a href="${API.proxied(v)}" target="_blank" title="Abrir PDF">📄</a>` : "";
+      }},
+      { title:"Km Actual", field:"Km Actual", width:110, hozAlign:"right" },
+      { title:"Litros Consumidos", field:"Litros Consumidos", width:160, hozAlign:"right" },
+      { title:"Estado", field:"Estado", width:150, formatter:(c)=>{
+          const v = c.getValue()||"Registrada";
+          const color = estadoColor(v);
+          const disabled = (v === "Pagada");
+          const cls = disabled? "status-pill disabled" : "status-pill";
+          const title = disabled? "No editable cuando está Pagada" : "Cambiar estado";
+          return `<span class="${cls}" title="${title}"><span class="dot" style="background:${color}"></span>${v}</span>`;
+      } }
+
+    ],
+    dataLoaded:()=>{ updateKpis(); },
+    dataFiltered:()=>{ updateKpis(); },
+    rowSelectionChanged:()=>{ updateButtons(); },
+  });
+  table.on("tableBuilt", ()=>{
+    // Fallback: delegado por si el cellClick no se dispara en algunos navegadores
+    const root = document.getElementById("tablaRevision");
+    root.addEventListener("click", (ev)=>{
+    // Cerrar menú al hacer scroll horizontal/vertical en la tabla
+    const closeMenuIfOpen = ()=>{ if(statusMenuEl){ statusMenuEl.classList.remove("open"); } };
+    const tableHolder = root.querySelector(".tabulator-tableholder");
+    const tabScrollArea = tableHolder || root;
+    tabScrollArea.addEventListener("scroll", closeMenuIfOpen, {passive:true});
+    window.addEventListener("scroll", closeMenuIfOpen, {passive:true});
+    window.addEventListener("resize", closeMenuIfOpen);
+
+      const cellEl = ev.target.closest(".tabulator-cell");
+      if(!cellEl) return;
+      if(cellEl.getAttribute("tabulator-field") !== "Estado") return;
+      // Evitar abrir si la fila está Pagada
+      const rowEl = cellEl.closest(".tabulator-row");
+      const rowCompTmp = (function(){
+        const rows = table.getRows ? table.getRows() : [];
+        for(const r of rows){ if(r.getElement && r.getElement() === rowEl) return r; }
+        return null;
+      })();
+      if(rowCompTmp){ const d = rowCompTmp.getData ? rowCompTmp.getData() : {}; if((d.Estado||"") === "Pagada") return; }
+      try{
+        // Fallback robusto: localizar el row component comparando elementos
+        if(ev && ev.stopPropagation) ev.stopPropagation();
+        const rowEl = cellEl.closest(".tabulator-row");
+        let rowComp = null;
+        const rows = table.getRows ? table.getRows() : [];
+        for(const r of rows){
+          if(r.getElement && r.getElement() === rowEl){ rowComp = r; break; }
+        }
+        if(!rowComp) throw new Error("Row no encontrado");
+        const cellComp = rowComp.getCell ? rowComp.getCell("Estado") : null;
+        if(!cellComp) throw new Error("Cell Estado no encontrado");
+        openEstadoMenu(cellComp);
+      }catch(e){
+}
+    });
+
+    tableBuilt = true;
+    // Al construirse por primera vez, aseguramos KPIs y botones
+    updateKpis();
+    updateButtons();
+  });
+}
+
+let statusMenuEl;
+let statusMenuJustOpened = false;
+function ensureStatusMenu(){
+  if(statusMenuEl) return statusMenuEl;
+  statusMenuEl = document.createElement("div");
+  statusMenuEl.className = "status-menu";
+  document.body.appendChild(statusMenuEl);
+  document.addEventListener("click", (ev)=>{
+    if(statusMenuJustOpened){ statusMenuJustOpened = false; return; }
+    if(!statusMenuEl.contains(ev.target)) statusMenuEl.classList.remove("open");
+  });
+  document.addEventListener("keydown", (ev)=>{
+    if(ev.key === "Escape" && statusMenuEl){ statusMenuEl.classList.remove("open"); }
+  });
+  return statusMenuEl;
+}
+
+function openEstadoMenu(cell){
+  const menu = ensureStatusMenu();
+  const row = cell.getRow();
+  const data = row.getData();
+  const current = data.Estado || "Registrada";
+  // No permitir edición si está Pagada
+  if (current === "Pagada") { return; }
+
+  const options = getEstadoOptions();
+  menu.innerHTML = "";
+
+  options.forEach(opt => {
+    const div = document.createElement("div");
+    div.className = "status-item";
+    div.innerHTML = `<span class="dot" style="background:${estadoColor(opt)}"></span><span>${opt}</span>`;
+
+    div.addEventListener("click", async ()=>{
+      try{
+        // Cerrar el menú inmediatamente al seleccionar
+        menu.classList.remove("open"); statusMenuAnchor = null;
+        overlay.show("Guardando estado...");
+
+        // Optimista
+        row.update({Estado: opt});
+        updateKpis();
+
+        const resp = await API.updateEstado(data, opt);
+
+        if (opt === "Revisada") {
+          if (resp && resp.fechaRevision) {
+            try { row.update({ FechaRevision: resp.fechaRevision }); } catch(_) {}
+          } else {
+            // Solo recargar si era Revisada y el backend no devolvió fecha
+            try { await refreshAfterEstado(); } catch(_) {}
+          }
+        } // Para Anulada u otros estados, no recargamos (update optimista + KPIs)
+
+      }catch(err){
+        // rollback visual si falla
+        row.update({Estado: current});
+        updateKpis();
+        alert("No se pudo guardar el estado. Intenta de nuevo.");
+      }finally{
+        overlay.hide();
+        menu.classList.remove("open");
+      }
+    });
+
+    // 👉 Faltaba agregar el item al menú
+    menu.appendChild(div);
+  }); // 👉 Cierre del forEach
+
+  // Posicionar junto a la celda
+  const rect = cell.getElement().getBoundingClientRect();
+  const vw = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
+  const menuWidth = 220;
+  let top = rect.bottom + 6;
+  let left = rect.left;
+  if (left + menuWidth > vw - 8) { left = Math.max(8, vw - menuWidth - 8); }
+  menu.style.top = top + "px";
+  menu.style.left = left + "px";
+  statusMenuJustOpened = true;
+  menu.classList.add("open");
+}
+
+
+function updateButtons(){
+  // En esta vista descargamos por el conjunto filtrado; el botón siempre activo si hay filas
+  const hasRows = (table?.getDataCount()||0) > 0;
+  $("#btnDescargar").disabled = !hasRows;
+}
+
+function updateKpis(){
+  const rows = table? table.getData("active") : [];
+  const total = rows.length;
+  const revisadas = rows.filter(r=> (r.Estado||"") === "Revisada").length;
+  const pagadas   = rows.filter(r=> (r.Estado||"") === "Pagada").length;
+  const anuladas  = rows.filter(r=> (r.Estado||"") === "Anulada").length;
+  $("#kpiRegistradas").textContent = total;
+  $("#kpiRevisadas").textContent = revisadas;
+  $("#kpiPagadas").textContent   = pagadas;
+  $("#kpiAnuladas").textContent  = anuladas;
+  updateButtons();
+  try{ updateKpisRevRange(); }catch(_){}
+}
+
+function updateKpisRevRange(){
+  const wrap = document.getElementById("kpiRevRangeWrap");
+  const countEl = document.getElementById("kpiRevRangeCount");
+  const sumEl = document.getElementById("kpiRevRangeSum");
+  if(!wrap || !countEl || !sumEl) return;
+  const dr2 = (document.getElementById("fFechaRev")? document.getElementById("fFechaRev")._range : null);
+  if(!dr2){ wrap.style.display = "none"; countEl.textContent = "0"; sumEl.textContent = "0.00"; return; }
+  const rows = table? table.getData("active") : [];
+  let cnt = 0; let sum = 0;
+  for(const r of rows){
+    if((r.Estado||"") === "Revisada"){
+      const fr = new Date((r.FechaRevision||r["Fecha de Revisión"]||r["Fecha de Revision"]||"").toString());
+      if(!isNaN(fr) && fr >= dr2[0] && fr <= dr2[1]){ cnt++; sum += Number(r.Total)||0; }
+    }
+  }
+  wrap.style.display = "block";
+  countEl.textContent = String(cnt);
+  try{ sumEl.textContent = new Intl.NumberFormat("es-HN",{minimumFractionDigits:2, maximumFractionDigits:2}).format(sum); }catch(_){ sumEl.textContent = sum.toFixed(2); }
+}
+
+/** =========================
+ *  Filtros
+ *  ========================= */
+
+let sectorMS, estadoMS;
+
+function initFilters(){
+  // Flatpickr range
+  const fp = flatpickr("#fFecha", {
+    mode:"range",
+    dateFormat:"Y-m-d",
+    onChange(selectedDates){
+      if(selectedDates.length===2){
+        // normalizamos a extremos del día
+        selectedDates[0].setHours(0,0,0,0);
+        selectedDates[1].setHours(23,59,59,999);
+        $("#fFecha")._range = selectedDates;
+      }else{
+        $("#fFecha")._range = null;
+  $("#fFechaRev").value = "";
+  $("#fFechaRev")._range = null;
+      }
+      applyFilters();
+    }
+  });
+  const fpRev = flatpickr("#fFechaRev", {
+    mode:"range",
+    dateFormat:"Y-m-d",
+    onChange(selectedDates){
+      if(selectedDates.length===2){
+        selectedDates[0].setHours(0,0,0,0);
+        selectedDates[1].setHours(23,59,59,999);
+        $("#fFechaRev")._range = selectedDates;
+      }else{
+        $("#fFechaRev")._range = null;
+      }
+      applyFilters();
+    }
+  });
+  // MultiSelect con checkboxes
+  sectorMS = createMultiSelect("#msSector", "Sector", applyFilters);
+  estadoMS = createMultiSelect("#msEstado", "Estado", applyFilters);
+
+  // Asegurar input de Placa
+  const filtersRow = document.querySelector(".filters");
+  if(!document.getElementById("fPlaca") && filtersRow){
+    const placaEl = document.createElement("input");
+    placaEl.id = "fPlaca";
+    placaEl.className = "input";
+    placaEl.placeholder = "Placa…";
+    // Insertar antes del Nº Factura si existe
+    const numeroEl = document.getElementById("fNumero");
+    if(numeroEl && numeroEl.parentElement === filtersRow){
+      filtersRow.insertBefore(placaEl, numeroEl);
+    }else{
+      filtersRow.insertBefore(placaEl, filtersRow.children[2] || null);
+    }
+  }
+  const debouncedPlaca = debounce(applyFilters, 250);
+  const placaInput = document.getElementById("fPlaca");
+  if(placaInput){ placaInput.addEventListener("input", debouncedPlaca); }
+  // Asegurar input de Nombre (acento-insensible)
+  if(!document.getElementById("fNombre") && filtersRow){
+    const nombreEl = document.createElement("input");
+    nombreEl.id = "fNombre";
+    nombreEl.className = "input";
+    nombreEl.placeholder = "Nombre Colaborador…";
+    const numeroEl = document.getElementById("fNumero");
+    if(numeroEl && numeroEl.parentElement === filtersRow){
+      filtersRow.insertBefore(nombreEl, numeroEl);
+    }else{
+      filtersRow.appendChild(nombreEl);
+    }
+  }
+  const debouncedNombre = debounce(applyFilters, 250);
+  const nombreInput = document.getElementById("fNombre");
+  if(nombreInput){ nombreInput.addEventListener("input", debouncedNombre); }
+
+  const debouncedNumero = debounce(applyFilters, 250);
+  $("#fNumero").addEventListener("input", debouncedNumero);
+  $("#btnLimpiar").addEventListener("click", clearFilters);
+}
+
+function clearFilters(){
+  if(statusMenuEl){ statusMenuEl.classList.remove('open'); }
+  if(sectorMS){ sectorMS.clear(); }
+  if(estadoMS){ estadoMS.clear(); }
+  const placaInput = document.getElementById("fPlaca"); if(placaInput){ placaInput.value = ""; }
+  $("#fNumero").value = "";
+  $("#fFecha").value = "";
+  $("#fFecha")._range = null;
+  $("#fFechaRev").value = "";
+  $("#fFechaRev")._range = null;
+  applyFilters();
+}
+
+function applyFilters(){
+  if(!table){ return; }
+  const doReplace = ()=>{
+    const maybePromise = table.replaceData(State.filtered);
+    if(maybePromise && typeof maybePromise.then === "function"){
+      maybePromise.then(()=>{ updateKpis(); updateButtons(); try{ updateKpisRevRange(); }catch(_){ } }).catch(()=>{ updateKpis(); updateButtons(); try{ updateKpisRevRange(); }catch(_){ } });
+    }else{
+      // fallback si la versión de Tabulator no retorna promesa
+      setTimeout(()=>{ updateKpis(); updateButtons(); }, 0);
+    }
+  };
+  if(!tableBuilt){
+    (function(){
+      const handler = ()=>{
+        try{ table.off("tableBuilt", handler); }catch(e){}
+        doReplace();
+      };
+      table.on("tableBuilt", handler);
+    })();
+    return;
+  }
+  doReplace();
+}
+
+/** =========================
+ *  Exportaciones CSV/XLSX
+ *  ========================= */
+function exportXLSX(){
+  if(!table) return;
+  const fname = `Facturas_UTCD_${new Date().toISOString().slice(0,10)}.xlsx`;
+  // Usa el downloader nativo de Tabulator (requiere XLSX global)
+  table.download("xlsx", fname, { sheetName:"Revisión", rowRange:"active" });
+}
+
+/** =========================
+ *  Descarga de PDFs (ZIP)
+ *  ========================= */
+async function descargarZip(){
+  const sel = table? (table.getSelectedData? table.getSelectedData() : []) : [];
+  const rows = (sel && sel.length)? sel : (table? table.getData("active") : []);
+  if(!rows.length) return;
+
+  overlay.show("Descargando PDFs…");
+  overlay.startProgress(rows.length);
+  const zip = new JSZip();
+
+  // Descargamos en serie-controlada para no saturar el proxy
+  const chunk = 5;
+  for(let i=0; i<rows.length; i+=chunk){
+    const slice = rows.slice(i,i+chunk);
+    await Promise.all(slice.map(async (r, idx)=>{
+      const rawUrl = r.Enlace || r["Enlace PDF"] || r.PDF;
+      const url = toDirectDriveUrl(rawUrl);
+      if(!url) return;
+      try{
+        const blob = await API.fetchPdfBlob(url);
+        const fecha = (r.Fecha || "").toString().slice(0,10).replaceAll("/","-");
+        const placa = (r.Placa||"NA").toString().replace(/\s+/g,"_");
+        const num   = ((r["Numero de Factura"] ?? r["Número de Factura"]) ?? "NA").toString().trim().replace(/[^\w\-]/g,"");
+        const name  = `${fecha}_${placa}_${num}.pdf`;
+        zip.file(name, blob);
+      }catch(e){
+} finally {
+        overlay.step();
+      }
+    }));
+  }
+
+  const content = await zip.generateAsync({type:"blob"});
+  saveAs(content, `Facturas_UTCD_${new Date().toISOString().slice(0,10)}.zip`);
+  overlay.hide();
+}
+
+/** =========================
+ *  Helpers
+ *  ========================= */
+function debounce(fn, wait=200){
+  let t; return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn.apply(null,args), wait); };
+}
+
+function resetTableScroll(){
+  const root = document.getElementById("tablaRevision");
+  if(!root) return;
+  const holder = root.querySelector(".tabulator-tableholder");
+  if(holder){
+    holder.scrollTop = 0;
+    holder.scrollLeft = 0;
+  }
+}
+
+function setLastUpdatedNow(){
+  const el = document.getElementById("lastUpdated");
+  if(!el) return;
+  const now = new Date();
+  const yyyy = now.getFullYear();
+  const mm = String(now.getMonth()+1).padStart(2,"0");
+  const dd = String(now.getDate()).padStart(2,"0");
+  const hh = String(now.getHours()).padStart(2,"0");
+  const mi = String(now.getMinutes()).padStart(2,"0");
+  el.textContent = `Actualizado: ${yyyy}-${mm}-${dd} ${hh}:${mi}`;
+}
+
+let isGrouped = false;
+function toggleGrouping(){
+  if(!table) return;
+  isGrouped = !isGrouped;
+  if(isGrouped){
+    table.setGroupBy(["Identidad"]);
+    const btn = document.getElementById("btnAgrupar");
+    if(btn) btn.innerHTML = '<i class="lucide-layers-2"></i> Desagrupar';
+  }else{
+    table.setGroupBy(false);
+    const btn = document.getElementById("btnAgrupar");
+    if(btn) btn.innerHTML = '<i class="lucide-layers-2"></i> Agrupar por colaborador';
+  }
+}
+
+
+
+async function cargarOtrosCargosKpi() {
   try {
-    const resp = await fetch(url.toString(), { method: "GET" });
-    const text = await resp.text();
+    // Si hay tabla de Pago, usar los ID_PAGO visibles (sensibles a filtros)
+    let ids = [];
+    try {
+      const data = pagoTable ? (pagoTable.getData ? pagoTable.getData("active") : []) : [];
+      ids = Array.from(new Set((data || []).map(r => String(r.ID_PAGO || "").trim()).filter(Boolean)));
+    } catch (_) {
+      ids = [];
+    }
 
-    return new Response(text, {
-      status: resp.status,
-      headers: {
-        "Access-Control-Allow-Origin": origin,
-        "Access-Control-Allow-Methods": "GET, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type",
-        "Content-Type": resp.headers.get("Content-Type") || "application/json",
-        "Cache-Control": "no-store"
-      }
-    });
+    let total = 0;
+    if (ids.length) {
+      const url = new URL(Config.api.leer);
+      url.searchParams.set("otrosCargos", "byId");
+      ids.forEach(id => url.searchParams.append("ids", id));
+      const res = await fetch(url.toString(), { cache: "no-store", mode: "cors" });
+      const json = await res.json().catch(() => null);
+      const map = (json && json.byId) || {};
+      total = Object.values(map).reduce((a, v) => a + (Number(v) || 0), 0);
+      // Cache para encabezados de grupo
+      window._cargosByIdPago = Object.assign({}, window._cargosByIdPago || {}, map);
+    } else {
+      const url = new URL(Config.api.leer);
+      url.searchParams.set("otrosCargos", "total");
+      const res = await fetch(url.toString(), { cache: "no-store", mode: "cors" });
+      const json = await res.json().catch(() => null);
+      total = Number((json && json.totalOtrosCargos) || 0);
+    }
+
+    const el = document.getElementById("kpiPagoOtrosCargos");
+    if (el) el.textContent = fmt.money(total);
+
+    const lup = document.getElementById("lastUpdatedPago");
+    if (lup) {
+      const now = new Date();
+      const yyyy = now.getFullYear();
+      const mm = String(now.getMonth() + 1).padStart(2, "0");
+      const dd = String(now.getDate()).padStart(2, "0");
+      const hh = String(now.getHours()).padStart(2, "0");
+      const mi = String(now.getMinutes()).padStart(2, "0");
+      lup.textContent = `Actualizado: ${yyyy}-${mm}-${dd} ${hh}:${mi}`;
+    }
   } catch (e) {
-    return new Response(JSON.stringify({ status: "ERROR", message: e.message }), {
-      status: 502,
-      headers: {
-        "Access-Control-Allow-Origin": origin,
-        "Access-Control-Allow-Methods": "GET, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type",
-        "Content-Type": "application/json"
+    console.warn("Error en cargarOtrosCargosKpi:", e);
+  }
+}
+
+
+/** =========================
+ *  Navegación (overlay al cambiar de sección)
+ *  ========================= */
+function showOnly(sectionId){
+  document.querySelectorAll('main > section').forEach(s => s.style.display='none');
+  const tgt = document.getElementById(sectionId);
+  if(tgt) tgt.style.display = 'block';
+  document.querySelectorAll('.sidebar .nav-btn').forEach(a=>a.classList.remove('active'));
+  const map = {secRevision:'#revision', secPago:'#pago', secAnticipos:'#anticipos', secPlacas:'#placas', secInicio:'#inicio'};
+  const sel = map[sectionId]; if(sel){
+    const a = document.querySelector(`.sidebar .nav-btn[href="${sel}"]`);
+    if(a) a.classList.add('active');
+  }
+}
+async function navigateTo(sectionId, loader){
+  try{
+    showOnly(sectionId);
+    if(typeof loader === 'function'){ await loader(); }
+  }finally{
+    }
+}
+document.querySelectorAll('.sidebar .nav-btn').forEach(a=>{
+  a.addEventListener('click', (ev)=>{
+    ev.preventDefault();
+    const href = a.getAttribute('href')||'';
+    if(href==='#inicio') return navigateTo('secInicio');
+    if(href==='#revision') return navigateTo('secRevision', async()=>{ await hardRefresh(); });
+    if(href==='#pago')     return navigateTo('secPago', async()=>{ await cargarOtrosCargosKpi(); await initPagoMassPay(); });
+    if(href==='#anticipos')return navigateTo('secAnticipos');
+    if(href==='#placas')   return navigateTo('secPlacas', async()=>{ await cargarPlacas(); });
+  });
+});
+/** =========================
+ *  Placas (single endpoint)
+ *  ========================= */
+const Placas = { table:null, data:[], filtered:[], _loaded:false, controller:null };
+function placasEndpointsReady(){ return !!Config.api.placas; }
+
+function fillSectorOptions(){
+  const sel = document.getElementById("npSector");
+  if(!sel) return;
+  // construir lista única de sectores desde los datos cargados
+  const sectors = Array.from(new Set((Placas.data||[]).map(r => String(r.Sector||"").trim()).filter(Boolean))).sort((a,b)=>a.localeCompare(b));
+  const current = sel.value;
+  sel.innerHTML = '<option value="">Sector…</option>' + sectors.map(s => `<option value="${s}">${s}</option>`).join('');
+  // reponer selección si sigue existiendo
+  if(sectors.includes(current)) sel.value = current;
+}
+function fillSectorFilterOptions(){
+  const sel = document.getElementById("fPlacasSector");
+  if(!sel) return;
+  const sectors = getUniqueSectors();
+  const current = sel.value;
+  sel.innerHTML = '<option value="">'+"Sector"+'</option>' + sectors.map(s => `<option value="${s}">${s}</option>`).join('');
+  if(sectors.includes(current)) sel.value = current;
+}
+
+
+async function loadProcesosOptions(){
+  const sel = document.getElementById("npProceso");
+  if(!sel) return;
+  try{
+    const res = await fetch(Config.api.procesos, { cache:"no-store" });
+    if(!res.ok) throw new Error("HTTP "+res.status);
+    const data = await res.json();
+    let procesos = [];
+    if(Array.isArray(data)){
+      procesos = data.map(item => {
+        if(typeof item === "string") return item;
+        if(item == null) return "";
+        return item.Proceso || item.proceso || item.Nombre || item.nombre || item.name || "";
+      }).filter(Boolean);
+    }else if(data && Array.isArray(data.procesos)){
+      procesos = data.procesos.filter(x=>typeof x==="string");
+    }
+    procesos = Array.from(new Set(procesos)).sort((a,b)=>a.localeCompare(b));
+    const current = sel.value;
+    sel.innerHTML = '<option value="">Proceso…</option>' + procesos.map(p => `<option value="${p}">${p}</option>`).join('');
+    if(procesos.includes(current)) sel.value = current;
+  }catch(e){
+    // si falla, dejamos el select con opción manual libre
+    sel.innerHTML = '<option value="">Proceso…</option>';
+    // Dejar posibilidad de teclear manualmente: convertimos a input fallback si deseas (por ahora no)
+    console.warn("No se pudo cargar procesos:", e);
+  }
+}
+
+
+    async function ensurePlacasTable(){
+      if (Placas.table) return;
+      Placas.table = new Tabulator("#tablaPlacas", {
+        data: [],
+        selectable: true,
+        height: 520,
+        layout: "fitColumns",
+        columns: [/* columns set más abajo al primer render, se actualizarán luego */]
+      });
+      await new Promise(res => Placas.table.once("tableBuilt", res));
+    }
+    async function cargarPlacas(){
+  overlay.show("Cargando placas…");
+  // cancelar carga previa si existe
+  try{ Placas.controller?.abort(); }catch(_){}
+  const __ctl = new AbortController();
+  Placas.controller = __ctl;
+  try{
+    let rows = [];
+    if(placasEndpointsReady()){
+      const res = await fetch(Config.api.placas, {  cache:"no-store" , signal: __ctl.signal });
+      if(!res.ok) throw new Error("HTTP "+res.status);
+      rows = await res.json();
+    }
+    Placas.data = rows.map(r=>({
+      IDvehiculo: r.IDvehiculo || r.Id || "",
+      Estado: r.Estado || r.ESTADO || "Activa",
+      Placa: r.Placa || r.PLACA || "",
+      Sector: r.Sector || r.SECTOR || "",
+      Nombre: r.Nombre || r.CONDUCTOR || "",
+      Proceso: r.Proceso || r.PROCESO || "",
+      JefeInmediato: r.JefeInmediato || r["Jefe inmediato"] || r["JEFE INMEDIATO"] || "",
+      Designacion: r.Designacion || r["DESIGNACIÓN"] || r.DESIGNACION || "",
+      FechaAlta: r.FechaAlta || r.Fecha || r.FECHA || ""
+    }));
+    aplicarFiltrosPlacas();
+    if(Placas.table){ await safeReplaceData(Placas.table, Placas.filtered); }
+    else{
+// intenta precargar procesos en paralelo (no bloqueante)
+      loadProcesosOptions().catch(()=>{});
+      Placas.table = new Tabulator("#tablaPlacas", {
+        data: Placas.filtered,
+        selectable: true,
+        height: 520,
+        layout: "fitColumns",
+        columns: [
+          { title:"ID", field:"IDvehiculo", width:120 },
+          { title:"Placa", field:"Placa", width:160, editor:"input", editable:(cell)=>canEditPlaca(cell), cellEdited:onPlacaEdited },
+          { title:"Estado", field:"Estado", width:120, formatter:(c)=>{
+              const v = c.getValue() || "Activa";
+              return `<span class="status-pill ${v==="Activa"?"":"disabled"}"><span class="dot" style="background:${v==="Activa"?"#10b981":"#f59e0b"}"></span>${v}</span>`;
+            }},
+          { title:"Nombre", field:"Nombre" },
+          { title:"Sector", field:"Sector", width:140 , editor:"list" , editorParams:function(){ return {values:getUniqueSectors()}; } , cellEdited:onSectorEdited },
+          { title:"Proceso", field:"Proceso", width:180 },
+          { title:"Jefe inmediato", field:"JefeInmediato", width:200 },
+          { title:"Designación", field:"Designacion", width:200 },
+          { title:"Fecha Alta", field:"FechaAlta", width:120, formatter:(c)=>{ const v=c.getValue(); return v? String(v).slice(0,10) : ""; } },
+        ]
+      });
+      // Eventos UI
+      document.getElementById("btnPlacasActualizar").addEventListener("click", cargarPlacas);
+      document.getElementById("btnPlacasActivar").addEventListener("click", ()=> cambiarEstadoPlacas("Activa"));
+      document.getElementById("btnPlacasInactivar").addEventListener("click", ()=> cambiarEstadoPlacas("Inactiva"));
+      document.getElementById("btnPlacasNueva").addEventListener("click", async ()=> { toggleFormPlaca(true); fillSectorOptions();
+    fillSectorFilterOptions(); await loadProcesosOptions(); });
+      document.getElementById("btnPlacaCancelar").addEventListener("click", ()=> toggleFormPlaca(false));
+      
+      document.getElementById("btnPlacasLimpiar").addEventListener("click", limpiarFiltrosPlacas);
+      const selSec = document.getElementById("fPlacasSector"); if(selSec){ selSec.addEventListener("change", ()=>{ aplicarFiltrosPlacas(); if(Placas.table) Placas.table.replaceData(Placas.filtered); actualizarKpisPlacas(); }); }
+      document.getElementById("fPlacasEstado").addEventListener("change", ()=>{ aplicarFiltrosPlacas(); Placas.table.replaceData(Placas.filtered); actualizarKpisPlacas();
+    try{ if(Placas.table){ const cols=Placas.table.getColumns(); const col=(cols||[]).find(c=>c.getField && c.getField()==='Sector'); if(col){ col.updateDefinition({ editor:'list', editorParams:function(){ return {values:getUniqueSectors()}; }, cellEdited:onSectorEdited }); } } }catch(_){ } });
+      document.getElementById("fPlacasPlaca").addEventListener("input", ()=>{ aplicarFiltrosPlacas(); Placas.table.replaceData(Placas.filtered); actualizarKpisPlacas();
+    try{ if(Placas.table){ const cols=Placas.table.getColumns(); const col=(cols||[]).find(c=>c.getField && c.getField()==='Sector'); if(col){ col.updateDefinition({ editor:'list', editorParams:function(){ return {values:getUniqueSectors()}; }, cellEdited:onSectorEdited }); } } }catch(_){ } });
+      document.getElementById("fPlacasNombre").addEventListener("input", ()=>{ aplicarFiltrosPlacas(); Placas.table.replaceData(Placas.filtered); actualizarKpisPlacas();
+    try{ if(Placas.table){ const cols=Placas.table.getColumns(); const col=(cols||[]).find(c=>c.getField && c.getField()==='Sector'); if(col){ col.updateDefinition({ editor:'list', editorParams:function(){ return {values:getUniqueSectors()}; }, cellEdited:onSectorEdited }); } } }catch(_){ } });
+    }
+    actualizarKpisPlacas();
+    try{ if(Placas.table){ const cols=Placas.table.getColumns(); const col=(cols||[]).find(c=>c.getField && c.getField()==='Sector'); if(col){ col.updateDefinition({ editor:'list', editorParams:function(){ return {values:getUniqueSectors()}; }, cellEdited:onSectorEdited }); } } }catch(_){ }
+    fillSectorOptions();
+    fillSectorFilterOptions();
+    document.getElementById("placasNotice").style.display = placasEndpointsReady()? "none":"inline-block";
+  }catch(e){
+    alert("No fue posible cargar las placas.");
+    const n = document.getElementById("placasNotice"); if(n){ n.style.display="inline-block"; n.textContent="No fue posible cargar las placas. Intenta nuevamente."; }
+  }finally{
+    overlay.hide();
+  }
+
+  try{ wirePlacaLiveValidation(); }catch(_){}
+
+}
+function aplicarFiltrosPlacas(){
+  const sec = (document.getElementById("fPlacasSector")?.value || "").trim();
+const est = (document.getElementById("fPlacasEstado")?.value || "").trim();
+  const placaQ = (document.getElementById("fPlacasPlaca")?.value || "").trim().toLowerCase();
+  const normalize = (s)=> String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+  const nombreQ = normalize(document.getElementById("fPlacasNombre")?.value || "");
+  Placas.filtered = Placas.data.filter(r=>{
+    if(sec && String(r.Sector||"") !== sec) return false;
+    if(est && r.Estado !== est) return false;
+    if(placaQ && !String(r.Placa||"").toLowerCase().includes(placaQ)) return false;
+    if(nombreQ && !normalize(r.Nombre).includes(nombreQ)) return false;
+    return true;
+  });
+}
+function actualizarKpisPlacas(){
+  const total = Placas.filtered.length;
+  const act = Placas.filtered.filter(r=> r.Estado==="Activa").length;
+  const ina = Placas.filtered.filter(r=> r.Estado==="Inactiva").length;
+  document.getElementById("kpiPlacasTotal").textContent = total;
+  document.getElementById("kpiPlacasActivas").textContent = act;
+  document.getElementById("kpiPlacasInactivas").textContent = ina;
+}
+function limpiarFiltrosPlacas(){
+  const ss = document.getElementById("fPlacasSector"); if(ss){ ss.value=""; }
+document.getElementById("fPlacasEstado").value = "";
+  document.getElementById("fPlacasPlaca").value = "";
+  document.getElementById("fPlacasNombre").value = "";
+  aplicarFiltrosPlacas();
+  if(Placas.table) Placas.table.replaceData(Placas.filtered);
+  actualizarKpisPlacas();
+    try{ if(Placas.table){ const cols=Placas.table.getColumns(); const col=(cols||[]).find(c=>c.getField && c.getField()==='Sector'); if(col){ col.updateDefinition({ editor:'list', editorParams:function(){ return {values:getUniqueSectors()}; }, cellEdited:onSectorEdited }); } } }catch(_){ }
+}
+function toggleFormPlaca(show){ document.getElementById("placasFormWrap").style.display = show? "block":"none"; }
+async function guardarNuevaPlaca(){
+let placa = document.getElementById("npPlaca").value.trim();
+  // Normalizar antes de enviar
+  const normOnly = placa.toUpperCase().replace(/[^A-Z0-9_]/g,"");
+  // Si es VIN (más de 8 alfanuméricos sin guion), quitar guion si lo tuviera
+  const only = normOnly.replace(/_/g,"");
+  if(only.length > 8){ placa = only.slice(0,17); 
+
+} else {
+    const al = only.slice(0,7); // 3 + 4
+    const left = al.slice(0,3), right = al.slice(3,7);
+    placa = right ? (left + "_" + right) : left;
+  }
+  // Duplicados en cliente
+  const dupExists = (Placas.data||[]).some(r=> String((r.Placa||r.PLACA||"")).replace(/_/g,"").toUpperCase() === only.toUpperCase());
+  if(dupExists){ alert("La placa/VIN ya existe en el registro."); return; }
+  const nombre = document.getElementById("npNombre").value.trim();
+  const sector = document.getElementById("npSector").value.trim();
+  const proceso = document.getElementById("npProceso").value.trim();
+  const designacion = document.getElementById("npDesignacion").value.trim();
+  const estado = document.getElementById("npEstado").value;
+  if(!placa){ alert("La placa es obligatoria."); return; }
+  if(!placasEndpointsReady()){ alert("Configura el endpoint de Placas."); return; }
+  try{
+    overlay.show("Guardando placa…");
+    const res = await fetch(Config.api.placas, {
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({ action:"crear", placa, nombre, sector, proceso, designacion, estado })
+    });
+    if(!res.ok) throw new Error("HTTP "+res.status);
+    // Éxito: mostrar confirmación breve y luego recargar tabla
+    overlay.show("✅ Placa guardada");
+    await new Promise(r=>setTimeout(r,700));
+    await cargarPlacas();
+    toggleFormPlaca(false);
+    document.getElementById("npPlaca").value="";
+    document.getElementById("npNombre").value="";
+    document.getElementById("npSector").value="";
+    document.getElementById("npProceso").value="";
+    document.getElementById("npDesignacion").value="";
+    document.getElementById("npEstado").value="Activa";
+  }catch(e){
+    alert("No fue posible guardar la placa.");
+  }finally{ overlay.hide(); }
+}
+
+/** ===== VIN → Placa (AAA_9999) edición controlada ===== */
+function normalizePlateVin(s){
+  return String(s||"").toUpperCase().replace(/[^A-Z0-9_]/g,"");
+}
+function stripUnderscore(s){ return String(s||"").replace(/_/g,""); }
+function isVINValue(v){
+  const clean = stripUnderscore(normalizePlateVin(v));
+  return clean.length > 8; // tratamos >8 como VIN; placas son 7 (3 letras + 4 dígitos)
+}
+function formatPlateCandidate(raw){
+  // Acepta "JAN5254" o "JAN_5254" y devuelve "JAN_5254"
+  const only = stripUnderscore(normalizePlateVin(raw));
+  const left = only.slice(0,3);
+  const right = only.slice(3,7);
+  return right ? (left + "_" + right) : left;
+}
+function isValidPlateAAA9999(p){
+  return /^[A-Z]{3}_[0-9]{4}$/.test(String(p||"").toUpperCase());
+}
+function canEditPlaca(cell){
+  // Solo permitir editor si el valor actual luce como VIN
+  const val = cell.getValue();
+  return isVINValue(val);
+}
+async function onPlacaEdited(cell){
+  // Controlar que sólo aceptamos AAA_9999 y persistimos via action=actualizarPlaca
+  const before = cell.getOldValue();
+  const after  = cell.getValue();
+
+  // Helper para revertir sin re-disparar eventos y mostrar mensaje
+  function revertWithMessage(msg){
+    try{ if (typeof cell.restoreOldValue === "function") { cell.restoreOldValue(); } else { cell.setValue(before, true); } }catch(_){}
+    try{ if (typeof cell.cancelEdit === "function") cell.cancelEdit(); }catch(_){}
+    // Usar toast no bloqueante si existe; de lo contrario alert
+    try{
+      if (typeof quickToast === "function") { quickToast(msg || "Valor inválido"); }
+      else { alert(msg || "Valor inválido"); }
+    }catch(_){
+      alert(msg || "Valor inválido");
+    }
+  }
+
+  try{
+    // Si no cambió, nada que hacer
+    if(String(before||"") === String(after||"")) return;
+
+    // El valor nuevo debe ser PLACA, no VIN
+    const candidate = formatPlateCandidate(after);
+    if(!isValidPlateAAA9999(candidate)){
+      revertWithMessage("Formato inválido. La placa debe ser AAA_9999 (3 letras, guion bajo, 4 dígitos).");
+      return;
+    }
+
+    // Verificar duplicados en cliente (ignora la misma fila)
+    const currentRow = cell.getRow().getData();
+    const candidateCmp = stripUnderscore(candidate).toUpperCase();
+    const dup = (Placas.data||[]).some(r=>{
+      const sameRow = (r.IDvehiculo||"") === (currentRow.IDvehiculo||"") && String(r.Placa||"")===String(currentRow.Placa||"");
+      if(sameRow) return false;
+      const cmp = stripUnderscore(String(r.Placa||"")).toUpperCase();
+      return cmp === candidateCmp;
+    });
+    if(dup){
+      revertWithMessage("Ya existe otra fila con esa placa.");
+      return;
+    }
+
+    // Persistir en backend
+    if(!Config.api.placas){
+      revertWithMessage("Endpoint de Placas no configurado.");
+      return;
+    }
+
+    overlay.show("Actualizando placa…");
+    const res = await fetch(Config.api.placas, {
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({ action:"actualizarPlaca", placaActual: before, nuevaPlaca: candidate })
+    });
+    const ok = res.ok;
+    let out = {};
+    try{ out = await res.json(); }catch(_){}
+    if(!ok || (out && out.error)){
+      overlay.hide();
+      revertWithMessage(out && out.error ? out.error : "No fue posible actualizar la placa.");
+      return;
+    }
+
+    // Actualizar dataset local también
+    try{
+      const row = Placas.data.find(r => String(r.IDvehiculo||"") === String(currentRow.IDvehiculo||""));
+      if(row){ row.Placa = candidate; }
+    }catch(_){}
+
+    // Confirmación rápida
+    overlay.show("✅ Placa actualizada");
+    await new Promise(r=>setTimeout(r,650));
+
+    // Refrescar tabla para reflejar cambios y rehidratar editores de "Sector"
+    await cargarPlacas();
+  }catch(e){
+    console.warn(e);
+    overlay.hide();
+    revertWithMessage("Error al actualizar la placa.");
+  }finally{
+    overlay.hide();
+  }
+}
+
+async function cambiarEstadoPlacas(nuevoEstado){
+  if(!placasEndpointsReady()){ alert("Configura el endpoint de Placas."); return; }
+  const rows = Placas.table ? (Placas.table.getSelectedData ? Placas.table.getSelectedData() : []) : [];
+  if(!rows.length){ alert("Selecciona al menos una placa."); return; }
+  try{
+    overlay.show("Actualizando estado…");
+    const placas = rows.map(r=> r.Placa).filter(Boolean);
+    const res = await fetch(Config.api.placas, {
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({ action:"cambiarEstado", placas, estado: nuevoEstado })
+    });
+    if(!res.ok) throw new Error("HTTP "+res.status);
+    await cargarPlacas();
+  }catch(e){
+    alert("No fue posible actualizar el estado.");
+  }finally{ overlay.hide(); }
+}
+
+// Selección masiva por grupo (checkbox en header)
+document.addEventListener("change", (ev)=>{
+  const chk = ev.target.closest(".group-select");
+  if(!chk || !table) return;
+  const key = chk.getAttribute("data-group-key") || "";
+  // Encontrar el group component cuyo key (value) coincide
+  const groups = table.getGroups ? table.getGroups() : [];
+  let target = null;
+  for(const g of groups){
+    try{
+      if(String(g.getKey ? g.getKey() : g.key) === String(key)){ target = g; break; }
+    }catch(_){}
+  }
+  if(!target) return;
+
+  const rows = target.getRows ? target.getRows() : [];
+  if(chk.checked){
+    rows.forEach(r => { try{ r.select && r.select(); }catch(_){ } });
+  }else{
+    rows.forEach(r => { try{ r.deselect && r.deselect(); }catch(_){ } });
+  }
+  // refrescar botones por si depende de selección
+  try{ updateButtons(); }catch(_){}
+});
+
+
+// Selección masiva por grupo (Pago)
+document.addEventListener("change", (ev)=>{
+  const chk = ev.target.closest(".group-select-pago");
+  if(!chk || !pagoTable) return;
+  const key = chk.getAttribute("data-group-key") || "";
+  const groups = pagoTable.getGroups ? pagoTable.getGroups() : [];
+  let target = null;
+  for(const g of groups){
+    try{
+      if(String(g.getKey ? g.getKey() : g.key) === String(key)){ target = g; break; }
+    }catch(_){}
+  }
+  if(!target) return;
+  const rows = target.getRows ? target.getRows() : [];
+  if(chk.checked){
+    rows.forEach(r => { try{ r.select && r.select(); }catch(_){ } });
+  }else{
+    rows.forEach(r => { try{ r.deselect && r.deselect(); }catch(_){ } });
+  }
+  try{ updatePagoButtonVisibility(); }catch(_){}
+});
+/** =========================
+ *  Bootstrap
+ *  ========================= */
+async function hardRefresh(){
+  try{ console.time("[Revision] cargar"); }catch(_e){}
+
+  // Limpia filtros, recarga y resetea scroll; luego muestra hora de actualización
+  clearFilters();
+  await loadData();
+  resetTableScroll();
+  setLastUpdatedNow();
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2,"0");
+  const mm = String(now.getMinutes()).padStart(2,"0");
+  
+  try{ console.timeEnd("[Revision] cargar"); }catch(_e){}
+}
+
+async function onSectorEdited(cell){
+  try{
+    toastLoading.show("Actualizando sector…");
+    const newSector = cell.getValue();
+    const rowData   = cell.getRow().getData();
+    const placaKey  = rowData.Placa || rowData.PLACA;
+    if(!placaKey) throw new Error("Placa no disponible");
+
+    const res = await fetch(Config.api.placas, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({ action:"cambiarSector", placa: placaKey, sector: newSector })
+    });
+    const txt = await res.text();
+    if(!res.ok) throw new Error("HTTP "+res.status+" - "+txt.slice(0,120));
+    let data; try{ data = JSON.parse(txt); } catch { data = {}; }
+
+    const jefe = (data && (data.JefeInmediato || data.jefe)) || getJefeBySector(newSector);
+    const patch = { Sector: newSector };
+    if(jefe) patch.JefeInmediato = jefe;
+    cell.getRow().update(patch);
+
+    const idx = (Placas.data||[]).findIndex(r => (r.Placa||r.PLACA) === placaKey);
+    if(idx>=0){ Placas.data[idx].Sector = newSector; if(jefe) Placas.data[idx].JefeInmediato = jefe; }
+
+    toastLoading.hide();
+    quickToast("Sector actualizado");
+  }catch(err){
+    console.error("No se pudo actualizar sector:", err);
+    toastLoading.hide();
+    alert("No se pudo actualizar el sector: "+err.message);
+    cell.restoreOldValue();
+  }
+}
+
+function getUniqueSectors(){
+  const all = (Placas.data || [])
+    .map(r => String(r.Sector||"").trim())
+    .filter(Boolean);
+  return Array.from(new Set(all)).sort((a,b)=>a.localeCompare(b));
+}
+function getJefeBySector(sector){
+  const s = String(sector||"").trim().toUpperCase();
+  for(const r of (Placas.data||[])){
+    if(String(r.Sector||"").trim().toUpperCase() === s){
+      return r.JefeInmediato || r["Jefe inmediato"] || "";
+    }
+  }
+  return "";
+}
+
+/* ---- Toasts mejorados ---- */
+(function(){
+  // Contenedor común
+  let cont = document.getElementById("__toast_cont__");
+  if(!cont){
+    cont = document.createElement("div");
+    cont.id = "__toast_cont__";
+    cont.style.position = "fixed";
+    cont.style.right = "16px";
+    cont.style.bottom = "16px";
+    cont.style.display = "flex";
+    cont.style.flexDirection = "column";
+    cont.style.gap = "8px";
+    cont.style.zIndex = "9999";
+    document.body.appendChild(cont);
+  }
+
+  // Loading toast (persistente hasta hide)
+  const loadingId = "__toast_loading__";
+  function createLoading(msg){
+    const box = document.createElement("div");
+    box.id = loadingId;
+    box.style.display = "flex";
+    box.style.alignItems = "center";
+    box.style.gap = "10px";
+    box.style.padding = "10px 14px";
+    box.style.background = "rgba(17,24,39,0.95)";
+    box.style.color = "#fff";
+    box.style.borderRadius = "10px";
+    box.style.boxShadow = "0 6px 20px rgba(0,0,0,.25)";
+    box.style.fontSize = "14px";
+
+    const spinner = document.createElement("div");
+    spinner.style.width = "16px";
+    spinner.style.height = "16px";
+    spinner.style.border = "2px solid rgba(255,255,255,.25)";
+    spinner.style.borderTopColor = "#fff";
+    spinner.style.borderRadius = "50%";
+    spinner.style.animation = "spin1 0.8s linear infinite";
+
+    const text = document.createElement("span");
+    text.textContent = msg || "Actualizando sector…";
+
+    box.appendChild(spinner);
+    box.appendChild(text);
+    return box;
+  }
+
+  window.toastLoading = {
+    show(msg){
+      let el = document.getElementById(loadingId);
+      if(!el){
+        el = createLoading(msg || "Actualizando sector…");
+        cont.appendChild(el);
+      }else{
+        el.querySelector("span").textContent = msg || "Actualizando sector…";
+        el.style.display = "flex";
+      }
+    },
+    hide(){
+      const el = document.getElementById(loadingId);
+      if(el) el.remove();
+    }
+  };
+
+  // Quick toast (auto-desvanecer)
+  window.quickToast = function(msg, ms){
+    ms = ms || 1800;
+    const box = document.createElement("div");
+    box.style.padding = "10px 14px";
+    box.style.background = "rgba(17,24,39,0.95)";
+    box.style.color = "#fff";
+    box.style.borderRadius = "10px";
+    box.style.boxShadow = "0 6px 20px rgba(0,0,0,.25)";
+    box.style.fontSize = "14px";
+    box.style.opacity = "1";
+    box.textContent = msg;
+    cont.appendChild(box);
+    setTimeout(()=>{
+      box.style.transition = "opacity .3s ease";
+      box.style.opacity = "0";
+      setTimeout(()=> box.remove(), 320);
+    }, ms);
+  };
+
+  // keyframes del spinner
+  const st = document.createElement("style");
+  st.textContent = "@keyframes spin1{from{transform:rotate(0)}to{transform:rotate(360deg)}}";
+  document.head.appendChild(st);
+})();
+
+
+// === Wire live validation for Nueva Placa (robusto) ===
+function wirePlacaLiveValidation(){
+  const inp = document.getElementById("npPlaca");
+  const dup = document.getElementById("npPlacaDup");
+  const btn = document.getElementById("btnPlacaGuardar");
+  if(!inp || inp.getAttribute('data-wired')==='1') return;
+  inp.setAttribute('data-wired','1');
+  inp.setAttribute('maxlength','17');
+
+  function normalizeAlnum(s){ return String(s||"").toUpperCase().replace(/[^A-Z0-9]/g,''); }
+  function existsDuplicate(cleanOnly){
+    try{
+      return (Placas.data||[]).some(r => normalizeAlnum(String((r.Placa||r.PLACA||'')).replace(/_/g,'')) === cleanOnly);
+    }catch(_){ return false; }
+  }
+  function isValidNow(cleanOnly){
+    if(cleanOnly.length === 0) return false;
+    if(cleanOnly.length >= 8) return cleanOnly.length === 17; // VIN
+    return cleanOnly.length === 7; // Placa (3+4)
+  }
+  function formatVisual(raw){
+    const clean = normalizeAlnum(raw);
+    if(clean.length >= 8){
+      return clean.slice(0,17);
+    } else {
+      if(clean.length <= 3) return clean;
+      const left = clean.slice(0,3);
+      const right = clean.slice(3, Math.min(clean.length, 8));
+      return left + '_' + right;
+    }
+  }
+
+  // Hint de error (si no existe, lo creamos)
+  let hintErr = document.getElementById("npPlacaErr");
+  if(!hintErr && inp && inp.parentElement){
+    hintErr = document.createElement('small');
+    hintErr.id = 'npPlacaErr';
+    hintErr.style.display = 'none';
+    hintErr.style.color = '#b45309';
+    hintErr.style.fontWeight = '600';
+    hintErr.textContent = 'Valor incompleto.';
+    inp.parentElement.appendChild(hintErr);
+  }
+
+  function updateLive(){
+    const raw = inp.value || "";
+    const clean = normalizeAlnum(raw);
+    const ok = isValidNow(clean);
+    const dupNow = existsDuplicate(clean);
+
+    if(dup) dup.style.display = dupNow ? 'inline' : 'none';
+    if(clean.length>0 && !ok){
+      if(hintErr){
+        hintErr.style.display = 'inline';
+        hintErr.textContent = (clean.length >= 8) ? 'VIN incompleto: 17 caracteres.' : 'Placa incompleta: 7 caracteres.';
+      }
+    } else if(hintErr){
+      hintErr.style.display = 'none';
+    }
+    if(btn) btn.disabled = dupNow || !ok;
+    return !(dupNow || !ok);
+  }
+
+  inp.addEventListener('input', ()=>{
+    const before = inp.value;
+    const formatted = formatVisual(before);
+    if(formatted !== before){
+      inp.value = formatted;
+      const end = formatted.length;
+      try{ inp.setSelectionRange(end,end); }catch(_){}
+    }
+    updateLive();
+  });
+  inp.addEventListener('blur', updateLive);
+
+  // Hook Guardar para revalidar justo antes de enviar
+  if(btn && !btn.getAttribute('data-wired')){
+    btn.setAttribute('data-wired','1');
+    const old = (typeof guardarNuevaPlaca === 'function') ? guardarNuevaPlaca : null;
+    btn.addEventListener('click', (e)=>{
+      if(!updateLive()){ e.preventDefault(); return; }
+      if(old) old();
+    });
+  }
+
+  // Eval inicial
+  updateLive();
+}
+
+
+    // --- Helper para reemplazo seguro de datos en Tabulator ---
+    async function safeReplaceData(table, rows){
+      if(!table) return;
+      try{
+        const p = table.replaceData(rows);
+        if (p && typeof p.then === "function") await p;
+      }catch(e){
+        try{ table.setData(rows); }catch(_){}
+      }
+    }
+    
+async function bootstrap(){
+  initFilters();
+  $("#btnActualizar").addEventListener("click", hardRefresh);
+  $("#btnAgrupar").addEventListener("click", toggleGrouping);
+  $("#btnDescargar").addEventListener("click", descargarZip);  $("#btnExportXLSX").addEventListener("click", exportXLSX);
+  navigateTo("secInicio");}
+
+async function loadData(){
+  overlay.show("Cargando facturas…");
+  try{
+    const data = await API.getFacturas();
+    State.raw = data;
+    // poblar selects dinámicamente
+    const sectores = Array.from(new Set(data.map(r=>r.Sector).filter(Boolean))).sort();
+    const estados  = Array.from(new Set(data.map(r=>r.Estado||"Registrada"))).sort();
+    if(sectorMS){ sectorMS.setItems(sectores); }
+    if(estadoMS){ estadoMS.setItems(estados); }
+    buildTable();
+    if(tableBuilt){ applyFilters(); } else {
+      (function(){
+        const handler = ()=>{
+          try{ table.off("tableBuilt", handler); }catch(e){}
+          applyFilters();
+        };
+        table.on("tableBuilt", handler);
+      })();
+    }
+}catch(e){ if(String(e&&e.message)==="ABORTED"){ /* silencioso */ } else { alert("No fue posible cargar las facturas."); } }finally{
+    overlay.hide();
+  }
+}
+
+window.addEventListener("DOMContentLoaded", bootstrap);
+</script>
+</div>
+
+<script>
+// ===== Auth (Cloudflare Pages Functions) =====
+const Auth = { login: "/api/auth/login", me: "/api/auth/me", logout: "/api/auth/logout" };
+
+async function authLogin(usuario, password){
+  const res = await fetch(Auth.login, { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ usuario, password }) });
+  if(!res.ok) throw new Error(await res.text());
+  return await res.json();
+}
+async function authMe(){
+  try{
+    const res = await fetch(Auth.me, { method: "GET", cache:"no-store" });
+    if(!res.ok) return null;
+    return await res.json();
+  }catch{ return null; }
+}
+async function authLogout(){ try{ await fetch(Auth.logout, { method:"POST" }); }catch{} }
+
+function showLogin(){ const app=document.getElementById("appShell"); if(app) app.style.display="none"; const s=document.getElementById("secLogin"); if(s) s.style.display="flex"; }
+function showApp(){ const s=document.getElementById("secLogin"); if(s) s.style.display="none"; const app=document.getElementById("appShell"); if(app) app.style.display="block"; }
+
+// Login button + Enter key
+(function wireLoginUI(){
+  const btn = document.getElementById("btnDoLogin");
+  const u = document.getElementById("loginUsuario");
+  const p = document.getElementById("loginPassword");
+  const err = document.getElementById("loginError");
+  function doSubmit(){ (async()=>{
+    if(err) err.style.display = "none";
+    const user = (u.value||"").trim(), pass = p.value||"";
+    if(!user || !pass){ if(err){ err.textContent="Ingrese usuario y contraseña."; err.style.display="inline"; } return; }
+    try{
+      btn.disabled = true;
+      await authLogin(user, pass);
+      showApp();
+      try{ navigateTo('inicio'); }catch(_){}
+    }catch(e){
+      if(err){ err.textContent = "Credenciales inválidas o usuario inactivo."; err.style.display = "inline"; }
+    }finally{ btn.disabled = false; }
+  })(); }
+  if(btn && !btn.dataset.wired){
+    btn.dataset.wired = "1";
+    btn.addEventListener("click", doSubmit);
+    [u,p].forEach(i=> i && i.addEventListener("keydown", ev=>{ if(ev.key==="Enter") doSubmit(); }));
+  }
+})();
+
+// Session check on load
+(async function(){
+  const me = await authMe();
+  if(me && me.usuario){ showApp(); } else { showLogin(); }
+})();
+
+async function doLogout(){ await authLogout(); showLogin(); }
+
+// ===== Login UX Enhancements (spinner + disable) =====
+(function(){
+  const btn = document.getElementById("btnDoLogin");
+  const u = document.getElementById("loginUsuario");
+  const p = document.getElementById("loginPassword");
+  const err = document.getElementById("loginError");
+  if(!btn || !u || !p) return;
+
+  async function doLogin(){
+    err.style.display = "none";
+    const usuario = (u.value||"").trim();
+    const password = (p.value||"").trim();
+    if(!usuario || !password){
+      err.textContent = "Ingrese usuario y contraseña";
+      err.style.display = "block";
+      return;
+    }
+    // show spinner on button
+    const original = btn.innerHTML;
+    btn.disabled = true; u.disabled = true; p.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Ingresando…';
+    try{
+      // Use existing auth endpoint
+      const r = await fetch('/api/auth/login', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ usuario, password })
+      });
+      if(!r.ok){
+        const out = await r.json().catch(()=>({error:'Credenciales inválidas'}));
+        throw new Error(out.error || 'Credenciales inválidas');
+      }
+      // success -> reload to bootstrap app shell via /api/auth/me
+      location.reload();
+    }catch(e){
+      err.textContent = e.message || "No se pudo iniciar sesión";
+      err.style.display = "block";
+      btn.disabled = false; u.disabled = false; p.disabled = false;
+      btn.innerHTML = original;
+      p.focus();
+    }
+  }
+  btn.addEventListener('click', doLogin);
+  p.addEventListener('keydown', (ev)=>{ if(ev.key==='Enter') doLogin(); });
+  u.addEventListener('keydown', (ev)=>{ if(ev.key==='Enter') doLogin(); });
+})();
+
+// ===== Logout handler =====
+(function(){
+  const btn = document.getElementById("btnLogout");
+  if(!btn) return;
+  btn.addEventListener('click', async ()=>{
+    try{
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span> Cerrando…';
+      await fetch('/api/auth/logout', { method:'POST' });
+    }catch(_){}
+    location.reload();
+  });
+})();
+
+</script>
+
+
+<script>
+// ============ Util Pago ============
+function setLastUpdatedPago(){
+  const el=document.getElementById("lastUpdatedPago"); if(!el) return;
+  const t=new Date(), pad=n=>String(n).padStart(2,"0");
+  el.textContent = "Actualizado: " + t.getFullYear()+"-"+pad(t.getMonth()+1)+"-"+pad(t.getDate())+" "+pad(t.getHours())+":"+pad(t.getMinutes());
+}
+
+let pagoTable=null, pagoTableReady=false, pagoPendingData=null, pagoGrouped=false;
+let pagoSectorMS=null, pagoEstadoMS=null;
+
+const Pago = {
+  raw: [],
+  get filtered(){
+    const sectores = pagoSectorMS ? pagoSectorMS.getSelected() : [];
+    const estados  = pagoEstadoMS ? pagoEstadoMS.getSelected() : [];
+    const nroQ     = (document.querySelector("#fPagoNumero")?.value || "").trim().toLowerCase();
+    const nomQ     = (document.querySelector("#fPagoNombre")?.value || "")
+                      .toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+    const dr = document.getElementById("fPagoFecha") ? document.getElementById("fPagoFecha")._range : null;
+
+    const getFirst = (o, keys)=>{ for (const k of keys){ if (o && o[k] != null && o[k] !== "") return o[k]; } return ""; };
+    const canon = (v)=> String(v||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+
+    return (Pago.raw||[]).filter(r=>{
+      const sector = String(r.Sector||"");
+      const estado = String(r.Estado||"");
+
+      const num = getFirst(r, ["Numero de Factura","Número de Factura","Nº Factura","No. Factura","Nro Factura","Factura","N Factura"]);
+      const numCanon = canon(num);
+
+      const nombre = getFirst(r, ["Nombre","Nombre Colaborador","Nombre del colaborador","Colaborador","Empleado"]);
+      const nombreCanon = canon(nombre);
+
+      const fecha = String(getFirst(r, ["Fecha","Fecha de compra","Fecha Emisión"]) || "");
+
+      if(sectores.length && !sectores.includes(sector)) return false;
+      if(estados.length  && !estados.includes(estado)) return false;
+      if(nroQ && !numCanon.includes(nroQ)) return false;
+      if(nomQ && !nombreCanon.includes(nomQ)) return false;
+      if(dr){
+        const d = new Date(fecha);
+        if(isNaN(d) || d < dr[0] || d > dr[1]) return false;
+      }
+      return true;
+    });
+  }
+};
+
+function waitForTabulatorAndContainer(){
+  return new Promise(function(resolve){
+    function tick(){
+      const ready = typeof window.Tabulator!=="undefined" && document.querySelector("#tablaPago");
+      if(ready) resolve(); else requestAnimationFrame(tick);
+    }
+    tick();
+  });
+}
+
+function buildPagoTable(){
+  if(pagoTable) return;
+  pagoTable = new Tabulator("#tablaPago", {
+    height: (typeof Config!=="undefined" && Config.tablaHeight) ? Config.tablaHeight : "560px",
+    data: [], layout: "fitColumns", selectable: true, placeholder: "Sin datos",
+    groupStartOpen:false,
+    groupHeader:function(value, count, data, group){
+      const nombre = (data && data[0] && (data[0].Nombre||data[0].Identidad)) || value;
+      const suma = (data||[]).reduce((acc,r)=> acc + (Number(r.Total)||0), 0);
+      const totalTxt = new Intl.NumberFormat("es-HN",{minimumFractionDigits:2, maximumFractionDigits:2}).format(suma);
+      const key = String(value ?? "").replace(/"/g,"&quot;");
+      return `<label class="group-toggle">
+                <input type="checkbox" class="group-select group-select-pago" data-group-key="${key}">
+                <span>${nombre} (${count})</span>
+              </label>
+              <span class="kpi-mini">L ${totalTxt}</span>`;
+    },
+    
+    columns: [
+      { formatter:"rowSelection", titleFormatter:"rowSelection", hozAlign:"center", headerSort:false, width:40 },
+      { title:"#", formatter:"rownum", hozAlign:"center", width:60 },
+      { title:"Sector", field:"Sector", width:120 },
+      { title:"Placa", field:"Placa", width:110 },
+      { title:"Proceso", field:"Proceso", width:130 },
+      { title:"Nombre", field:"Nombre", width:180 },
+      { title:"Identidad", field:"Identidad", width:150 },
+      { title:"Total Gastado", field:"Total", hozAlign:"right", width:140,
+        formatter:(c)=> (typeof fmt!=="undefined" && fmt.money) ? fmt.money(c.getValue() ?? c.getRow().getData()["Total Gastado"]) : c.getValue() },
+      { title:"Fecha", field:"Fecha", width:120,
+        formatter:(c)=>{ const v=c.getValue(); return v? String(v).slice(0,10):""; } },
+      { title:"Nombre del comercio", field:"Nombre del comercio", width:220, tooltip:true,
+        formatter:(cell)=>{ const v=String(cell.getValue()??""); const m=28; return v.length>m? v.slice(0,m)+"…": v; } },
+      { title:"Número de Factura", field:"Numero de Factura", width:150 },
+      { title:"Enlace PDF", field:"Enlace PDF", width:110,
+        formatter:(cell)=>{
+          const r=cell.getRow().getData(); const v=cell.getValue()||r.Enlace||r.PDF||"";
+          return v? "<a href=\""+((typeof API!=='undefined' && API.proxied)? API.proxied(v): v)+"\" target=\"_blank\" title=\"Abrir PDF\">📄</a>":"";
+        } },
+      { title:"Estado", field:"Estado", width:120, formatter:(c)=> {
+          const v=(c.getValue()||"").toString();
+          if(v==="Pagada") return "<span class=\"status-pill disabled\"><span class=\"dot\" style=\"background:" + (typeof estadoColor==='function'? estadoColor('Pagada'): '#0FA47E') + "\"></span>Pagada</span>";
+          return "<button class=\"btn-pagar\" title=\"Pagar esta factura\">Pagar</button>";
+        },
+        cellClick: (e, cell)=>{
+          const d = cell.getRow().getData();
+          if((d.Estado||"")==="Pagada") return;
+          pagoTable.deselectRow && pagoTable.deselectRow();
+          cell.getRow().select(); openPagoModalSingle(cell.getRow().getData());
+        }
+      },
+    
+      ,{ title:"ID_PAGO", field:"ID_PAGO", width:200, tooltip:true }
+    ],
+    dataLoaded: updatePagoKpis,
+    dataFiltered: updatePagoKpis,
+    rowSelectionChanged: ()=>{ const b=document.getElementById("btnPagoAbrirModal"); if(b) b.disabled = (pagoTable.getSelectedRows().length===0); }
+  });
+
+  pagoTable.on("tableBuilt", function(){
+    pagoTableReady = true;
+    if(pagoPendingData){
+      try{ pagoTable.replaceData(pagoPendingData); }catch(_){}
+      pagoPendingData = null;
+      updatePagoKpis();
+    }
+  });
+}
+
+function updatePagoKpis() {
+  try { cargarKpiPago(); } catch (_) {}
+  try { cargarOtrosCargosKpi(); } catch (_) {}
+}
+
+
+function clearPagoFilters(){
+  pagoSectorMS && pagoSectorMS.clear();
+  pagoEstadoMS && pagoEstadoMS.clear();
+  const $ = (sel)=>document.querySelector(sel);
+  $("#fPagoNombre").value = "";
+  $("#fPagoNumero").value = "";
+  $("#fPagoFecha").value = "";
+  const f = document.getElementById("fPagoFecha"); if(f) f._range = null;
+  applyPagoFilters();
+}
+
+function togglePagoGrouping(){
+  if(!pagoTable) return;
+  pagoGrouped = !pagoGrouped;
+  if(pagoGrouped){
+    pagoTable.setGroupBy(["Identidad"]);
+    const b = document.getElementById("btnPagoAgrupar"); if(b) b.innerHTML = '<i class="lucide-layers-2"></i> Desagrupar';
+  }else{
+    pagoTable.setGroupBy(false);
+    const b = document.getElementById("btnPagoAgrupar"); if(b) b.innerHTML = '<i class="lucide-layers-2"></i> Agrupar por colaborador';
+  }
+}
+
+// ——— API: extender getFacturas(opts) y pagarFacturas ———
+if (typeof API !== "undefined") {
+  const buildUrl = (base)=>{
+    try{
+      if(/^https?:\/\//i.test(base)) return new URL(base);
+      if(base.startsWith("/") && location.origin && /^https?:/i.test(location.origin)) return new URL(location.origin + base);
+      return new URL(base, location.origin || undefined);
+    }catch(_){
+      return new URL(base, "http://localhost");
+    }
+  };
+  const _origGet = API.getFacturas?.bind(API);
+  API.getFacturas = async function(opts = {}){
+    if(this._facturasCtl) try{ this._facturasCtl.abort(); }catch(_){}
+    const ctl = new AbortController();
+    this._facturasCtl = ctl;
+
+    const base = Config?.api?.leerFacturas || "/api/leer";
+    const url  = buildUrl(base);
+    if (opts && Array.isArray(opts.estados) && opts.estados.length){
+      url.searchParams.set("estados", opts.estados.join(","));
+    }
+
+    const res = await fetch(url.toString(), { cache:"no-store", mode:"cors", signal: ctl.signal });
+    if(!res.ok) throw new Error("No se pudo leer facturas");
+    const data = await res.json().catch(()=>[]);
+    if(ctl.signal.aborted) throw new Error("ABORTED");
+    const arr = Array.isArray(data) ? data : [];
+    return arr.map(normalizeRow).filter(Boolean);
+  };
+
+  API.pagarFacturas = async function(rows, fondoPeriodo, fechaPago){
+    const errs = [];
+    for (const r of (rows||[])){
+      const fila = r.fila || r._fila;
+      if(!fila){ errs.push("Fila sin 'fila' real"); continue; }
+      const url = (Config && Config.api && Config.api.guardar) ? Config.api.guardar : "/api/guardar";
+      const res = await fetch(url, { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ fondoPeriodo, fechaPago, fila }) });
+      let json=null; try{ json=await res.json(); }catch(_){}
+      if(!res.ok || !json || json.status!=="OK"){ errs.push("Fallo fila " + fila + ": " + (json && json.message || res.status)); }
+    }
+    if(errs.length) throw new Error(errs.join(" · "));
+  };
+}
+
+// ========= Modal =========
+function openPagoModal(){
+  const el = document.getElementById("modalPago"); if(!el) return;
+  const dft = (typeof fmt!=="undefined" && fmt.dateISO) ? fmt.dateISO(new Date()) : new Date().toISOString().slice(0,10);
+  document.getElementById("mpFondoPeriodo").value = "";
+  document.getElementById("mpFechaPago").value = dft;
+  el.style.display = "grid";
+}
+function closePagoModal(){ const el = document.getElementById("modalPago"); if(el) el.style.display="none"; }
+
+
+
+// ========= Filtros =========
+function applyPagoFilters(){
+  if(!pagoTable) return;
+  const list = Pago.filtered;
+  const maybe = pagoTable.replaceData(list);
+  if(maybe && typeof maybe.then === "function"){ maybe.then(updatePagoKpis); } else { setTimeout(updatePagoKpis,0); }
+}
+
+function clearPagoFilters(){
+  pagoSectorMS && pagoSectorMS.clear();
+  pagoEstadoMS && pagoEstadoMS.clear();
+  const $ = (sel)=>document.querySelector(sel);
+  $("#fPagoNombre").value = "";
+  $("#fPagoNumero").value = "";
+  $("#fPagoFecha").value = "";
+  const f = document.getElementById("fPagoFecha"); if(f) f._range = null;
+  applyPagoFilters();
+}
+
+// ========= Carga principal =========
+async function cargarPago(){
+  try{ console.time("[Pago] cargar"); }catch(_e){}
+
+  if(typeof overlay!=="undefined") overlay.show("Cargando facturas…");
+  try {
+    let arr = null;
+    const TARGET = new Set(["Revisada","Pagada"]);
+
+    if (typeof API!=="undefined" && typeof API.getFacturas === "function") {
+      try { arr = await API.getFacturas({ estados: ["Revisada","Pagada"] }); } catch(_){ arr = null; }
+    }
+    let data = Array.isArray(arr) ? arr : [];
+
+    const serverFiltered = data.length>0 && data.every(r => TARGET.has(String((r && r.Estado) || "")));
+    if (!serverFiltered) {
+      const all = await (typeof API!=="undefined" ? API.getFacturas() : Promise.resolve([]));
+      data = (all || []).filter(r => TARGET.has(String((r && r.Estado) || "")));
+    }
+
+    Pago.raw = data;
+
+    const sectores = Array.from(new Set((Pago.raw||[]).map(r=>r.Sector).filter(Boolean))).sort((a,b)=>a.localeCompare(b));
+    if(pagoSectorMS && pagoSectorMS.setItems){ pagoSectorMS.setItems(sectores); }
+    const estados = Array.from(new Set((Pago.raw||[]).map(r=>r.Estado).filter(Boolean)));
+    if(pagoEstadoMS && pagoEstadoMS.setItems){ pagoEstadoMS.setItems(estados); }
+
+    await waitForTabulatorAndContainer();
+    buildPagoTable();
+    const list = Pago.filtered;
+    if(pagoTableReady){ await pagoTable.replaceData(list); } else { pagoPendingData = list; }
+    updatePagoKpis();
+    setLastUpdatedPago();
+  } catch(e) {
+  } finally {
+    if(typeof overlay!=="undefined") overlay.hide();
+  }
+
+  try{ console.timeEnd("[Pago] cargar"); }catch(_e){}
+}
+
+// ========= Wire-up =========
+document.addEventListener("DOMContentLoaded", function(){
+  try{ pagoSectorMS = createMultiSelect("#msPagoSector", "Sector", applyPagoFilters); }catch(_){}
+  try{ pagoEstadoMS = createMultiSelect("#msPagoEstado", "Estado", applyPagoFilters); }catch(_){}
+
+  if (typeof flatpickr !== "undefined") {
+    flatpickr("#fPagoFecha", {
+      mode:"range", dateFormat:"Y-m-d",
+      onChange(selectedDates){
+        if(selectedDates.length===2){
+          selectedDates[0].setHours(0,0,0,0);
+          selectedDates[1].setHours(23,59,59,999);
+          document.getElementById("fPagoFecha")._range = selectedDates;
+        }else{
+          document.getElementById("fPagoFecha")._range = null;
+        }
+        applyPagoFilters();
       }
     });
   }
+
+  const $ = (sel)=>document.querySelector(sel);
+  $("#btnPagoLimpiar")?.addEventListener("click", clearPagoFilters);
+  $("#btnPagoActualizar")?.addEventListener("click", cargarPago);
+  $("#btnPagoExportXLSX")?.addEventListener("click", ()=> pagoTable?.download("xlsx", "Pago_UTCD_" + new Date().toISOString().slice(0,10) + ".xlsx", {sheetName:"Pago", rowRange:"active"}));
+  $("#btnPagoAgrupar")?.addEventListener("click", togglePagoGrouping);
+  $("#mpCancelar")?.addEventListener("click", closePagoModal);
+  $("#fPagoNombre")?.addEventListener("input", applyPagoFilters);
+  $("#fPagoNumero")?.addEventListener("input", applyPagoFilters);
+
+  // Carga cuando se navega a #pago o al hacer click en su pestaña
+  const navPago = document.querySelector('.sidebar .nav-btn[href="#pago"]');
+  if(navPago){ navPago.addEventListener("click", function(){ setTimeout(function(){ cargarPago(); }, 0); }); }
+  window.addEventListener("hashchange", function(){ if(location.hash==="#pago"){ setTimeout(function(){ cargarPago(); }, 0); } });
+});
+
+/* ====== Pago: resumen, cargos e integración pagoLote (sin Fondo/Periodo) ====== */
+(function(){
+  function generateIdPago(){
+    const d = new Date();
+    const pad = n => String(n).padStart(2,"0");
+    const rnd = Math.random().toString(36).slice(2,6).toUpperCase();
+    return `PAGO-${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}-${rnd}`;
+  }
+  function fmtL(v){ return "L " + (Number(v)||0).toLocaleString("es-HN",{minimumFractionDigits:2,maximumFractionDigits:2}); }
+
+  function getSelectedSubtotal(){
+    const rows = (typeof pagoTable!=="undefined" && pagoTable.getSelectedData) ? pagoTable.getSelectedData() : [];
+    let sum = 0;
+    for(const r of rows){
+      const t = Number(r["Total Gastado"] ?? r.Total) || 0;
+      sum += t;
+    }
+    return { count: rows.length, subtotal: sum, rows };
+  }
+
+  function addCargoRow(type="", amount=""){
+    const wrap = document.getElementById("mpCargosList"); if(!wrap) return;
+    const div = document.createElement("div");
+    div.className = "cargo-row";
+    div.style.display = "grid";
+    div.style.gridTemplateColumns = "1fr 1fr 140px 32px";
+    div.style.gap = "8px";
+    div.innerHTML = `
+      <select class="input cargo-tipo">
+        <option value="Tasa seguridad poblacion"${'Tasa seguridad poblacion'===type?' selected':''}>Tasa seguridad poblacion</option>
+        <option value="ACH"${'ACH'===type?' selected':''}>ACH</option>
+        <option value="Otro"${'Otro'===type?' selected':''}>Otro</option>
+      </select>
+      <input class="input cargo-codigo" type="text" placeholder="Código de transacción"/>
+      <input class="input cargo-monto" type="number" step="0.01" min="0" placeholder="0.00" value="${amount}"/>
+      <button class="cargo-remove" title="Eliminar"
+              style="border:1px solid #EF4444;color:#EF4444;background:transparent;border-radius:10px;width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;font-weight:900;">✕</button>
+    `;
+    wrap.appendChild(div);
+    div.querySelector(".cargo-monto").addEventListener("input", recomputePagoResumen);
+    div.querySelector(".cargo-tipo").addEventListener("change", recomputePagoResumen);
+    div.querySelector(".cargo-remove").addEventListener("click", () => { div.remove(); recomputePagoResumen(); });
+  }
+
+  function readCargos(){
+    const wrap = document.getElementById("mpCargosList"); if(!wrap) return [];
+    const out = [];
+    wrap.querySelectorAll(".cargo-row").forEach(row => {
+      const tipo = row.querySelector(".cargo-tipo")?.value || "";
+      const codigo = row.querySelector(".cargo-codigo")?.value || "";
+      const monto = Number(row.querySelector(".cargo-monto")?.value || 0) || 0;
+      if(monto>0) out.push({ tipo, codigo, monto });
+    });
+    return out;
+  }
+
+  function recomputePagoResumen(){
+    const {count, subtotal} = getSelectedSubtotal();
+    const cargos = readCargos();
+    const cargosTotal = cargos.reduce((a,c)=>a+(Number(c.monto)||0),0);
+    const total = subtotal + cargosTotal;
+
+    const elCount = document.getElementById("mpCount");
+    const elSubtotal = document.getElementById("mpSubtotal");
+    const elCargos = document.getElementById("mpCargos");
+    const elTotal = document.getElementById("mpTotal");
+    if(elCount) elCount.textContent = String(count);
+    if(elSubtotal) elSubtotal.textContent = fmtL(subtotal);
+    if(elCargos) elCargos.textContent = fmtL(cargosTotal);
+    if(elTotal) elTotal.textContent = fmtL(total);
+  }
+
+  
+
+  window.closePagoModal = function(){
+    const el = document.getElementById("modalPago"); if(!el) return;
+    el.style.display = "none";
+  };
+  
+
+  document.addEventListener("DOMContentLoaded", function(){
+    document.getElementById("mpCancelar")?.addEventListener("click", closePagoModal);
+    document.getElementById("mpAddCargo")?.addEventListener("click", function(){ addCargoRow(); });
+    if (typeof pagoTable !== "undefined" && pagoTable && pagoTable.on) {
+      try { pagoTable.on("rowSelectionChanged", recomputePagoResumen); } catch(_) {}
+    }
+  });
+})();
+</script>
+
+
+<script>
+// Simple toast (bottom-center) that fades out
+(function(){
+  window.toast = function(msg, timeoutMs){
+    try{
+      timeoutMs = timeoutMs || 2200;
+      let host = document.getElementById("toast-host");
+      if(!host){
+        host = document.createElement("div");
+        host.id = "toast-host";
+        host.style.position="fixed";
+        host.style.left="50%";
+        host.style.bottom="28px";
+        host.style.transform="translateX(-50%)";
+        host.style.zIndex="99999";
+        host.style.display="flex";
+        host.style.flexDirection="column";
+        host.style.gap="8px";
+        document.body.appendChild(host);
+      }
+      const el = document.createElement("div");
+      el.textContent = msg;
+      el.style.padding = "10px 14px";
+      el.style.borderRadius = "10px";
+      el.style.background = "rgba(17,17,17,0.92)";
+      el.style.color = "white";
+      el.style.fontWeight = "700";
+      el.style.boxShadow = "0 8px 20px rgba(0,0,0,0.35)";
+      el.style.opacity = "0";
+      el.style.transition = "opacity .25s ease, transform .25s ease";
+      el.style.transform = "translateY(8px)";
+      host.appendChild(el);
+      requestAnimationFrame(()=>{
+        el.style.opacity = "1";
+        el.style.transform = "translateY(0)";
+      });
+      setTimeout(()=>{
+        el.style.opacity = "0";
+        el.style.transform = "translateY(8px)";
+        setTimeout(()=>{ el.remove(); }, 300);
+      }, timeoutMs);
+    }catch(_){ alert(msg); }
+  }
+})();
+
+/** =========================
+ *  Pago masivo (seleccionar 2+ no pagadas)
+ *  ========================= */
+let pagoSetupDone = false;
+function getPagoTable(){
+  try{
+    const arr = Tabulator.findTable("#tablaPago");
+    return (arr && arr.length) ? arr[0] : null;
+  }catch(_){ return null; }
+}
+
+function updatePagoButtonVisibility(){
+  const btn = document.getElementById("btnPagoAbrirModal");
+  const table = getPagoTable();
+  if(!btn || !table) return;
+  const sel = table.getSelectedData ? table.getSelectedData() : [];
+  const estados = sel.map(r => String(r.Estado||"").trim().toLowerCase());
+  const anyPaid = estados.some(s => s === "pagada");
+  const eligible = sel.filter(r => String(r.Estado||"").trim().toLowerCase() !== "pagada");
+  const show = !anyPaid && eligible.length >= 2;
+  if (show) {
+    btn.classList.remove("hidden");
+    btn.style.display = "inline-flex";
+    btn.disabled = false;
+  } else {
+    btn.classList.add("hidden");
+    btn.style.display = "none";
+    btn.disabled = true;
+  }
+  window._pagoEligibleSelected = eligible;
+}
+
+function genIdPago(){
+  const d = new Date();
+  const pad = n => String(n).padStart(2,"0");
+  const basePart = `PAGO-${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+  const rand = Math.floor(Math.random() * Math.pow(36,4)); // 0..36^4-1
+  const suffix = rand.toString(36).toUpperCase().padStart(4,"0").slice(-4);
+  return `${basePart}-${suffix}`;
+}
+
+
+function addCargoRow(){
+  const list = document.getElementById("mpCargosList");
+  if(!list) return;
+  // Si ya existe una última fila vacía, no agregues otra; solo enfócala.
+  const last = list.lastElementChild;
+  if (last) {
+    const inputs = last.querySelectorAll("input");
+    const empty = Array.from(inputs).every(i => !String(i.value||"").trim());
+    if (empty) { (inputs[1]||inputs[0]||last).focus(); return; }
+  }
+  const row = document.createElement("div");
+  row.className = "cargo-row";
+  row.style.display = "grid";
+  row.style.gridTemplateColumns = "1fr 1fr 140px 32px";
+  row.style.gap = "8px";
+  row.innerHTML = `
+    <input class="input cargo-codigo cargo-codigo" placeholder="Código / Ref." />
+    <input class="input cargo-tipo" placeholder="Tipo de cargo" />
+    <input class="input cargo-monto" placeholder="Monto" inputmode="decimal" />
+    <button type="button" class="btn btn-ghost cargo-del" title="Quitar"><i class="lucide-x"></i></button>
+  `;
+  list.appendChild(row);
+  row.querySelector(".cargo-del").addEventListener("click", ()=>{ row.remove(); updateOtrosCargosTotal(); });
+  row.querySelector(".cargo-monto").addEventListener("input", debounce(updateOtrosCargosTotal, 200));
+  const tipo = row.querySelector(".cargo-tipo"); if(tipo) tipo.focus();
+}
+
+function updateOtrosCargosTotal(){
+  const list = document.getElementById("mpCargosList");
+  if(!list) return;
+  const montos = Array.from(list.querySelectorAll(".cargo-monto")).map(i=>{
+    const raw = (i.value||"").replace(",", ".").replace(/[^0-9.\-]/g,"");
+    return Number(raw)||0;
+  });
+  const total = montos.reduce((a,b)=>a+b,0);
+  window._otrosCargosTotal = total;
+  const sub = Number(window._mpSubtotalRaw||0);
+  const grand = sub + total;
+  const mpCargosEl = document.getElementById("mpCargos");
+  const mpTotalEl  = document.getElementById("mpTotal");
+  if(mpCargosEl) mpCargosEl.textContent = fmt.money(total);
+  if(mpTotalEl)  mpTotalEl.textContent  = fmt.money(grand);
+}
+
+
+function openPagoModalSingle(row){
+  if(!row) return;
+  if(String(row.Estado||'').trim().toLowerCase()==='pagada'){
+    alert('Esta factura ya está Pagada.');
+    return;
+  }
+  window._pagoMode = 'single';
+  window._pagoEligibleSelected = [row];
+  const subtotal = Number(row.Total)||0;
+  window._mpSubtotalRaw = subtotal;
+
+  const mpCountEl = document.getElementById("mpCount");
+  const mpSubtotalEl = document.getElementById("mpSubtotal");
+  const mpCargosList = document.getElementById("mpCargosList");
+  if(mpCountEl) mpCountEl.textContent = "1";
+  if(mpSubtotalEl) mpSubtotalEl.textContent = fmt.money(subtotal);
+  if(mpCargosList) mpCargosList.innerHTML = "";
+
+  window._otrosCargosTotal = 0;
+  updateOtrosCargosTotal();
+
+  const f = document.getElementById("mpFechaPago"); if(f) f.value = fmt.dateISO(new Date());
+  const id = document.getElementById("mpIdPago");   if(id) id.value = genIdPago();
+
+  const modal = document.getElementById("modalPago");
+  if(modal) modal.style.display = "grid";
+}
+function openPagoModalForSelection(){
+  window._pagoMode = 'batch';
+  window._pagoMode = 'batch';
+  const table = getPagoTable(); if(!table) return;
+  const sel = table.getSelectedData ? table.getSelectedData() : [];
+  const estados = sel.map(r => String(r.Estado||"").trim().toLowerCase());
+  const anyPaid = estados.some(s => s === "pagada");
+  const eligible = sel.filter(r => String(r.Estado||"").trim().toLowerCase() !== "pagada");
+  if (anyPaid || eligible.length < 2) { alert("Seleccione al menos 2 facturas y ninguna debe estar Pagada."); return; }
+// Subtotal de las facturas
+  const subtotal = eligible.reduce((acc, r)=> acc + (Number(r.Total)||0), 0);
+  window._mpSubtotalRaw = subtotal;
+
+  // UI: resumen
+  const mpCountEl = document.getElementById("mpCount");
+  const mpSubtotalEl = document.getElementById("mpSubtotal");
+  const mpCargosList = document.getElementById("mpCargosList");
+  if(mpCountEl) mpCountEl.textContent = String(eligible.length);
+  if(mpSubtotalEl) mpSubtotalEl.textContent = fmt.money(subtotal);
+  if(mpCargosList) mpCargosList.innerHTML = "";
+
+  // Reiniciar cargos y totales
+  window._otrosCargosTotal = 0;
+  updateOtrosCargosTotal();
+
+  // Fecha hoy + ID_PAGO autogenerado
+  const f = document.getElementById("mpFechaPago");
+  const id = document.getElementById("mpIdPago");
+  if(f) f.value = fmt.dateISO(new Date());
+  if(id) id.value = genIdPago();
+
+  // Guardar selección elegible
+  window._pagoEligibleSelected = eligible;
+
+  // Mostrar modal
+  const modal = document.getElementById("modalPago");
+  if(modal) modal.style.display = "grid";
+}
+
+
+async function confirmarPago(){
+  try{
+    const table = getPagoTable(); if(!table) return;
+    const mode = window._pagoMode || 'batch';
+
+    const fechaPago = (document.getElementById("mpFechaPago")?.value || "").trim();
+    const idPago    = (document.getElementById("mpIdPago")?.value || "").trim();
+    if(!fechaPago || !idPago){ alert("Falta Fecha de pago o ID_PAGO"); return; }
+
+    // Helper para leer cargos del modal
+    const list = document.getElementById("mpCargosList");
+    const cargos = list ? Array.from(list.children).map(div => {
+      const tipoEl   = div.querySelector(".cargo-tipo");
+      const montoEl  = div.querySelector(".cargo-monto");
+      const codigoEl = div.querySelector(".cargo-codigo");
+      const tipo   = tipoEl ? (tipoEl.value || "") : "";
+      const montoV = montoEl ? (montoEl.value || "") : "";
+      const monto  = Number(montoV.replace(",", ".").replace(/[^0-9.\-]/g,"")) || 0;
+      const codigo = codigoEl ? (codigoEl.value || "") : "";
+      return (tipo || monto || codigo) ? { tipo, monto, codigo } : null;
+    }).filter(Boolean) : [];
+
+    overlay.show("Registrando pago…");
+
+    if(mode === 'single'){
+      const row = (Array.isArray(window._pagoEligibleSelected) ? window._pagoEligibleSelected[0] : null);
+      if(!row){ alert("No hay factura seleccionada."); overlay.hide(); return; }
+
+      // Usar pagoLote con una sola fila para registrar también "Otros Cargos"
+      const payload = { accion:"pagoLote", filas:[row.fila || row._fila], fechaPago, idPago, cargos }; window._cargosByIdPago = window._cargosByIdPago||{}; window._cargosByIdPago[idPago] = (window._cargosByIdPago[idPago]||0) + cargos.reduce((a,c)=>a+(Number(c.monto)||0),0);
+      const res = await fetch(Config.api.guardar, {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify(payload)
+      });
+      const j = await res.json().catch(()=>({status:"ERROR"}));
+      if(!res.ok || j.status!=="OK" || !j.pagoLote){
+        throw new Error(j && j.message ? j.message : ("HTTP " + res.status));
+      }
+
+      // Optimista: actualizar fila
+      const rows = table.getRows ? table.getRows() : [];
+      const rc = rows.find(r => (r.getData()?.fila) === (row.fila||row._fila));
+      if(rc) rc.update({ Estado: "Pagada" });
+
+      // Cerrar modal y refrescar KPI
+      const modal = document.getElementById("modalPago"); if(modal) modal.style.display = "none";
+      try{ await cargarOtrosCargosKpi(); }catch(_){}
+      if(table.deselectRow) table.deselectRow();
+      updatePagoButtonVisibility();
+      return;
+    }
+
+    // === batch ===
+    const sel = table.getSelectedData ? table.getSelectedData() : [];
+    const estados  = sel.map(r => String(r.Estado||'').trim().toLowerCase());
+    const anyPaid  = estados.some(s => s === 'pagada');
+    const eligible = sel.filter(r => String(r.Estado||'').trim().toLowerCase() !== 'pagada');
+    if(anyPaid || eligible.length < 2){
+      alert("Seleccione al menos 2 facturas y ninguna debe estar Pagada.");
+      return;
+    }
+
+    const filas = eligible.map(r => r.fila || r._fila).filter(Boolean);
+    const payload = { accion:"pagoLote", filas, fechaPago, idPago, cargos }; window._cargosByIdPago = window._cargosByIdPago||{}; window._cargosByIdPago[idPago] = (window._cargosByIdPago[idPago]||0) + cargos.reduce((a,c)=>a+(Number(c.monto)||0),0);
+    const res = await fetch(Config.api.guardar, {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify(payload)
+    });
+    const json = await res.json().catch(()=>({status:"ERROR"}));
+    if(!res.ok || json.status!=="OK" || !json.pagoLote){
+      throw new Error(json && json.message ? json.message : ("HTTP " + res.status));
+    }
+
+    // Optimista
+    const rows = table.getRows ? table.getRows() : [];
+    eligible.forEach(item => {
+      const rc = rows.find(r => (r.getData()?.fila) === item.fila);
+      if(rc) rc.update({ Estado: "Pagada" });
+    });
+
+    const modal = document.getElementById("modalPago"); if(modal) modal.style.display = "none";
+    try{ await cargarOtrosCargosKpi(); }catch(_){}
+    if(table.deselectRow) table.deselectRow();
+    updatePagoButtonVisibility();
+
+  }catch(e){
+    alert("No se pudo completar el pago. " + (e && e.message ? e.message : ""));
+  }finally{
+    overlay.hide();
+  }
+}
+
+
+
+
+async function fetchOtrosCargosMapForIds(ids){
+  if(!Array.isArray(ids) || !ids.length) return {};
+  const url = new URL(Config.api.leer);
+  url.searchParams.set("otrosCargos", "byId");
+  // enviar multiples ids
+  ids.forEach(id => { if(id) url.searchParams.append("ids", id); });
+  const resp = await fetch(url.toString(), { method:"GET", cache:"no-store" });
+  const json = await resp.json().catch(()=>({ok:false, byId:{}}));
+  return (json && json.ok && json.byId) ? json.byId : {};
+}
+
+async function togglePagoGroupingByIdPago(){
+  if(!pagoTable) return;
+  const current = pagoTable.getGrouped ? pagoTable.getGrouped() : [];
+  const already = Array.isArray(current) && current.length===1 && current[0]==="ID_PAGO";
+  if(already){
+    pagoTable.setGroupBy(false);
+    try{ document.getElementById("btnPagoAgruparIdPago").classList.remove("btn-primary"); }catch(_){}
+    return;
+  }
+
+  // Agrupar por ID_PAGO
+  pagoTable.setGroupBy("ID_PAGO");
+  pagoTable.updateOption("groupStartOpen", false);
+  pagoTable.updateOption("groupHeader", function(value, count, data, group){
+    const key = String(value||"");
+    const subtotal = (data||[]).reduce((acc,r)=> acc + (Number(r.Total)||0), 0);
+    const fmtL = (n)=> new Intl.NumberFormat("es-HN",{minimumFractionDigits:2, maximumFractionDigits:2}).format(n);
+    const cargoMap = (window._cargosByIdPago || {});
+    const cargosTotal = Number(cargoMap[key]||0);
+    const idTxt = key || "(sin ID_PAGO)";
+    const cb = `<input type="checkbox" class="group-select-pago" data-group-key="${key}"/>`;
+    return `${cb} <strong>${idTxt}</strong> (${count}) &nbsp; L ${fmtL(subtotal)} &nbsp; y sus otros cargos L ${fmtL(cargosTotal)}`;
+  });
+  try{ document.getElementById("btnPagoAgruparIdPago").classList.add("btn-primary"); }catch(_){}
+
+  // Cargar totales de otros cargos para IDs visibles (post-filtro) y refrescar encabezados
+  try{
+    const data = pagoTable.getData ? pagoTable.getData("active") : [];
+    const ids = Array.from(new Set((data||[]).map(r => String(r.ID_PAGO||"").trim()).filter(Boolean)));
+    if(ids.length){
+      const map = await fetchOtrosCargosMapForIds(ids);
+      window._cargosByIdPago = Object.assign({}, window._cargosByIdPago || {}, map);
+      pagoTable.redraw(true);
+    }
+  }catch(_){}
 }
