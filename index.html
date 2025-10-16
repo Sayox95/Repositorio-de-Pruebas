@@ -203,6 +203,16 @@
     cursor: pointer;
   }
 
+
+/* === Tweaks for Pago KPIs: make them narrower & 1-row === */
+#secPago .grid.cols-5{ grid-template-columns: repeat(5, minmax(0,1fr)); }
+#secPago .card.kpi{ padding:12px; }
+#secPago .kpi .label{ font-size:12px; }
+#secPago .kpi .value{ font-size:20px; }
+@media (max-width: 1024px){
+  #secPago .grid.cols-5{ grid-template-columns: repeat(2, minmax(0,1fr)); }
+}
+
 </style>
 
 <style id="modalPago-wide-tweaks">
@@ -291,7 +301,7 @@
         </div>
       </div>
 
-      <div class="grid cols-4">
+      <div class="grid cols-5">
         <div class="card kpi">
           <span class="label">Registradas</span>
           <span id="kpiRegistradas" class="value">0</span>
@@ -353,7 +363,7 @@
       </div>
     </div>
 
-    <div class="grid cols-4">
+    <div class="grid cols-5">
       <div class="card kpi"><span class="label">Pendientes (Revisadas)</span><span id="kpiPagoPendientes" class="value">0</span></div>
       <div class="card kpi"><span class="label">Pagadas</span><span id="kpiPagoPagadas" class="value">0</span></div>
       <div class="card kpi"><span class="label">Total Pendiente</span><span id="kpiPagoTotalPend" class="value">L 0.00</span></div>
@@ -1299,30 +1309,66 @@ function toggleGrouping(){
 }
 
 
+
+
+
 async function cargarOtrosCargosKpi(){
   try{
-    const base = Config.api.leerFacturas;
-    const url = base.includes('?') ? (base + '&otrosCargos=total') : (base + '?otrosCargos=total');
-    const res = await fetch(url, { cache: "no-store", mode: "cors" });
-    const json = await res.json().catch(()=>null);
-    const total = Number(json && json.totalOtrosCargos || 0);
-    const el = document.getElementById("kpiPagoOtrosCargos");
-    if(el){ el.textContent = fmt.money(total); }
-    const lup = document.getElementById("lastUpdatedPago");
-    if(lup){
-      const now = new Date();
-      const yyyy = now.getFullYear();
-      const mm = String(now.getMonth()+1).padStart(2,"0");
-      const dd = String(now.getDate()).padStart(2,"0");
-      const hh = String(now.getHours()).padStart(2,"0");
-      const mi = String(now.getMinutes()).padStart(2,"0");
-      lup.textContent = `Actualizado: ${yyyy}-${mm}-${dd} ${hh}:${mi}`;
+    let rows = [];
+    const t = (typeof pagoTable !== "undefined" && pagoTable) ? pagoTable
+            : (typeof tablaPago !== "undefined" ? tablaPago : null);
+    if (t && typeof t.getData === "function"){
+      rows = t.getData("active") || [];
     }
+    const ids = Array.from(new Set((rows||[]).map(r => String(r.ID_PAGO||"").trim()).filter(Boolean)));
+    const el = document.getElementById("kpiPagoOtrosCargos");
+    if (!ids.length){
+      if (el) el.textContent = fmt.money(0);
+      return;
+    }
+    const base = Config.api.leerFacturas;
+    const url = base + (base.includes('?') ? '&' : '?') + 'otrosCargos=byId';
+    const u = new URL(url, location.origin);
+    ids.forEach(id => u.searchParams.append("ids", id));
+    const res = await fetch(u.toString(), { cache: "no-store", mode: "cors" });
+    const data = await res.json().catch(()=>({byId:{}}));
+    const map = (data && data.byId) ? data.byId : {};
+    const total = ids.reduce((acc, id)=> acc + (Number(map[id]) || 0), 0);
+    if (el) el.textContent = fmt.money(total);
+    if (typeof setLastUpdatedPago === "function") setLastUpdatedPago();
+    window._cargosByIdPago = Object.assign({}, map);
   }catch(e){
-    // Silencioso: el KPI queda en 0.00 si falla
-    // console.warn("No se pudo leer otros cargos:", e);
+    const el = document.getElementById("kpiPagoOtrosCargos");
+    if (el) el.textContent = fmt.money(0);
   }
 }
+
+
+/** === Observadores para recalcular KPI de Otros Cargos en Pago === */
+function _attachPagoKpiObservers(){
+  try{
+    const t = (typeof pagoTable !== "undefined" && pagoTable) ? pagoTable
+            : (typeof tablaPago !== "undefined" ? tablaPago : null);
+    if (!t || typeof t.on !== "function") return false;
+    if (t._kpiObserversAttached) return true;
+    const handler = ()=>{ try{ cargarOtrosCargosKpi(); }catch(_){ } };
+    try{ t.on("dataLoaded", handler); }catch(_){}
+    try{ t.on("dataFiltered", handler); }catch(_){}
+    try{ t.on("rowSelectionChanged", handler); }catch(_){}
+    t._kpiObserversAttached = true;
+    handler();
+    return true;
+  }catch(e){
+    return false;
+  }
+}
+
+// Intento perezoso por si la tabla se crea más tarde
+(function waitTablaPago(){
+  const ok = _attachPagoKpiObservers();
+  if (!ok) setTimeout(waitTablaPago, 400);
+})();
+
 
 /** =========================
  *  Navegación (overlay al cambiar de sección)
@@ -1351,7 +1397,7 @@ document.querySelectorAll('.sidebar .nav-btn').forEach(a=>{
     const href = a.getAttribute('href')||'';
     if(href==='#inicio') return navigateTo('secInicio');
     if(href==='#revision') return navigateTo('secRevision', async()=>{ await hardRefresh(); });
-    if(href==='#pago')     return navigateTo('secPago', async()=>{ await cargarOtrosCargosKpi(); await initPagoMassPay(); });
+    if(href==='#pago')     return navigateTo('secPago', async()=>{ await initPagoMassPay(); try{ _attachPagoKpiObservers(); }catch(_){} await cargarOtrosCargosKpi(); });
     if(href==='#anticipos')return navigateTo('secAnticipos');
     if(href==='#placas')   return navigateTo('secPlacas', async()=>{ await cargarPlacas(); });
   });
