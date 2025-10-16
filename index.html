@@ -227,7 +227,35 @@
   #modalPago .cargo-row { grid-template-columns: 1fr 1fr 140px 32px !important; }
   #modalPago .cargo-row .cargo-codigo { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
 
-  /* ==== Toast agrupación ==== */
+  /* ==== Toast agrupación (centrado + backdrop) ==== */
+  .toast {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%,-50%);
+    display: none;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 20px;
+    border: 1px solid #e5e7eb;
+    background: #ffffff;
+    border-radius: 14px;
+    box-shadow: 0 18px 40px rgba(2,8,23,.25);
+    z-index: 1001; /* above backdrop */
+    font-weight: 700;
+  }
+  .toast.show { display: flex; }
+  .toast .spinner { width:18px;height:18px;border:2px solid #e5e7eb;border-top-color:#0FA47E;border-radius:50%; animation:spin .9s linear infinite }
+
+  .toast-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(2,8,23,.35);
+    backdrop-filter: blur(1px);
+    display: none;
+    z-index: 1000;
+  }
+  .toast-backdrop.show { display: block; } */
   .toast {
     position: fixed;
     top: 16px;
@@ -252,6 +280,7 @@
 <body>
 
 
+<div id="toastBackdrop" class="toast-backdrop" aria-hidden="true"></div>
 <!-- Toast Agrupación -->
 <div id="toastGroup" class="toast" role="status" aria-live="polite">
   <div class="spinner"></div>
@@ -2912,17 +2941,23 @@ function initPagoMassPay(force=false){
   function showGroupToast(msg){
     try{
       const el = document.getElementById("toastGroup");
-      if(!el) return;
+      const bd = document.getElementById("toastBackdrop");
+      if(!el || !bd) return;
       const t = document.getElementById("toastText");
       if(t && msg) t.textContent = msg;
       el.classList.add("show");
+      bd.classList.add("show");
+      try{ document.body.style.overflow = 'hidden'; }catch(e){}
     }catch(e){}
   }
   function hideGroupToast(){
     try{
       const el = document.getElementById("toastGroup");
-      if(!el) return;
+      const bd = document.getElementById("toastBackdrop");
+      if(!el || !bd) return;
       el.classList.remove("show");
+      bd.classList.remove("show");
+      try{ document.body.style.overflow = ''; }catch(e){}
     }catch(e){}
   }
 
