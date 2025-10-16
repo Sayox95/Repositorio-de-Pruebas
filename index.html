@@ -6,7 +6,68 @@
   <title>UTCD · Revisión de Facturas</title>
   <!-- Tabulator -->
   <link href="https://unpkg.com/tabulator-tables@6.2.5/dist/css/tabulator.min.css" rel="stylesheet">
-  <script src="https://unpkg.com/tabulator-tables@6.2.5/dist/js/tabulator.min.js"></script>
+  <script src="https://unpkg.com/tabulator-tables@6.2.5/dist/js/tabulator.min.js">
+// === Agrupar por ID_PAGO en Pago (usa estrictamente el campo "ID_PAGO") ===
+let pagoGroupedById = false;
+function _fmtL(v){ return "L " + (Number(v)||0).toLocaleString("es-HN",{minimumFractionDigits:2, maximumFractionDigits:2}); }
+
+function formatPagoHeaderById(value, count, data){
+  const id = String(value||"").trim() || "(sin ID_PAGO)";
+  const sum = (data||[]).reduce((acc,r)=> acc + (Number(r.Total)||0), 0);
+  const cargosMap = (window._cargosByIdPago||{});
+  const otros = Number(cargosMap[id]||0);
+  return `${id} (${count}) · ${_fmtL(sum)}${otros>0?` + otros cargos ${_fmtL(otros)}`:''}`;
+}
+
+async function fetchOtrosCargosByIds_IDPAGO(ids){
+  if(!ids || !ids.length) return {};
+  try{
+    const base = (Config.api && Config.api.leerFacturas) ? Config.api.leerFacturas : "/api/leer";
+    const u = new URL(base + (base.includes('?')?'&':'?') + 'otrosCargos=byId', location.origin);
+    ids.forEach(id => u.searchParams.append('ids', id));
+    const res = await fetch(u.toString(), {cache:"no-store", mode:"cors"});
+    const j = await res.json().catch(()=>({byId:{}}));
+    return j.byId || {};
+  }catch(e){ return {}; }
+}
+
+async function _refreshOtrosCargosForVisibleGroups(t){
+  try{
+    const rows = t.getData("active") || [];
+    const ids = Array.from(new Set(rows.map(r => String(r.ID_PAGO||'').trim()).filter(Boolean)));
+    if(!ids.length) return;
+    const map = await fetchOtrosCargosByIds_IDPAGO(ids);
+    window._cargosByIdPago = Object.assign({}, (window._cargosByIdPago||{}), map);
+    t.redraw(true);
+  }catch(_){}
+}
+
+async function togglePagoGroupById(){
+  const t = (window.pagoTable) || (window.Tabulator && Tabulator.findTable ? (Tabulator.findTable('#tablaPago')[0]||null) : null);
+  if(!t) return;
+  pagoGroupedById = !pagoGroupedById;
+  const btn = document.getElementById("btnPagoAgruparIdPago");
+  if(pagoGroupedById){
+    t.setGroupBy(["ID_PAGO"]);
+    t.setGroupHeader(formatPagoHeaderById);
+    if(btn) btn.innerHTML = '<i class="lucide-layers"></i> Desagrupar ID_PAGO';
+    await _refreshOtrosCargosForVisibleGroups(t);
+    try{
+      // Auto-refresh al filtrar / procesar datos
+      t.off("dataFiltered", _refreshOtrosCargosForVisibleGroups); // evitar duplicados
+    }catch(_){}
+    try{ t.on("dataFiltered", ()=>_refreshOtrosCargosForVisibleGroups(t)); }catch(_){}
+    try{ t.on("dataProcessed", ()=>_refreshOtrosCargosForVisibleGroups(t)); }catch(_){}
+  }else{
+    t.setGroupBy(false);
+    t.setGroupHeader(null);
+    if(btn) btn.innerHTML = '<i class="lucide-layers"></i> Agrupar por ID_PAGO';
+    try{ t.off("dataFiltered", _refreshOtrosCargosForVisibleGroups); }catch(_){}
+    try{ t.off("dataProcessed", _refreshOtrosCargosForVisibleGroups); }catch(_){}
+  }
+}
+
+</script>
   <!-- Flatpickr -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
@@ -344,8 +405,8 @@
       <div class="actions">
         <span id="lastUpdatedPago" class="last-updated" title="Última actualización">—</span>
         <button id="btnPagoActualizar" class="btn"><i class="lucide-rotate-cw"></i> Actualizar</button>
-        <button id="btnPagoAgrupar" class="btn btn-ghost"><i class="lucide-layers-2"></i> Agrupar por colaborador</button>
-                  <button id="btnPagoAgruparId" class="btn btn-ghost"><i class="lucide-layers-3"></i> Agrupar por ID_PAGO</button>
+        <button id="btnPagoAgrupar" class="btn btn-ghost"><i class="lucide-layers-2"></i> Agrupar por colaborador</button></button>
+        <button id="btnPagoAgruparIdPago" class="btn btn-ghost"><i class="lucide-layers"></i> Agrupar por ID_PAGO</button>
         <button id="btnPagoExportXLSX" class="btn btn-ghost"><i class="lucide-download"></i> Excel</button>
         <button id="btnPagoAbrirModal" class="btn btn-primary hidden" disabled><i class="lucide-credit-card"></i> Pagar seleccionadas</button>
       </div>
@@ -2232,6 +2293,7 @@ function buildPagoTable(){
       { title:"Nombre del comercio", field:"Nombre del comercio", width:220, tooltip:true,
         formatter:(cell)=>{ const v=String(cell.getValue()??""); const m=28; return v.length>m? v.slice(0,m)+"…": v; } },
       { title:"Número de Factura", field:"Numero de Factura", width:150 },
+      { title:"ID_PAGO", field:"ID_PAGO", width:200, headerTooltip:"ID del pago" },
       { title:"Enlace PDF", field:"Enlace PDF", width:110,
         formatter:(cell)=>{
           const r=cell.getRow().getData(); const v=cell.getValue()||r.Enlace||r.PDF||"";
@@ -2870,151 +2932,6 @@ function initPagoMassPay(force=false){
   if(addCargo && !addCargo.dataset.bound){ addCargo.addEventListener("click", addCargoRow); addCargo.dataset.bound="1"; }
   if(confirm)  confirm.addEventListener("click", confirmarPago);
 }
-
-/* ===== Agrupar por ID_PAGO (Sección Pago) ===== */
-(function(){
-  const pagoState = { groupedById: false, otrosById: {}, hooksSet: false };
-
-  function fmtMoneyHN(v){
-    const n = Number(v||0);
-    try{
-      return "L " + n.toLocaleString("es-HN",{minimumFractionDigits:2, maximumFractionDigits:2});
-    }catch(_){ return "L " + (Math.round(n*100)/100).toFixed(2); }
-  }
-
-  async function fetchOtrosCargosByIds(ids){
-    try{
-      if(!ids || !ids.length) return {};
-      const url = new URL(Config.api.leerFacturas);
-      url.searchParams.set("otrosCargos", "byId");
-      ids.forEach(id => { if(id) url.searchParams.append("ids", id); });
-      const res = await fetch(url.toString(), { cache: "no-store" });
-      const json = await res.json().catch(()=>({}));
-      return (json && json.byId) || {};
-    }catch(_){
-      return {};
-    }
-  }
-
-  function getTablePago(){
-    try{
-      if (window.__tablePago && typeof window.__tablePago.getDataCount === "function") return window.__tablePago;
-      const arr = Tabulator.prototype.findTable("#tablaPago");
-      if (arr && arr[0]) { window.__tablePago = arr[0]; return arr[0]; }
-    }catch(_){}
-    return null;
-  }
-
-  async function applyGroupByIdPago(){
-    const tp = getTablePago();
-    if(!tp) return;
-
-    // Collect unique ID_PAGO values visible
-    const rows = tp.getData("active") || tp.getData() || [];
-    const ids = Array.from(new Set(rows.map(r => String(r.ID_PAGO||"").trim()).filter(Boolean)));
-
-    // Preload Otros Cargos per ID
-    pagoState.otrosById = await fetchOtrosCargosByIds(ids);
-
-    // Set group header renderer
-    tp.setGroupBy(["ID_PAGO"]);
-    tp.updateOption("groupHeader", function(value, count, data, group){
-      const id = String(value||"(sin ID_PAGO)");
-      const subtotal = (data||[]).reduce((acc, r)=> acc + (Number(r.Total)||0), 0);
-      const otros = Number(pagoState.otrosById[id]||0);
-      const subtotalTxt = new Intl.NumberFormat("es-HN",{minimumFractionDigits:2, maximumFractionDigits:2}).format(subtotal);
-      const otrosTxt = new Intl.NumberFormat("es-HN",{minimumFractionDigits:2, maximumFractionDigits:2}).format(otros);
-      const safeKey = id.replace(/"/g,"&quot;");
-      return `<label class="group-toggle">
-                <input type="checkbox" class="group-select-pago-id" data-group-key="${safeKey}">
-                <span>${id} (${count}) · L ${subtotalTxt}${otros?` + otros cargos L ${otrosTxt}`:""}</span>
-              </label>`;
-    });
-
-    // Open groups by default (optional)
-    try{ tp.updateOption("groupStartOpen", true); }catch(_){}
-
-    pagoState.groupedById = true;
-    const btn = document.getElementById("btnPagoAgruparId");
-    if (btn) btn.innerHTML = '<i class="lucide-layers-3"></i> Desagrupar';
-  }
-
-  function clearGroupByIdPago(){
-    const tp = getTablePago();
-    if(!tp) return;
-    tp.setGroupBy(false);
-    // restore default header if needed (no-op; Tabulator ignores groupHeader without groups)
-    pagoState.groupedById = false;
-    const btn = document.getElementById("btnPagoAgruparId");
-    if (btn) btn.innerHTML = '<i class="lucide-layers-3"></i> Agrupar por ID_PAGO';
-  }
-
-  function ensurePagoHooks(){
-    if (pagoState.hooksSet) return;
-    pagoState.hooksSet = true;
-
-    // Delegate click on group checkbox to select/deselect all rows in the group
-    const root = document.getElementById("tablaPago");
-    if (root){
-      root.addEventListener("click", (ev)=>{
-        const el = ev.target.closest(".group-select-pago-id");
-        if(!el) return;
-        const key = el.getAttribute("data-group-key") || "";
-        const tp = getTablePago();
-        if(!tp) return;
-        const rows = tp.getRows() || [];
-        // Toggle selection based on current checkbox state
-        const shouldSelect = el.checked;
-        for(const r of rows){
-          try{
-            const d = r.getData ? r.getData() : {};
-            const id = String(d.ID_PAGO||"");
-            if (id === key){
-              if (shouldSelect) r.select && r.select();
-              else r.deselect && r.deselect();
-            }
-          }catch(_){}
-        }
-      });
-    }
-
-    // If the data in the table changes (filters/refresh), and we're in groupedById mode, re-apply header with fresh sums
-    const tp = getTablePago();
-    if (tp){
-      tp.on("dataFiltered", async ()=>{ if(pagoState.groupedById) await applyGroupByIdPago(); });
-      tp.on("dataLoaded",   async ()=>{ if(pagoState.groupedById) await applyGroupByIdPago(); });
-      tp.on("rowSelectionChanged", ()=>{
-        // no-op; selection handled per checkbox
-      });
-    }
-
-    // Wire button
-    const btn = document.getElementById("btnPagoAgruparId");
-    if (btn){
-      btn.addEventListener("click", async ()=>{
-        const tp = getTablePago();
-        if(!tp){
-          // try again shortly if table not yet initialized
-          setTimeout(()=>{ btn.click(); }, 250);
-          return;
-        }
-        if (!pagoState.groupedById) await applyGroupByIdPago();
-        else clearGroupByIdPago();
-      });
-    }
-  }
-
-  // Try to attach hooks immediately and again after a tick (for lazy init of tablePago)
-  document.addEventListener("DOMContentLoaded", ensurePagoHooks);
-  setTimeout(ensurePagoHooks, 1200);
-  // Also when navigating to the Pago section
-  (function(){
-    const a = document.querySelector('.sidebar .nav-btn[href="#pago"]');
-    if (a){
-      a.addEventListener("click", ()=>{ setTimeout(ensurePagoHooks, 500); });
-    }
-  })();
-})();
 </script>
 
 </body>
