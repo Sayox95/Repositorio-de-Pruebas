@@ -345,7 +345,7 @@
         <span id="lastUpdatedPago" class="last-updated" title="Última actualización">—</span>
         <button id="btnPagoActualizar" class="btn"><i class="lucide-rotate-cw"></i> Actualizar</button>
         <button id="btnPagoAgrupar" class="btn btn-ghost"><i class="lucide-layers-2"></i> Agrupar por colaborador</button>
-        <button id="btnPagoAgruparIdPago" class="btn btn-ghost"><i class="lucide-layers-2"></i> Agrupar por ID_PAGO</button>
+        <button id="btnPagoAgruparId" class="btn btn-ghost"><i class="lucide-layers-2"></i> Agrupar por ID_PAGO</button>
         <button id="btnPagoExportXLSX" class="btn btn-ghost"><i class="lucide-download"></i> Excel</button>
         <button id="btnPagoAbrirModal" class="btn btn-primary hidden" disabled><i class="lucide-credit-card"></i> Pagar seleccionadas</button>
       </div>
@@ -2871,119 +2871,159 @@ function initPagoMassPay(force=false){
   if(confirm)  confirm.addEventListener("click", confirmarPago);
 }
 
-/* ==== Agrupar por ID_PAGO (Pago) ========================================= */
-let pagoGroupByIdEnabled = false;
-const PagoOtrosCargosCache = {};
+/* =========================
+ *  Agrupar por ID_PAGO (Sección Pago)
+ *  ========================= */
+(function(){
+  let pagoGroupById = false;
+  let otrosCargosById = {}; // cache para totales de otros cargos por ID_PAGO
 
-function getPagoTable(){
-  try{
-    const arr = Tabulator.findTable("#tablaPago");
-    return (arr && arr[0]) || null;
-  }catch(_){ return null; }
-}
-
-async function fetchOtrosCargosByIds(ids=[]){
-  const need = ids.filter(id => id && (PagoOtrosCargosCache[id] == null));
-  if(!need.length) return;
-  const url = new URL(Config.api.leerFacturas);
-  url.searchParams.set("otrosCargos","byId");
-  need.forEach(id=> url.searchParams.append("ids", id));
-  try{
-    const resp = await fetch(url.toString(), {cache:"no-store"});
-    const json = await resp.json().catch(()=>({}));
-    if(json && json.ok && json.byId){
-      Object.keys(json.byId).forEach(id => {
-        PagoOtrosCargosCache[id] = Number(json.byId[id]) || 0;
-        document.querySelectorAll(`.oc-amt[data-idp="${CSS.escape(id)}"]`).forEach(el=>{
-          try{
-            el.textContent = new Intl.NumberFormat("es-HN",{minimumFractionDigits:2, maximumFractionDigits:2}).format(PagoOtrosCargosCache[id]||0);
-          }catch(_){
-            el.textContent = (PagoOtrosCargosCache[id]||0).toFixed(2);
-          }
-        });
-      });
-    }
-  }catch(_){}
-}
-
-function updatePagoGroupHeaders(){
-  const table = getPagoTable();
-  if(!table || !pagoGroupByIdEnabled) return;
-  const groups = table.getGroups ? table.getGroups() : [];
-  const ids = [];
-  for(const g of groups){
-    const id = String(g.getKey()||"").trim();
-    if(!id) continue; // omit groups sin ID_PAGO
-    const rows = g.getRows ? g.getRows() : [];
-    const subtotal = rows.reduce((acc,r)=> acc + (Number(r.getData()?.Total)||0), 0);
-    const count = rows.length;
-    ids.push(id);
-    const el = g.getElement ? g.getElement() : null;
-    if(!el) continue;
-    const titleEl = el.querySelector(".tabulator-group-title");
-    if(!titleEl) continue;
-    const subtotalTxt = new Intl.NumberFormat("es-HN",{minimumFractionDigits:2, maximumFractionDigits:2}).format(subtotal);
-    const otrosTxt = (PagoOtrosCargosCache[id] != null)
-      ? new Intl.NumberFormat("es-HN",{minimumFractionDigits:2, maximumFractionDigits:2}).format(PagoOtrosCargosCache[id]||0)
-      : "…";
-    titleEl.innerHTML = `
-      <label class="group-toggle" style="display:inline-flex; align-items:center; gap:8px;">
-        <input type="checkbox" class="group-select-idp" data-idp="${id}">
-        <span>${id} (${count}) · L ${subtotalTxt} + otros cargos L <span class="oc-amt" data-idp="${id}">${otrosTxt}</span></span>
-      </label>
-    `;
+  function getPagoTable(){
+    try {
+      const arr = Tabulator.findTable("#tablaPago");
+      if (arr && arr.length) return arr[0];
+    } catch(_){}
+    return null;
   }
-  fetchOtrosCargosByIds(Array.from(new Set(ids)));
-}
 
-function togglePagoGroupById(){
-  const table = getPagoTable();
-  if(!table) return;
-  pagoGroupByIdEnabled = !pagoGroupByIdEnabled;
-  const btn = document.getElementById("btnPagoAgruparIdPago");
-  if(pagoGroupByIdEnabled){
-    try{ table.setGroupBy(["ID_PAGO"]); }catch(_){ table.setGroupBy && table.setGroupBy("ID_PAGO"); }
-    if(btn) btn.innerHTML = '<i class="lucide-layers-2"></i> Desagrupar ID_PAGO';
-    setTimeout(updatePagoGroupHeaders, 0);
+  async function fetchOtrosCargos(ids){
+    if(!ids || !ids.length) { otrosCargosById = {}; return; }
+    // Reusar el proxy de lectura con modo otrosCargos=byId
+    const url = new URL(Config.api.leerFacturas);
+    url.searchParams.set("otrosCargos", "byId");
+    ids.forEach(id => url.searchParams.append("ids", id));
     try{
-      table.off && table.off("dataProcessed", updatePagoGroupHeaders);
-      table.on && table.on("dataProcessed", updatePagoGroupHeaders);
-    }catch(_){}
-  }else{
-    try{ table.setGroupBy(false); }catch(_){}
-    if(btn) btn.innerHTML = '<i class="lucide-layers-2"></i> Agrupar por ID_PAGO';
+      const resp = await fetch(url.toString(), { cache: "no-store" });
+      const json = await resp.json();
+      otrosCargosById = (json && json.byId) ? json.byId : {};
+    }catch(_){
+      otrosCargosById = {};
+    }
   }
-}
 
-// Delegación: checkbox de grupo
-(function(){
-  const root = document.getElementById("tablaPago");
-  if(root){
-    root.addEventListener("change", (ev)=>{
-      const cb = ev.target.closest(".group-select-idp");
-      if(!cb) return;
-      const id = cb.getAttribute("data-idp") || "";
-      const table = getPagoTable();
-      if(!table || !id) return;
-      const rows = table.getRows ? table.getRows() : [];
-      for(const r of rows){
-        const d = r.getData ? r.getData() : null;
-        if(d && String(d.ID_PAGO||"").trim() === id){
-          try{ cb.checked ? r.select() : r.deselect(); }catch(_){}
-        }
+  function fmtMoneyHN(n){
+    const v = Number(n || 0);
+    try{ return new Intl.NumberFormat("es-HN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v); }
+    catch(_){ return (v || 0).toFixed(2); }
+  }
+
+  async function applyPagoGroupingById(){
+    const table = getPagoTable();
+    if(!table) return;
+    // Asegurar columna ID_PAGO visible (si ya existe, no duplicar)
+    try{
+      const hasCol = !!table.getColumn("ID_PAGO");
+      if(!hasCol){
+        await table.addColumn({ title:"ID_PAGO", field:"ID_PAGO", width: 220, headerSort:true, visible:true });
       }
-    }, {passive:true});
-  }
-})();
+    }catch(_){}
 
-// Wire botón
-(function(){
-  const btn = document.getElementById("btnPagoAgruparIdPago");
-  if(btn){
-    btn.addEventListener("click", (e)=>{ e.preventDefault(); togglePagoGroupById(); });
+    if(pagoGroupById){
+      // Recolectar IDs visibles y traer "Otros Cargos"
+      const rows = table.getData("active") || [];
+      const ids = Array.from(new Set(rows.map(r => String(r.ID_PAGO || "").trim()).filter(Boolean)));
+      await fetchOtrosCargos(ids);
+
+      table.setGroupBy(["ID_PAGO"]);
+      table.setGroupHeader(function(value, count, data, group){
+        const id = (value && String(value).trim()) || "(sin ID_PAGO)";
+        const subtotal = (data || []).reduce((acc, r) => acc + (Number(r.Total) || 0), 0);
+        const otros = Number(otrosCargosById[id] || 0);
+        const label = `${id} (${count}) · L ${fmtMoneyHN(subtotal)} + otros cargos L ${fmtMoneyHN(otros)}`;
+        const safeKey = id.replace(/"/g, '&quot;');
+        return `<label class="group-toggle">
+                  <input type="checkbox" class="group-select-idpago" data-idpago="${safeKey}">
+                  <span>${label}</span>
+                </label>`;
+      });
+      const btn = document.getElementById("btnPagoAgruparId");
+      if(btn) btn.innerHTML = '<i class="lucide-layers-2"></i> Desagrupar ID_PAGO';
+    }else{
+      table.setGroupBy(false);
+      const btn = document.getElementById("btnPagoAgruparId");
+      if(btn) btn.innerHTML = '<i class="lucide-layers-2"></i> Agrupar por ID_PAGO';
+    }
+  }
+
+  function togglePagoGroupingById(){
+    pagoGroupById = !pagoGroupById;
+    applyPagoGroupingById();
+  }
+
+  function handleGroupCheckboxClicks(){
+    const root = document.getElementById("tablaPago");
+    if(!root) return;
+    root.addEventListener("click", (ev)=>{
+      const cb = ev.target && ev.target.closest(".group-select-idpago");
+      if(!cb) return;
+      const id = cb.getAttribute("data-idpago") || "";
+      const table = getPagoTable();
+      if(!table) return;
+      const rows = table.getRows() || [];
+      const shouldSelect = cb.checked;
+      rows.forEach(r => {
+        try{
+          const d = r.getData ? r.getData() : null;
+          if(!d) return;
+          const v = (d.ID_PAGO || "").toString().trim();
+          if(v === id || (!v && id === "(sin ID_PAGO)")){
+            if(shouldSelect) r.select(); else r.deselect();
+          }
+        }catch(_){}
+      });
+    }, { passive:true });
+  }
+
+  function bindPagoToolbarButton(){
+    const btn = document.getElementById("btnPagoAgruparId");
+    if(!btn) return;
+    btn.addEventListener("click", togglePagoGroupingById);
+  }
+
+  // Reaplicar la agrupación al filtrar/actualizar datos
+  function hookTableEventsOnce(){
+    const table = getPagoTable();
+    if(!table) return;
+    if(!table.__idpago_hooked){
+      table.on("dataProcessed", function(){ if(pagoGroupById) applyPagoGroupingById(); });
+      table.on("dataFiltered",  function(){ if(pagoGroupById) applyPagoGroupingById(); });
+      table.__idpago_hooked = true;
+    }
+  }
+
+  // Esperar a que exista la tabla y los elementos de Pago
+  function initWhenReady(){
+    const t = getPagoTable();
+    const btn = document.getElementById("btnPagoAgruparId");
+    if(t && btn){
+      bindPagoToolbarButton();
+      handleGroupCheckboxClicks();
+      hookTableEventsOnce();
+      // no activar por defecto
+      return true;
+    }
+    return false;
+  }
+
+  // Polling corto para inicializar sin romper el flujo existente
+  let tries = 0;
+  const iv = setInterval(()=>{
+    tries++;
+    if(initWhenReady() || tries > 80){ clearInterval(iv); }
+  }, 150);
+
+  // Si tu navegación llama a initPagoMassPay(), también puedes enganchar aquí:
+  const _initPagoMassPay = (typeof window.initPagoMassPay === "function") ? window.initPagoMassPay : null;
+  if(_initPagoMassPay && !_initPagoMassPay.__wrapped){
+    window.initPagoMassPay = async function(){
+      const result = await _initPagoMassPay.apply(this, arguments);
+      // tras construir la tabla, conectamos los eventos
+      setTimeout(()=>{ initWhenReady(); }, 50);
+      return result;
+    };
+    window.initPagoMassPay.__wrapped = true;
   }
 })();
-/* ==== /Agrupar por ID_PAGO (Pago) ======================================== */
 </script>
 
 </body>
