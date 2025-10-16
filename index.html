@@ -2673,7 +2673,7 @@ function updatePagoButtonVisibility(){
   const estados = sel.map(r => String(r.Estado||"").trim().toLowerCase());
 const anyBlocked = estados.some(s => s === "pagada" || s === "enviada");
 const eligible = sel.filter(r => { const s=String(r.Estado||"").trim().toLowerCase(); return s !== "pagada" && s !== "enviada"; });
-  const show = !anyPaid && eligible.length >= 2;
+  const show = !anyBlocked && eligible.length >= 2;
   if (show) {
     btn.classList.remove("hidden");
     btn.style.display = "inline-flex";
@@ -2860,7 +2860,7 @@ async function confirmarPago(){
     // === batch ===
     const sel = table.getSelectedData ? table.getSelectedData() : [];
     const estados  = sel.map(r => String(r.Estado||'').trim().toLowerCase());
-    const anyPaid  = estados.some(s => s === 'pagada');
+    const anyBlocked = estados.some(s => s === "pagada" || s === "enviada");
     const eligible = sel.filter(r => String(r.Estado||'').trim().toLowerCase() !== 'pagada');
     if (anyBlocked || eligible.length < 2) {
       alert("Seleccione al menos 2 facturas y ninguna debe estar Pagada.");
