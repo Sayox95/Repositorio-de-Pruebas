@@ -1326,6 +1326,27 @@ function toggleGrouping(){
   const PagoKPI = {
     _ctl:null,
     _map:{},
+    _hasAll:false,
+    _pending:null,
+    _lastKey:"",
+    _getIdsFast(){
+      try{
+        // Preferir el modelo de filtros del frontend (antes de que Tabulator termine)
+        if (typeof Pago !== "undefined" && Pago && Array.isArray(Pago.raw)) {
+          const filtered = Pago.filtered; // getter
+          if (Array.isArray(filtered)) {
+            return Array.from(new Set(filtered.map(r => String(r.ID_PAGO||"").trim()).filter(Boolean)));
+          }
+        }
+      }catch(_){}
+      // Fallback a Tabulator
+      const t = (typeof pagoTable!=="undefined" && pagoTable) ? pagoTable : (typeof tablaPago!=="undefined" ? tablaPago : null);
+      const rows = (t && typeof t.getData==="function") ? (t.getData("active")||[]) : [];
+      return Array.from(new Set(rows.map(r => String(r.ID_PAGO||"").trim()).filter(Boolean)));
+    },
+
+    _ctl:null,
+    _map:{},
     _hasAll:false,     // true cuando ya precargamos todos los IDs presentes en la tabla (sin filtros)
     _pending:null,     // Promise en vuelo para coalescer solicitudes
     schedule(){ this.recalc().catch(()=>{}); },
@@ -1402,24 +1423,35 @@ function toggleGrouping(){
 
   window._PagoKPI = PagoKPI;
 
+  
   function attach(){
     const t = (typeof pagoTable!=="undefined" && pagoTable) ? pagoTable : (typeof tablaPago!=="undefined" ? tablaPago : null);
     if(!t || typeof t.on!=="function") return false;
     if(t._kpiOCAttached) return true;
 
-    // Precarga: cuando se carguen los datos de la tabla (completos), cacheamos todos los ID_PAGO una vez.
-    const preload = async ()=>{ try{ await PagoKPI._ensureAllCached(); }catch(_){ /* noop */ } finally { PagoKPI.schedule(); } };
+    // Precarga: cachear otros cargos de todos los IDs una vez
+    const preload = async ()=>{ try{ await PagoKPI._ensureAllCached(); }catch(_){ } finally { PagoKPI.schedule(); } };
 
     try{ t.on("dataLoaded", preload); }catch(_){}
     try{ t.on("dataProcessed", ()=>PagoKPI.schedule()); }catch(_){}
     try{ t.on("dataFiltered",  ()=>PagoKPI.schedule()); }catch(_){}
     try{ t.on("rowSelectionChanged", ()=>PagoKPI.schedule()); }catch(_){}
 
+    // Escuchar inputs de filtros para actualizar al instante (sin esperar a Tabulator)
+    const sec = document.getElementById("secPago");
+    if (sec){
+      sec.addEventListener("input", ()=>PagoKPI.schedule(), true);
+      sec.addEventListener("change", ()=>PagoKPI.schedule(), true);
+      // Botón limpiar filtros si existe
+      const btn = document.getElementById("btnPagoLimpiar");
+      if (btn) btn.addEventListener("click", ()=>PagoKPI.schedule(), true);
+    }
+
     t._kpiOCAttached = true;
-    // Si ya hay datos, intentamos precargar inmediatamente
-    preload();
+    preload(); // intentar precargar si ya hay datos
     return true;
   }
+
 
   (function wait(){
     if(!attach()) setTimeout(wait, 150);
