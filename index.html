@@ -403,7 +403,7 @@
         <button id="btnPagoActualizar" class="btn"><i class="lucide-rotate-cw"></i> Actualizar</button>
         <button id="btnPagoAgrupar" class="btn btn-ghost"><i class="lucide-layers-2"></i> Agrupar por colaborador</button>
         <button id="btnPagoAgruparId" class="btn btn-ghost"><i class="lucide-layers-2"></i> Agrupar por ID_PAGO</button>
-        <button id="btnMarcarLiquidada" class="btn btn-primary hidden" disabled><i class="lucide-check-circle"></i> Marcar como Liquidada</button>
+        <button id="btnMarcarEnviadas" class="btn btn-primary hidden" disabled><i class="lucide-check-circle"></i> Marcar como Enviadas</button>
         <button id="btnPagoExportXLSX" class="btn btn-ghost"><i class="lucide-download"></i> Excel</button>
         <button id="btnPagoAbrirModal" class="btn btn-primary hidden" disabled><i class="lucide-credit-card"></i> Pagar seleccionadas</button>
       </div>
@@ -1783,7 +1783,7 @@ document.addEventListener("change", (ev)=>{
   }else{
     rows.forEach(r => { try{ r.deselect && r.deselect(); } catch (e){ } });
   }
-  try{ updatePagoButtonVisibility(); updateLiquidadaButtonVisibility(); } catch (e){}
+  try{ updatePagoButtonVisibility(); updateEnviadasButtonVisibility(); } catch (e){}
 });
 /** =========================
  *  Bootstrap
@@ -2304,7 +2304,7 @@ function buildPagoTable(){
             return pill("Pagada", "#0FA47E");
           }
           if(v.toLowerCase()==="liquidada" || v.toLowerCase()==="enviada"){
-            return pill("Liquidada", "#2563EB");
+            return pill("Enviada", "#2563EB");
           }
           return "<button class=\"btn-pagar\" title=\"Pagar esta factura\">Pagar</button>";
         }
@@ -2424,7 +2424,7 @@ function applyPagoFilters(){
   if(!pagoTable) return;
   const list = Pago.filtered;
   const maybe = pagoTable.replaceData(list);
-  setTimeout(updateLiquidadaButtonVisibility, 0);
+  setTimeout(updateEnviadasButtonVisibility, 0);
   if(maybe && typeof maybe.then === "function"){ maybe.then(updatePagoKpis); } else { setTimeout(updatePagoKpis,0); }
 }
 
@@ -2850,7 +2850,7 @@ async function confirmarPago(){
       const modal = document.getElementById("modalPago"); if(modal) modal.style.display = "none";
       
       if(table.deselectRow) table.deselectRow();
-      updatePagoButtonVisibility(); updateLiquidadaButtonVisibility();
+      updatePagoButtonVisibility(); updateEnviadasButtonVisibility();
       return;
     }
 
@@ -2885,7 +2885,7 @@ async function confirmarPago(){
     const modal = document.getElementById("modalPago"); if(modal) modal.style.display = "none";
     
     if(table.deselectRow) table.deselectRow();
-    updatePagoButtonVisibility(); updateLiquidadaButtonVisibility();
+    updatePagoButtonVisibility(); updateEnviadasButtonVisibility();
 
   }catch(e){
     alert("No se pudo completar el pago. " + (e && e.message ? e.message : ""));
@@ -2917,12 +2917,12 @@ function initPagoMassPay(force=false){
 
   // Eventos
   table.on("rowSelectionChanged", ()=>{
-    updateLiquidadaButtonVisibility();
-    updatePagoButtonVisibility(); updateLiquidadaButtonVisibility();
+    updateEnviadasButtonVisibility();
+    updatePagoButtonVisibility(); updateEnviadasButtonVisibility();
   });
   btn.addEventListener("click", openPagoModalForSelection);
-  bindLiquidadaButton();
-  setTimeout(updateLiquidadaButtonVisibility, 0);
+  bindEnviadasButton();
+  setTimeout(updateEnviadasButtonVisibility, 0);
 
   // Controles del modal
   const cancelBtn = document.getElementById("mpCancelar");
@@ -2936,20 +2936,20 @@ function initPagoMassPay(force=false){
 }
 
 
-  // === Marcar como Liquidada (de Pagada -> Liquidada) ===
+  // === Marcar como Enviadas (de Pagada -> Liquidada) ===
   function getPagoTable(){ try{ const t = Tabulator.findTable("#tablaPago"); return (t && t.length)? t[0] : null; }catch(e){ return null; } }
 
   function eligibleLiquidar(rows){
     return (rows||[]).filter(r => (String(r.Estado||'').trim().toLowerCase() === 'pagada') && (r.fila || r._fila));
   }
 
-  function updateLiquidadaButtonVisibility(){
+  function updateEnviadasButtonVisibility(){
     const table = getPagoTable();
-    const btn = document.getElementById("btnMarcarLiquidada");
+    const btn = document.getElementById("btnMarcarEnviadas");
     if(!table || !btn) return;
     const sel = table.getSelectedData ? table.getSelectedData() : [];
-    const elig = eligibleLiquidar(sel);
-    if(elig.length){
+    const allPagadas = sel.length>0 && sel.every(r => String(r.Estado||'').trim().toLowerCase() === 'pagada');
+    if(allPagadas){
       btn.classList.remove("hidden");
       btn.disabled = false;
     }else{
@@ -2959,31 +2959,31 @@ function initPagoMassPay(force=false){
   }
 
   
-async function marcarSeleccionComoLiquidada(){
+async function marcarSeleccionComoEnviadas(){
   const table = getPagoTable();
-  const btn = document.getElementById("btnMarcarLiquidada");
+  const btn = document.getElementById("btnMarcarEnviadas");
   if(!table || !btn) return;
   const sel = table.getSelectedData ? table.getSelectedData() : [];
   const elig = eligibleLiquidar(sel);
   if(!elig.length){ return; }
 
-  if(!confirm(`Cambiar ${elig.length} factura(s) de "Pagada" a "Liquidada"?`)) return;
+  if(!confirm(`Cambiar ${elig.length} factura(s) de "Pagada" a "Enviada"?`)) return;
 
   try{
-    if(typeof overlay!=="undefined") overlay.show("Marcando como Liquidada…");
+    if(typeof overlay!=="undefined") overlay.show("Marcando como Enviadas…");
 
     // UI optimista masiva
     const rowsByFila = new Map((table.getRows()||[]).map(rr => [rr.getData()?.fila, rr]));
     elig.forEach(r => {
       const fila = r.fila || r._fila;
       const rr = rowsByFila.get(fila);
-      if(rr) rr.update({ Estado: "Liquidada" });
+      if(rr) rr.update({ Estado: "Enviada" });
     });
 
     // Un solo POST al backend
     const url = (Config && Config.api && Config.api.guardar) ? Config.api.guardar : "/api/guardar";
     const filas = elig.map(r => r.fila || r._fila).filter(Boolean);
-    const payload = { accion:"actualizarEstadoLote", filas, nuevoEstado:"Liquidada" };
+    const payload = { accion:"actualizarEstadoLote", filas, nuevoEstado:"Enviada" };
 
     const res = await fetch(url, { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(payload) });
     const j = await res.json().catch(()=>({status:"ERROR"}));
@@ -2993,20 +2993,20 @@ async function marcarSeleccionComoLiquidada(){
 
     // Post-UI
     if(table.deselectRow) table.deselectRow();
-    updateLiquidadaButtonVisibility && updateLiquidadaButtonVisibility();
+    updateEnviadasButtonVisibility && updateEnviadasButtonVisibility();
     updatePagoButtonVisibility && updatePagoButtonVisibility();
-    alert("Cambio aplicado correctamente.");
+    alert("Marcadas como Enviadas correctamente.");
   }catch(e){
-    alert("No se pudo actualizar el estado. " + (e && e.message ? e.message : ""));
+    alert("No se pudo marcar como Enviadas. " + (e && e.message ? e.message : ""));
   }finally{
     if(typeof overlay!=="undefined") overlay.hide();
   }
 }
 
-function bindLiquidadaButton(){
-  const btn = document.getElementById("btnMarcarLiquidada");
+function bindEnviadasButton(){
+  const btn = document.getElementById("btnMarcarEnviadas");
   if(!btn || btn.dataset.bound) return;
-  btn.addEventListener("click", marcarSeleccionComoLiquidada);
+  btn.addEventListener("click", marcarSeleccionComoEnviadas);
   btn.dataset.bound = "1";
 }
 
