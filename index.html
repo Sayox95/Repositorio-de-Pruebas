@@ -42,7 +42,11 @@ function updateEnviadasButtonVisibility(){
   if(allPagadas){
     btn.classList.remove("hidden");
     btn.disabled = false;
-  }else{
+  } else {
+    btn.disabled = true;
+    btn.classList.add("hidden");
+  }
+}else{
     btn.disabled = true;
     btn.classList.add("hidden");
   }
