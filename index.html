@@ -405,7 +405,7 @@
         <button id="btnPagoAgruparId" class="btn btn-ghost"><i class="lucide-layers-2"></i> Agrupar por ID_PAGO</button>
         <button id="btnPagoExportXLSX" class="btn btn-ghost"><i class="lucide-download"></i> Excel</button>
         <button id="btnPagoAbrirModal" class="btn btn-primary hidden" disabled><i class="lucide-credit-card"></i> Pagar seleccionadas</button>
-        <button id="btnPagoMarcarEnviadas" class="btn btn-ghost hidden" disabled><i class="lucide-send"></i> Marcar como Enviadas</button>
+        <button id="btnPagoMarcarEnviadas" class="btn btn-primary hidden" disabled><i class="lucide-send"></i> Marcar como Enviadas</button>
       </div>
     </div>
 
@@ -2446,10 +2446,10 @@ async function cargarPago(){
   if(typeof overlay!=="undefined") overlay.show("Cargando facturas…");
   try {
     let arr = null;
-    const TARGET = new Set(["Revisada","Pagada"]);
+    const TARGET = new Set(["Revisada","Pagada","Enviada"]);
 
     if (typeof API!=="undefined" && typeof API.getFacturas === "function") {
-      try { arr = await API.getFacturas({ estados: ["Revisada","Pagada"] }); } catch (e){ arr = null; }
+      try { arr = await API.getFacturas({ estados: ["Revisada","Pagada","Enviada"] }); } catch (e){ arr = null; }
     }
     let data = Array.isArray(arr) ? arr : [];
 
