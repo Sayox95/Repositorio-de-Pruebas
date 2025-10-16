@@ -7,59 +7,31 @@
   <!-- Tabulator -->
   <link href="https://unpkg.com/tabulator-tables@6.2.5/dist/css/tabulator.min.css" rel="stylesheet">
   <script src="https://unpkg.com/tabulator-tables@6.2.5/dist/js/tabulator.min.js">
-// ====== Delegated click .btn-pagar (abre modal una sola factura) ======
-(function(){
-  const root = document.getElementById("tablaPago");
-  if(root && !root.__bindPagar){
-    root.addEventListener("click", function(e){
-      const btn = e.target && e.target.closest && e.target.closest(".btn-pagar");
-      if(!btn) return;
-      e.preventDefault(); e.stopPropagation();
-      try{
-        const table = (Tabulator.findTable("#tablaPago")||[])[0];
-        if(!table) return;
-        let fila = parseInt(btn.getAttribute("data-fila")||"",10);
-        let row = null;
-        if(fila){ row = (table.getRows()||[]).find(r => (r.getData()?.fila) === fila); }
-        if(!row && table.getRowFromElement){ try{ row = table.getRowFromElement(btn.closest(".tabulator-row")); }catch(_){} }
-        if(!row) return;
-        table.deselectRow && table.deselectRow();
-        row.select && row.select();
-        if(typeof openPagoModalSingle === "function"){ openPagoModalSingle(row.getData()); }
-      }catch(_){}
-    }, {passive:false});
-    root.__bindPagar = true;
-  }
-})();
-
-// ====== Enviadas (batch) ======
+// === Enviadas (batch) ===
 function updateEnviadasButtonVisibility(){
-  const table = getPagoTable && getPagoTable();
-  const btn = document.getElementById("btnMarcarEnviadas");
-  if(!table || !btn) return;
-  const sel = table.getSelectedData ? table.getSelectedData() : [];
-  const allPagadas = sel.length>0 && sel.every(r => String(r.Estado||'').trim().toLowerCase() === 'pagada');
-  if(allPagadas){
-    btn.classList.remove("hidden");
-    btn.disabled = false;
-  } else {
-    btn.disabled = true;
-    btn.classList.add("hidden");
-  }
-}else{
-    btn.disabled = true;
-    btn.classList.add("hidden");
-  }
+  try{
+    const table = (Tabulator.findTable && Tabulator.findTable("#tablaPago") || [])[0];
+    const btn = document.getElementById("btnMarcarEnviadas");
+    if(!table || !btn){ return; }
+    const sel = table.getSelectedData ? table.getSelectedData() : [];
+    const allPagadas = sel.length>0 && sel.every(r => String(r.Estado||'').trim().toLowerCase()==='pagada');
+    if(allPagadas){
+      btn.classList.remove("hidden");
+      btn.disabled = false;
+    }else{
+      btn.disabled = true;
+      btn.classList.add("hidden");
+    }
+  }catch(_){}
 }
 
 async function marcarSeleccionComoEnviadas(){
-  const table = getPagoTable && getPagoTable();
+  const table = (Tabulator.findTable && Tabulator.findTable("#tablaPago") || [])[0];
   const btn = document.getElementById("btnMarcarEnviadas");
   if(!table || !btn) return;
   const sel = table.getSelectedData ? table.getSelectedData() : [];
   const elig = sel.filter(r => String(r.Estado||'').trim().toLowerCase()==='pagada');
-  if(elig.length===0){ return; }
-  if(elig.length !== sel.length){ return; } // si hay alguna no-pagada, no hacemos nada (botón debe estar oculto)
+  if(elig.length===0 || elig.length !== sel.length){ return; }
 
   if(!confirm(`Cambiar ${elig.length} factura(s) de "Pagada" a "Enviada"?`)) return;
 
@@ -75,7 +47,7 @@ async function marcarSeleccionComoEnviadas(){
     });
 
     // Un solo POST al backend
-    const url = (Config && Config.api && Config.api.guardar) ? Config.api.guardar : "/api/guardar";
+    const url = (window.Config && Config.api && Config.api.guardar) ? Config.api.guardar : "/api/guardar";
     const filas = elig.map(r => r.fila || r._fila).filter(Boolean);
     const payload = { accion:"actualizarEstadoLote", filas, nuevoEstado:"Enviada" };
     const res = await fetch(url, { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(payload) });
@@ -86,7 +58,6 @@ async function marcarSeleccionComoEnviadas(){
 
     table.deselectRow && table.deselectRow();
     updateEnviadasButtonVisibility();
-    if(typeof updatePagoButtonVisibility === "function") updatePagoButtonVisibility();
     alert("Marcadas como Enviadas correctamente.");
   }catch(e){
     alert("No se pudo marcar como Enviadas. " + (e && e.message ? e.message : ""));
@@ -102,31 +73,13 @@ function bindEnviadasButton(){
   btn.dataset.bound = "1";
 }
 
-// Hook: cuando se inicializa la tabla de pago, ligar eventos para visibilidad del botón
+// Hook: refuerza wiring cuando se inicializa Pago
 (function(){
-  const origInit = window.initPagoMassPay;
+  const orig = window.initPagoMassPay;
   window.initPagoMassPay = async function(){
-    const r = await (origInit ? origInit() : Promise.resolve());
+    const r = await (typeof orig==="function" ? orig() : Promise.resolve());
     try{
-      const table = getPagoTable && getPagoTable();
-      if(table){
-        table.on("rowSelectionChanged", updateEnviadasButtonVisibility);
-        table.on("dataLoaded", updateEnviadasButtonVisibility);
-      }
-      bindEnviadasButton();
-      updateEnviadasButtonVisibility();
-    }catch(_){}
-    return r;
-  };
-})();
-
-
-// ====== Robust wiring for Enviadas visibility ======
-(function ensureEnviadasWiring(){
-  let tries = 0;
-  const iv = setInterval(()=>{
-    try{
-      const table = (typeof getPagoTable==="function") ? getPagoTable() : null;
+      const table = (Tabulator.findTable && Tabulator.findTable("#tablaPago") || [])[0];
       if(table){
         table.off && table.off("rowSelectionChanged", updateEnviadasButtonVisibility);
         table.on("rowSelectionChanged", updateEnviadasButtonVisibility);
@@ -134,21 +87,12 @@ function bindEnviadasButton(){
         table.on("dataLoaded", updateEnviadasButtonVisibility);
         table.off && table.off("renderComplete", updateEnviadasButtonVisibility);
         table.on("renderComplete", updateEnviadasButtonVisibility);
-        bindEnviadasButton();
-        updateEnviadasButtonVisibility();
-        clearInterval(iv);
-      } else if (++tries > 20){
-        clearInterval(iv);
       }
-    }catch(_){ clearInterval(iv); }
-  }, 400);
-
-  // Fallback: clicks dentro de la tabla forzarán una actualización
-  document.addEventListener("click", function(e){
-    if(e.target && e.target.closest && e.target.closest("#tablaPago .tabulator-row")){
-      setTimeout(()=>{ try{ updateEnviadasButtonVisibility(); }catch(_){}} , 0);
-    }
-  }, {passive:true});
+      bindEnviadasButton();
+      updateEnviadasButtonVisibility();
+    }catch(_){}
+    return r;
+  };
 })();
 
 </script>
@@ -1101,16 +1045,18 @@ function buildTable(){
       }},
       { title:"Km Actual", field:"Km Actual", width:110, hozAlign:"right" },
       { title:"Litros Consumidos", field:"Litros Consumidos", width:160, hozAlign:"right" },
-      { title:"Estado", field:"Estado", width:120, formatter:(c)=>{
-          const d = c.getRow().getData();
-          const v = String(c.getValue() ?? d?.Estado ?? "").trim().toLowerCase();
-          const pill = (text, color)=> `<span class="status-pill"><span class="dot" style="background:${color};"></span>${text}</span>`;
-          if(v==="pagada")  return pill("Pagada",  "#0FA47E");
-          if(v==="enviada") return pill("Enviada", "#2563EB");
-          const fila = d?.fila ?? d?._fila ?? "";
-          return `<button class="btn-pagar" data-fila="${fila}" title="Pagar esta factura">Pagar</button>`;
-        }}],
-dataFiltered:()=>{ updateKpis(); },
+      { title:"Estado", field:"Estado", width:150, formatter:(c)=>{
+          const v = c.getValue()||"Registrada";
+          const color = estadoColor(v);
+          const disabled = (v === "Pagada");
+          const cls = disabled? "status-pill disabled" : "status-pill";
+          const title = disabled? "No editable cuando está Pagada" : "Cambiar estado";
+          return `<span class="${cls}" title="${title}"><span class="dot" style="background:${color}"></span>${v}</span>`;
+      } }
+
+    ],
+    dataLoaded:()=>{ updateKpis(); },
+    dataFiltered:()=>{ updateKpis(); },
     rowSelectionChanged:()=>{ updateButtons(); },
   });
   table.on("tableBuilt", ()=>{
@@ -1632,7 +1578,7 @@ async function loadProcesosOptions(){
           { title:"Placa", field:"Placa", width:160, editor:"input", editable:(cell)=>canEditPlaca(cell), cellEdited:onPlacaEdited },
           { title:"Estado", field:"Estado", width:120, formatter:(c)=>{
               const v = c.getValue() || "Activa";
-              return `<span class="status-pill"><span class="dot" style="background:${v==="Activa"?"#10b981":"#f59e0b"}"></span>${v}</span>`;
+              return `<span class="status-pill ${v==="Activa"?"":"disabled"}"><span class="dot" style="background:${v==="Activa"?"#10b981":"#f59e0b"}"></span>${v}</span>`;
             }},
           { title:"Nombre", field:"Nombre" },
           { title:"Sector", field:"Sector", width:140 , editor:"list" , editorParams:function(){ return {values:getUniqueSectors()}; } , cellEdited:onSectorEdited },
