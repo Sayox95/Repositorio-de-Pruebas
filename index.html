@@ -3095,28 +3095,40 @@ async function fetchOtrosCargos(ids){
 </script>
 
 
+
+
+
+
+
+
 <script>
-// === Marcar como Enviadas (sección Pago) ===
+// === Marcar como Enviadas (sección Pago) — versión canónica con getPagoTable() ===
 (function(){
   function updatePagoMarcarEnviadasButton(){
     var btn = document.getElementById("btnPagoMarcarEnviadas");
     if(!btn){ return; }
-    if(!window.tablaPago || typeof window.tablaPago.getSelectedData !== "function"){
-      btn.classList.add("hidden"); btn.disabled = true; return;
-    }
-    var sel = window.tablaPago.getSelectedData() || [];
+    if(typeof getPagoTable !== "function"){ btn.classList.add("hidden"); btn.disabled = true; return; }
+    var tbl = getPagoTable();
+    if(!tbl || typeof tbl.getSelectedData !== "function"){ btn.classList.add("hidden"); btn.disabled = true; return; }
+
+    var sel = tbl.getSelectedData() || [];
     if(!sel.length){ btn.classList.add("hidden"); btn.disabled = true; return; }
     var allPaid = sel.every(function(r){ return String((r && r.Estado) || "").trim() === "Pagada"; });
     if(allPaid){ btn.classList.remove("hidden"); btn.disabled = false; }
     else { btn.classList.add("hidden"); btn.disabled = true; }
   }
+
   async function marcarSeleccionComoEnviadas(){
     var btn = document.getElementById("btnPagoMarcarEnviadas");
-    if(!btn || !window.tablaPago){ return; }
-    var sel = window.tablaPago.getSelectedData() || [];
+    if(!btn || typeof getPagoTable !== "function"){ return; }
+    var tbl = getPagoTable();
+    if(!tbl){ return; }
+    var sel = tbl.getSelectedData ? tbl.getSelectedData() : [];
     if(!sel.length){ return; }
+    // Seguridad: solo si todas son Pagadas
     if(sel.find(function(r){ return String((r && r.Estado) || "").trim() !== "Pagada"; })){ return; }
     var filas = sel.map(function(r){ return parseInt(r.fila,10); }).filter(Boolean);
+
     try{
       if(window.overlay && typeof overlay.show==="function"){ overlay.show("Marcando como Enviadas…"); }
       var payload = { accion:"actualizarEstadoLote", filas: filas, nuevoEstado: "Enviada" };
@@ -3137,21 +3149,27 @@ async function fetchOtrosCargos(ids){
       if(window.overlay && typeof overlay.hide==="function"){ overlay.hide(); }
     }
   }
+
+  function hookPagoSelection(){
+    if(typeof getPagoTable !== "function") return false;
+    var tbl = getPagoTable();
+    if(tbl && typeof tbl.on==="function"){
+      try{ tbl.on("rowSelectionChanged", updatePagoMarcarEnviadasButton); }catch(e){}
+      updatePagoMarcarEnviadasButton();
+      return true;
+    }
+    return false;
+  }
+
   document.addEventListener("DOMContentLoaded", function(){
     var btn = document.getElementById("btnPagoMarcarEnviadas");
     if(btn){ btn.addEventListener("click", marcarSeleccionComoEnviadas); }
-    // Intentar enganchar eventos de selección cuando la tablaPago exista
-    var hooked = false;
-    var iv = setInterval(function(){
-      if(window.tablaPago && typeof window.tablaPago.on==="function"){
-        try{
-          window.tablaPago.on("rowSelectionChanged", updatePagoMarcarEnviadasButton);
-          updatePagoMarcarEnviadasButton();
-          hooked = true;
-        }catch(e){}
-      }
-      if(hooked){ clearInterval(iv); }
-    }, 300);
+    if(!hookPagoSelection()){
+      var tries = 0, iv = setInterval(function(){
+        tries++;
+        if(hookPagoSelection() || tries > 40){ clearInterval(iv); }
+      }, 300);
+    }
   });
 })();
 </script>
