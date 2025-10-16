@@ -2914,9 +2914,10 @@ async function fetchOtrosCargos(ids){
     if(pagoGroupById){
       const rows = table.getData("active") || [];
       const ids = Array.from(new Set(rows.map(r => String(r.ID_PAGO || "").trim()).filter(Boolean)));
-      await fetchOtrosCargos(ids);
-
+      /* fetch otros cargos async to avoid UI delay */
+      const needIds = ids.slice();
       table.setGroupBy(["ID_PAGO"]);
+      (async ()=>{ try{ await fetchOtrosCargos(needIds); table.redraw(true); }catch(e){} })();
       table.setGroupHeader(function(value, count, data){
         const id = (value && String(value).trim()) || "(sin ID_PAGO)";
         const subtotal = (data || []).reduce((acc, r) => acc + (Number(r.Total) || 0), 0);
