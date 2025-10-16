@@ -220,7 +220,6 @@
   #modalPago .otros-cargos-toolbar { display:flex; align-items:center; justify-content:space-between; gap:12px; width:100%; }
 </style>
 
-
 <style id="modalPago-field-widen">
   #modalPago #mpFechaPago,
   #modalPago #mpIdPago { width: 100%; max-width: none; font-size: 16px; padding: 12px 14px; letter-spacing: 0.3px; }
@@ -247,7 +246,6 @@
 </section>
 <!-- ===== /Login Section ===== -->
 <div id="appShell" style="display:none;">
-
 
   <div class="app">
     <aside class="sidebar">
@@ -357,7 +355,7 @@
       <div class="card kpi"><span class="label">Pagadas</span><span id="kpiPagoPagadas" class="value">0</span></div>
       <div class="card kpi"><span class="label">Total Pendiente</span><span id="kpiPagoTotalPend" class="value">L 0.00</span></div>
       <div class="card kpi"><span class="label">Total Pagado</span><span id="kpiPagoTotalPag" class="value">L 0.00</span></div>
-      <div class="card kpi"><span class="label">Otros Cargos (registrados)</span><span id="kpiPagoOtrosCargos" class="value">L 0.00</span></div>
+      
     </div>
 
     <div class="card" style="margin-top:10px;">
@@ -420,7 +418,6 @@
   </div>
 </div>
 </section>
-
 
   <!-- ============== Sección Anticipos (placeholder) ============== -->
   <section id="secAnticipos" style="display:none;">
@@ -1042,7 +1039,6 @@ function openEstadoMenu(cell){
   menu.classList.add("open");
 }
 
-
 function updateButtons(){
   // En esta vista descargamos por el conjunto filtrado; el botón siempre activo si hay filas
   const hasRows = (table?.getDataCount()||0) > 0;
@@ -1297,31 +1293,6 @@ function toggleGrouping(){
 }
 
 
-async function cargarOtrosCargosKpi(){
-  try{
-    const base = Config.api.leerFacturas;
-    const url = base.includes('?') ? (base + '&otrosCargos=total') : (base + '?otrosCargos=total');
-    const res = await fetch(url, { cache: "no-store", mode: "cors" });
-    const json = await res.json().catch(()=>null);
-    const total = Number(json && json.totalOtrosCargos || 0);
-    const el = document.getElementById("kpiPagoOtrosCargos");
-    if(el){ el.textContent = fmt.money(total); }
-    const lup = document.getElementById("lastUpdatedPago");
-    if(lup){
-      const now = new Date();
-      const yyyy = now.getFullYear();
-      const mm = String(now.getMonth()+1).padStart(2,"0");
-      const dd = String(now.getDate()).padStart(2,"0");
-      const hh = String(now.getHours()).padStart(2,"0");
-      const mi = String(now.getMinutes()).padStart(2,"0");
-      lup.textContent = `Actualizado: ${yyyy}-${mm}-${dd} ${hh}:${mi}`;
-    }
-  }catch(e){
-    // Silencioso: el KPI queda en 0.00 si falla
-    // console.warn("No se pudo leer otros cargos:", e);
-  }
-}
-
 /** =========================
  *  Navegación (overlay al cambiar de sección)
  *  ========================= */
@@ -1349,7 +1320,7 @@ document.querySelectorAll('.sidebar .nav-btn').forEach(a=>{
     const href = a.getAttribute('href')||'';
     if(href==='#inicio') return navigateTo('secInicio');
     if(href==='#revision') return navigateTo('secRevision', async()=>{ await hardRefresh(); });
-    if(href==='#pago')     return navigateTo('secPago', async()=>{ await cargarOtrosCargosKpi(); await initPagoMassPay(); });
+    if(href==='#pago')     return navigateTo('secPago', async()=>{ await initPagoMassPay(); });
     if(href==='#anticipos')return navigateTo('secAnticipos');
     if(href==='#placas')   return navigateTo('secPlacas', async()=>{ await cargarPlacas(); });
   });
@@ -1379,7 +1350,6 @@ function fillSectorFilterOptions(){
   if(sectors.includes(current)) sel.value = current;
 }
 
-
 async function loadProcesosOptions(){
   const sel = document.getElementById("npProceso");
   if(!sel) return;
@@ -1408,7 +1378,6 @@ async function loadProcesosOptions(){
     console.warn("No se pudo cargar procesos:", e);
   }
 }
-
 
     async function ensurePlacasTable(){
       if (Placas.table) return;
@@ -1735,7 +1704,6 @@ document.addEventListener("change", (ev)=>{
   try{ updateButtons(); }catch(_){}
 });
 
-
 // Selección masiva por grupo (Pago)
 document.addEventListener("change", (ev)=>{
   const chk = ev.target.closest(".group-select-pago");
@@ -1917,7 +1885,6 @@ function getJefeBySector(sector){
   document.head.appendChild(st);
 })();
 
-
 // === Wire live validation for Nueva Placa (robusto) ===
 function wirePlacaLiveValidation(){
   const inp = document.getElementById("npPlaca");
@@ -2006,7 +1973,6 @@ function wirePlacaLiveValidation(){
   // Eval inicial
   updateLive();
 }
-
 
     // --- Helper para reemplazo seguro de datos en Tabulator ---
     async function safeReplaceData(table, rows){
@@ -2172,7 +2138,6 @@ async function doLogout(){ await authLogout(); showLogin(); }
 })();
 
 </script>
-
 
 <script>
 // ============ Util Pago ============
@@ -2393,8 +2358,6 @@ function openPagoModal(){
 }
 function closePagoModal(){ const el = document.getElementById("modalPago"); if(el) el.style.display="none"; }
 
-
-
 // ========= Filtros =========
 function applyPagoFilters(){
   if(!pagoTable) return;
@@ -2563,21 +2526,8 @@ document.addEventListener("DOMContentLoaded", function(){
     if(elTotal) elTotal.textContent = fmtL(total);
   }
 
-  window._pagoResumen = { recomputePagoResumen, getSelectedSubtotal, readCargos, addCargoRow, generateIdPago, fmtL };
+  
 
-  if(typeof API !== "undefined"){
-    
-  }
-
-  window.openPagoModal = function(){
-    const el = document.getElementById("modalPago"); if(!el) return;
-    const dft = (typeof fmt!=="undefined" && fmt.dateISO) ? fmt.dateISO(new Date()) : new Date().toISOString().slice(0,10);
-    const f = document.getElementById("mpFechaPago"); if (f) f.value = dft;
-    const idp = document.getElementById("mpIdPago"); if (idp) idp.value = generateIdPago();
-    const list = document.getElementById("mpCargosList"); if(list){ list.innerHTML=""; }
-    recomputePagoResumen();
-    el.style.display = "grid";
-  };
   window.closePagoModal = function(){
     const el = document.getElementById("modalPago"); if(!el) return;
     el.style.display = "none";
@@ -2593,7 +2543,6 @@ document.addEventListener("DOMContentLoaded", function(){
   });
 })();
 </script>
-
 
 <script>
 // Simple toast (bottom-center) that fades out
@@ -2681,7 +2630,6 @@ function genIdPago(){
   return `${basePart}-${suffix}`;
 }
 
-
 function addCargoRow(){
   const list = document.getElementById("mpCargosList");
   if(!list) return;
@@ -2725,7 +2673,6 @@ function updateOtrosCargosTotal(){
   if(mpCargosEl) mpCargosEl.textContent = fmt.money(total);
   if(mpTotalEl)  mpTotalEl.textContent  = fmt.money(grand);
 }
-
 
 function openPagoModalSingle(row){
   if(!row) return;
@@ -2793,7 +2740,6 @@ function openPagoModalForSelection(){
   if(modal) modal.style.display = "grid";
 }
 
-
 async function confirmarPago(){
   try{
     const table = getPagoTable(); if(!table) return;
@@ -2840,7 +2786,7 @@ async function confirmarPago(){
 
       // Cerrar modal y refrescar KPI
       const modal = document.getElementById("modalPago"); if(modal) modal.style.display = "none";
-      try{ await cargarOtrosCargosKpi(); }catch(_){}
+      
       if(table.deselectRow) table.deselectRow();
       updatePagoButtonVisibility();
       return;
@@ -2875,7 +2821,7 @@ async function confirmarPago(){
     });
 
     const modal = document.getElementById("modalPago"); if(modal) modal.style.display = "none";
-    try{ await cargarOtrosCargosKpi(); }catch(_){}
+    
     if(table.deselectRow) table.deselectRow();
     updatePagoButtonVisibility();
 
@@ -2885,7 +2831,6 @@ async function confirmarPago(){
     overlay.hide();
   }
 }
-
 
 function initPagoMassPay(force=false){
   if(pagoSetupDone && !force) return;
