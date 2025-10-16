@@ -2847,7 +2847,7 @@ async function confirmarPago(){
       // Optimista: actualizar fila
       const rows = table.getRows ? table.getRows() : [];
       const rc = rows.find(r => (r.getData()?.fila) === (row.fila||row._fila));
-      if(rc) rc.update({ Estado: "Pagada" });
+      if(rc) rc.update({ Estado: "Pagada", ID_PAGO: idPago, "Fecha de Pago": fechaPago });
 
       // Cerrar modal y refrescar KPI
       const modal = document.getElementById("modalPago"); if(modal) modal.style.display = "none";
@@ -2882,7 +2882,7 @@ async function confirmarPago(){
     const rows = table.getRows ? table.getRows() : [];
     eligible.forEach(item => {
       const rc = rows.find(r => (r.getData()?.fila) === item.fila);
-      if(rc) rc.update({ Estado: "Pagada" });
+      if(rc) rc.update({ Estado: "Pagada", ID_PAGO: idPago, "Fecha de Pago": fechaPago });
     });
 
     const modal = document.getElementById("modalPago"); if(modal) modal.style.display = "none";
