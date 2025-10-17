@@ -3453,5 +3453,116 @@ window.busy = {
 })();
 </script>
 
+
+<!-- === PATCH: Unified robust hooks for Pago action buttons (Generar Liquidación & Marcar como Enviadas) === -->
+<script>
+(function(){
+  // Helper selector
+  const $ = (sel)=>document.querySelector(sel);
+
+  function getPagoTable(){
+    if (window.pagoTable && typeof window.pagoTable.getSelectedData === "function") return window.pagoTable;
+    try{
+      const arr = (window.Tabulator && Tabulator.findTable) ? Tabulator.findTable("#tablaPago") : null;
+      if (arr && arr[0]) return arr[0];
+    }catch(_){}
+    return null;
+  }
+
+  // Central visibility rule: any selection and ALL rows state === "Pagada"
+  function reevaluatePagoActionButtons(){
+    const tbl = getPagoTable();
+    const btnGen = $("#btnPagoGenerarLiquidacion");
+    const btnEnv = $("#btnPagoMarcarEnviadas");
+    if (!tbl || !btnGen || !btnEnv) return;
+
+    const sel = (typeof tbl.getSelectedData === "function") ? (tbl.getSelectedData() || []) : [];
+    const ok  = (sel.length > 0) && sel.every(r => String((r && r.Estado)||"").trim() === "Pagada");
+
+    function toggle(btn, visible){
+      try{
+        btn.classList.toggle("hidden", !visible);
+        btn.disabled = !visible;
+      }catch(_){}
+    }
+    toggle(btnGen, ok);
+    toggle(btnEnv, ok);
+  }
+
+  function attachPagoTableHooksOnce(tbl){
+    if (!tbl || typeof tbl.on !== "function") return false;
+    if (tbl.__pago_action_hooks__) return true;
+
+    tbl.on("rowSelectionChanged",  reevaluatePagoActionButtons);
+    tbl.on("dataProcessed",        reevaluatePagoActionButtons);
+    tbl.on("dataFiltered",         reevaluatePagoActionButtons);
+
+    tbl.__pago_action_hooks__ = true;
+    setTimeout(reevaluatePagoActionButtons, 0);
+    return true;
+  }
+
+  async function initPagoButtonsHook(){
+    const tbl = getPagoTable();
+    if (!tbl) return false;
+    attachPagoTableHooksOnce(tbl);
+
+    // Optional: replace buttons to drop legacy listeners that may conflict
+    ["btnPagoGenerarLiquidacion", "btnPagoMarcarEnviadas"].forEach(id => {
+      const btn = document.getElementById(id);
+      if (btn && !btn.__clonedOnce){
+        const clone = btn.cloneNode(true);
+        btn.parentNode.replaceChild(clone, btn);
+        clone.__clonedOnce = true;
+      }
+    });
+
+    // Make legacy update functions point to unified logic (neutralize duplicates)
+    window.updatePagoGenerarLiquiButton   = reevaluatePagoActionButtons;
+    window.updatePagoMarcarEnviadasButton = reevaluatePagoActionButtons;
+
+    // First evaluation
+    reevaluatePagoActionButtons();
+    return true;
+  }
+
+  // Polling on DOM ready to avoid races while the table initializes
+  document.addEventListener("DOMContentLoaded", function(){
+    let tries = 0;
+    const iv = setInterval(async ()=>{
+      tries++;
+      if (await initPagoButtonsHook() || tries > 120){ // ~36s
+        clearInterval(iv);
+      }
+    }, 300);
+  });
+
+  // Wrap table (re)initializer if present, to re-hook after rebuilds
+  const _initPagoMassPay = (typeof window.initPagoMassPay === "function") ? window.initPagoMassPay : null;
+  if (_initPagoMassPay && !_initPagoMassPay.__wrapPagoActionBtns){
+    window.initPagoMassPay = async function(){
+      const r = await _initPagoMassPay.apply(this, arguments);
+      setTimeout(initPagoButtonsHook, 60);
+      return r;
+    };
+    window.initPagoMassPay.__wrapPagoActionBtns = true;
+  }
+
+  // Re-evaluate when switching to Pago section or pressing Refresh
+  window.addEventListener("hashchange", ()=>{
+    if (location.hash === "#pago") setTimeout(initPagoButtonsHook, 60);
+  });
+
+  document.addEventListener("click", function(e){
+    const t = e.target;
+    if (!t) return;
+    if (t.id === "btnPagoActualizar"){
+      setTimeout(reevaluatePagoActionButtons, 800);
+    }
+  });
+})();
+</script>
+<!-- === END PATCH === -->
+
 </body>
 </html>
