@@ -406,7 +406,9 @@
         <button id="btnPagoExportXLSX" class="btn btn-ghost"><i class="lucide-download"></i> Excel</button>
         <button id="btnPagoAbrirModal" class="btn btn-primary hidden" disabled><i class="lucide-credit-card"></i> Pagar seleccionadas</button>
         <button id="btnPagoMarcarEnviadas" class="btn btn-primary hidden" disabled><i class="lucide-send"></i> Marcar como Enviadas</button>
-        <button id="btnPagoGenerarLiquidacion" class="btn btn-primary hidden" disabled><i class="lucide-file-spreadsheet"></i> Generar Liquidación</button>
+        <button id="btnPagoGenerarLiquidacion" class="btn btn-primary hidden" disabled>
+          <i class="lucide-file-spreadsheet"></i> Generar Liquidación
+        </button>
       </div>
     </div>
 
@@ -3217,22 +3219,22 @@ function hookPagoSelection(){
     <div class="modal-body">
       <div class="grid">
         <label>No. ACREEDOR
-          <input id="liqNoAcreedor" type="text" placeholder="Ingresa No. Acreedor" />
+          <input id="liqNoAcreedor" type="text" />
         </label>
         <label>Fecha de solicitud
           <input id="liqFechaSolicitud" type="date" />
         </label>
         <label>Área / Departamento
-          <input id="liqArea" type="text" placeholder="Área o Departamento" />
+          <input id="liqArea" type="text" />
         </label>
         <label>Sector
-          <input id="liqSector" type="text" placeholder="Sector" />
+          <input id="liqSector" type="text" />
         </label>
         <label>Nombre completo del colaborador
-          <input id="liqColaborador" type="text" placeholder="Nombre del colaborador" />
+          <input id="liqColaborador" type="text" />
         </label>
         <label>Motivo de liquidación por anticipo
-          <input id="liqMotivo" type="text" placeholder="Motivo" />
+          <input id="liqMotivo" type="text" />
         </label>
       </div>
       <p class="muted">Se incluirán facturas <b>Pagadas</b> y sus Otros Cargos vinculados por ID_PAGO.</p>
@@ -3255,97 +3257,70 @@ function hookPagoSelection(){
 </style>
 
 
-<script>
-// === Generar Liquidación (Pago) ===
-(function(){
-  function pagoTableSafe(){
-    return (typeof window.getPagoTable === "function") ? window.getPagoTable() : (window.pagoTable || null);
+<script>(function(){
+  function table(){ return (typeof getPagoTable==='function')? getPagoTable(): (window.pagoTable||null); }
+  function updateBtn(){
+    var btn=document.getElementById('btnPagoGenerarLiquidacion'); if(!btn) return;
+    var t=table(); if(!t||!t.getSelectedData){ btn.classList.add('hidden'); btn.disabled=true; return; }
+    var sel=t.getSelectedData()||[];
+    if(!sel.length){ btn.classList.add('hidden'); btn.disabled=true; return; }
+    var allPaid=sel.every(r=>String((r&&r.Estado)||'').trim()==='Pagada');
+    btn.classList.toggle('hidden',!allPaid); btn.disabled=!allPaid;
   }
-  function updatePagoGenerarLiquiButton(){
-    var btn = document.getElementById("btnPagoGenerarLiquidacion");
-    if(!btn){ return; }
-    var tbl = pagoTableSafe();
-    if(!tbl || typeof tbl.getSelectedData !== "function"){
-      btn.classList.add("hidden"); btn.disabled = true; return;
-    }
-    var sel = tbl.getSelectedData() || [];
-    if(!sel.length){ btn.classList.add("hidden"); btn.disabled = true; return; }
-    var allPaid = sel.every(function(r){ return String((r && r.Estado)||'').trim() === 'Pagada'; });
-    btn.classList.toggle("hidden", !allPaid);
-    btn.disabled = !allPaid;
-  }
-  function showModalLiqui(show){
-    var m = document.getElementById("modalGenerarLiqui");
-    if(!m) return;
-    m.classList.toggle("hidden", !show);
-  }
-  async function generarLiquidacionSubmit(){
-    var tbl = pagoTableSafe();
-    if(!tbl) return;
-    var sel = tbl.getSelectedData() || [];
-    if(!sel.length) return;
-    if(sel.find(function(r){ return String((r && r.Estado)||'').trim() !== 'Pagada'; })) return;
-
-    var filas = sel.map(function(r){ return parseInt(r.fila,10); }).filter(Boolean);
-    var payload = {
-      accion: "generarLiquidacion",
-      filas: filas,
-      headers: {
-        noAcreedor: (document.getElementById("liqNoAcreedor").value || "").trim(),
-        fechaSolicitud: (document.getElementById("liqFechaSolicitud").value || "").trim(),
-        area: (document.getElementById("liqArea").value || "").trim(),
-        sector: (document.getElementById("liqSector").value || "").trim(),
-        colaborador: (document.getElementById("liqColaborador").value || "").trim(),
-        motivo: (document.getElementById("liqMotivo").value || "").trim()
-      }
-    };
+  async function submit(){
+    var t=table(); if(!t) return; var sel=t.getSelectedData()||[];
+    if(sel.find(r=>String((r&&r.Estado)||'').trim()!=='Pagada')) return;
+    var filas=sel.map(r=>parseInt(r.fila,10)).filter(Boolean);
+    var payload={accion:'generarLiquidacion', filas:filas, headers:{
+      noAcreedor:(document.getElementById('liqNoAcreedor').value||'').trim(),
+      fechaSolicitud:(document.getElementById('liqFechaSolicitud').value||'').trim(),
+      area:(document.getElementById('liqArea').value||'').trim(),
+      sector:(document.getElementById('liqSector').value||'').trim(),
+      colaborador:(document.getElementById('liqColaborador').value||'').trim(),
+      motivo:(document.getElementById('liqMotivo').value||'').trim()
+    }};
     try{
-      if(window.overlay && typeof overlay.show==="function"){ overlay.show("Generando liquidación…"); }
-      var resp = await fetch((Config && Config.api && Config.api.guardar) || "/api/guardar", {
-        method: "POST",
-        headers: {"Content-Type":"application/json"},
-        body: JSON.stringify(payload)
-      });
-      var json = await resp.json().catch(function(){ return { ok:false, message:"Error parseando respuesta" }; });
-      if(!resp.ok || !json || json.ok!==true || !json.fileUrl){
-        alert((json && json.message) || "No se pudo generar la liquidación.");
-        return;
-      }
-      try { window.open(json.fileUrl, "_blank"); }
-      catch(e){
-        var a = document.createElement("a");
-        a.href = json.fileUrl; a.download=""; a.target="_blank";
-        document.body.appendChild(a); a.click(); a.remove();
+      if(window.busy) busy.show('Generando liquidación…');
+      var popupWin=null; try{ popupWin=window.open('','_blank'); }catch(e){ popupWin=null; }
+      const resp=await fetch((Config&&Config.api&&Config.api.guardar)||'/api/guardar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+      const json=await resp.json().catch(()=>({ok:false}));
+      if(!resp.ok||!json||json.ok!==true||!json.fileUrl){ alert((json&&json.message)||'No se pudo generar la liquidación.'); if(popupWin) try{popupWin.close()}catch{}; return; }
+      if(popupWin&&!popupWin.closed){ popupWin.location=json.fileUrl; } else {
+        var a=document.createElement('a'); a.href=json.fileUrl; a.download=''; a.target='_blank'; document.body.appendChild(a); a.click(); a.remove();
       }
     } finally {
-      if(window.overlay && typeof overlay.hide==="function"){ overlay.hide(); }
-      showModalLiqui(false);
+      if(window.busy) busy.hide();
+      var m=document.getElementById('modalGenerarLiqui'); if(m) m.classList.add('hidden');
     }
   }
-  document.addEventListener("DOMContentLoaded", function(){
-    var btn = document.getElementById("btnPagoGenerarLiquidacion");
-    if(btn){ btn.addEventListener("click", function(){ showModalLiqui(true); }); }
-    var bGen = document.getElementById("btnLiquiGenerar");
-    var bCan = document.getElementById("btnLiquiCancelar");
-    if(bGen){ bGen.addEventListener("click", generarLiquidacionSubmit); }
-    if(bCan){ bCan.addEventListener("click", function(){ showModalLiqui(false); }); }
-
-    // Hook Selección de la tabla de Pago
-    var hooked = false;
-    var tryHook = function(){
-      var tbl = pagoTableSafe();
-      if(tbl && typeof tbl.on === "function"){
-        tbl.on("rowSelectionChanged", updatePagoGenerarLiquiButton);
-        updatePagoGenerarLiquiButton();
-        hooked = true;
-      }
-      return hooked;
-    };
-    if(!tryHook()){
-      var tries = 0, iv = setInterval(function(){ tries++; if(tryHook() || tries>30) clearInterval(iv); }, 300);
-    }
+  document.addEventListener('DOMContentLoaded',()=>{
+    var btn=document.getElementById('btnPagoGenerarLiquidacion'); if(btn) btn.addEventListener('click',()=>document.getElementById('modalGenerarLiqui').classList.remove('hidden'));
+    var bGen=document.getElementById('btnLiquiGenerar'); var bCan=document.getElementById('btnLiquiCancelar');
+    if(bGen) bGen.addEventListener('click', submit);
+    if(bCan) bCan.addEventListener('click', ()=>document.getElementById('modalGenerarLiqui').classList.add('hidden'));
+    var hook=()=>{ var t=table(); if(t&&t.on){ t.on('rowSelectionChanged', updateBtn); updateBtn(); return true;} return false; };
+    if(!hook()){ let tries=0, iv=setInterval(()=>{ tries++; if(hook()||tries>30) clearInterval(iv); }, 300); }
   });
-})();
+})();</script>
+
+
+<!-- Busy Overlay -->
+<div id="busyOverlay" class="busy-overlay hidden">
+  <div class="busy-box">
+    <div class="busy-spinner"></div>
+    <div id="busyText" class="busy-text">Generando liquidación…</div>
+  </div>
+</div>
+<style>
+  .busy-overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(17,24,39,.45);backdrop-filter:saturate(140%) blur(2px);z-index:2000}
+  .busy-overlay.hidden{display:none}
+  .busy-box{background:#fff;padding:20px 24px;border-radius:16px;box-shadow:0 15px 40px rgba(0,0,0,.25);min-width:260px;display:flex;flex-direction:column;align-items:center;gap:12px}
+  .busy-text{font-size:15px;font-weight:600;color:#111827;text-align:center}
+  .busy-spinner{width:36px;height:36px;border-radius:50%;border:3px solid #e5e7eb;border-top-color:#10b981;animation:busyspin 0.9s linear infinite}
+  @keyframes busyspin{to{transform:rotate(360deg)}}
+</style>
+<script>
+window.busy={show:function(text){var o=document.getElementById('busyOverlay'); if(!o) return; var t=document.getElementById('busyText'); if(t&&text) t.textContent=text; o.classList.remove('hidden');}, hide:function(){var o=document.getElementById('busyOverlay'); if(!o) return; o.classList.add('hidden');}};
 </script>
 
 </body>
