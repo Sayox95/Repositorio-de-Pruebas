@@ -343,7 +343,8 @@
           <button id="btnActualizar" class="btn"><i class="lucide-rotate-cw"></i> Actualizar</button>
           <button id="btnAgrupar" class="btn btn-ghost"><i class="lucide-layers-2"></i> Agrupar por colaborador</button>          <button id="btnExportXLSX" class="btn btn-ghost"><i class="lucide-download"></i> Excel</button>
           <button id="btnDescargar" class="btn btn-primary"><i class="lucide-file-down"></i> Descargar PDFs</button>
-        </div>
+        
+          <button id="btnRevMarcarRevisadas" class="btn btn-primary hidden"><i class="lucide-check"></i> Marcar como Revisadas</button></div>
       </div>
 
       <div class="grid cols-4">
@@ -3106,9 +3107,23 @@ async function fetchOtrosCargos(ids){
 
 
 <script>
-// === Marcar como Enviadas (Pago): sólo handler + click binding ===
+// === Marcar como Enviadas (sección Pago) — versión canónica con getPagoTable() ===
 (function(){
-async function marcarSeleccionComoEnviadas(){
+  function updatePagoMarcarEnviadasButton(){
+    var btn = document.getElementById("btnPagoMarcarEnviadas");
+    if(!btn){ return; }
+    if(typeof getPagoTable !== "function"){ btn.classList.add("hidden"); btn.disabled = true; return; }
+    var tbl = getPagoTable();
+    if(!tbl || typeof tbl.getSelectedData !== "function"){ btn.classList.add("hidden"); btn.disabled = true; return; }
+
+    var sel = tbl.getSelectedData() || [];
+    if(!sel.length){ btn.classList.add("hidden"); btn.disabled = true; return; }
+    var allPaid = sel.every(function(r){ return String((r && r.Estado) || "").trim() === "Pagada"; });
+    if(allPaid){ btn.classList.remove("hidden"); btn.disabled = false; }
+    else { btn.classList.add("hidden"); btn.disabled = true; }
+  }
+
+  async function marcarSeleccionComoEnviadas(){
   const btn = document.getElementById("btnPagoMarcarEnviadas");
   if(!btn || typeof getPagoTable !== "function") return;
 
@@ -3171,16 +3186,29 @@ async function marcarSeleccionComoEnviadas(){
   }
 }
 
+function hookPagoSelection(){
+    if(typeof getPagoTable !== "function") return false;
+    var tbl = getPagoTable();
+    if(tbl && typeof tbl.on==="function"){
+      try{ tbl.on("rowSelectionChanged", updatePagoMarcarEnviadasButton); }catch(e){}
+      updatePagoMarcarEnviadasButton();
+      return true;
+    }
+    return false;
+  }
+
   document.addEventListener("DOMContentLoaded", function(){
-    var b = document.getElementById("btnPagoMarcarEnviadas");
-    if(b && !b.__mkEnv){
-      b.addEventListener("click", marcarSeleccionComoEnviadas);
-      b.__mkEnv = true;
+    var btn = document.getElementById("btnPagoMarcarEnviadas");
+    if(btn){ btn.addEventListener("click", marcarSeleccionComoEnviadas); }
+    if(!hookPagoSelection()){
+      var tries = 0, iv = setInterval(function(){
+        tries++;
+        if(hookPagoSelection() || tries > 40){ clearInterval(iv); }
+      }, 300);
     }
   });
 })();
 </script>
-
 
 
 <!-- Modal: Generar Liquidación -->
@@ -3228,7 +3256,98 @@ async function marcarSeleccionComoEnviadas(){
 </style>
 
 
+<script>
+// === Generar Liquidación (Pago) ===
+(function(){
+  function pagoTableSafe(){
+    return (typeof window.getPagoTable === "function") ? window.getPagoTable() : (window.pagoTable || null);
+  }
+  function updatePagoGenerarLiquiButton(){
+    var btn = document.getElementById("btnPagoGenerarLiquidacion");
+    if(!btn){ return; }
+    var tbl = pagoTableSafe();
+    if(!tbl || typeof tbl.getSelectedData !== "function"){
+      btn.classList.add("hidden"); btn.disabled = true; return;
+    }
+    var sel = tbl.getSelectedData() || [];
+    if(!sel.length){ btn.classList.add("hidden"); btn.disabled = true; return; }
+    var allPaid = sel.every(function(r){ return String((r && r.Estado)||'').trim() === 'Pagada'; });
+    btn.classList.toggle("hidden", !allPaid);
+    btn.disabled = !allPaid;
+  }
+  function showModalLiqui(show){
+    var m = document.getElementById("modalGenerarLiqui");
+    if(!m) return;
+    m.classList.toggle("hidden", !show);
+  }
+  async function generarLiquidacionSubmit(){
+    var tbl = pagoTableSafe();
+    if(!tbl) return;
+    var sel = tbl.getSelectedData() || [];
+    if(!sel.length) return;
+    if(sel.find(function(r){ return String((r && r.Estado)||'').trim() !== 'Pagada'; })) return;
 
+    var filas = sel.map(function(r){ return parseInt(r.fila,10); }).filter(Boolean);
+    var payload = {
+      accion: "generarLiquidacion",
+      filas: filas,
+      headers: {
+        noAcreedor: (document.getElementById("liqNoAcreedor").value || "").trim(),
+        fechaSolicitud: (document.getElementById("liqFechaSolicitud").value || "").trim(),
+        area: (document.getElementById("liqArea").value || "").trim(),
+        sector: (document.getElementById("liqSector").value || "").trim(),
+        colaborador: (document.getElementById("liqColaborador").value || "").trim(),
+        motivo: (document.getElementById("liqMotivo").value || "").trim()
+      }
+    };
+    try{
+      if(window.overlay && typeof overlay.show==="function"){ overlay.show("Generando liquidación…"); }
+      var resp = await fetch((Config && Config.api && Config.api.guardar) || "/api/guardar", {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify(payload)
+      });
+      var json = await resp.json().catch(function(){ return { ok:false, message:"Error parseando respuesta" }; });
+      if(!resp.ok || !json || json.ok!==true || !json.fileUrl){
+        alert((json && json.message) || "No se pudo generar la liquidación.");
+        return;
+      }
+      try { window.open(json.fileUrl, "_blank"); }
+      catch(e){
+        var a = document.createElement("a");
+        a.href = json.fileUrl; a.download=""; a.target="_blank";
+        document.body.appendChild(a); a.click(); a.remove();
+      }
+    } finally {
+      if(window.overlay && typeof overlay.hide==="function"){ overlay.hide(); }
+      showModalLiqui(false);
+    }
+  }
+  document.addEventListener("DOMContentLoaded", function(){
+    var btn = document.getElementById("btnPagoGenerarLiquidacion");
+    if(btn){ btn.addEventListener("click", function(){ showModalLiqui(true); }); }
+    var bGen = document.getElementById("btnLiquiGenerar");
+    var bCan = document.getElementById("btnLiquiCancelar");
+    if(bGen){ bGen.addEventListener("click", generarLiquidacionSubmit); }
+    if(bCan){ bCan.addEventListener("click", function(){ showModalLiqui(false); }); }
+
+    // Hook Selección de la tabla de Pago
+    var hooked = false;
+    var tryHook = function(){
+      var tbl = pagoTableSafe();
+      if(tbl && typeof tbl.on === "function"){
+        tbl.on("rowSelectionChanged", updatePagoGenerarLiquiButton);
+        updatePagoGenerarLiquiButton();
+        hooked = true;
+      }
+      return hooked;
+    };
+    if(!tryHook()){
+      var tries = 0, iv = setInterval(function(){ tries++; if(tryHook() || tries>30) clearInterval(iv); }, 300);
+    }
+  });
+})();
+</script>
 
 
 <!-- Busy Overlay: Generando liquidación -->
@@ -3246,30 +3365,32 @@ async function marcarSeleccionComoEnviadas(){
   .busy-spinner{width:36px;height:36px;border-radius:50%;border:3px solid #e5e7eb;border-top-color:#10b981;animation:busyspin 0.9s linear infinite}
   @keyframes busyspin{to{transform:rotate(360deg)}}
 </style>
-
-<!-- === END PATCH === -->
-
-
 <script>
-// === Generar Liquidación (Pago) — RESTAURADO: overlay + popup "Generando…" + redirect XLSX ===
-(function(){
-  function pagoTableSafe(){
-    return (typeof window.getPagoTable === "function") ? window.getPagoTable() : (window.pagoTable || null);
+window.busy = {
+  show(text){
+    var o=document.getElementById('busyOverlay'); if(!o) return;
+    var t=document.getElementById('busyText'); if(t && text) t.textContent=text;
+    o.classList.remove('hidden');
+  },
+  hide(){
+    var o=document.getElementById('busyOverlay'); if(!o) return;
+    o.classList.add('hidden');
   }
-  function showModalLiqui(show){
-    var m = document.getElementById("modalGenerarLiqui");
-    if(!m) return;
-    m.classList.toggle("hidden", !show);
+};
+
+(function(){
+  function getPagoTable(){
+    try{ if (typeof window.getPagoTable === 'function') return window.getPagoTable(); }catch(_){}
+    try{ if (window.pagoTable) return window.pagoTable; }catch(_){}
+    return null;
   }
   async function generarLiquiWithPopup(){
-    var tbl = pagoTableSafe();
-    if(!tbl || typeof tbl.getSelectedData !== "function"){ alert("No hay selección"); return; }
-    var sel = tbl.getSelectedData() || [];
-    if(!sel.length){ alert("Selecciona al menos una factura Pagada"); return; }
-    var allPaid = sel.every(function(r){ return String((r && r.Estado)||'').trim() === 'Pagada'; });
-    if(!allPaid){ alert("Solo puedes generar liquidación con facturas en estado Pagada."); return; }
-
-    var filas = sel.map(function(r){ return parseInt(r.fila,10); }).filter(Boolean);
+    var t = getPagoTable(); if(!t || !t.getSelectedData){ alert('No hay selección'); return; }
+    var sel = t.getSelectedData()||[];
+    if(!sel.length){ alert('Selecciona al menos una factura Pagada'); return; }
+    var allPaid = sel.every(r => String((r&&r.Estado)||'').trim() === 'Pagada');
+    if(!allPaid){ alert('Solo puedes generar liquidación con facturas en estado Pagada.'); return; }
+    var filas = sel.map(r => parseInt(r.fila,10)).filter(Boolean);
     var headers = {
       noAcreedor: (document.getElementById('liqNoAcreedor')?.value||'').trim(),
       fechaSolicitud: (document.getElementById('liqFechaSolicitud')?.value||'').trim(),
@@ -3280,7 +3401,7 @@ async function marcarSeleccionComoEnviadas(){
     };
     var payload = { accion:'generarLiquidacion', filas: filas, headers: headers };
 
-    if(window.busy) try{ busy.show('Generando liquidación…'); }catch(_){}
+    if(window.busy) busy.show('Generando liquidación…');
     var popupWin = null;
     try {
       popupWin = window.open('', '_blank');
@@ -3301,6 +3422,7 @@ async function marcarSeleccionComoEnviadas(){
       }
       if (popupWin && !popupWin.closed) {
         popupWin.location = json.fileUrl;
+        // Intento de auto-cierre después de unos segundos (evita descargas duplicadas si el proveedor recarga)
         setTimeout(function(){ try{ if(popupWin && !popupWin.closed) popupWin.close(); }catch(_){} }, 5000);
       } else {
         var a=document.createElement('a'); a.href=json.fileUrl; a.download=''; a.target='_blank';
@@ -3310,141 +3432,152 @@ async function marcarSeleccionComoEnviadas(){
       try{ if(popupWin && !popupWin.closed){ popupWin.close(); } }catch(_){}
       alert(err.message || 'No se pudo generar la liquidación.');
     } finally {
-      if(window.busy) try{ busy.hide(); }catch(_){}
+      if(window.busy) busy.hide();
       var m=document.getElementById('modalGenerarLiqui'); if(m) m.classList.add('hidden');
     }
   }
 
-  // Wire buttons
   document.addEventListener('DOMContentLoaded', function(){
-    // Botón que abre el modal
-    var btnOpen = document.getElementById("btnPagoGenerarLiquidacion");
-    if(btnOpen && !btnOpen.__liquiOpen){
-      btnOpen.addEventListener("click", function(){ showModalLiqui(true); });
-      btnOpen.__liquiOpen = true;
-    }
-    // Botón "Generar" dentro del modal — siempre reemplazar listener para evitar dobles envíos
-    var bGen = document.getElementById('btnLiquiGenerar');
-    if (bGen && !bGen.__liquiGen){
-      bGen.addEventListener('click', function(ev){
+    var btn = document.getElementById('btnLiquiGenerar');
+    if(btn){
+      // Clonar para remover cualquier listener previo y evitar dobles envíos
+      var clone = btn.cloneNode(true);
+      btn.parentNode.replaceChild(clone, btn);
+      clone.addEventListener('click', function(ev){
         ev.preventDefault();
-        if (window.__liqBusy) return;
+        if (window.__liqBusy) return; // evita doble click
         window.__liqBusy = true;
         generarLiquiWithPopup().finally(function(){ window.__liqBusy = false; });
       });
-      bGen.__liquiGen = true;
-    }
-    // Botón "Cancelar" del modal
-    var bCan = document.getElementById("btnLiquiCancelar");
-    if (bCan && !bCan.__liquiCancel){
-      bCan.addEventListener("click", function(){ showModalLiqui(false); });
-      bCan.__liquiCancel = true;
     }
   });
 })();
 </script>
 
-<!-- === PATCH v2: Improved robust hooks for Pago action buttons === -->
+
+
+<!-- === PATCH: Fix grouping toast & add 'Marcar como Revisadas' for Revisión (ES5 safe) === -->
 <script>
 (function(){
-  const $ = (sel)=>document.querySelector(sel);
+  if (!window.hideGroupToast){
+    window.hideGroupToast = function(){
+      try{
+        var el = document.getElementById("toastGroup");
+        var bd = document.getElementById("toastBackdrop");
+        if (el) el.classList.remove("show");
+        if (bd) bd.classList.remove("show");
+        if (document.body) document.body.style.overflow = "";
+      }catch(e){}
+    };
+  }
 
-  function getPagoTable(){
-    if (window.pagoTable && typeof window.pagoTable.getSelectedData === "function") return window.pagoTable;
+  function getRevTable(){
     try{
-      const arr = (window.Tabulator && Tabulator.findTable) ? Tabulator.findTable("#tablaPago") : null;
-      if (arr && arr[0]) return arr[0];
-    }catch(_){}
+      if (window.Tabulator && Tabulator.findTable){
+        var arr = Tabulator.findTable("#tablaRevision");
+        if (arr && arr[0]) return arr[0];
+      }
+    }catch(e){}
     return null;
   }
 
-  function reevaluatePagoActionButtons(){
-    const tbl = getPagoTable();
-    const sel = (tbl && typeof tbl.getSelectedData === "function") ? (tbl.getSelectedData() || []) : [];
-    const allPaid = sel.length > 0 && sel.every(r => String(((r && r.Estado) || '')).trim() === "Pagada");
+  function reevaluateRevMarkRevisadas(){
+    var btn = document.getElementById("btnRevMarcarRevisadas");
+    var tbl = getRevTable();
+    if (!btn || !tbl || typeof tbl.getSelectedData !== "function") return;
+    var sel = tbl.getSelectedData() || [];
+    var ok  = sel.length >= 2 && sel.every(function(r){ return String((r && r.Estado) || "").trim() === "Registrada"; });
+    btn.classList.toggle("hidden", !ok);
+    btn.disabled = !ok;
+  }
 
-    const btnGen = document.getElementById("btnPagoGenerarLiquidacion");
-    const btnEnv = document.getElementById("btnPagoMarcarEnviadas");
+  function bulkMarkRevisadas(){
+    var tbl = getRevTable();
+    if (!tbl){ alert("Tabla no disponible"); return; }
+    var sel = (typeof tbl.getSelectedData === "function") ? (tbl.getSelectedData() || []) : [];
+    var filas = sel
+      .filter(function(r){ return String((r && r.Estado) || "").trim() === "Registrada"; })
+      .map(function(r){ return parseInt(r.fila,10); })
+      .filter(function(x){ return !!x; });
 
-    if (btnGen){
-      btnGen.classList.toggle("hidden", !allPaid);
-      btnGen.disabled = !allPaid;
-    }
-    if (btnEnv){
-      btnEnv.classList.toggle("hidden", !allPaid);
-      btnEnv.disabled = !allPaid;
+    if (filas.length < 2){ alert("Selecciona al menos dos facturas en estado Registrada."); return; }
+
+    try{
+      if (window.overlay && overlay.show) overlay.show("Actualizando…");
+      fetch((window.Config&&Config.api&&Config.api.guardar)||'/api/guardar', {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json' },
+        body: JSON.stringify({ accion:"actualizarEstadoLote", filas: filas, nuevoEstado:"Revisada" })
+      })
+      .then(function(resp){ return resp.json().then(function(j){ return {ok:resp.ok, json:j}; }); })
+      .then(function(res){
+        if (!res.ok || !res.json || res.json.status !== "OK"){
+          throw new Error((res.json && res.json.message) ? res.json.message : "No se pudo actualizar estados.");
+        }
+        // Optimistic UI update via RowComponents (no index dependency)
+        try{
+          var rows = (typeof tbl.getSelectedRows === "function") ? (tbl.getSelectedRows() || []) : [];
+          rows.forEach(function(rc){
+            try{
+              var d = rc.getData();
+              if (d && String((d.Estado||'')).trim() === 'Registrada'){
+                rc.update({ Estado: 'Revisada' });
+              }
+            }catch(e){}
+          });
+        }catch(e){}
+        try{ if (window.toast && toast.success) toast.success("Actualizadas a Revisada"); }catch(e){}
+      })
+      .catch(function(e){
+        alert(e && e.message ? e.message : "Error al actualizar.");
+      })
+      .finally(function(){
+        try{ if (window.overlay && overlay.hide) overlay.hide(); }catch(e){}
+        setTimeout(reevaluateRevMarkRevisadas, 50);
+      });
+    }catch(e){
+      alert(e.message || "Error al actualizar.");
+      try{ if (window.overlay && overlay.hide) overlay.hide(); }catch(_){}
     }
   }
 
-  function attachPagoTableHooksOnce(tbl){
+  function attachRevHooksOnce(tbl){
     if (!tbl || typeof tbl.on !== "function") return false;
-    if (tbl.__pago_action_hooks_v2__) return true;
-
-    tbl.on("rowSelectionChanged",  reevaluatePagoActionButtons);
-    tbl.on("dataProcessed",        reevaluatePagoActionButtons);
-    tbl.on("dataFiltered",         reevaluatePagoActionButtons);
-    tbl.on("dataLoaded",           reevaluatePagoActionButtons);
-    tbl.on("tableBuilt",           reevaluatePagoActionButtons);
-
-    tbl.__pago_action_hooks_v2__ = true;
-    setTimeout(reevaluatePagoActionButtons, 0);
+    if (tbl.__rev_hooks__) return true;
+    tbl.on("rowSelectionChanged", reevaluateRevMarkRevisadas);
+    tbl.on("dataProcessed",       reevaluateRevMarkRevisadas);
+    tbl.on("dataFiltered",        reevaluateRevMarkRevisadas);
+    tbl.on("dataLoaded",          reevaluateRevMarkRevisadas);
+    tbl.on("tableBuilt",          reevaluateRevMarkRevisadas);
+    tbl.__rev_hooks__ = true;
+    setTimeout(reevaluateRevMarkRevisadas, 0);
     return true;
   }
 
-  async function initPagoButtonsHook(){
-    const tbl = getPagoTable();
+  function initRevUI(){
+    var tbl = getRevTable();
     if (!tbl) return false;
-    attachPagoTableHooksOnce(tbl);
-
-    window.updatePagoGenerarLiquiButton   = reevaluatePagoActionButtons;
-    window.updatePagoMarcarEnviadasButton = reevaluatePagoActionButtons;
-
-    reevaluatePagoActionButtons();
+    attachRevHooksOnce(tbl);
+    var btn = document.getElementById("btnRevMarcarRevisadas");
+    if (btn && !btn.__clicked){
+      btn.addEventListener("click", bulkMarkRevisadas);
+      btn.__clicked = true;
+    }
+    setTimeout(reevaluateRevMarkRevisadas, 0);
     return true;
   }
 
   document.addEventListener("DOMContentLoaded", function(){
-    let tries = 0;
-    const iv = setInterval(async ()=>{
+    var tries = 0;
+    var iv = setInterval(function(){
       tries++;
-      if (await initPagoButtonsHook() || tries > 120){
-        clearInterval(iv);
-      }
+      if (initRevUI() || tries > 120) clearInterval(iv);
     }, 300);
-  });
-
-  const _initPagoMassPay = (typeof window.initPagoMassPay === "function") ? window.initPagoMassPay : null;
-  if (_initPagoMassPay && !_initPagoMassPay.__wrapPagoActionBtns_v2){
-    window.initPagoMassPay = async function(){
-      const r = await _initPagoMassPay.apply(this, arguments);
-      setTimeout(initPagoButtonsHook, 60);
-      return r;
-    };
-    window.initPagoMassPay.__wrapPagoActionBtns_v2 = true;
-  }
-
-  window.addEventListener("hashchange", ()=>{
-    if (location.hash === "#pago") setTimeout(initPagoButtonsHook, 60);
-  });
-
-  document.addEventListener("click", function(e){
-    const t = e.target;
-    if (t && t.id === "btnPagoActualizar"){
-      setTimeout(reevaluatePagoActionButtons, 800);
-    }
-  });
-
-  document.addEventListener("change", function(e){
-    const sec = document.getElementById("sectionPago") || document.querySelector("[data-section='pago']");
-    if (sec && sec.contains(e.target)) setTimeout(reevaluatePagoActionButtons, 50);
-  });
-  document.addEventListener("input", function(e){
-    const sec = document.getElementById("sectionPago") || document.querySelector("[data-section='pago']");
-    if (sec && sec.contains(e.target)) setTimeout(reevaluatePagoActionButtons, 150);
   });
 })();
 </script>
-<!-- === END PATCH v2 === -->
+<!-- === END PATCH === -->
+<!-- === END PATCH === -->
 
 </body>
 </html>
