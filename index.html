@@ -406,6 +406,7 @@
         <button id="btnPagoExportXLSX" class="btn btn-ghost"><i class="lucide-download"></i> Excel</button>
         <button id="btnPagoAbrirModal" class="btn btn-primary hidden" disabled><i class="lucide-credit-card"></i> Pagar seleccionadas</button>
         <button id="btnPagoMarcarEnviadas" class="btn btn-primary hidden" disabled><i class="lucide-send"></i> Marcar como Enviadas</button>
+        <button id="btnPagoGenerarLiquidacion" class="btn btn-primary hidden" disabled><i class="lucide-file-spreadsheet"></i> Generar Liquidación</button>
       </div>
     </div>
 
@@ -3203,6 +3204,145 @@ function hookPagoSelection(){
         tries++;
         if(hookPagoSelection() || tries > 40){ clearInterval(iv); }
       }, 300);
+    }
+  });
+})();
+</script>
+
+
+<!-- Modal: Generar Liquidación -->
+<div id="modalGenerarLiqui" class="modal hidden">
+  <div class="modal-content">
+    <h3 class="modal-title">Generar Liquidación</h3>
+    <div class="modal-body">
+      <div class="grid">
+        <label>No. ACREEDOR
+          <input id="liqNoAcreedor" type="text" placeholder="Ingresa No. Acreedor" />
+        </label>
+        <label>Fecha de solicitud
+          <input id="liqFechaSolicitud" type="date" />
+        </label>
+        <label>Área / Departamento
+          <input id="liqArea" type="text" placeholder="Área o Departamento" />
+        </label>
+        <label>Sector
+          <input id="liqSector" type="text" placeholder="Sector" />
+        </label>
+        <label>Nombre completo del colaborador
+          <input id="liqColaborador" type="text" placeholder="Nombre del colaborador" />
+        </label>
+        <label>Motivo de liquidación por anticipo
+          <input id="liqMotivo" type="text" placeholder="Motivo" />
+        </label>
+      </div>
+      <p class="muted">Se incluirán facturas <b>Pagadas</b> y sus Otros Cargos vinculados por ID_PAGO.</p>
+    </div>
+    <div class="modal-actions">
+      <button id="btnLiquiCancelar" class="btn">Cancelar</button>
+      <button id="btnLiquiGenerar" class="btn btn-primary">Generar</button>
+    </div>
+  </div>
+</div>
+<style>
+  .modal{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.25);z-index:1000}
+  .modal.hidden{display:none}
+  .modal-content{background:#fff;border-radius:16px;min-width:min(720px,96vw);max-width:96vw;padding:20px;box-shadow:0 10px 40px rgba(0,0,0,.2)}
+  .modal-title{font-size:1.1rem;margin-bottom:10px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:8px 0 12px}
+  .grid label{display:flex;flex-direction:column;font-size:.9rem;gap:6px}
+  .grid input{padding:8px 10px;border:1px solid #e5e7eb;border-radius:10px}
+  .modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:6px}
+</style>
+
+
+<script>
+// === Generar Liquidación (Pago) ===
+(function(){
+  function pagoTableSafe(){
+    return (typeof window.getPagoTable === "function") ? window.getPagoTable() : (window.pagoTable || null);
+  }
+  function updatePagoGenerarLiquiButton(){
+    var btn = document.getElementById("btnPagoGenerarLiquidacion");
+    if(!btn){ return; }
+    var tbl = pagoTableSafe();
+    if(!tbl || typeof tbl.getSelectedData !== "function"){
+      btn.classList.add("hidden"); btn.disabled = true; return;
+    }
+    var sel = tbl.getSelectedData() || [];
+    if(!sel.length){ btn.classList.add("hidden"); btn.disabled = true; return; }
+    var allPaid = sel.every(function(r){ return String((r && r.Estado)||'').trim() === 'Pagada'; });
+    btn.classList.toggle("hidden", !allPaid);
+    btn.disabled = !allPaid;
+  }
+  function showModalLiqui(show){
+    var m = document.getElementById("modalGenerarLiqui");
+    if(!m) return;
+    m.classList.toggle("hidden", !show);
+  }
+  async function generarLiquidacionSubmit(){
+    var tbl = pagoTableSafe();
+    if(!tbl) return;
+    var sel = tbl.getSelectedData() || [];
+    if(!sel.length) return;
+    if(sel.find(function(r){ return String((r && r.Estado)||'').trim() !== 'Pagada'; })) return;
+
+    var filas = sel.map(function(r){ return parseInt(r.fila,10); }).filter(Boolean);
+    var payload = {
+      accion: "generarLiquidacion",
+      filas: filas,
+      headers: {
+        noAcreedor: (document.getElementById("liqNoAcreedor").value || "").trim(),
+        fechaSolicitud: (document.getElementById("liqFechaSolicitud").value || "").trim(),
+        area: (document.getElementById("liqArea").value || "").trim(),
+        sector: (document.getElementById("liqSector").value || "").trim(),
+        colaborador: (document.getElementById("liqColaborador").value || "").trim(),
+        motivo: (document.getElementById("liqMotivo").value || "").trim()
+      }
+    };
+    try{
+      if(window.overlay && typeof overlay.show==="function"){ overlay.show("Generando liquidación…"); }
+      var resp = await fetch((Config && Config.api && Config.api.guardar) || "/api/guardar", {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify(payload)
+      });
+      var json = await resp.json().catch(function(){ return { ok:false, message:"Error parseando respuesta" }; });
+      if(!resp.ok || !json || json.ok!==true || !json.fileUrl){
+        alert((json && json.message) || "No se pudo generar la liquidación.");
+        return;
+      }
+      try { window.open(json.fileUrl, "_blank"); }
+      catch(e){
+        var a = document.createElement("a");
+        a.href = json.fileUrl; a.download=""; a.target="_blank";
+        document.body.appendChild(a); a.click(); a.remove();
+      }
+    } finally {
+      if(window.overlay && typeof overlay.hide==="function"){ overlay.hide(); }
+      showModalLiqui(false);
+    }
+  }
+  document.addEventListener("DOMContentLoaded", function(){
+    var btn = document.getElementById("btnPagoGenerarLiquidacion");
+    if(btn){ btn.addEventListener("click", function(){ showModalLiqui(true); }); }
+    var bGen = document.getElementById("btnLiquiGenerar");
+    var bCan = document.getElementById("btnLiquiCancelar");
+    if(bGen){ bGen.addEventListener("click", generarLiquidacionSubmit); }
+    if(bCan){ bCan.addEventListener("click", function(){ showModalLiqui(false); }); }
+
+    // Hook Selección de la tabla de Pago
+    var hooked = false;
+    var tryHook = function(){
+      var tbl = pagoTableSafe();
+      if(tbl && typeof tbl.on === "function"){
+        tbl.on("rowSelectionChanged", updatePagoGenerarLiquiButton);
+        updatePagoGenerarLiquiButton();
+        hooked = true;
+      }
+      return hooked;
+    };
+    if(!tryHook()){
+      var tries = 0, iv = setInterval(function(){ tries++; if(tryHook() || tries>30) clearInterval(iv); }, 300);
     }
   });
 })();
