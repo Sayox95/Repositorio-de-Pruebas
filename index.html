@@ -3421,6 +3421,8 @@ window.busy = {
       }
       if (popupWin && !popupWin.closed) {
         popupWin.location = json.fileUrl;
+        // Intento de auto-cierre después de unos segundos (evita descargas duplicadas si el proveedor recarga)
+        setTimeout(function(){ try{ if(popupWin && !popupWin.closed) popupWin.close(); }catch(_){} }, 5000);
       } else {
         var a=document.createElement('a'); a.href=json.fileUrl; a.download=''; a.target='_blank';
         document.body.appendChild(a); a.click(); a.remove();
@@ -3437,9 +3439,14 @@ window.busy = {
   document.addEventListener('DOMContentLoaded', function(){
     var btn = document.getElementById('btnLiquiGenerar');
     if(btn){
-      btn.addEventListener('click', function(ev){
+      // Clonar para remover cualquier listener previo y evitar dobles envíos
+      var clone = btn.cloneNode(true);
+      btn.parentNode.replaceChild(clone, btn);
+      clone.addEventListener('click', function(ev){
         ev.preventDefault();
-        generarLiquiWithPopup();
+        if (window.__liqBusy) return; // evita doble click
+        window.__liqBusy = true;
+        generarLiquiWithPopup().finally(function(){ window.__liqBusy = false; });
       });
     }
   });
