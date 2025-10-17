@@ -3340,5 +3340,108 @@ async function marcarSeleccionComoEnviadas(){
 
 <!-- === END PATCH === -->
 
+
+<!-- === PATCH v2: Improved robust hooks for Pago action buttons === -->
+<script>
+(function(){
+  const $ = (sel)=>document.querySelector(sel);
+
+  function getPagoTable(){
+    if (window.pagoTable && typeof window.pagoTable.getSelectedData === "function") return window.pagoTable;
+    try{
+      const arr = (window.Tabulator && Tabulator.findTable) ? Tabulator.findTable("#tablaPago") : null;
+      if (arr && arr[0]) return arr[0];
+    }catch(_){}
+    return null;
+  }
+
+  function reevaluatePagoActionButtons(){
+    const tbl = getPagoTable();
+    const sel = (tbl && typeof tbl.getSelectedData === "function") ? (tbl.getSelectedData() || []) : [];
+    const allPaid = sel.length > 0 && sel.every(r => String(((r && r.Estado) || '')).trim() === "Pagada");
+
+    const btnGen = document.getElementById("btnPagoGenerarLiquidacion");
+    const btnEnv = document.getElementById("btnPagoMarcarEnviadas");
+
+    if (btnGen){
+      btnGen.classList.toggle("hidden", !allPaid);
+      btnGen.disabled = !allPaid;
+    }
+    if (btnEnv){
+      btnEnv.classList.toggle("hidden", !allPaid);
+      btnEnv.disabled = !allPaid;
+    }
+  }
+
+  function attachPagoTableHooksOnce(tbl){
+    if (!tbl || typeof tbl.on !== "function") return false;
+    if (tbl.__pago_action_hooks_v2__) return true;
+
+    tbl.on("rowSelectionChanged",  reevaluatePagoActionButtons);
+    tbl.on("dataProcessed",        reevaluatePagoActionButtons);
+    tbl.on("dataFiltered",         reevaluatePagoActionButtons);
+    tbl.on("dataLoaded",           reevaluatePagoActionButtons);
+    tbl.on("tableBuilt",           reevaluatePagoActionButtons);
+
+    tbl.__pago_action_hooks_v2__ = true;
+    setTimeout(reevaluatePagoActionButtons, 0);
+    return true;
+  }
+
+  async function initPagoButtonsHook(){
+    const tbl = getPagoTable();
+    if (!tbl) return false;
+    attachPagoTableHooksOnce(tbl);
+
+    window.updatePagoGenerarLiquiButton   = reevaluatePagoActionButtons;
+    window.updatePagoMarcarEnviadasButton = reevaluatePagoActionButtons;
+
+    reevaluatePagoActionButtons();
+    return true;
+  }
+
+  document.addEventListener("DOMContentLoaded", function(){
+    let tries = 0;
+    const iv = setInterval(async ()=>{
+      tries++;
+      if (await initPagoButtonsHook() || tries > 120){
+        clearInterval(iv);
+      }
+    }, 300);
+  });
+
+  const _initPagoMassPay = (typeof window.initPagoMassPay === "function") ? window.initPagoMassPay : null;
+  if (_initPagoMassPay && !_initPagoMassPay.__wrapPagoActionBtns_v2){
+    window.initPagoMassPay = async function(){
+      const r = await _initPagoMassPay.apply(this, arguments);
+      setTimeout(initPagoButtonsHook, 60);
+      return r;
+    };
+    window.initPagoMassPay.__wrapPagoActionBtns_v2 = true;
+  }
+
+  window.addEventListener("hashchange", ()=>{
+    if (location.hash === "#pago") setTimeout(initPagoButtonsHook, 60);
+  });
+
+  document.addEventListener("click", function(e){
+    const t = e.target;
+    if (t && t.id === "btnPagoActualizar"){
+      setTimeout(reevaluatePagoActionButtons, 800);
+    }
+  });
+
+  document.addEventListener("change", function(e){
+    const sec = document.getElementById("sectionPago") || document.querySelector("[data-section='pago']");
+    if (sec && sec.contains(e.target)) setTimeout(reevaluatePagoActionButtons, 50);
+  });
+  document.addEventListener("input", function(e){
+    const sec = document.getElementById("sectionPago") || document.querySelector("[data-section='pago']");
+    if (sec && sec.contains(e.target)) setTimeout(reevaluatePagoActionButtons, 150);
+  });
+})();
+</script>
+<!-- === END PATCH v2 === -->
+
 </body>
 </html>
