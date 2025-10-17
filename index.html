@@ -1784,7 +1784,46 @@ document.addEventListener("change", (ev)=>{
   const rows = target.getRows ? target.getRows() : [];
   if(chk.checked){
     rows.forEach(r => { try{ r.select && r.select(); } catch (e){ } });
-  }else{
+  
+// Selección masiva por grupo (Revisión)
+document.addEventListener("change", (ev) => {
+  const chk = ev.target && ev.target.closest(".group-select-rev");
+  if (!chk) return;
+  // Obtener la tabla de Revisión de forma segura
+  let tbl = null;
+  try {
+    if (window.Tabulator && Tabulator.findTable) {
+      const arr = Tabulator.findTable("#tablaRevision");
+      if (arr && arr[0]) tbl = arr[0];
+    }
+  } catch (e) {}
+  if (!tbl) return;
+
+  const key = chk.getAttribute("data-group-key") || "";
+  const groups = (typeof tbl.getGroups === "function") ? (tbl.getGroups() || []) : [];
+  let target = null;
+  for (const g of groups) {
+    try {
+      const k = (typeof g.getKey === "function") ? g.getKey() : g.key;
+      if (String(k) === String(key)) { target = g; break; }
+    } catch (e) {}
+  }
+  if (!target) return;
+
+  const rows = (typeof target.getRows === "function") ? (target.getRows() || []) : [];
+  if (chk.checked) {
+    rows.forEach(r => { try { r.select && r.select(); } catch (e) {} });
+  } else {
+    rows.forEach(r => { try { r.deselect && r.deselect(); } catch (e) {} });
+  }
+
+  // Refrescar visibilidad de botones dependientes de selección (si está la función)
+  try { 
+    if (typeof updateButtons === "function") updateButtons();
+    if (typeof reevaluateRevBtns === "function") reevaluateRevBtns();
+  } catch (e) {}
+});
+}else{
     rows.forEach(r => { try{ r.deselect && r.deselect(); } catch (e){ } });
   }
   try{ updatePagoButtonVisibility(); } catch (e){}
@@ -2274,7 +2313,7 @@ function buildPagoTable(){
       const totalTxt = new Intl.NumberFormat("es-HN",{minimumFractionDigits:2, maximumFractionDigits:2}).format(suma);
       const key = String(value ?? "").replace(/"/g,"&quot;");
       return `<label class="group-toggle">
-                <input type="checkbox" class="group-select group-select-pago" data-group-key="${key}">
+                <input type="checkbox" class="group-select-rev" data-group-key="${key}">
                 <span>${nombre} (${count})</span>
               </label>
               <span class="kpi-mini">L ${totalTxt}</span>`;
