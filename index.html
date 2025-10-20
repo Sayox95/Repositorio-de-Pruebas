@@ -973,7 +973,12 @@ function buildTable(){
     dataLoaded:()=>{ updateKpis(); },
     dataFiltered:()=>{ updateKpis(); },
     rowSelectionChanged:()=>{ updateButtons(); },
-  });
+  }
+  .on("tableBuilt", function(){
+  try { window.__revBuilt = true; } catch(_) {}
+  try { if (typeof reevaluateRevBtns==='function') reevaluateRevBtns(); if (typeof updateButtons==='function') updateButtons(); if (typeof updateKpisRevRange==='function') updateKpisRevRange(); } catch(_){}
+})
+);
   table.on("tableBuilt", ()=>{
     // Fallback: delegado por si el cellClick no se dispara en algunos navegadores
     const root = document.getElementById("tablaRevision");
@@ -2359,7 +2364,12 @@ cellClick: (e, cell)=>{
     dataLoaded: updatePagoKpis,
     dataFiltered: updatePagoKpis,
     rowSelectionChanged: ()=>{ const b=document.getElementById("btnPagoAbrirModal"); if(b) b.disabled = (pagoTable.getSelectedRows().length===0); }
-  });
+  }
+  .on("tableBuilt", function(){
+  try { window.__pagoBuilt = true; } catch(_) {}
+  try { if (typeof reevaluatePagoButtons==='function') reevaluatePagoButtons(); if (typeof updateButtonsPago==='function') updateButtonsPago(); if (typeof updateButtons==='function') updateButtons(); } catch(_){}
+})
+);
 
   pagoTable.on("tableBuilt", function(){
     pagoTableReady = true;
