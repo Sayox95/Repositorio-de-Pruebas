@@ -2313,7 +2313,7 @@ function buildPagoTable(){
       const totalTxt = new Intl.NumberFormat("es-HN",{minimumFractionDigits:2, maximumFractionDigits:2}).format(suma);
       const key = String(value ?? "").replace(/"/g,"&quot;");
       return `<label class="group-toggle">
-                <input type="checkbox" class="group-select-rev" data-group-key="${key}">
+                <input type="checkbox" class="group-select-pago" data-group-key="${key}">
                 <span>${nombre} (${count})</span>
               </label>
               <span class="kpi-mini">L ${totalTxt}</span>`;
