@@ -917,7 +917,7 @@ function buildTable(){
       // data-group-key: usamos value (Identidad) + un hash simple para evitar colisiones visuales
       const key = String(value ?? "").replace(/"/g,"&quot;");
       return `<label class="group-toggle">
-                <input type="checkbox" class="group-select-pago" data-group-key="${key}">
+                <input type="checkbox" class="group-select-rev" data-group-key="${key}">
                 <span>${nombre} (${count})</span>
               </label>
               <span class="kpi-mini">L ${totalTxt}</span>`;
@@ -2303,7 +2303,7 @@ function waitForTabulatorAndContainer(){
 
 function buildPagoTable(){
   if(pagoTable) return;
-  pagoTable = new Tabulator("#tablaPago", {
+  pagoTable = new Tabulator("#tablaPago", { index: "fila", 
     height: (typeof Config!=="undefined" && Config.tablaHeight) ? Config.tablaHeight : "560px",
     data: [], layout: "fitColumns", selectable: true, placeholder: "Sin datos",
     groupStartOpen:false,
@@ -3606,5 +3606,48 @@ async function marcarSeleccionComoEnviadas(){
 })();
 </script>
 <!-- === END PATCH === -->
+<script>
+// === Group parent checkbox handlers (Revision & Pago) ===
+(function(){
+  function getTable(id){
+    try{
+      if (window.Tabulator && Tabulator.findTable){
+        var arr = Tabulator.findTable(id);
+        if (arr && arr[0]) return arr[0];
+      }
+    }catch(e){}
+    return null;
+  }
+  function toggleGroup(ev, className, tableId, reevaluateFns){
+    var chk = ev.target && ev.target.closest(className);
+    if(!chk) return;
+    var tbl = getTable(tableId);
+    if(!tbl) return;
+    var key = chk.getAttribute("data-group-key") || "";
+    var groups = (typeof tbl.getGroups==="function") ? (tbl.getGroups()||[]) : [];
+    var target = null;
+    for (var i=0;i<groups.length;i++){
+      try{
+        var gk = (typeof groups[i].getKey==="function") ? groups[i].getKey() : groups[i].key;
+        if (String(gk) === String(key)){ target = groups[i]; break; }
+      }catch(e){}
+    }
+    if(!target) return;
+    var rows = (typeof target.getRows==="function") ? (target.getRows()||[]) : [];
+    if (chk.checked){
+      rows.forEach(function(r){ try{ r.select && r.select(); }catch(e){} });
+    }else{
+      rows.forEach(function(r){ try{ r.deselect && r.deselect(); }catch(e){} });
+    }
+    (reevaluateFns||[]).forEach(function(name){
+      try{ if (typeof window[name]==="function") window[name](); }catch(e){}
+    });
+  }
+  document.addEventListener("change", function(ev){
+    toggleGroup(ev, ".group-select-rev", "#tablaRevision", ["reevaluateRevBtns","updateButtons","updateKpisRevRange"]);
+    toggleGroup(ev, ".group-select-pago", "#tablaPago", ["reevaluatePagoButtons","updateButtonsPago","updateButtons"]);
+  });
+})();
+</script>
 </body>
 </html>
