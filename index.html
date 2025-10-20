@@ -3649,5 +3649,36 @@ async function marcarSeleccionComoEnviadas(){
   });
 })();
 </script>
+<!-- Group checkbox handler for Pago -->
+<script>
+(function(){
+  document.addEventListener("change", function(ev){
+    var t = ev.target;
+    if(!t) return;
+    var chk = t.closest ? t.closest(".group-select-pago") : null;
+    if(!chk) return;
+    try{
+      var arr = (window.Tabulator && Tabulator.findTable) ? Tabulator.findTable("#tablaPago") : null;
+      var tbl = (arr && arr[0]) ? arr[0] : null;
+      if(!tbl) return;
+      var key = chk.getAttribute("data-group-key") || "";
+      var groups = (typeof tbl.getGroups === "function") ? tbl.getGroups() : [];
+      var grp = null;
+      for(var i=0;i<groups.length;i++){
+        var g = groups[i];
+        var gk = (typeof g.getKey === "function") ? g.getKey() : g.key;
+        if(String(gk) === String(key)){ grp = g; break; }
+      }
+      if(!grp) return;
+      var rows = (typeof grp.getRows === "function") ? grp.getRows() : [];
+      if (chk.checked){
+        for(var j=0;j<rows.length;j++){ try{ rows[j].select && rows[j].select(); }catch(e){} }
+      } else {
+        for(var k=0;k<rows.length;k++){ try{ rows[k].deselect && rows[k].deselect(); }catch(e){} }
+      }
+    }catch(e){ /* silent */ }
+  });
+})();
+</script>
 </body>
 </html>
