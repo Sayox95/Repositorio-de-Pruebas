@@ -1179,12 +1179,38 @@ function updateKpisRevRange(){
 
 let sectorMS, estadoMS;
 
+
+/** === Recarga desde backend usando filtros actuales (fecha/estado) === */
+async function refetchWithCurrentFilters(){
+  try{
+    overlay.show("Cargando facturas…");
+    const arr = await API.getFacturas();
+    State.raw = arr;
+    try{ sectorMS.setItems(Array.from(new Set(State.raw.map(r=>r.Sector).filter(Boolean)))); } catch(e){}
+    try{ estadoMS.setItems(getEstadoOptions()); } catch(e){}
+    // Mantener selecciones existentes
+    try{
+      const sVals = sectorMS.getSelected(); const eVals = estadoMS.getSelected();
+      sectorMS.select(sVals); estadoMS.select(eVals);
+    }catch(e){}
+    if(table){
+      await table.replaceData(State.filtered);
+      updateKpis();
+      try{ updateKpisRevRange(); }catch(e){}
+    }
+    setLastUpdatedNow();
+  }catch(e){
+    console.error("Refetch error:", e);
+  }finally{
+    overlay.hide();
+  }
+}
 function initFilters(){
   // Flatpickr range
   const fp = flatpickr("#fFecha", {
     mode:"range",
     dateFormat:"Y-m-d",
-    onChange(selectedDates){
+    onChange: async function(selectedDates){
       if(selectedDates.length===2){
         // normalizamos a extremos del día
         selectedDates[0].setHours(0,0,0,0);
@@ -1195,7 +1221,7 @@ function initFilters(){
   $("#fFechaRev").value = "";
   $("#fFechaRev")._range = null;
       }
-      applyFilters();
+      await refetchWithCurrentFilters();
     }
   });
   const fpRev = flatpickr("#fFechaRev", {
@@ -1266,7 +1292,7 @@ function clearFilters(){
   $("#fFecha")._range = null;
   $("#fFechaRev").value = "";
   $("#fFechaRev")._range = null;
-  applyFilters();
+  refetchWithCurrentFilters();
 }
 
 function applyFilters(){
