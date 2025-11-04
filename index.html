@@ -677,48 +677,13 @@ const API = { _facturasCtl:null,
     if(this._facturasCtl) try{ this._facturasCtl.abort(); } catch (e){}
     const ctl = new AbortController();
     this._facturasCtl = ctl;
-
-    const base = Config.api.leerFacturas;
-    const url = new URL(base, location.origin);
-    url.searchParams.set("leerFacturas", "true");
-
-    // estados seleccionados
-    try{
-      const eVals = estadoMS ? estadoMS.getSelected() : [];
-      if(eVals && eVals.length){
-        url.searchParams.set("estados", eVals.join(","));
-      }
-    }catch(_){}
-
-    // helper de fecha en local (no UTC)
-    const ymd = d => {
-      const y = d.getFullYear();
-      const m = String(d.getMonth()+1).padStart(2,'0');
-      const day = String(d.getDate()).padStart(2,'0');
-      return `${y}-${m}-${day}`;
-    };
-
-    // rango del datepicker
-    const dr = document.getElementById("fFecha") ? document.getElementById("fFecha")._range : null;
-    if(dr && dr.length===2){
-      const d1 = new Date(dr[0]); d1.setHours(0,0,0,0);
-      const d2 = new Date(dr[1]); d2.setHours(23,59,59,999);
-      url.searchParams.set("desde", ymd(d1));
-      url.searchParams.set("hasta", ymd(d2));
-    }else{
-      const now = new Date();
-      const yyyy = now.getFullYear();
-      const mm = String(now.getMonth()+1).padStart(2,"0");
-      url.searchParams.set("mes", `${yyyy}-${mm}`);
-    }
-
-    const res = await fetch(url.toString(), { cache:"no-store", mode:"cors", signal: ctl.signal });
+    const res = await fetch(Config.api.leerFacturas, {cache:"no-store", mode:"cors", signal: ctl.signal});
     if(!res.ok) throw new Error("No se pudo leer facturas");
     const data = await res.json();
-    if(ctl.signal.aborted) throw new Error("ABORTED");
-    const arr = Array.isArray(data) ? data : [];
-    return arr.map(normalizeRow).filter(r=>r);
-},
+    if(ctl.signal.aborted) throw new Error('ABORTED');
+    const arr = Array.isArray(data)? data : [];
+return arr.map(normalizeRow).filter(r=>r); // no filtramos por nº factura todavía
+  },
   proxied(url){
     const base = Config.api.proxyBase.replace(/\/$/,"");
     const u = encodeURIComponent(url);
@@ -1191,15 +1156,16 @@ function initFilters(){
     dateFormat:"Y-m-d",
     onChange(selectedDates){
       if(selectedDates.length===2){
+        // normalizamos a extremos del día
         selectedDates[0].setHours(0,0,0,0);
         selectedDates[1].setHours(23,59,59,999);
         $("#fFecha")._range = selectedDates;
       }else{
         $("#fFecha")._range = null;
-        $("#fFechaRev").value = "";
-        $("#fFechaRev")._range = null;
+  $("#fFechaRev").value = "";
+  $("#fFechaRev")._range = null;
       }
-      try{ refreshAfterEstado(); }catch(e){ applyFilters(); }
+      applyFilters();
     }
   });
   const fpRev = flatpickr("#fFechaRev", {
@@ -1261,9 +1227,7 @@ function initFilters(){
 }
 
 function clearFilters(){
-  if(statusMenuEl){ statusMenuEl.classList.remove('open'); 
-  try{ refreshAfterEstado(); }catch(e){ applyFilters(); }
-}
+  if(statusMenuEl){ statusMenuEl.classList.remove('open'); }
   if(sectorMS){ sectorMS.clear(); }
   if(estadoMS){ estadoMS.clear(); }
   const placaInput = document.getElementById("fPlaca"); if(placaInput){ placaInput.value = ""; }
