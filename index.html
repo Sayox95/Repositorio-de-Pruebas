@@ -1176,7 +1176,8 @@ function initFilters(){
             const data = await API.getFacturas({ desde, hasta });
             State.raw = Array.isArray(data) ? data : [];
             if(typeof buildTable === "function" && !table) buildTable();
-            if(table && table.replaceData) await table.replaceData(State.filtered);
+            await waitForTableBuilt();
+            if (table && table.replaceData) await table.replaceData(State.filtered);
             if(typeof updateKpis === "function") updateKpis();
             if(typeof setLastUpdatedNow === "function") setLastUpdatedNow();
           } finally {
