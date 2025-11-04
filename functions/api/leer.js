@@ -1,3 +1,4 @@
+// functions/api/leer.js (o donde tengas el GET proxy)
 export async function onRequestGet({ request }) {
   const origin = request.headers.get("Origin") || "*";
   const incoming = new URL(request.url);
@@ -6,20 +7,26 @@ export async function onRequestGet({ request }) {
   const estados     = incoming.searchParams.get("estados");
   const ids         = incoming.searchParams.getAll("ids");
 
-  // 👇 nuevos:
-  const desde       = incoming.searchParams.get("desde");
-  const hasta       = incoming.searchParams.get("hasta");
+  // 👇 nuevos
+  const mes   = incoming.searchParams.get("mes");
+  const desde = incoming.searchParams.get("desde");
+  const hasta = incoming.searchParams.get("hasta");
 
-  const url = new URL("https://script.google.com/macros/s/AKfycbyxzL95OxqU8FtapY81r_gsLMZgcIPhwjAklm_Alt22HoO4STa9QVskOD0_bRKEQ2ao0g/exec");
+  const url = new URL("https://script.google.com/macros/s/AKfycbzltLYupxVeAR31MPcF46zBkH6DDkx0BbVYJRuzNjaEQmJZiVnDucVktpaPpJlae4ugkQ/exec");
 
   if (otrosCargos) {
     url.searchParams.set("otrosCargos", otrosCargos);
-    if (ids && ids.length) ids.forEach(id => id && url.searchParams.append("ids", id));
+    if (ids && ids.length) {
+      ids.forEach(id => { if (id) url.searchParams.append("ids", id); });
+    }
   } else {
     url.searchParams.set("leerFacturas", "true");
     if (estados) url.searchParams.set("estados", estados);
-    if (desde)   url.searchParams.set("desde", desde);  // ✅
-    if (hasta)   url.searchParams.set("hasta", hasta);  // ✅
+
+    // 👇 reenviamos filtro de fechas/mes si vienen del front
+    if (mes)   url.searchParams.set("mes", mes);
+    if (desde) url.searchParams.set("desde", desde);
+    if (hasta) url.searchParams.set("hasta", hasta);
   }
 
   try {
