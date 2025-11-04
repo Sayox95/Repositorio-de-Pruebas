@@ -696,7 +696,12 @@ const API = { _facturasCtl:null,
     if (dr && dr.length === 2) {
       const d1 = new Date(dr[0]); d1.setHours(0,0,0,0);
       const d2 = new Date(dr[1]); d2.setHours(23,59,59,999);
-      const ymd = d => d.toISOString().slice(0,10);
+      const ymd = d => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  const day = String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+};
       url.searchParams.set("desde", ymd(d1));
       url.searchParams.set("hasta", ymd(d2));
     } else {
