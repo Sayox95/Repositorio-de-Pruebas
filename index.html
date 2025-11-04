@@ -678,45 +678,45 @@ const API = { _facturasCtl:null,
     const ctl = new AbortController();
     this._facturasCtl = ctl;
 
-    // Construir URL con filtros de tiempo y estado
-    const base = Config.api.leerFacturas; // e.g. "/api/leer"
+    const base = Config.api.leerFacturas;
     const url = new URL(base, location.origin);
     url.searchParams.set("leerFacturas", "true");
 
-    // Estados seleccionados (si hay), para reducir payload desde backend
-    try {
+    // estados seleccionados
+    try{
       const eVals = estadoMS ? estadoMS.getSelected() : [];
-      if (eVals && eVals.length) {
+      if(eVals && eVals.length){
         url.searchParams.set("estados", eVals.join(","));
       }
-    } catch(_) {}
+    }catch(_){}
 
-    // Si hay rango de fechas seleccionado en el picker, enviamos desde/hasta
+    // helper de fecha en local (no UTC)
+    const ymd = d => {
+      const y = d.getFullYear();
+      const m = String(d.getMonth()+1).padStart(2,'0');
+      const day = String(d.getDate()).padStart(2,'0');
+      return `${y}-${m}-${day}`;
+    };
+
+    // rango del datepicker
     const dr = document.getElementById("fFecha") ? document.getElementById("fFecha")._range : null;
-    if (dr && dr.length === 2) {
+    if(dr && dr.length===2){
       const d1 = new Date(dr[0]); d1.setHours(0,0,0,0);
       const d2 = new Date(dr[1]); d2.setHours(23,59,59,999);
-      const ymd = d => {
-  const y = d.getFullYear();
-  const m = String(d.getMonth()+1).padStart(2,'0');
-  const day = String(d.getDate()).padStart(2,'0');
-  return `${y}-${m}-${day}`;
-};
       url.searchParams.set("desde", ymd(d1));
       url.searchParams.set("hasta", ymd(d2));
-    } else {
-      // Por defecto: mes actual (YYYY-MM)
+    }else{
       const now = new Date();
       const yyyy = now.getFullYear();
       const mm = String(now.getMonth()+1).padStart(2,"0");
       url.searchParams.set("mes", `${yyyy}-${mm}`);
     }
 
-    const res = await fetch(url.toString(), {cache:"no-store", mode:"cors", signal: ctl.signal});
+    const res = await fetch(url.toString(), { cache:"no-store", mode:"cors", signal: ctl.signal });
     if(!res.ok) throw new Error("No se pudo leer facturas");
     const data = await res.json();
-    if(ctl.signal.aborted) throw new Error('ABORTED');
-    const arr = Array.isArray(data)? data : [];
+    if(ctl.signal.aborted) throw new Error("ABORTED");
+    const arr = Array.isArray(data) ? data : [];
     return arr.map(normalizeRow).filter(r=>r);
 },
   proxied(url){
@@ -1191,16 +1191,15 @@ function initFilters(){
     dateFormat:"Y-m-d",
     onChange(selectedDates){
       if(selectedDates.length===2){
-        // normalizamos a extremos del día
         selectedDates[0].setHours(0,0,0,0);
         selectedDates[1].setHours(23,59,59,999);
         $("#fFecha")._range = selectedDates;
       }else{
         $("#fFecha")._range = null;
-  $("#fFechaRev").value = "";
-  $("#fFechaRev")._range = null;
+        $("#fFechaRev").value = "";
+        $("#fFechaRev")._range = null;
       }
-      applyFilters();
+      try{ refreshAfterEstado(); }catch(e){ applyFilters(); }
     }
   });
   const fpRev = flatpickr("#fFechaRev", {
@@ -1262,7 +1261,9 @@ function initFilters(){
 }
 
 function clearFilters(){
-  if(statusMenuEl){ statusMenuEl.classList.remove('open'); }
+  if(statusMenuEl){ statusMenuEl.classList.remove('open'); 
+  try{ refreshAfterEstado(); }catch(e){ applyFilters(); }
+}
   if(sectorMS){ sectorMS.clear(); }
   if(estadoMS){ estadoMS.clear(); }
   const placaInput = document.getElementById("fPlaca"); if(placaInput){ placaInput.value = ""; }
