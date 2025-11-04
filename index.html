@@ -1195,7 +1195,7 @@ function initFilters(){
   $("#fFechaRev").value = "";
   $("#fFechaRev")._range = null;
       }
-      refreshAfterEstado();
+      applyFilters();
     }
   });
   const fpRev = flatpickr("#fFechaRev", {
@@ -1266,7 +1266,7 @@ function clearFilters(){
   $("#fFecha")._range = null;
   $("#fFechaRev").value = "";
   $("#fFechaRev")._range = null;
-  refreshAfterEstado();
+  applyFilters();
 }
 
 function applyFilters(){
