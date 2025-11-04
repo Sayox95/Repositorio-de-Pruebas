@@ -2,32 +2,29 @@ export async function onRequestGet({ request }) {
   const origin = request.headers.get("Origin") || "*";
   const incoming = new URL(request.url);
 
-  const otrosCargos = incoming.searchParams.get("otrosCargos"); // "total" | "byId" (opcional)
-  const estados     = incoming.searchParams.get("estados");     // opcional
-  const ids         = incoming.searchParams.getAll("ids");      // múltiples ids para byId
+  const otrosCargos = incoming.searchParams.get("otrosCargos");
+  const estados     = incoming.searchParams.get("estados");
+  const ids         = incoming.searchParams.getAll("ids");
 
-  const url = new URL("https://script.google.com/macros/s/AKfycbz-QMvr8tL0LTvFM6g5g2z6vsA8VRusOnUPpurmeacPZli9XUoNJQJWswDkBRpoY0DfUQ/exec"); 
+  // 👇 nuevos:
+  const desde       = incoming.searchParams.get("desde");
+  const hasta       = incoming.searchParams.get("hasta");
+
+  const url = new URL("https://script.google.com/macros/s/AKfycbyxzL95OxqU8FtapY81r_gsLMZgcIPhwjAklm_Alt22HoO4STa9QVskOD0_bRKEQ2ao0g/exec");
 
   if (otrosCargos) {
-    // Modo "Otros Cargos"
     url.searchParams.set("otrosCargos", otrosCargos);
-
-    // Si se pidieron totales por ID_PAGO, reenvía todos los ids recibidos
-    if (ids && ids.length) {
-      ids.forEach(id => {
-        if (id) url.searchParams.append("ids", id);
-      });
-    }
+    if (ids && ids.length) ids.forEach(id => id && url.searchParams.append("ids", id));
   } else {
-    // Modo facturas (existente)
     url.searchParams.set("leerFacturas", "true");
     if (estados) url.searchParams.set("estados", estados);
+    if (desde)   url.searchParams.set("desde", desde);  // ✅
+    if (hasta)   url.searchParams.set("hasta", hasta);  // ✅
   }
 
   try {
     const resp = await fetch(url.toString(), { method: "GET" });
     const text = await resp.text();
-
     return new Response(text, {
       status: resp.status,
       headers: {
