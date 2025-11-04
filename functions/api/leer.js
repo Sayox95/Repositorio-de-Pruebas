@@ -1,37 +1,33 @@
-// functions/api/leer.js (o donde tengas el GET proxy)
 export async function onRequestGet({ request }) {
   const origin = request.headers.get("Origin") || "*";
   const incoming = new URL(request.url);
 
-  const otrosCargos = incoming.searchParams.get("otrosCargos");
-  const estados     = incoming.searchParams.get("estados");
-  const ids         = incoming.searchParams.getAll("ids");
+  const otrosCargos = incoming.searchParams.get("otrosCargos"); // "total" | "byId" (opcional)
+  const estados     = incoming.searchParams.get("estados");     // opcional
+  const ids         = incoming.searchParams.getAll("ids");      // múltiples ids para byId
 
-  // 👇 nuevos
-  const mes   = incoming.searchParams.get("mes");
-  const desde = incoming.searchParams.get("desde");
-  const hasta = incoming.searchParams.get("hasta");
-
-  const url = new URL("https://script.google.com/macros/s/AKfycbzltLYupxVeAR31MPcF46zBkH6DDkx0BbVYJRuzNjaEQmJZiVnDucVktpaPpJlae4ugkQ/exec");
+  const url = new URL("https://script.google.com/macros/s/AKfycbwKh7IWlcd-AUilhzffLFGCFpdPZkqHqzcEKL_KDds_7Vfvdk_OC0lAhoyQJxcoU4j_/exec"); 
 
   if (otrosCargos) {
+    // Modo "Otros Cargos"
     url.searchParams.set("otrosCargos", otrosCargos);
+
+    // Si se pidieron totales por ID_PAGO, reenvía todos los ids recibidos
     if (ids && ids.length) {
-      ids.forEach(id => { if (id) url.searchParams.append("ids", id); });
+      ids.forEach(id => {
+        if (id) url.searchParams.append("ids", id);
+      });
     }
   } else {
+    // Modo facturas (existente)
     url.searchParams.set("leerFacturas", "true");
     if (estados) url.searchParams.set("estados", estados);
-
-    // 👇 reenviamos filtro de fechas/mes si vienen del front
-    if (mes)   url.searchParams.set("mes", mes);
-    if (desde) url.searchParams.set("desde", desde);
-    if (hasta) url.searchParams.set("hasta", hasta);
   }
 
   try {
     const resp = await fetch(url.toString(), { method: "GET" });
     const text = await resp.text();
+
     return new Response(text, {
       status: resp.status,
       headers: {
