@@ -2452,21 +2452,18 @@ async function cargarPago(){
 
   if(typeof overlay!=="undefined") overlay.show("Cargando facturas…");
   try {
-    let arr = null;
+
+    let data = [];
     const TARGET = new Set(["Revisada","Pagada","Enviada"]);
-
     if (typeof API!=="undefined" && typeof API.getFacturas === "function") {
-      try { arr = await API.getFacturas({ estados: ["Revisada","Pagada","Enviada"] }); } catch (e){ arr = null; }
+      try { 
+        const arr = await API.getFacturas({ estados: ["Revisada","Pagada","Enviada"] }); 
+        data = Array.isArray(arr) ? arr : [];
+      } catch (e){ data = []; }
     }
-    let data = Array.isArray(arr) ? arr : [];
-
-    const serverFiltered = data.length>0 && data.every(r => TARGET.has(String((r && r.Estado) || "")));
-    if (!serverFiltered) {
-      const all = await (typeof API!=="undefined" ? API.getFacturas() : Promise.resolve([]));
-      data = (all || []).filter(r => TARGET.has(String((r && r.Estado) || "")));
-    }
-
     Pago.raw = data;
+
+
 
     const sectores = Array.from(new Set((Pago.raw||[]).map(r=>r.Sector).filter(Boolean))).sort((a,b)=>a.localeCompare(b));
     if(pagoSectorMS && pagoSectorMS.setItems){ pagoSectorMS.setItems(sectores); }
