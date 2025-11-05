@@ -539,10 +539,6 @@ const Config = {
   tablaHeight: "560px",
 };
 
-// Guard to prevent duplicate reloads when setting dates programmatically
-window.__suppressRangeReload = false;
-
-
 /** =========================
  *  Utilidades de UI
  *  ========================= */
@@ -641,29 +637,32 @@ function toDirectDriveUrl(url){
  *  Capa de datos (API)
  *  ========================= */
 const API = { _facturasCtl:null,
-  async getFacturas(opts={}){
+  async getFacturas(){
     if(this._facturasCtl) try{ this._facturasCtl.abort(); } catch (e){}
     const ctl = new AbortController();
     this._facturasCtl = ctl;
-    // Construir URL con filtros server-side
-    const url = new URL(Config.api.leerFacturas);
-    // Modo facturas
+
+    const opts = arguments[0] || {};
+    const url = new URL(Config.api.leerFacturas, window.location.origin);
+
+    // Decide mode: facturas (default) - Apps Script falls back to current month if no range is sent
     url.searchParams.set("leerFacturas", "true");
-    if (opts && opts.estados) {
-      const estados = Array.isArray(opts.estados) ? opts.estados.join(",") : String(opts.estados||"");
-      if (estados) url.searchParams.set("estados", estados);
+
+    if (opts.campoFecha) url.searchParams.set("campoFecha", opts.campoFecha);
+    if (opts.desde)      url.searchParams.set("desde", opts.desde);
+    if (opts.hasta)      url.searchParams.set("hasta", opts.hasta);
+    if (opts.estados && Array.isArray(opts.estados) && opts.estados.length) {
+      url.searchParams.set("estados", opts.estados.join(","));
     }
-    if (opts && opts.campoFecha && opts.desde && opts.hasta) {
-      url.searchParams.set("campoFecha", String(opts.campoFecha));
-      url.searchParams.set("desde", String(opts.desde));
-      url.searchParams.set("hasta", String(opts.hasta));
-    }
+
     const res = await fetch(url.toString(), {cache:"no-store", mode:"cors", signal: ctl.signal});
     if(!res.ok) throw new Error("No se pudo leer facturas");
     const data = await res.json();
     if(ctl.signal.aborted) throw new Error('ABORTED');
     const arr = Array.isArray(data)? data : [];
-    return arr.map(normalizeRow).filter(r=>r); // no filtramos por nº factura todavía
+    return arr.map(normalizeRow).filter(r=>r);
+  
+
   },
   proxied(url){
     const base = Config.api.proxyBase.replace(/\/$/,"");
@@ -858,15 +857,7 @@ async function refreshAfterEstado(){
     const qNum   = document.getElementById("fNumero")?.value || "";
     const dr = document.getElementById("fFecha")? document.getElementById("fFecha")._range : null;
     const dr2 = document.getElementById("fFechaRev")? document.getElementById("fFechaRev")._range : null;
-
-    // Pasar rango al backend si existe
-    let opts = {};
-    if (dr && dr.length === 2) {
-      opts.campoFecha = "Fecha";
-      opts.desde = new Date(dr[0]).toISOString().slice(0,10);
-      opts.hasta = new Date(dr[1]).toISOString().slice(0,10);
-    }
-    const arr = await API.getFacturas(opts);
+    const arr = await API.getFacturas();
     State.raw = arr;
     try{ sectorMS.setItems(Array.from(new Set(State.raw.map(r=>r.Sector).filter(Boolean)))); } catch (e){ }
     try{ estadoMS.setItems(getEstadoOptions()); } catch (e){ }
@@ -1138,6 +1129,43 @@ function updateKpisRevRange(){
 
 let sectorMS, estadoMS;
 
+/** === Server-side date range helpers + refetch === */
+function currentServerDateRange() {
+  const drRev = (document.getElementById("fFechaRev") ? document.getElementById("fFechaRev")._range : null);
+  const drFac = (document.getElementById("fFecha") ? document.getElementById("fFecha")._range : null);
+  const iso = (d)=> fmt.dateISO(d);
+  if (drRev && drRev.length === 2) {
+    return { campoFecha: "Fecha de Revision", desde: iso(drRev[0]), hasta: iso(drRev[1]) };
+  }
+  if (drFac && drFac.length === 2) {
+    return { campoFecha: "Fecha", desde: iso(drFac[0]), hasta: iso(drFac[1]) };
+  }
+  return null; // let backend default to current month
+}
+
+async function refetchAndRenderByServerRange() {
+  try {
+    overlay.show("Cargando facturas…");
+    const estadosSel = estadoMS ? estadoMS.getSelected() : [];
+    const rango = currentServerDateRange();
+    const arr = await API.getFacturas({
+      ...(rango || {}),
+      estados: (estadosSel && estadosSel.length) ? estadosSel : undefined
+    });
+    State.raw = arr;
+    // refresh multiselect options
+    try{ sectorMS.setItems(Array.from(new Set(State.raw.map(r=>r.Sector).filter(Boolean)))); } catch (e){ }
+    try{ estadoMS.setItems(getEstadoOptions()); } catch (e){ }
+    if(table){ await table.replaceData(State.filtered); }
+    updateKpis();
+    try{ updateKpisRevRange(); } catch (e){}
+    setLastUpdatedNow();
+    resetTableScroll();
+  } finally {
+    overlay.hide();
+  }
+}
+
 function initFilters(){
   // Flatpickr range
   const fp = flatpickr("#fFecha", {
@@ -1149,30 +1177,12 @@ function initFilters(){
         selectedDates[0].setHours(0,0,0,0);
         selectedDates[1].setHours(23,59,59,999);
         $("#fFecha")._range = selectedDates;
-
-        // 🔄 Re-cargar desde servidor para el rango elegido
-        const desde = selectedDates[0].toISOString().slice(0,10);
-        const hasta = selectedDates[1].toISOString().slice(0,10);
-        overlay.show("Cargando facturas…");
-        API.getFacturas({ campoFecha:"Fecha", desde, hasta }).then(arr=>{
-          State.raw = arr;
-          try{ sectorMS.setItems(Array.from(new Set(State.raw.map(r=>r.Sector).filter(Boolean)))); } catch (e){ }
-          try{ estadoMS.setItems(getEstadoOptions()); } catch (e){ }
-          if(table){ return table.replaceData(State.filtered); }
-        }).then(()=>{
-          updateKpis();
-          try{ updateKpisRevRange(); } catch(e){}
-          setLastUpdatedNow();
-        }).finally(()=>{
-          overlay.hide();
-        });
-
       }else{
         $("#fFecha")._range = null;
-        $("#fFechaRev").value = "";
-        $("#fFechaRev")._range = null;
-        applyFilters();
+  $("#fFechaRev").value = "";
+  $("#fFechaRev")._range = null;
       }
+      refetchAndRenderByServerRange();
     }
   });
   const fpRev = flatpickr("#fFechaRev", {
@@ -1186,7 +1196,7 @@ function initFilters(){
       }else{
         $("#fFechaRev")._range = null;
       }
-      applyFilters();
+      refetchAndRenderByServerRange();
     }
   });
   // MultiSelect con checkboxes
@@ -1243,50 +1253,9 @@ function clearFilters(){
   $("#fFecha")._range = null;
   $("#fFechaRev").value = "";
   $("#fFechaRev")._range = null;
-  applyFilters();
+  refetchAndRenderByServerRange();
 }
 
-
-/** Reload Pago por rango seleccionado (si el módulo de Pago está presente) */
-async function reloadPagoByFechaRange(selectedDates){
-  try{
-    const desde = selectedDates[0].toISOString().slice(0,10);
-    const hasta = selectedDates[1].toISOString().slice(0,10);
-    overlay.show("Cargando facturas (Pago)…");
-    const arr = await API.getFacturas({ campoFecha:"Fecha", desde, hasta, estados:["Revisada","Pagada","Enviada"] });
-    // Si existe estado/gatillos de Pago, propagar datos
-    if (typeof window.PagoState === "object") { window.PagoState.raw = arr; }
-    // Si existe tabla de Pago (Tabulator), actualizar
-    const pagoEl = document.getElementById("tablaPago");
-    if (pagoEl && typeof Tabulator !== "undefined" && window.tablePago && typeof window.tablePago.replaceData === "function") {
-      await window.tablePago.replaceData(arr);
-    }
-    setLastUpdatedNow();
-  } finally {
-    overlay.hide();
-  }
-}
-
-/** Inicializa flatpickr del Pago si existe y no está enganchado */
-function initPagoDateFilterHook(){
-  const el = document.getElementById("fPagoFecha");
-  if(!el || el._hooked) return;
-  flatpickr(el, {
-    mode:"range",
-    dateFormat:"Y-m-d",
-    onChange(selectedDates){
-      if(selectedDates.length===2){
-        selectedDates[0].setHours(0,0,0,0);
-        selectedDates[1].setHours(23,59,59,999);
-        el._range = selectedDates;
-        if (!window.__suppressRangeReload) { try{ if (typeof cargarPago === 'function') cargarPago(); }catch(e){} }
-      }else{
-        el._range = null;
-      }
-    }
-  });
-  el._hooked = true;
-}
 function applyFilters(){
   if(!table){ return; }
   const doReplace = ()=>{
@@ -1432,7 +1401,7 @@ document.querySelectorAll('.sidebar .nav-btn').forEach(a=>{
     const href = a.getAttribute('href')||'';
     if(href==='#inicio') return navigateTo('secInicio');
     if(href==='#revision') return navigateTo('secRevision', async()=>{ await hardRefresh(); });
-    if(href==='#pago')     return navigateTo('secPago', async()=>{ await initPagoMassPay(); try{ initPagoDateFilterHook(); }catch(_){ } });
+    if(href==='#pago')     return navigateTo('secPago', async()=>{ await initPagoMassPay(); });
     if(href==='#anticipos')return navigateTo('secAnticipos');
     if(href==='#placas')   return navigateTo('secPlacas', async()=>{ await cargarPlacas(); });
   });
@@ -1882,15 +1851,9 @@ document.addEventListener("change", (ev) => {
 async function hardRefresh(){
   try{ console.time("[Revision] cargar"); }catch(_e){}
 
-  // Mantiene filtros actuales; recarga desde servidor respetando rango #fFecha si existe
-  const dr = document.getElementById("fFecha") ? document.getElementById("fFecha")._range : null;
-  let opts = {};
-  if (dr && dr.length === 2) {
-    opts.campoFecha = "Fecha";
-    opts.desde = new Date(dr[0]).toISOString().slice(0,10);
-    opts.hasta = new Date(dr[1]).toISOString().slice(0,10);
-  }
-  await loadData(opts);
+  // Limpia filtros, recarga y resetea scroll; luego muestra hora de actualización
+  clearFilters();
+  await loadData();
   resetTableScroll();
   setLastUpdatedNow();
   const now = new Date();
@@ -2149,10 +2112,10 @@ async function bootstrap(){
   $("#btnDescargar").addEventListener("click", descargarZip);  $("#btnExportXLSX").addEventListener("click", exportXLSX);
   navigateTo("secInicio");}
 
-async function loadData(opts={}){
+async function loadData(){
   overlay.show("Cargando facturas…");
   try{
-    const data = await API.getFacturas(opts);
+    const data = await API.getFacturas();
     State.raw = data;
     // poblar selects dinámicamente
     const sectores = Array.from(new Set(data.map(r=>r.Sector).filter(Boolean))).sort();
@@ -3761,7 +3724,7 @@ async function marcarSeleccionComoEnviadas(){
     const fp = el?._flatpickr;
     if (!fp) return false;
     const r = monthRange();
-    try { window.__suppressRangeReload = True; fp.setDate(r, true); el._range = r; } catch(e){ return false; } finally { window.__suppressRangeReload = false; }
+    try { fp.setDate(r, true); el._range = r; } catch(e){ return false; }
     if (typeof window.applyFilters === "function"){ try{ window.applyFilters(); }catch(e){} }
     return true;
   }
@@ -3886,7 +3849,7 @@ async function marcarSeleccionComoEnviadas(){
           const el = document.getElementById("fPagoFecha");
           const fp = el?._flatpickr;
           const r = twoDates(el) || monthRange();
-          try { window.__suppressRangeReload = true; if (fp) { fp.setDate(r, true); el._range = r; } } catch(e){} finally { window.__suppressRangeReload = false; }
+          try { if (fp) { fp.setDate(r, true); el._range = r; } } catch(e){}
           if (typeof window.applyPagoFilters === "function"){ try{ window.applyPagoFilters(); }catch(e){} }
         }, 0);
         return out;
