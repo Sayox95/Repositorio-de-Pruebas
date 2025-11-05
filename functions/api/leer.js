@@ -1,14 +1,3 @@
-// functions/api/leer.js
-
-/**
- * GET -> Reenvía la lectura al Apps Script
- * - Soporta:
- *   - ?leerFacturas=true (modo por defecto)
- *   - ?estados=Registrada,Revisada  (CSV)  o múltiples ?estados=...&estados=...
- *   - ?dateMin=YYYY-MM-DD&dateMax=YYYY-MM-DD  (rango inclusivo en backend)
- *   - ?otrosCargos=total | byId
- *   - ?ids=A&ids=B  o ?ids=A,B   (cuando otrosCargos=byId)
- */
 export async function onRequestGet({ request }) {
   const origin  = request.headers.get("Origin") || "*";
   const incoming = new URL(request.url);
