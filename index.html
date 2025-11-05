@@ -622,6 +622,39 @@ const fmt = {
   dateISO(d){ const x = new Date(d); if(isNaN(x)) return ""; return x.toISOString().slice(0,10); },
 };
 
+function currentMonthRangeISO(){
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), 1);
+  const end   = new Date(now.getFullYear(), now.getMonth()+1, 0, 23,59,59,999);
+  return { from: fmt.dateISO(start), to: fmt.dateISO(end) };
+}
+
+async function fetchAndReplaceByRange(fromISO, toISO){
+  overlay.show("Cargando facturas…");
+  const currentSector = sectorMS? sectorMS.getSelected():[];
+  const currentEstado = estadoMS? estadoMS.getSelected():[];
+  const qNombre = document.getElementById("fNombre")?.value || "";
+  const qPlaca  = document.getElementById("fPlaca")?.value || "";
+  const qNum    = document.getElementById("fNumero")?.value || "";
+
+  const arr = await API.getFacturas({ from: fromISO, to: toISO });
+
+  State.raw = arr;
+  try{ sectorMS.setItems(Array.from(new Set(State.raw.map(r=>r.Sector).filter(Boolean)))); } catch(e){}
+  try{ estadoMS.setItems(getEstadoOptions()); } catch(e){}
+  try{ sectorMS.select(currentSector); estadoMS.select(currentEstado); } catch(e){}
+
+  if(document.getElementById("fNombre")) document.getElementById("fNombre").value = qNombre;
+  if(document.getElementById("fPlaca"))  document.getElementById("fPlaca").value  = qPlaca;
+  if(document.getElementById("fNumero")) document.getElementById("fNumero").value = qNum;
+
+  if (table) { try { await table.replaceData(State.filtered); } catch(_){} }
+  updateKpis(); try{ updateKpisRevRange(); } catch(e){}
+  setLastUpdatedNow();
+  overlay.hide();
+}
+
+
 /** Mapea alias de campos al esquema esperado por la tabla */
 function normalizeRow(src){
   if(!src || typeof src!=="object") return null;
@@ -674,15 +707,27 @@ function toDirectDriveUrl(url){
  *  ========================= */
 const API = { _facturasCtl:null,
   async getFacturas(){
-    if(this._facturasCtl) try{ this._facturasCtl.abort(); } catch (e){}
+    if (this._facturasCtl) try { this._facturasCtl.abort(); } catch (_) {}
     const ctl = new AbortController();
     this._facturasCtl = ctl;
-    const res = await fetch(Config.api.leerFacturas, {cache:"no-store", mode:"cors", signal: ctl.signal});
-    if(!res.ok) throw new Error("No se pudo leer facturas");
+
+    const params = arguments[0] || {};
+    const qs = new URLSearchParams();
+    qs.set("leerFacturas", "true");
+    if (params.from) qs.set("from", params.from);
+    if (params.to)   qs.set("to", params.to);
+    if (Array.isArray(params.estados) && params.estados.length) {
+      qs.set("estados", params.estados.join(","));
+    }
+
+    const url = `${Config.api.leerFacturas}?${qs.toString()}`;
+    const res = await fetch(url, { cache:"no-store", mode:"cors", signal: ctl.signal });
+    if (!res.ok) throw new Error("No se pudo leer facturas");
     const data = await res.json();
-    if(ctl.signal.aborted) throw new Error('ABORTED');
+    if (ctl.signal.aborted) throw new Error('ABORTED');
+
     const arr = Array.isArray(data)? data : [];
-return arr.map(normalizeRow).filter(r=>r); // no filtramos por nº factura todavía
+    return arr.map(normalizeRow).filter(r=>r);
   },
   proxied(url){
     const base = Config.api.proxyBase.replace(/\/$/,"");
@@ -1154,18 +1199,18 @@ function initFilters(){
   const fp = flatpickr("#fFecha", {
     mode:"range",
     dateFormat:"Y-m-d",
-    onChange(selectedDates){
-      if(selectedDates.length===2){
-        // normalizamos a extremos del día
+    onChange: async function(selectedDates){
+      if (selectedDates.length === 2) {
         selectedDates[0].setHours(0,0,0,0);
         selectedDates[1].setHours(23,59,59,999);
         $("#fFecha")._range = selectedDates;
-      }else{
+        const fromISO = fmt.dateISO(selectedDates[0]);
+        const toISO   = fmt.dateISO(selectedDates[1]);
+        await fetchAndReplaceByRange(fromISO, toISO);
+        applyFilters();
+      } else {
         $("#fFecha")._range = null;
-  $("#fFechaRev").value = "";
-  $("#fFechaRev")._range = null;
       }
-      applyFilters();
     }
   });
   const fpRev = flatpickr("#fFechaRev", {
@@ -1237,6 +1282,9 @@ function clearFilters(){
   $("#fFechaRev").value = "";
   $("#fFechaRev")._range = null;
   applyFilters();
+
+  (async ()=>{ const { from, to } = currentMonthRangeISO(); try{ await fetchAndReplaceByRange(from, to);}catch(e){} })();
+
 }
 
 function applyFilters(){
@@ -3679,6 +3727,15 @@ async function marcarSeleccionComoEnviadas(){
     }catch(e){ /* silent */ }
   });
 })();
+
+document.addEventListener("DOMContentLoaded", async () => {
+  try {
+    if (!table) { try{ buildTable(); }catch(_){} }
+    const { from, to } = currentMonthRangeISO();
+    await fetchAndReplaceByRange(from, to);
+  } catch(e){}
+});
+
 </script>
 </body>
 </html>
