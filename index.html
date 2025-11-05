@@ -1167,7 +1167,7 @@ function initFilters(){
         const desde = selectedDates[0].toISOString().slice(0,10);
         const hasta = selectedDates[1].toISOString().slice(0,10);
         overlay.show("Cargando facturas…");
-        API.getFacturas({ campoFecha:"Fecha", desde, hasta }).then(arr=>{
+        API.getFacturas({ campoFecha:"Fecha", desde, hasta }).then(arr=>{ console.log("[DEBUG] Revision range fetch", {desde, hasta, len: (arr||[]).length, sample: (arr||[])[0], lastURL: (API && API._lastURL)});
           State.raw = arr;
           try{ sectorMS.setItems(Array.from(new Set(State.raw.map(r=>r.Sector).filter(Boolean)))); } catch (e){ }
           try{ estadoMS.setItems(getEstadoOptions()); } catch (e){ }
@@ -1266,7 +1266,7 @@ async function reloadPagoByFechaRange(selectedDates){
     const desde = selectedDates[0].toISOString().slice(0,10);
     const hasta = selectedDates[1].toISOString().slice(0,10);
     overlay.show("Cargando facturas (Pago)…");
-    const arr = await API.getFacturas({ campoFecha:"Fecha", desde, hasta, estados:["Revisada","Pagada","Enviada"] });
+    const arr = await API.getFacturas({ campoFecha:"Fecha", desde, hasta, estados:["Revisada","Pagada","Enviada"] }); console.log("[DEBUG] Pago range fetch", {desde, hasta, len: (arr||[]).length, sample: (arr||[])[0], lastURL: (API && API._lastURL)});
     // Si existe estado/gatillos de Pago, propagar datos
     if (typeof window.PagoState === "object") { window.PagoState.raw = arr; }
     // Si existe tabla de Pago (Tabulator), actualizar
@@ -2553,7 +2553,7 @@ async function cargarPago(){
     const TARGET = new Set(["Revisada","Pagada","Enviada"]);
 
     if (typeof API!=="undefined" && typeof API.getFacturas === "function") {
-      try { arr = await API.getFacturas({ estados: ["Revisada","Pagada","Enviada"] }); } catch (e){ arr = null; }
+      try { arr = await API.getFacturas({ estados: ["Revisada","Pagada","Enviada"] }); console.log("[DEBUG] Pago cargar (estados only)", {len: (arr||[]).length, sample: (arr||[])[0], lastURL: (API && API._lastURL)}); } catch (e){ arr = null; }
     }
     let data = Array.isArray(arr) ? arr : [];
 
