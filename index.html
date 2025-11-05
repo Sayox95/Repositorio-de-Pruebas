@@ -2,6 +2,27 @@
 
 <html lang="es">
 <head>
+
+<script>
+(function(){
+  if (!window.__fetchPatched){
+    const _origFetch = window.fetch;
+    window.fetch = async function(input, init){
+      try {
+        console.log("[DEBUGFETCH] request", typeof input==="string"? input : (input && input.url), init);
+      } catch(_e){}
+      const resp = await _origFetch.apply(this, arguments);
+      try {
+        console.log("[DEBUGFETCH] response", resp.status, resp.statusText, resp.url);
+        console.log("[DEBUGFETCH] headers", Object.fromEntries(resp.headers.entries()));
+      } catch(_e){}
+      return resp;
+    };
+    window.__fetchPatched = true;
+  }
+})();
+</script>
+
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <title>UTCD · Revisión de Facturas</title>
@@ -276,6 +297,18 @@
 </style>
 </head>
 <body>
+<div id="__debug_banner" style="position:fixed;z-index:99999;top:0;left:0;right:0;background:#111;color:#fff;padding:6px 10px;font:12px/1.2 monospace">
+  DEBUG BUILD ACTIVE — RANGE+LOGS — <span id="__debug_stamp"></span>
+</div>
+<script>
+  (function(){
+    const el = document.getElementById("__debug_stamp");
+    if (el) el.textContent = new Date().toISOString();
+    console.log("[DEBUGBOOT] File loaded: DEBUG4 (RANGE+LOGS) at", new Date().toISOString());
+    document.title = "[DEBUG4] " + document.title;
+  })();
+</script>
+
 <div aria-hidden="true" class="toast-backdrop" id="toastBackdrop"></div>
 <!-- Toast Agrupación -->
 <div aria-live="polite" class="toast" id="toastGroup" role="status">
@@ -658,7 +691,7 @@ const API = { _facturasCtl:null,
       url.searchParams.set("desde", String(opts.desde));
       url.searchParams.set("hasta", String(opts.hasta));
     }
-    console.log("[DEBUG] API.getFacturas URL", url.toString());
+    console.log("[DEBUG] API.getFacturas URL", url.toString()); console.log("[DEBUG] USING Config.api.leerFacturas=", (Config&&Config.api&&Config.api.leerFacturas));
     const res = await fetch(url.toString(), {cache:"no-store", mode:"cors", signal: ctl.signal});
     if(!res.ok) throw new Error("No se pudo leer facturas");
     const data = await res.json();
@@ -1158,7 +1191,7 @@ function initFilters(){
   const fp = flatpickr("#fFecha", {
     mode:"range",
     dateFormat:"Y-m-d",
-    onChange(selectedDates){
+    onChange(selectedDates){ try{ console.log("[DEBUGUI] fFecha onChange", selectedDates && selectedDates.map(d=>d&&d.toISOString())); }catch(_e){}
       if(selectedDates.length===2){
         // normalizamos a extremos del día
         selectedDates[0].setHours(0,0,0,0);
