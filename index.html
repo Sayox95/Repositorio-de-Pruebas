@@ -3669,7 +3669,6 @@ async function marcarSeleccionComoEnviadas(){
   })();
 })();
 </script>
-
 <script>
 /* === Pago: pintar primero y aplicar después ===
    Objetivo: que el UX de Pago sea idéntico al de Revisión.
@@ -3732,6 +3731,83 @@ async function marcarSeleccionComoEnviadas(){
       const out = await _orig.apply(this, arguments);
       // Aplicamos apenas termina la carga
       setTimeout(applyPago, 0);
+      return out;
+    };
+  })();
+})();
+</script>
+
+<script>
+/* === Revisión: pintar inmediato (con MutationObserver) + aplicar tras hardRefresh ===
+   - #fFecha: se pinta el mes actual apenas el flatpickr existe (aunque esté el toast).
+   - #fFechaRev: sin default (quedará vacío).
+   - Al finalizar hardRefresh() se aplica el rango (onChange + applyFilters).
+*/
+(function(){
+  function monthRange(){
+    const now = new Date();
+    const y = now.getFullYear(), m = now.getMonth();
+    const start = new Date(y, m, 1, 0,0,0,0);
+    const end   = new Date(y, m+1, 0, 23,59,59,999);
+    return [start, end];
+  }
+
+  // Pinta sólo en UI sin disparar onChange
+  function paintFFechaOnly(){
+    const el = document.getElementById("fFecha");
+    const fp = el?._flatpickr;
+    if (!fp) return false;
+    try { fp.setDate(monthRange(), false); return true; } catch(e){ return false; }
+  }
+
+  // Aplica realmente el filtro
+  function applyFFecha(){
+    const el = document.getElementById("fFecha");
+    const fp = el?._flatpickr;
+    if (!fp) return false;
+    const r = monthRange();
+    try {
+      fp.setDate(r, true);     // dispara onChange
+      el._range = r;
+      if (typeof window.applyFilters === "function"){ try{ window.applyFilters(); }catch(e){} }
+      return true;
+    } catch(e){ return false; }
+  }
+
+  // Observer que pinta en cuanto #fFecha tenga flatpickr (para cubrir init dentro de hardRefresh)
+  function ensurePaintedEarly(){
+    if (paintFFechaOnly()) return; // ya existe, pintado
+    const el = document.getElementById("fFecha");
+    if (!el) return;
+    let tries = 0;
+    const maxTries = 200; // ~20s
+    const tick = setInterval(function(){
+      if (paintFFechaOnly()) { clearInterval(tick); return; }
+      if (++tries >= maxTries) clearInterval(tick);
+    }, 100);
+
+    // Además, por si #fFecha se inserta tarde, observamos el DOM
+    const obs = new MutationObserver(function(){
+      if (paintFFechaOnly()) { obs.disconnect(); }
+    });
+    obs.observe(document.documentElement, {subtree:true, childList:true, attributes:false});
+  }
+
+  // Al cargar documento: intentar pintar ASAP (antes/dependa de hardRefresh/initFilters)
+  document.addEventListener("DOMContentLoaded", ensurePaintedEarly);
+
+  // Parchear hardRefresh para aplicar al final y volver a pintar al inicio si hiciera falta
+  (function(){
+    if (!("hardRefresh" in window)) return;
+    if (window.__patchHardRefreshObserver__) return;
+    window.__patchHardRefreshObserver__ = true;
+    const _orig = window.hardRefresh;
+    window.hardRefresh = async function(){
+      // Inicio: aseguramos que se vea el rango aunque se esté reconstruyendo todo
+      ensurePaintedEarly();
+      const out = await _orig.apply(this, arguments);
+      // Fin: aplicar de verdad (dispara filtros)
+      setTimeout(applyFFecha, 0);
       return out;
     };
   })();
