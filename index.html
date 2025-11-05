@@ -637,16 +637,31 @@ function toDirectDriveUrl(url){
  *  Capa de datos (API)
  *  ========================= */
 const API = { _facturasCtl:null,
-  async getFacturas(){
+  async getFacturas(opts = {}){
     if(this._facturasCtl) try{ this._facturasCtl.abort(); } catch (e){}
     const ctl = new AbortController();
     this._facturasCtl = ctl;
-    const res = await fetch(Config.api.leerFacturas, {cache:"no-store", mode:"cors", signal: ctl.signal});
+    // Construir URL con filtros opcionales
+    let url = Config.api.leerFacturas;
+    try {
+      const u = new URL(url, location.origin);
+      u.searchParams.set("leerFacturas", "true");
+      if (opts && Array.isArray(opts.estados) && opts.estados.length){
+        u.searchParams.set("estados", opts.estados.join(","));
+      }
+      if (opts && opts.campoFecha && opts.desde && opts.hasta){
+        u.searchParams.set("campoFecha", String(opts.campoFecha));
+        u.searchParams.set("desde", String(opts.desde));
+        u.searchParams.set("hasta", String(opts.hasta));
+      }
+      url = u.toString();
+    } catch(e){ /* keep base */ }
+    const res = await fetch(url, {cache:"no-store", mode:"cors", signal: ctl.signal});
     if(!res.ok) throw new Error("No se pudo leer facturas");
     const data = await res.json();
     if(ctl.signal.aborted) throw new Error('ABORTED');
     const arr = Array.isArray(data)? data : [];
-return arr.map(normalizeRow).filter(r=>r); // no filtramos por nº factura todavía
+    return arr.map(normalizeRow).filter(r=>r); // no filtramos por nº factura todavía
   },
   proxied(url){
     const base = Config.api.proxyBase.replace(/\/$/,"");
@@ -1124,12 +1139,45 @@ function initFilters(){
         selectedDates[0].setHours(0,0,0,0);
         selectedDates[1].setHours(23,59,59,999);
         $("#fFecha")._range = selectedDates;
+
+        // 🔄 Re-cargar desde servidor con el rango seleccionado
+        (async function(){
+          try{
+            overlay && overlay.show("Cargando facturas…");
+          }catch(e){}
+          try{
+            const desde = selectedDates[0].toISOString().slice(0,10);
+            const hasta = selectedDates[1].toISOString().slice(0,10);
+            const data = await API.getFacturas({ campoFecha:"Fecha", desde, hasta });
+            State.raw = data || [];
+            // repoblar selects con lo nuevo
+            try{ sectorMS && sectorMS.setItems(Array.from(new Set(State.raw.map(r=>r.Sector).filter(Boolean))).sort()); }catch(e){}
+            try{ estadoMS && estadoMS.setItems(getEstadoOptions()); }catch(e){}
+            if(table){ try{ await table.replaceData(State.filtered); }catch(e){} }
+            updateKpis(); try{ updateKpisRevRange(); }catch(e){}
+            setLastUpdatedNow();
+          }finally{
+            try{ overlay && overlay.hide(); }catch(e){}
+            applyFilters();
+          }
+        })();
       }else{
         $("#fFecha")._range = null;
-  $("#fFechaRev").value = "";
-  $("#fFechaRev")._range = null;
+        $("#fFechaRev").value = "";
+        $("#fFechaRev")._range = null;
+        // Volver a cargar mes actual (sin rango explícito)
+        (async function(){
+          try{ overlay && overlay.show("Cargando facturas…"); }catch(e){}
+          try{
+            const data = await API.getFacturas({});
+            State.raw = data || [];
+            if(table){ try{ await table.replaceData(State.filtered); }catch(e){} }
+            updateKpis(); try{ updateKpisRevRange(); }catch(e){}
+            setLastUpdatedNow();
+          }finally{ try{ overlay && overlay.hide(); }catch(e){} }
+        })();
       }
-      applyFilters();
+      // Nota: applyFilters se llama en finally al setear rango
     }
   });
   const fpRev = flatpickr("#fFechaRev", {
@@ -2062,7 +2110,17 @@ async function bootstrap(){
 async function loadData(){
   overlay.show("Cargando facturas…");
   try{
-    const data = await API.getFacturas();
+    const iFac = document.getElementById("fFecha");
+    let opts = {};
+    if (iFac && Array.isArray(iFac._range) && iFac._range.length === 2){
+      const d0 = iFac._range[0]; const d1 = iFac._range[1];
+      const desde = new Date(d0); desde.setHours(0,0,0,0);
+      const hasta = new Date(d1); hasta.setHours(23,59,59,999);
+      opts.campoFecha = "Fecha";
+      opts.desde = desde.toISOString().slice(0,10);
+      opts.hasta = hasta.toISOString().slice(0,10);
+    }
+    const data = await API.getFacturas(opts);
     State.raw = data;
     // poblar selects dinámicamente
     const sectores = Array.from(new Set(data.map(r=>r.Sector).filter(Boolean))).sort();
@@ -2456,7 +2514,20 @@ async function cargarPago(){
     const TARGET = new Set(["Revisada","Pagada","Enviada"]);
 
     if (typeof API!=="undefined" && typeof API.getFacturas === "function") {
-      try { arr = await API.getFacturas({ estados: ["Revisada","Pagada","Enviada"] }); } catch (e){ arr = null; }
+      try {
+        const f = document.getElementById("fPagoFecha");
+        let opts = { estados: ["Revisada","Pagada","Enviada"] };
+        if (f && Array.isArray(f._range) && f._range.length === 2){
+          const d0 = f._range[0]; const d1 = f._range[1];
+          const desde = new Date(d0); desde.setHours(0,0,0,0);
+          const hasta = new Date(d1); hasta.setHours(23,59,59,999);
+          // En Pago filtramos por Fecha de Factura (no Fecha de Pago)
+          opts.campoFecha = "Fecha";
+          opts.desde = desde.toISOString().slice(0,10);
+          opts.hasta = hasta.toISOString().slice(0,10);
+        }
+        arr = await API.getFacturas(opts);
+      } catch (e){ arr = null; }
     }
     let data = Array.isArray(arr) ? arr : [];
 
@@ -2500,10 +2571,57 @@ document.addEventListener("DOMContentLoaded", function(){
           selectedDates[0].setHours(0,0,0,0);
           selectedDates[1].setHours(23,59,59,999);
           document.getElementById("fPagoFecha")._range = selectedDates;
+
+          // 🔄 Re-cargar desde servidor con el rango seleccionado (fecha de factura)
+          (async function(){
+            try{ overlay && overlay.show("Cargando facturas…"); }catch(e){}
+            try{
+              const desde = selectedDates[0].toISOString().slice(0,10);
+              const hasta = selectedDates[1].toISOString().slice(0,10);
+              const TARGET = ["Revisada","Pagada","Enviada"];
+              const data = await API.getFacturas({ campoFecha:"Fecha", desde, hasta, estados: TARGET });
+              Pago.raw = Array.isArray(data) ? data.filter(r => TARGET.includes(String(r.Estado||""))) : [];
+              // repoblar selects
+              try{
+                const sectores = Array.from(new Set((Pago.raw||[]).map(r=>r.Sector).filter(Boolean))).sort((a,b)=>a.localeCompare(b));
+                pagoSectorMS && pagoSectorMS.setItems && pagoSectorMS.setItems(sectores);
+                const estados = Array.from(new Set((Pago.raw||[]).map(r=>r.Estado).filter(Boolean)));
+                pagoEstadoMS && pagoEstadoMS.setItems && pagoEstadoMS.setItems(estados);
+              }catch(e){}
+              await waitForTabulatorAndContainer && waitForTabulatorAndContainer();
+              buildPagoTable && buildPagoTable();
+              const list = Pago.filtered;
+              if(pagoTableReady){ await pagoTable.replaceData(list); } else { pagoPendingData = list; }
+              updatePagoKpis && updatePagoKpis();
+              setLastUpdatedPago && setLastUpdatedPago();
+            }finally{
+              try{ overlay && overlay.hide(); }catch(e){}
+              applyPagoFilters();
+            }
+          })();
         }else{
           document.getElementById("fPagoFecha")._range = null;
+          // Volver a cargar mes actual sin rango explícito
+          (async function(){
+            try{ overlay && overlay.show("Cargando facturas…"); }catch(e){}
+            try{
+              const TARGET = ["Revisada","Pagada","Enviada"];
+              let data = await API.getFacturas({ estados: TARGET });
+              if (!Array.isArray(data) || !data.every(r => TARGET.includes(String(r.Estado||"")))){
+                const all = await API.getFacturas({});
+                data = (all||[]).filter(r => TARGET.includes(String(r.Estado||"")));
+              }
+              Pago.raw = data;
+              await waitForTabulatorAndContainer && waitForTabulatorAndContainer();
+              buildPagoTable && buildPagoTable();
+              const list = Pago.filtered;
+              if(pagoTableReady){ await pagoTable.replaceData(list); } else { pagoPendingData = list; }
+              updatePagoKpis && updatePagoKpis();
+              setLastUpdatedPago && setLastUpdatedPago();
+            }finally{ try{ overlay && overlay.hide(); }catch(e){} }
+          })();
         }
-        applyPagoFilters();
+        // applyPagoFilters se llama tras recarga
       }
     });
   }
@@ -3701,68 +3819,46 @@ async function marcarSeleccionComoEnviadas(){
     }
   })();
 
-  // 2) Make server fetches always mirror the current date filters (both sections)
+  // 2) Make first server fetch already filtered by adding params at fetch-time
   (function(){
     if (window.__patchedFetchForLeer__) return;
     window.__patchedFetchForLeer__ = true;
     const _fetch = window.fetch;
-
-    function fmt(d){
-      try{
-        const x = new Date(d);
-        if (!isNaN(x)) return x.toISOString().slice(0,10);
-      }catch(_){}
-      return "";
-    }
-    function twoDates(el){
-      try{
-        const fp = el && el._flatpickr;
-        if (fp && Array.isArray(fp.selectedDates) && fp.selectedDates.length === 2){
-          return fp.selectedDates;
-        }
-      }catch(_){}
-      return null;
-    }
-    function monthRangeNow(){
-      const now = new Date();
-      const start = new Date(now.getFullYear(), now.getMonth(), 1, 0,0,0,0);
-      const end   = new Date(now.getFullYear(), now.getMonth()+1, 0, 23,59,59,999);
-      return [start, end];
-    }
-
     window.fetch = function(input, init){
       try{
         let url = (typeof input === "string") ? input : (input && input.url) || "";
         if (url && url.indexOf("/api/leer") !== -1) {
           const u = new URL(url, location.origin);
-          // Leer facturas cuando no se usa 'otrosCargos' o cuando explícitamente leerFacturas=true
-          const isLeer = (u.searchParams.get("leerFacturas") === "true") || !u.searchParams.has("otrosCargos");
-          if (isLeer){
+          const isLeer = u.searchParams.get("leerFacturas") === "true";
+// Avoid overwriting if already present
+          if (isLeer && !u.searchParams.get("desde") && !u.searchParams.get("hasta")){
             const iPago = document.getElementById("fPagoFecha");
             const iFac  = document.getElementById("fFecha");
             const iRev  = document.getElementById("fFechaRev");
             const rPago = twoDates(iPago);
             const rFac  = twoDates(iFac);
             const rRev  = twoDates(iRev);
-
-            let campo = null, r = null;
-            if (rPago){ campo = "Fecha de Pago"; r = rPago; }
-            else if (rFac){ campo = "Fecha"; r = rFac; }
-            else if (rRev){ campo = "Fecha de Revision"; r = rRev; }
-            else { campo = "Fecha"; r = monthRangeNow(); }
-
-            u.searchParams.set("leerFacturas", "true");
-            u.searchParams.set("campoFecha", campo);
-            u.searchParams.set("desde", fmt(r[0]));
-            u.searchParams.set("hasta", fmt(r[1]));
+            if (rPago){
+              u.searchParams.set("campoFecha", "Fecha de Pago");
+              u.searchParams.set("desde", fmt(rPago[0]));
+              u.searchParams.set("hasta", fmt(rPago[1]));
+            } else if (rFac){
+              u.searchParams.set("campoFecha", "Fecha");
+              u.searchParams.set("desde", fmt(rFac[0]));
+              u.searchParams.set("hasta", fmt(rFac[1]));
+            } else if (rRev){
+              u.searchParams.set("campoFecha", "Fecha de Revision");
+              u.searchParams.set("desde", fmt(rRev[0]));
+              u.searchParams.set("hasta", fmt(rRev[1]));
+            }
           }
           // Replace input with modified URL
-          input = (typeof input === "string") ? u.toString() : new Request(u.toString(), init);
+          input = (typeof input === "string") ? u.toString() : new Request(u.toString(), input);
         }
-      }catch(_){}
-      return _fetch.apply(this, arguments);
-    };
-  })();;
+      }catch(e){ /* ignore */ }
+      return _fetch.call(this, input, init);
+};
+  })();
 
   // 3) Revisión: paint early and apply after hardRefresh; repaint after clearFilters
   document.addEventListener("DOMContentLoaded", function(){
