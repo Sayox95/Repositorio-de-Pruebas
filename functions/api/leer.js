@@ -2,26 +2,34 @@ export async function onRequestGet({ request }) {
   const origin = request.headers.get("Origin") || "*";
   const incoming = new URL(request.url);
 
-  const otrosCargos = incoming.searchParams.get("otrosCargos"); // "total" | "byId" (opcional)
-  const estados     = incoming.searchParams.get("estados");     // opcional
-  const ids         = incoming.searchParams.getAll("ids");      // múltiples ids para byId
+  // Parámetros posibles
+  const otrosCargos = incoming.searchParams.get("otrosCargos"); // "total" | "byId"
+  const estados     = incoming.searchParams.get("estados");     // CSV opcional
+  const ids         = incoming.searchParams.getAll("ids");      // múltiples ids (array)
+  const from        = incoming.searchParams.get("from");        // rango inicio (YYYY-MM-DD)
+  const to          = incoming.searchParams.get("to");          // rango fin (YYYY-MM-DD)
 
-  const url = new URL("https://script.google.com/macros/s/AKfycbwKh7IWlcd-AUilhzffLFGCFpdPZkqHqzcEKL_KDds_7Vfvdk_OC0lAhoyQJxcoU4j_/exec"); 
+  // URL destino: tu Apps Script publicado como Web App
+  const url = new URL(
+    "https://script.google.com/macros/s/AKfycbw4aXBvpkTklIkz882Oge9EUjsZiB-_cBuz4XMaLbBctLRo69EAgh0LvGDgdZtpz3YPDg/exec"
+  );
 
   if (otrosCargos) {
-    // Modo "Otros Cargos"
+    // === Modo "Otros Cargos" ===
     url.searchParams.set("otrosCargos", otrosCargos);
 
-    // Si se pidieron totales por ID_PAGO, reenvía todos los ids recibidos
     if (ids && ids.length) {
       ids.forEach(id => {
         if (id) url.searchParams.append("ids", id);
       });
     }
   } else {
-    // Modo facturas (existente)
+    // === Modo Facturas (por defecto) ===
     url.searchParams.set("leerFacturas", "true");
+
     if (estados) url.searchParams.set("estados", estados);
+    if (from) url.searchParams.set("from", from);
+    if (to)   url.searchParams.set("to", to);
   }
 
   try {
@@ -39,14 +47,34 @@ export async function onRequestGet({ request }) {
       }
     });
   } catch (e) {
-    return new Response(JSON.stringify({ status: "ERROR", message: e.message }), {
-      status: 502,
-      headers: {
-        "Access-Control-Allow-Origin": origin,
-        "Access-Control-Allow-Methods": "GET, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type",
-        "Content-Type": "application/json"
+    console.error("⚠️ Error conectando a Apps Script:", e);
+    return new Response(
+      JSON.stringify({ status: "ERROR", message: e.message }),
+      {
+        status: 502,
+        headers: {
+          "Access-Control-Allow-Origin": origin,
+          "Access-Control-Allow-Methods": "GET, OPTIONS",
+          "Access-Control-Allow-Headers": "Content-Type",
+          "Content-Type": "application/json"
+        }
       }
-    });
+    );
   }
+}
+
+/**
+ * Preflight OPTIONS para CORS
+ */
+export async function onRequestOptions({ request }) {
+  const origin = request.headers.get("Origin") || "*";
+  return new Response(null, {
+    status: 204,
+    headers: {
+      "Access-Control-Allow-Origin": origin,
+      "Access-Control-Allow-Methods": "GET, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type",
+      "Cache-Control": "no-store"
+    }
+  });
 }
