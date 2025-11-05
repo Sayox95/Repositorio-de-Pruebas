@@ -520,90 +520,7 @@
 </div>
 </div>
 </div>
-
-</div>
-
-
-
-
-<!-- Modal: Generar Liquidación -->
-<div class="modal hidden" id="modalGenerarLiqui">
-<div class="modal-content">
-<h3 class="modal-title">Generar Liquidación</h3>
-<div class="modal-body">
-<div class="grid">
-<label>No. ACREEDOR
-          <input id="liqNoAcreedor" placeholder="Ingresa No. Acreedor" type="text"/>
-</label>
-<label>Fecha de solicitud
-          <input id="liqFechaSolicitud" type="date"/>
-</label>
-<label>Área / Departamento
-          <input id="liqArea" placeholder="Área o Departamento" type="text"/>
-</label>
-<label>Sector
-          <input id="liqSector" placeholder="Sector" type="text"/>
-</label>
-<label>Nombre completo del colaborador
-          <input id="liqColaborador" placeholder="Nombre del colaborador" type="text"/>
-</label>
-<label>Motivo de liquidación por anticipo
-          <input id="liqMotivo" placeholder="Motivo" type="text"/>
-</label>
-</div>
-<p class="muted">Se incluirán facturas <b>Pagadas</b> y sus Otros Cargos vinculados por ID_PAGO.</p>
-</div>
-<div class="modal-actions">
-<button class="btn" id="btnLiquiCancelar">Cancelar</button>
-<button class="btn btn-primary" id="btnLiquiGenerar">Generar</button>
-</div>
-</div>
-</div>
-<style>
-  .modal{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.25);z-index:1000}
-  .modal.hidden{display:none}
-  .modal-content{background:#fff;border-radius:16px;min-width:min(720px,96vw);max-width:96vw;padding:20px;box-shadow:0 10px 40px rgba(0,0,0,.2)}
-  .modal-title{font-size:1.1rem;margin-bottom:10px}
-  .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:8px 0 12px}
-  .grid label{display:flex;flex-direction:column;font-size:.9rem;gap:6px}
-  .grid input{padding:8px 10px;border:1px solid #e5e7eb;border-radius:10px}
-  .modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:6px}
-</style>
-<!-- Busy Overlay: Generando liquidación -->
-<div class="busy-overlay hidden" id="busyOverlay">
-<div class="busy-box">
-<div class="busy-spinner"></div>
-<div class="busy-text" id="busyText">Generando liquidación…</div>
-</div>
-</div>
-<style>
-  .busy-overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(17,24,39,.45);backdrop-filter:saturate(140%) blur(2px);z-index:2000}
-  .busy-overlay.hidden{display:none}
-  .busy-box{background:#fff;padding:20px 24px;border-radius:16px;box-shadow:0 15px 40px rgba(0,0,0,.25);min-width:260px;display:flex;flex-direction:column;align-items:center;gap:12px}
-  .busy-text{font-size:15px;font-weight:600;color:#111827;text-align:center}
-  .busy-spinner{width:36px;height:36px;border-radius:50%;border:3px solid #e5e7eb;border-top-color:#10b981;animation:busyspin 0.9s linear infinite}
-  @keyframes busyspin{to{transform:rotate(360deg)}}
-</style>
-<!-- === END PATCH === -->
-
-<!-- === PATCH v2: Improved robust hooks for Pago action buttons === -->
-
-<!-- === END PATCH v2 === -->
-<!-- === PATCH: Revisión - agrupar fix + botón "Marcar como Revisadas" === -->
-
-<!-- === END PATCH === -->
-
-<!-- Group checkbox handler for Pago -->
-
-
-
-
 <script>
-
-
-
-
-
 /** =========================
  *  Configuración
  *  ========================= */
@@ -2168,8 +2085,9 @@ async function loadData(){
 }
 
 window.addEventListener("DOMContentLoaded", bootstrap);
-
-
+</script>
+</div>
+<script>
 // ===== Auth (Cloudflare Pages Functions) =====
 const Auth = { login: "/api/auth/login", me: "/api/auth/me", logout: "/api/auth/logout" };
 
@@ -2285,8 +2203,8 @@ async function doLogout(){ await authLogout(); showLogin(); }
   });
 })();
 
-
-
+</script>
+<script>
 // ============ Util Pago ============
 function setLastUpdatedPago(){
   const el=document.getElementById("lastUpdatedPago"); if(!el) return;
@@ -2534,18 +2452,21 @@ async function cargarPago(){
 
   if(typeof overlay!=="undefined") overlay.show("Cargando facturas…");
   try {
-
-    let data = [];
+    let arr = null;
     const TARGET = new Set(["Revisada","Pagada","Enviada"]);
+
     if (typeof API!=="undefined" && typeof API.getFacturas === "function") {
-      try { 
-        const arr = await API.getFacturas({ estados: ["Revisada","Pagada","Enviada"] }); 
-        data = Array.isArray(arr) ? arr : [];
-      } catch (e){ data = []; }
+      try { arr = await API.getFacturas({ estados: ["Revisada","Pagada","Enviada"] }); } catch (e){ arr = null; }
     }
+    let data = Array.isArray(arr) ? arr : [];
+
+    const serverFiltered = data.length>0 && data.every(r => TARGET.has(String((r && r.Estado) || "")));
+    if (!serverFiltered) {
+      const all = await (typeof API!=="undefined" ? API.getFacturas() : Promise.resolve([]));
+      data = (all || []).filter(r => TARGET.has(String((r && r.Estado) || "")));
+    }
+
     Pago.raw = data;
-
-
 
     const sectores = Array.from(new Set((Pago.raw||[]).map(r=>r.Sector).filter(Boolean))).sort((a,b)=>a.localeCompare(b));
     if(pagoSectorMS && pagoSectorMS.setItems){ pagoSectorMS.setItems(sectores); }
@@ -2690,8 +2611,8 @@ document.addEventListener("DOMContentLoaded", function(){
     }
   });
 })();
-
-
+</script>
+<script>
 // Simple toast (bottom-center) that fades out
 (function(){
   window.toast = function(msg, timeoutMs){
@@ -3177,8 +3098,8 @@ async function fetchOtrosCargos(ids){
     window.initPagoMassPay.__wrapped = true;
   }
 })();
-
-
+</script>
+<script>
 // === Marcar como Enviadas (Pago): sólo handler + click binding ===
 (function(){
 async function marcarSeleccionComoEnviadas(){
@@ -3252,8 +3173,67 @@ async function marcarSeleccionComoEnviadas(){
     }
   });
 })();
-
-
+</script>
+<!-- Modal: Generar Liquidación -->
+<div class="modal hidden" id="modalGenerarLiqui">
+<div class="modal-content">
+<h3 class="modal-title">Generar Liquidación</h3>
+<div class="modal-body">
+<div class="grid">
+<label>No. ACREEDOR
+          <input id="liqNoAcreedor" placeholder="Ingresa No. Acreedor" type="text"/>
+</label>
+<label>Fecha de solicitud
+          <input id="liqFechaSolicitud" type="date"/>
+</label>
+<label>Área / Departamento
+          <input id="liqArea" placeholder="Área o Departamento" type="text"/>
+</label>
+<label>Sector
+          <input id="liqSector" placeholder="Sector" type="text"/>
+</label>
+<label>Nombre completo del colaborador
+          <input id="liqColaborador" placeholder="Nombre del colaborador" type="text"/>
+</label>
+<label>Motivo de liquidación por anticipo
+          <input id="liqMotivo" placeholder="Motivo" type="text"/>
+</label>
+</div>
+<p class="muted">Se incluirán facturas <b>Pagadas</b> y sus Otros Cargos vinculados por ID_PAGO.</p>
+</div>
+<div class="modal-actions">
+<button class="btn" id="btnLiquiCancelar">Cancelar</button>
+<button class="btn btn-primary" id="btnLiquiGenerar">Generar</button>
+</div>
+</div>
+</div>
+<style>
+  .modal{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.25);z-index:1000}
+  .modal.hidden{display:none}
+  .modal-content{background:#fff;border-radius:16px;min-width:min(720px,96vw);max-width:96vw;padding:20px;box-shadow:0 10px 40px rgba(0,0,0,.2)}
+  .modal-title{font-size:1.1rem;margin-bottom:10px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:8px 0 12px}
+  .grid label{display:flex;flex-direction:column;font-size:.9rem;gap:6px}
+  .grid input{padding:8px 10px;border:1px solid #e5e7eb;border-radius:10px}
+  .modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:6px}
+</style>
+<!-- Busy Overlay: Generando liquidación -->
+<div class="busy-overlay hidden" id="busyOverlay">
+<div class="busy-box">
+<div class="busy-spinner"></div>
+<div class="busy-text" id="busyText">Generando liquidación…</div>
+</div>
+</div>
+<style>
+  .busy-overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(17,24,39,.45);backdrop-filter:saturate(140%) blur(2px);z-index:2000}
+  .busy-overlay.hidden{display:none}
+  .busy-box{background:#fff;padding:20px 24px;border-radius:16px;box-shadow:0 15px 40px rgba(0,0,0,.25);min-width:260px;display:flex;flex-direction:column;align-items:center;gap:12px}
+  .busy-text{font-size:15px;font-weight:600;color:#111827;text-align:center}
+  .busy-spinner{width:36px;height:36px;border-radius:50%;border:3px solid #e5e7eb;border-top-color:#10b981;animation:busyspin 0.9s linear infinite}
+  @keyframes busyspin{to{transform:rotate(360deg)}}
+</style>
+<!-- === END PATCH === -->
+<script>
 // === Generar Liquidación (Pago) — RESTAURADO: overlay + popup "Generando…" + redirect XLSX ===
 (function(){
   function pagoTableSafe(){
@@ -3345,8 +3325,9 @@ async function marcarSeleccionComoEnviadas(){
     }
   });
 })();
-
-
+</script>
+<!-- === PATCH v2: Improved robust hooks for Pago action buttons === -->
+<script>
 (function(){
   const $ = (sel)=>document.querySelector(sel);
 
@@ -3444,8 +3425,10 @@ async function marcarSeleccionComoEnviadas(){
     if (sec && sec.contains(e.target)) setTimeout(reevaluatePagoActionButtons, 150);
   });
 })();
-
-
+</script>
+<!-- === END PATCH v2 === -->
+<!-- === PATCH: Revisión - agrupar fix + botón "Marcar como Revisadas" === -->
+<script>
 (function(){
   // Fallback global para evitar error en toggleGrouping()
   if (!window.hideGroupToast){
@@ -3561,8 +3544,9 @@ async function marcarSeleccionComoEnviadas(){
     }, 300);
   });
 })();
-
-
+</script>
+<!-- === END PATCH === -->
+<script>
 // === Group parent checkbox handlers (Revision & Pago) ===
 (function(){
   function getTable(id){
@@ -3604,8 +3588,9 @@ async function marcarSeleccionComoEnviadas(){
     toggleGroup(ev, ".group-select-pago", "#tablaPago", ["reevaluatePagoButtons","updateButtonsPago","updateButtons"]);
   });
 })();
-
-
+</script>
+<!-- Group checkbox handler for Pago -->
+<script>
 (function(){
   document.addEventListener("change", function(ev){
     var t = ev.target;
@@ -3634,98 +3619,163 @@ async function marcarSeleccionComoEnviadas(){
     }catch(e){ /* silent */ }
   });
 })();
+</script>
 
-
+<script>
+// === Unified UX + Server-params patch (no duplicate 'r' vars) ===
 (function(){
+  // Helpers
   function monthRange(){
     const now = new Date();
     const y = now.getFullYear(), m = now.getMonth();
-    const start = new Date(y, m, 1, 0,0,0,0);
-    const end   = new Date(y, m+1, 0, 23,59,59,999);
-    return [start, end];
+    return [new Date(y,m,1,0,0,0,0), new Date(y,m+1,0,23,59,59,999)];
   }
-  function paintFFechaOnly(){
-    const input = document.getElementById("fFecha");
-    const fp = input?._flatpickr;
-    if (!fp) return false;
-    const r = monthRange();
-    try { fp.setDate(r, false); return true; } catch(e){ return false; }
-  }
-  function applyFFecha(){
-    const input = document.getElementById("fFecha");
-    const fp = input?._flatpickr;
-    if (!fp) return false;
-    const r = monthRange();
+  function fmt(d){ return (d && !isNaN(d.getTime())) ? d.toISOString().slice(0,10) : ""; }
+  function hasHalfRange(el){
     try {
-      fp.setDate(r, true);
-      input._range = r;
-      if (typeof window.applyFilters === "function"){ try{ window.applyFilters(); }catch(e){} }
-      return true;
+      const fp = el && el._flatpickr;
+      return !!(fp && Array.isArray(fp.selectedDates) && fp.selectedDates.length===1);
     } catch(e){ return false; }
   }
+  function twoDates(el){
+    try {
+      // Prefer explicit _range; fallback to selectedDates
+      if (Array.isArray(el?._range) && el._range.length===2) return el._range;
+      const fp = el && el._flatpickr;
+      if (fp && Array.isArray(fp.selectedDates) && fp.selectedDates.length===2) return fp.selectedDates;
+    } catch(e){}
+    return null;
+  }
+
+  // Paint-only functions (no filter trigger) + set _range
+  function paintFFechaOnly(){
+    const el = document.getElementById("fFecha");
+    const fp = el?._flatpickr;
+    if (!fp) return false;
+    const r0 = monthRange();
+    try { fp.setDate(r0, false); } catch(e){ return false; }
+    try { if (el) el._range = r0; } catch(e){}
+    return true;
+  }
+  function paintPagoOnly(){
+    const el = document.getElementById("fPagoFecha");
+    const fp = el?._flatpickr;
+    if (!fp) return false;
+    const r0 = monthRange();
+    try { fp.setDate(r0, false); } catch(e){ return false; }
+    try { if (el) el._range = r0; } catch(e){}
+    return true;
+  }
+  function applyFFecha(){
+    const el = document.getElementById("fFecha");
+    const fp = el?._flatpickr;
+    if (!fp) return false;
+    const r = monthRange();
+    try { fp.setDate(r, true); el._range = r; } catch(e){ return false; }
+    if (typeof window.applyFilters === "function"){ try{ window.applyFilters(); }catch(e){} }
+    return true;
+  }
+
+  // 1) Prevent defilter when only first date selected (both sections)
+  (function(){
+    const elF = document.getElementById("fFecha");
+    const elR = document.getElementById("fFechaRev");
+    const elP = document.getElementById("fPagoFecha");
+
+    if (typeof window.applyFilters === "function" && !window.__gateApplyFiltersOnce__){
+      window.__gateApplyFiltersOnce__ = true;
+      const _orig = window.applyFilters;
+      window.applyFilters = function(){
+        // gate only if a half-range is present
+        if (hasHalfRange(elF) || hasHalfRange(elR)) { return; }
+        return _orig.apply(this, arguments);
+      };
+    }
+    if (typeof window.applyPagoFilters === "function" && !window.__gateApplyPagoFiltersOnce__){
+      window.__gateApplyPagoFiltersOnce__ = true;
+      const _orig = window.applyPagoFilters;
+      window.applyPagoFilters = function(){
+        if (hasHalfRange(elP)) { return; }
+        return _orig.apply(this, arguments);
+      };
+    }
+  })();
+
+  // 2) Make first server fetch already filtered by adding params at fetch-time
+  (function(){
+    if (window.__patchedFetchForLeer__) return;
+    window.__patchedFetchForLeer__ = true;
+    const _fetch = window.fetch;
+    window.fetch = function(input, init){
+      try{
+        let url = (typeof input === "string") ? input : (input && input.url) || "";
+        if (url && url.indexOf("/api/leer") !== -1){
+          const u = new URL(url, location.origin);
+          // Avoid overwriting if already present
+          if (!u.searchParams.get("desde") && !u.searchParams.get("hasta")){
+            const iPago = document.getElementById("fPagoFecha");
+            const iFac  = document.getElementById("fFecha");
+            const iRev  = document.getElementById("fFechaRev");
+            const rPago = twoDates(iPago);
+            const rFac  = twoDates(iFac);
+            const rRev  = twoDates(iRev);
+            if (rPago){
+              u.searchParams.set("campoFecha", "Fecha de Pago");
+              u.searchParams.set("desde", fmt(rPago[0]));
+              u.searchParams.set("hasta", fmt(rPago[1]));
+            } else if (rFac){
+              u.searchParams.set("campoFecha", "Fecha");
+              u.searchParams.set("desde", fmt(rFac[0]));
+              u.searchParams.set("hasta", fmt(rFac[1]));
+            } else if (rRev){
+              u.searchParams.set("campoFecha", "Fecha de Revision");
+              u.searchParams.set("desde", fmt(rRev[0]));
+              u.searchParams.set("hasta", fmt(rRev[1]));
+            }
+          }
+          // Replace input with modified URL
+          input = (typeof input === "string") ? u.toString() : new Request(u.toString(), input);
+        }
+      }catch(e){ /* ignore */ }
+      return _fetch.apply(this, arguments);
+    };
+  })();
+
+  // 3) Revisión: paint early and apply after hardRefresh; repaint after clearFilters
   document.addEventListener("DOMContentLoaded", function(){
+    // early paint attempts
     let tries = 0, max = 60;
     const id = setInterval(function(){
       if (paintFFechaOnly()) { clearInterval(id); }
       else if (++tries >= max) { clearInterval(id); }
     }, 100);
   });
+
   (function(){
-    if (!("hardRefresh" in window)) return;
-    if (window.__patchHardRefreshPaintThenApply__) return;
-    window.__patchHardRefreshPaintThenApply__ = true;
-    const _orig = window.hardRefresh;
-    window.hardRefresh = async function(){
-      paintFFechaOnly();
-      const out = await _orig.apply(this, arguments);
-      setTimeout(applyFFecha, 0);
-      return out;
-    };
+    if ("clearFilters" in window && !window.__patchClearFiltersOnce__){
+      window.__patchClearFiltersOnce__ = true;
+      const _orig = window.clearFilters;
+      window.clearFilters = function(){
+        const out = _orig && _orig.apply(this, arguments);
+        setTimeout(paintFFechaOnly, 0);
+        return out;
+      };
+    }
+    if ("hardRefresh" in window && !window.__patchHardRefreshOnce__){
+      window.__patchHardRefreshOnce__ = true;
+      const _orig = window.hardRefresh;
+      window.hardRefresh = async function(){
+        // paint visible range at start so the user sees it during toast
+        paintFFechaOnly();
+        const out = await (_orig && _orig.apply(this, arguments));
+        // apply for real at the end
+        setTimeout(applyFFecha, 0);
+        return out;
+      };
+    }
   })();
-})();
 
-
-/* === Pago: pintar primero y aplicar después ===
-   Objetivo: que el UX de Pago sea idéntico al de Revisión.
-   - Pinta el mes actual en #fPagoFecha apenas se entra (para que el usuario lo vea aunque el toast siga).
-   - Aplica el mismo rango (dispara onChange y applyPagoFilters) sólo cuando termina cargarPago().
-*/
-(function(){
-  function monthRange(){
-    const now = new Date();
-    const y = now.getFullYear(), m = now.getMonth();
-    const start = new Date(y, m, 1, 0,0,0,0);
-    const end   = new Date(y, m+1, 0, 23,59,59,999);
-    return [start, end];
-  }
-
-  function paintPagoOnly(){
-    const input = document.getElementById("fPagoFecha");
-    const fp = input?._flatpickr;
-    if (!fp) return false;
-    const r = monthRange();
-    try {
-      fp.setDate(r, false); // pinta sin disparar onChange
-      return true;
-    } catch(e){ return false; }
-  }
-
-  function applyPago(){
-    const input = document.getElementById("fPagoFecha");
-    const fp = input?._flatpickr;
-    if (!fp) return false;
-    const r = monthRange();
-    try {
-      fp.setDate(r, true);  // dispara onChange => actualiza ._range y filtros
-      input._range = r;     // refuerzo por compatibilidad
-      if (typeof window.applyPagoFilters === "function"){
-        try { window.applyPagoFilters(); } catch(e){}
-      }
-      return true;
-    } catch(e){ return false; }
-  }
-
-  // Pintar inmediatamente cuando la página carga (si ya existe el flatpickr)
+  // 4) Pago: paint at entry; apply after cargarPago finishes
   document.addEventListener("DOMContentLoaded", function(){
     let tries = 0, max = 60;
     const id = setInterval(function(){
@@ -3733,93 +3783,26 @@ async function marcarSeleccionComoEnviadas(){
       else if (++tries >= max) { clearInterval(id); }
     }, 100);
   });
-
-  // Monkey-patch de cargarPago para aplicar luego de la carga
   (function(){
-    if (!("cargarPago" in window)) return;              // solo si existe
-    if (window.__patchPagoPaintThenApply__) return;     // evitar dobles parches
-    window.__patchPagoPaintThenApply__ = true;
-    const _orig = window.cargarPago;
-    window.cargarPago = async function(){
-      // Pintamos antes (inmediato, mientras se muestra el toast)
-      paintPagoOnly();
-      const out = await _orig.apply(this, arguments);
-      // Aplicamos apenas termina la carga
-      setTimeout(applyPago, 0);
-      return out;
-    };
+    if ("cargarPago" in window && !window.__patchCargarPagoOnce__){
+      window.__patchCargarPagoOnce__ = true;
+      const _orig = window.cargarPago;
+      window.cargarPago = async function(){
+        paintPagoOnly();
+        const out = await (_orig && _orig.apply(this, arguments));
+        setTimeout(function(){
+          // apply with onChange to refresh table
+          const el = document.getElementById("fPagoFecha");
+          const fp = el?._flatpickr;
+          const r = twoDates(el) || monthRange();
+          try { if (fp) { fp.setDate(r, true); el._range = r; } } catch(e){}
+          if (typeof window.applyPagoFilters === "function"){ try{ window.applyPagoFilters(); }catch(e){} }
+        }, 0);
+        return out;
+      };
+    }
   })();
 })();
-
-
-/* === Revisión: mostrar rango del mes incluso durante clearFilters() ===
-   - Parchea clearFilters(): tras limpiar, repinta #fFecha con el mes actual (sin disparar filtros).
-   - Parchea hardRefresh(): al finalizar, aplica el rango (onChange + applyFilters).
-   - #fFechaRev permanece sin default.
-*/
-(function(){
-  function monthRange(){
-    const now = new Date();
-    const y = now.getFullYear(), m = now.getMonth();
-    const start = new Date(y, m, 1, 0,0,0,0);
-    const end   = new Date(y, m+1, 0, 23,59,59,999);
-    return [start, end];
-  }
-  function paintFFechaOnly(){
-    const el = document.getElementById("fFecha");
-    const fp = el?._flatpickr;
-    if (!fp) return false;
-    try { fp.setDate(monthRange(), false); return true; } catch(e){ return false; }
-  }
-  function applyFFecha(){
-    const el = document.getElementById("fFecha");
-    const fp = el?._flatpickr;
-    if (!fp) return false;
-    const r = monthRange();
-    try {
-      fp.setDate(r, true);
-      el._range = r;
-      if (typeof window.applyFilters === "function"){ try{ window.applyFilters(); }catch(e){} }
-      return true;
-    } catch(e){ return false; }
-  }
-
-  // Patch clearFilters: limpiar y repintar inmediatamente (para que se vea durante el toast)
-  (function(){
-    if (!("clearFilters" in window)) return;
-    if (window.__patchClearFiltersPaint__) return;
-    window.__patchClearFiltersPaint__ = true;
-    const _orig = window.clearFilters;
-    window.clearFilters = function(){
-      const out = _orig.apply(this, arguments);
-      // Si ya existe el flatpickr, pintar sin disparar onChange (no queremos filtrar todavía)
-      setTimeout(paintFFechaOnly, 0);
-      return out;
-    };
-  })();
-
-  // Patch hardRefresh: aplicar realmente al terminar
-  (function(){
-    if (!("hardRefresh" in window)) return;
-    if (window.__patchHardRefreshApply__) return;
-    window.__patchHardRefreshApply__ = true;
-    const _orig = window.hardRefresh;
-    window.hardRefresh = async function(){
-      const out = await _orig.apply(this, arguments);
-      setTimeout(applyFFecha, 0);
-      return out;
-    };
-  })();
-
-  // Primer pintado por si aterrizas directo en Revisión
-  document.addEventListener("DOMContentLoaded", function(){
-    let tries = 0, max = 60;
-    const id = setInterval(function(){
-      if (paintFFechaOnly()) { clearInterval(id); }
-      else if (++tries >= max) { clearInterval(id); }
-    }, 100);
-  });
-})();
-
-</script></body>
+</script>
+</body>
 </html>
