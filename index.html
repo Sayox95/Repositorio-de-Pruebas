@@ -2661,6 +2661,41 @@ async function cargarPago(){
 
 // ========= Wire-up =========
 document.addEventListener("DOMContentLoaded", function(){
+  // Ensure flatpickr exists, set default to current month, and trigger first load once
+  try {
+    initFilters && initFilters();
+  } catch(e){}
+
+  (function initRevisionDefaultRangeOnce(){
+    const el = document.querySelector("#fFecha");
+    if (!el) return;
+    const { startStr, endStr, start, end } = currentMonthRange();
+    try {
+      if (el._flatpickr) {
+        // set without change event to avoid double load; we'll call loader manually
+        el._flatpickr.setDate([startStr, endStr], false);
+      }
+      el._range = [start, end];
+    } catch(_) {}
+    if (!window._revFirstLoadDone) {
+      window._revFirstLoadDone = true;
+      try { loadFacturasFromServerByCurrentRange(); } catch(e){ console.warn(e); }
+    }
+  })();
+
+  (function presetPagoDefaultRange(){
+    const el = document.querySelector("#fPagoFecha");
+    if (!el) return;
+    const { startStr, endStr, start, end } = currentMonthRange();
+    try {
+      if (el._flatpickr) {
+        el._flatpickr.setDate([startStr, endStr], false);
+      }
+      el._range = [start, end];
+    } catch(_) {}
+    // Nota: NO llamamos loadPagoFromServerByCurrentRange() aquí (se llama al abrir la pestaña o al cambiar rango)
+  })();
+
   try{ pagoSectorMS = createMultiSelect("#msPagoSector", "Sector", applyPagoFilters); } catch (e){}
   try{ pagoEstadoMS = createMultiSelect("#msPagoEstado", "Estado", applyPagoFilters); } catch (e){}
 
