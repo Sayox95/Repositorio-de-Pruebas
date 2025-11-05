@@ -544,6 +544,16 @@ const Config = {
  *  ========================= */
 const $ = (sel)=>document.querySelector(sel);
 
+// === Diagnostics: request tracing ===
+window.__factReqSeq = 0;
+window.__factReqActive = new Set();
+function __logReq(event, info){
+  try{
+    const ts = new Date().toISOString();
+    console.log(`[Facturas][${ts}] ${event}`, info||"");
+  }catch(_){}
+}
+
 const overlay = {
   done: 0, total: 0,
   show(msg="Cargando…"){
@@ -638,7 +648,10 @@ function toDirectDriveUrl(url){
  *  ========================= */
 const API = { _facturasCtl:null,
   async getFacturas(){
-    if(this._facturasCtl) try{ this._facturasCtl.abort(); } catch (e){}
+    const __seq = (++window.__factReqSeq);
+    __logReq('getFacturas:start', {seq:__seq, args: arguments[0]||{}});
+
+    if(this._facturasCtl) { try{ this._facturasCtl.abort(); __logReq('getFacturas:abort-prev', {seq:__seq}); } catch (e){} }
     const ctl = new AbortController();
     this._facturasCtl = ctl;
 
@@ -655,12 +668,24 @@ const API = { _facturasCtl:null,
       url.searchParams.set("estados", opts.estados.join(","));
     }
 
-    const res = await fetch(url.toString(), {cache:"no-store", mode:"cors", signal: ctl.signal});
-    if(!res.ok) throw new Error("No se pudo leer facturas");
+    let res;
+try {
+  res = await fetch(url.toString(), {cache:"no-store", mode:"cors", signal: ctl.signal});
+} catch (e) {
+  if (e && (e.name === 'AbortError' || e.message?.includes('aborted'))) {
+    // Silenciar aborts normales por navegación o filtros rápidos
+    __logReq('getFacturas:aborted', {seq:__seq});
+    return [];
+  }
+  throw e;
+}
+if(!res.ok) throw new Error("No se pudo leer facturas");
     const data = await res.json();
     if(ctl.signal.aborted) throw new Error('ABORTED');
     const arr = Array.isArray(data)? data : [];
-    return arr.map(normalizeRow).filter(r=>r);
+    const out = arr.map(normalizeRow).filter(r=>r);
+    __logReq('getFacturas:done', {seq:__seq, rows: out.length});
+    return out;
   
 
   },
@@ -847,7 +872,7 @@ let table;
 let tableBuilt = false;
 
 // Refresca datos tras cambiar estado para tomar FechaRevision del backend
-async function refreshAfterEstado(){
+async function refreshAfterEstado(){ __logReq('refreshAfterEstado');
   try{
     overlay.show("Actualizando datos…");
     const currentSector = sectorMS? sectorMS.getSelected():[];
@@ -1389,6 +1414,7 @@ function showOnly(sectionId){
   }
 }
 async function navigateTo(sectionId, loader){
+  __logReq('navigateTo', {sectionId});
   try{
     showOnly(sectionId);
     if(typeof loader === 'function'){ await loader(); }
@@ -2438,7 +2464,7 @@ if (typeof API !== "undefined") {
   };
   const _origGet = API.getFacturas?.bind(API);
   API.getFacturas = async function(opts = {}){
-    if(this._facturasCtl) try{ this._facturasCtl.abort(); } catch (e){}
+    if(this._facturasCtl) { try{ this._facturasCtl.abort(); __logReq('getFacturas:abort-prev', {seq:__seq}); } catch (e){} }
     const ctl = new AbortController();
     this._facturasCtl = ctl;
 
@@ -2621,7 +2647,8 @@ document.addEventListener("DOMContentLoaded", function(){
   }
 
   function readCargos(){
-    const wrap = document.getElementById("mpCargosList"); if(!wrap) return [];
+    const wrap = document.getElementById("mpCargosList"); if(!wrap) __logReq('getFacturas:aborted', {seq:__seq});
+    return [];
     const out = [];
     wrap.querySelectorAll(".cargo-row").forEach(row => {
       const tipo = row.querySelector(".cargo-tipo")?.value || "";
