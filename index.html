@@ -1882,9 +1882,15 @@ document.addEventListener("change", (ev) => {
 async function hardRefresh(){
   try{ console.time("[Revision] cargar"); }catch(_e){}
 
-  // Limpia filtros, recarga y resetea scroll; luego muestra hora de actualización
-  clearFilters();
-  await loadData();
+  // Mantiene filtros actuales; recarga desde servidor respetando rango #fFecha si existe
+  const dr = document.getElementById("fFecha") ? document.getElementById("fFecha")._range : null;
+  let opts = {};
+  if (dr && dr.length === 2) {
+    opts.campoFecha = "Fecha";
+    opts.desde = new Date(dr[0]).toISOString().slice(0,10);
+    opts.hasta = new Date(dr[1]).toISOString().slice(0,10);
+  }
+  await loadData(opts);
   resetTableScroll();
   setLastUpdatedNow();
   const now = new Date();
@@ -2143,10 +2149,10 @@ async function bootstrap(){
   $("#btnDescargar").addEventListener("click", descargarZip);  $("#btnExportXLSX").addEventListener("click", exportXLSX);
   navigateTo("secInicio");}
 
-async function loadData(){
+async function loadData(opts={}){
   overlay.show("Cargando facturas…");
   try{
-    const data = await API.getFacturas();
+    const data = await API.getFacturas(opts);
     State.raw = data;
     // poblar selects dinámicamente
     const sectores = Array.from(new Set(data.map(r=>r.Sector).filter(Boolean))).sort();
