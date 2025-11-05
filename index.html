@@ -2205,414 +2205,6 @@ async function doLogout(){ await authLogout(); showLogin(); }
 
 </script>
 <script>
-// ============ Util Pago ============
-function setLastUpdatedPago(){
-  const el=document.getElementById("lastUpdatedPago"); if(!el) return;
-  const t=new Date(), pad=n=>String(n).padStart(2,"0");
-  el.textContent = "Actualizado: " + t.getFullYear()+"-"+pad(t.getMonth()+1)+"-"+pad(t.getDate())+" "+pad(t.getHours())+":"+pad(t.getMinutes());
-}
-
-let pagoTable=null, pagoTableReady=false, pagoPendingData=null, pagoGrouped=false;
-let pagoSectorMS=null, pagoEstadoMS=null;
-
-const Pago = {
-  raw: [],
-  get filtered(){
-    const sectores = pagoSectorMS ? pagoSectorMS.getSelected() : [];
-    const estados  = pagoEstadoMS ? pagoEstadoMS.getSelected() : [];
-    const nroQ     = (document.querySelector("#fPagoNumero")?.value || "").trim().toLowerCase();
-    const nomQ     = (document.querySelector("#fPagoNombre")?.value || "")
-                      .toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
-    const dr = document.getElementById("fPagoFecha") ? document.getElementById("fPagoFecha")._range : null;
-
-    const getFirst = (o, keys)=>{ for (const k of keys){ if (o && o[k] != null && o[k] !== "") return o[k]; } return ""; };
-    const canon = (v)=> String(v||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
-
-    return (Pago.raw||[]).filter(r=>{
-      const sector = String(r.Sector||"");
-      const estado = String(r.Estado||"");
-
-      const num = getFirst(r, ["Numero de Factura","Número de Factura","Nº Factura","No. Factura","Nro Factura","Factura","N Factura"]);
-      const numCanon = canon(num);
-
-      const nombre = getFirst(r, ["Nombre","Nombre Colaborador","Nombre del colaborador","Colaborador","Empleado"]);
-      const nombreCanon = canon(nombre);
-
-      const fecha = String(getFirst(r, ["Fecha","Fecha de compra","Fecha Emisión"]) || "");
-
-      if(sectores.length && !sectores.includes(sector)) return false;
-      if(estados.length  && !estados.includes(estado)) return false;
-      if(nroQ && !numCanon.includes(nroQ)) return false;
-      if(nomQ && !nombreCanon.includes(nomQ)) return false;
-      if(dr){
-        const d = new Date(fecha);
-        if(isNaN(d) || d < dr[0] || d > dr[1]) return false;
-      }
-      return true;
-    });
-  }
-};
-
-function waitForTabulatorAndContainer(){
-  return new Promise(function(resolve){
-    function tick(){
-      const ready = typeof window.Tabulator!=="undefined" && document.querySelector("#tablaPago");
-      if(ready) resolve(); else requestAnimationFrame(tick);
-    }
-    tick();
-  });
-}
-
-function buildPagoTable(){
-  if(pagoTable) return;
-  pagoTable = new Tabulator("#tablaPago", { index: "fila", 
-    height: (typeof Config!=="undefined" && Config.tablaHeight) ? Config.tablaHeight : "560px",
-    data: [], layout: "fitColumns", selectable: true, placeholder: "Sin datos",
-    groupStartOpen:false,
-    groupHeader:function(value, count, data, group){
-      const nombre = (data && data[0] && (data[0].Nombre||data[0].Identidad)) || value;
-      const suma = (data||[]).reduce((acc,r)=> acc + (Number(r.Total)||0), 0);
-      const totalTxt = new Intl.NumberFormat("es-HN",{minimumFractionDigits:2, maximumFractionDigits:2}).format(suma);
-      const key = String(value ?? "").replace(/"/g,"&quot;");
-      return `<label class="group-toggle">
-                <input type="checkbox" class="group-select-pago" data-group-key="${key}">
-                <span>${nombre} (${count})</span>
-              </label>
-              <span class="kpi-mini">L ${totalTxt}</span>`;
-    },
-    
-    columns: [
-      { formatter:"rowSelection", titleFormatter:"rowSelection", hozAlign:"center", headerSort:false, width:40 },
-      { title:"#", formatter:"rownum", hozAlign:"center", width:60 },
-      { title:"Sector", field:"Sector", width:120 },
-      { title:"Placa", field:"Placa", width:110 },
-      { title:"Proceso", field:"Proceso", width:130 },
-      { title:"Nombre", field:"Nombre", width:180 },
-      { title:"Identidad", field:"Identidad", width:150 },
-      { title:"Total Gastado", field:"Total", hozAlign:"right", width:140,
-        formatter:(c)=> (typeof fmt!=="undefined" && fmt.money) ? fmt.money(c.getValue() ?? c.getRow().getData()["Total Gastado"]) : c.getValue() },
-      { title:"Fecha", field:"Fecha", width:120,
-        formatter:(c)=>{ const v=c.getValue(); return v? String(v).slice(0,10):""; } },
-      { title:"Nombre del comercio", field:"Nombre del comercio", width:220, tooltip:true,
-        formatter:(cell)=>{ const v=String(cell.getValue()??""); const m=28; return v.length>m? v.slice(0,m)+"…": v; } },
-      { title:"Número de Factura", field:"Numero de Factura", width:150 },
-      { title:"Enlace PDF", field:"Enlace PDF", width:110,
-        formatter:(cell)=>{
-          const r=cell.getRow().getData(); const v=cell.getValue()||r.Enlace||r.PDF||"";
-          return v? "<a href=\""+((typeof API!=='undefined' && API.proxied)? API.proxied(v): v)+"\" target=\"_blank\" title=\"Abrir PDF\">📄</a>":"";
-        } },
-            { title:"ID_PAGO", field:"ID_PAGO", width:220 },
-{ title:"Estado", field:"Estado", width:120, formatter:(c)=> {
-  const v = String(c.getValue()||"");
-  if(v==="Pagada" || v==="Enviada"){
-    const color = (typeof estadoColor==="function") ? estadoColor(v) : (v==="Pagada"?"#0FA47E":"#1D4ED8");
-    return `<span class="status-pill disabled"><span class="dot" style="background:${color}"></span>${v}</span>`;
-  }
-  return `<button class="btn-pagar" title="Pagar esta factura">Pagar</button>`;
-},
-cellClick: (e, cell)=>{
-  const d = cell.getRow().getData();
-  if((d.Estado||"")==="Pagada" || (d.Estado||"")==="Enviada") return;
-  if(typeof openPagoModalSingle==="function") openPagoModalSingle(d);
-}
-}
-,
-    ],
-    dataLoaded: updatePagoKpis,
-    dataFiltered: updatePagoKpis,
-    rowSelectionChanged: ()=>{ const b=document.getElementById("btnPagoAbrirModal"); if(b) b.disabled = (pagoTable.getSelectedRows().length===0); }
-  });
-
-  pagoTable.on("tableBuilt", function(){
-    pagoTableReady = true;
-    if(pagoPendingData){
-      try{ pagoTable.replaceData(pagoPendingData); } catch (e){}
-      pagoPendingData = null;
-      updatePagoKpis();
-    }
-  });
-}
-
-function updatePagoKpis(){
-  const rows = pagoTable? pagoTable.getData("active") : [];
-  let pend=0, pag=0, sp=0, sg=0;
-  for(const r of rows){
-    const total = Number(r["Total Gastado"] ?? r.Total) || 0;
-    if((r.Estado||"")==="Revisada"){ pend++; sp += total; }
-    if((r.Estado||"")==="Pagada"){ pag++; sg += total; }
-  }
-  const fmtMoney = (v)=> "L " + (Number(v)||0).toLocaleString("es-HN",{minimumFractionDigits:2,maximumFractionDigits:2});
-  const $ = (sel)=>document.querySelector(sel);
-  $("#kpiPagoPendientes").textContent = String(pend);
-  $("#kpiPagoPagadas").textContent = String(pag);
-  $("#kpiPagoTotalPend").textContent = fmtMoney(sp);
-  $("#kpiPagoTotalPag").textContent  = fmtMoney(sg);
-}
-
-function clearPagoFilters(){
-  pagoSectorMS && pagoSectorMS.clear();
-  pagoEstadoMS && pagoEstadoMS.clear();
-  const $ = (sel)=>document.querySelector(sel);
-  $("#fPagoNombre").value = "";
-  $("#fPagoNumero").value = "";
-  $("#fPagoFecha").value = "";
-  const f = document.getElementById("fPagoFecha"); if(f) f._range = null;
-  applyPagoFilters();
-}
-
-function togglePagoGrouping(){
-  if(!pagoTable) return;
-  pagoGrouped = !pagoGrouped;
-  if(pagoGrouped){
-    pagoTable.setGroupBy(["Identidad"]);
-    const b = document.getElementById("btnPagoAgrupar"); if(b) b.innerHTML = '<i class="lucide-layers-2"></i> Desagrupar';
-  }else{
-    pagoTable.setGroupBy(false);
-    const b = document.getElementById("btnPagoAgrupar"); if(b) b.innerHTML = '<i class="lucide-layers-2"></i> Agrupar por colaborador';
-  }
-}
-
-// ——— API: extender getFacturas(opts) y pagarFacturas ———
-if (typeof API !== "undefined") {
-  const buildUrl = (base)=>{
-    try{
-      if(/^https?:\/\//i.test(base)) return new URL(base);
-      if(base.startsWith("/") && location.origin && /^https?:/i.test(location.origin)) return new URL(location.origin + base);
-      return new URL(base, location.origin || undefined);
-    } catch (e){
-      return new URL(base, "http://localhost");
-    }
-  };
-  const _origGet = API.getFacturas?.bind(API);
-  API.getFacturas = async function(opts = {}){
-    if(this._facturasCtl) try{ this._facturasCtl.abort(); } catch (e){}
-    const ctl = new AbortController();
-    this._facturasCtl = ctl;
-
-    const base = Config?.api?.leerFacturas || "/api/leer";
-    const url  = buildUrl(base);
-    if (opts && Array.isArray(opts.estados) && opts.estados.length){
-      url.searchParams.set("estados", opts.estados.join(","));
-    }
-
-    const res = await fetch(url.toString(), { cache:"no-store", mode:"cors", signal: ctl.signal });
-    if(!res.ok) throw new Error("No se pudo leer facturas");
-    const data = await res.json().catch(()=>[]);
-    if(ctl.signal.aborted) throw new Error("ABORTED");
-    const arr = Array.isArray(data) ? data : [];
-    return arr.map(normalizeRow).filter(Boolean);
-  };
-
-  API.pagarFacturas = async function(rows, fondoPeriodo, fechaPago){
-    const errs = [];
-    for (const r of (rows||[])){
-      const fila = r.fila || r._fila;
-      if(!fila){ errs.push("Fila sin 'fila' real"); continue; }
-      const url = (Config && Config.api && Config.api.guardar) ? Config.api.guardar : "/api/guardar";
-      const res = await fetch(url, { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ fondoPeriodo, fechaPago, fila }) });
-      let json=null; try{ json=await res.json(); } catch (e){}
-      if(!res.ok || !json || json.status!=="OK"){ errs.push("Fallo fila " + fila + ": " + (json && json.message || res.status)); }
-    }
-    if(errs.length) throw new Error(errs.join(" · "));
-  };
-}
-
-// ========= Modal =========
-function openPagoModal(){
-  const el = document.getElementById("modalPago"); if(!el) return;
-  const dft = (typeof fmt!=="undefined" && fmt.dateISO) ? fmt.dateISO(new Date()) : new Date().toISOString().slice(0,10);
-  document.getElementById("mpFondoPeriodo").value = "";
-  document.getElementById("mpFechaPago").value = dft;
-  el.style.display = "grid";
-}
-function closePagoModal(){ const el = document.getElementById("modalPago"); if(el) el.style.display="none"; }
-
-// ========= Filtros =========
-function applyPagoFilters(){
-  if(!pagoTable) return;
-  const list = Pago.filtered;
-  const maybe = pagoTable.replaceData(list);
-  if(maybe && typeof maybe.then === "function"){ maybe.then(updatePagoKpis); } else { setTimeout(updatePagoKpis,0); }
-}
-
-function clearPagoFilters(){
-  pagoSectorMS && pagoSectorMS.clear();
-  pagoEstadoMS && pagoEstadoMS.clear();
-  const $ = (sel)=>document.querySelector(sel);
-  $("#fPagoNombre").value = "";
-  $("#fPagoNumero").value = "";
-  $("#fPagoFecha").value = "";
-  const f = document.getElementById("fPagoFecha"); if(f) f._range = null;
-  applyPagoFilters();
-}
-
-// ========= Carga principal =========
-async function cargarPago(){
-  try{ console.time("[Pago] cargar"); }catch(_e){}
-
-  if(typeof overlay!=="undefined") overlay.show("Cargando facturas…");
-  try {
-    let arr = null;
-    const TARGET = new Set(["Revisada","Pagada","Enviada"]);
-
-    if (typeof API!=="undefined" && typeof API.getFacturas === "function") {
-      try { arr = await API.getFacturas({ estados: ["Revisada","Pagada","Enviada"] }); } catch (e){ arr = null; }
-    }
-    let data = Array.isArray(arr) ? arr : [];
-
-    const serverFiltered = data.length>0 && data.every(r => TARGET.has(String((r && r.Estado) || "")));
-    if (!serverFiltered) {
-      const all = await (typeof API!=="undefined" ? API.getFacturas() : Promise.resolve([]));
-      data = (all || []).filter(r => TARGET.has(String((r && r.Estado) || "")));
-    }
-
-    Pago.raw = data;
-
-    const sectores = Array.from(new Set((Pago.raw||[]).map(r=>r.Sector).filter(Boolean))).sort((a,b)=>a.localeCompare(b));
-    if(pagoSectorMS && pagoSectorMS.setItems){ pagoSectorMS.setItems(sectores); }
-    const estados = Array.from(new Set((Pago.raw||[]).map(r=>r.Estado).filter(Boolean)));
-    if(pagoEstadoMS && pagoEstadoMS.setItems){ pagoEstadoMS.setItems(estados); }
-
-    await waitForTabulatorAndContainer();
-    buildPagoTable();
-    const list = Pago.filtered;
-    if(pagoTableReady){ await pagoTable.replaceData(list); } else { pagoPendingData = list; }
-    updatePagoKpis();
-    setLastUpdatedPago();
-  } catch(e) {
-  } finally {
-    if(typeof overlay!=="undefined") overlay.hide();
-  }
-
-  try{ console.timeEnd("[Pago] cargar"); }catch(_e){}
-}
-
-// ========= Wire-up =========
-document.addEventListener("DOMContentLoaded", function(){
-  try{ pagoSectorMS = createMultiSelect("#msPagoSector", "Sector", applyPagoFilters); } catch (e){}
-  try{ pagoEstadoMS = createMultiSelect("#msPagoEstado", "Estado", applyPagoFilters); } catch (e){}
-
-  if (typeof flatpickr !== "undefined") {
-    flatpickr("#fPagoFecha", {
-      mode:"range", dateFormat:"Y-m-d",
-      onChange(selectedDates){
-        if(selectedDates.length===2){
-          selectedDates[0].setHours(0,0,0,0);
-          selectedDates[1].setHours(23,59,59,999);
-          document.getElementById("fPagoFecha")._range = selectedDates;
-        }else{
-          document.getElementById("fPagoFecha")._range = null;
-        }
-        applyPagoFilters();
-      }
-    });
-  }
-
-  const $ = (sel)=>document.querySelector(sel);
-  $("#btnPagoLimpiar")?.addEventListener("click", clearPagoFilters);
-  $("#btnPagoActualizar")?.addEventListener("click", cargarPago);
-  $("#btnPagoExportXLSX")?.addEventListener("click", ()=> pagoTable?.download("xlsx", "Pago_UTCD_" + new Date().toISOString().slice(0,10) + ".xlsx", {sheetName:"Pago", rowRange:"active"}));
-  $("#btnPagoAgrupar")?.addEventListener("click", togglePagoGrouping);
-  $("#mpCancelar")?.addEventListener("click", closePagoModal);
-  $("#fPagoNombre")?.addEventListener("input", applyPagoFilters);
-  $("#fPagoNumero")?.addEventListener("input", applyPagoFilters);
-
-  // Carga cuando se navega a #pago o al hacer click en su pestaña
-  const navPago = document.querySelector('.sidebar .nav-btn[href="#pago"]');
-  if(navPago){ navPago.addEventListener("click", function(){ setTimeout(function(){ cargarPago(); }, 0); }); }
-  window.addEventListener("hashchange", function(){ if(location.hash==="#pago"){ setTimeout(function(){ cargarPago(); }, 0); } });
-});
-
-/* ====== Pago: resumen, cargos e integración pagoLote (sin Fondo/Periodo) ====== */
-(function(){
-  function generateIdPago(){
-    const d = new Date();
-    const pad = n => String(n).padStart(2,"0");
-    const rnd = Math.random().toString(36).slice(2,6).toUpperCase();
-    return `PAGO-${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}-${rnd}`;
-  }
-  function fmtL(v){ return "L " + (Number(v)||0).toLocaleString("es-HN",{minimumFractionDigits:2,maximumFractionDigits:2}); }
-
-  function getSelectedSubtotal(){
-    const rows = (typeof pagoTable!=="undefined" && pagoTable.getSelectedData) ? pagoTable.getSelectedData() : [];
-    let sum = 0;
-    for(const r of rows){
-      const t = Number(r["Total Gastado"] ?? r.Total) || 0;
-      sum += t;
-    }
-    return { count: rows.length, subtotal: sum, rows };
-  }
-
-  function addCargoRow(type="", amount=""){
-    const wrap = document.getElementById("mpCargosList"); if(!wrap) return;
-    const div = document.createElement("div");
-    div.className = "cargo-row";
-    div.style.display = "grid";
-    div.style.gridTemplateColumns = "1fr 1fr 140px 32px";
-    div.style.gap = "8px";
-    div.innerHTML = `
-      <select class="input cargo-tipo">
-        <option value="Tasa seguridad poblacion"${'Tasa seguridad poblacion'===type?' selected':''}>Tasa seguridad poblacion</option>
-        <option value="ACH"${'ACH'===type?' selected':''}>ACH</option>
-        <option value="Otro"${'Otro'===type?' selected':''}>Otro</option>
-      </select>
-      <input class="input cargo-codigo" type="text" placeholder="Código de transacción"/>
-      <input class="input cargo-monto" type="number" step="0.01" min="0" placeholder="0.00" value="${amount}"/>
-      <button class="cargo-remove" title="Eliminar"
-              style="border:1px solid #EF4444;color:#EF4444;background:transparent;border-radius:10px;width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;font-weight:900;">✕</button>
-    `;
-    wrap.appendChild(div);
-    div.querySelector(".cargo-monto").addEventListener("input", recomputePagoResumen);
-    div.querySelector(".cargo-tipo").addEventListener("change", recomputePagoResumen);
-    div.querySelector(".cargo-remove").addEventListener("click", () => { div.remove(); recomputePagoResumen(); });
-  }
-
-  function readCargos(){
-    const wrap = document.getElementById("mpCargosList"); if(!wrap) return [];
-    const out = [];
-    wrap.querySelectorAll(".cargo-row").forEach(row => {
-      const tipo = row.querySelector(".cargo-tipo")?.value || "";
-      const codigo = row.querySelector(".cargo-codigo")?.value || "";
-      const monto = Number(row.querySelector(".cargo-monto")?.value || 0) || 0;
-      if(monto>0) out.push({ tipo, codigo, monto });
-    });
-    return out;
-  }
-
-  function recomputePagoResumen(){
-    const {count, subtotal} = getSelectedSubtotal();
-    const cargos = readCargos();
-    const cargosTotal = cargos.reduce((a,c)=>a+(Number(c.monto)||0),0);
-    const total = subtotal + cargosTotal;
-
-    const elCount = document.getElementById("mpCount");
-    const elSubtotal = document.getElementById("mpSubtotal");
-    const elCargos = document.getElementById("mpCargos");
-    const elTotal = document.getElementById("mpTotal");
-    if(elCount) elCount.textContent = String(count);
-    if(elSubtotal) elSubtotal.textContent = fmtL(subtotal);
-    if(elCargos) elCargos.textContent = fmtL(cargosTotal);
-    if(elTotal) elTotal.textContent = fmtL(total);
-  }
-
-  
-
-  window.closePagoModal = function(){
-    const el = document.getElementById("modalPago"); if(!el) return;
-    el.style.display = "none";
-  };
-  
-
-  document.addEventListener("DOMContentLoaded", function(){
-    document.getElementById("mpCancelar")?.addEventListener("click", closePagoModal);
-    document.getElementById("mpAddCargo")?.addEventListener("click", function(){ addCargoRow(); });
-    if (typeof pagoTable !== "undefined" && pagoTable && pagoTable.on) {
-      try { pagoTable.on("rowSelectionChanged", recomputePagoResumen); } catch(_) {}
-    }
-  });
-})();
-</script>
-<script>
 // Simple toast (bottom-center) that fades out
 (function(){
   window.toast = function(msg, timeoutMs){
@@ -3620,7 +3212,6 @@ async function marcarSeleccionComoEnviadas(){
   });
 })();
 </script>
-
 <script>
 (function(){
   function monthRange(){
@@ -3668,6 +3259,176 @@ async function marcarSeleccionComoEnviadas(){
       return out;
     };
   })();
+})();
+</script>
+<script>
+/* === Pago: pintar primero y aplicar después (para igualar UX con Revisión) === */
+(function(){
+  function monthRange(){
+    const now = new Date();
+    const y = now.getFullYear(), m = now.getMonth();
+    const start = new Date(y, m, 1, 0,0,0,0);
+    const end   = new Date(y, m+1, 0, 23,59,59,999);
+    return [start, end];
+  }
+
+  function paintPagoOnly(){
+    const input = document.getElementById("fPagoFecha");
+    const fp = input?._flatpickr;
+    if (!fp) return false;
+    try { fp.setDate(monthRange(), false); return true; } catch(e){ return false; }
+  }
+
+  function applyPago(){
+    const input = document.getElementById("fPagoFecha");
+    const fp = input?._flatpickr;
+    if (!fp) return false;
+    const r = monthRange();
+    try {
+      fp.setDate(r, true);      // dispara onChange
+      input._range = r;
+      if (typeof window.applyPagoFilters === "function"){ try{ window.applyPagoFilters(); }catch(e){} }
+      return true;
+    } catch(e){ return false; }
+  }
+
+  // 1) Pintar inmediatamente al entrar a la sección Pago (mientras el toast está visible)
+  document.addEventListener("DOMContentLoaded", function(){
+    let tries = 0, max = 60;
+    const id = setInterval(function(){
+      if (paintPagoOnly()) { clearInterval(id); }
+      else if (++tries >= max) { clearInterval(id); }
+    }, 100);
+  });
+
+  // 2) Envolver la función que carga Pago para aplicar tras la carga
+  (function(){
+    // Si existe cargarPago, la parchamos (tanto sync como async)
+    if ("cargarPago" in window && !window.__patchPagoPaintApply__) {
+      window.__patchPagoPaintApply__ = true;
+      const _orig = window.cargarPago;
+      window.cargarPago = async function(){
+        // Pintar antes para que el usuario lo vea
+        paintPagoOnly();
+        let out;
+        try {
+          out = _orig.apply(this, arguments);
+          if (out && typeof out.then === "function") { await out; }
+        } finally {
+          // Aplicar realmente después de la carga
+          setTimeout(applyPago, 0);
+        }
+        return out;
+      };
+    } else {
+      // Fallback: si no tenemos cargarPago, aplicar cuando detectemos la tabla de Pago lista
+      let tries = 0, max = 120;
+      const iv = setInterval(function(){
+        // Heurística: si el flatpickr existe y el overlay no está visible (o pasaron unos segundos), aplicamos
+        const okFP = !!document.getElementById("fPagoFecha")?._flatpickr;
+        if (okFP) {
+          // Intento de aplicación diferida, por si la tabla se terminó de generar
+          setTimeout(applyPago, 300);
+          clearInterval(iv);
+        }
+        if (++tries >= max) clearInterval(iv);
+      }, 100);
+    }
+  })();
+})();
+</script>
+
+<script>
+/* === Botón "Limpiar" => volver al MES ACTUAL (Revisión y Pago) ===
+   - Revisión: solo #fFecha vuelve al mes actual. #fFechaRev se deja vacío (sin default).
+   - Pago: #fPagoFecha vuelve al mes actual.
+*/
+(function(){
+  function monthRange(){
+    const now = new Date();
+    const y = now.getFullYear(), m = now.getMonth();
+    const start = new Date(y, m, 1, 0,0,0,0);
+    const end   = new Date(y, m+1, 0, 23,59,59,999);
+    return [start, end];
+  }
+
+  function setFFechaDefault(trigger){
+    const input = document.getElementById("fFecha");
+    const fp = input?._flatpickr;
+    if (!fp) return;
+    const r = monthRange();
+    try { fp.setDate(r, true); } catch(e){}
+    input._range = r;
+    if (trigger && typeof window.applyFilters === "function"){ try{ window.applyFilters(); }catch(e){} }
+  }
+
+  function clearFFechaRev(){ // aseguramos dejarlo vacío
+    const input = document.getElementById("fFechaRev");
+    const fp = input?._flatpickr;
+    if (!fp) return;
+    try { fp.clear(); } catch(e){}
+    input._range = null;
+  }
+
+  function setPagoDefault(trigger){
+    const input = document.getElementById("fPagoFecha");
+    const fp = input?._flatpickr;
+    if (!fp) return;
+    const r = monthRange();
+    try { fp.setDate(r, true); } catch(e){}
+    input._range = r;
+    if (trigger && typeof window.applyPagoFilters === "function"){ try{ window.applyPagoFilters(); }catch(e){} }
+  }
+
+  // --- Parchear funciones de limpiar ---
+  (function patchRevisionClear(){
+    if (!("clearFilters" in window)) return;
+    if (window.__patchedClearFiltersToMonth__) return;
+    window.__patchedClearFiltersToMonth__ = true;
+    const _orig = window.clearFilters;
+    window.clearFilters = function(){
+      const out = _orig.apply(this, arguments);
+      // Tras limpiar, dejar #fFecha con el mes actual y #fFechaRev vacío
+      setTimeout(function(){
+        setFFechaDefault(true);
+        clearFFechaRev();
+      }, 0);
+      return out;
+    };
+  })();
+
+  (function patchPagoClear(){
+    if (!("clearPagoFilters" in window)) return;
+    if (window.__patchedClearPagoFiltersToMonth__) return;
+    window.__patchedClearPagoFiltersToMonth__ = true;
+    const _orig = window.clearPagoFilters;
+    window.clearPagoFilters = function(){
+      const out = _orig.apply(this, arguments);
+      // Tras limpiar, dejar #fPagoFecha con el mes actual
+      setTimeout(function(){ setPagoDefault(true); }, 0);
+      return out;
+    };
+  })();
+
+  // --- Por si los botones "Limpiar" no llaman a las funciones anteriores, enganchamos al click ---
+  document.addEventListener("DOMContentLoaded", function(){
+    // Buscar botones por texto visible "Limpiar"
+    const candidates = Array.from(document.querySelectorAll("button, a"))
+      .filter(el => /limpiar/i.test(el.textContent || ""));
+    candidates.forEach(btn => {
+      if (btn.__limpiarHooked__) return;
+      btn.__limpiarHooked__ = true;
+      btn.addEventListener("click", function(){
+        // Damos un micro-turno para que su handler nativo haga el clear
+        setTimeout(function(){
+          // Intentamos ambos contextos; el que exista aplicará
+          try { setFFechaDefault(true); } catch(e){}
+          try { clearFFechaRev(); } catch(e){}
+          try { setPagoDefault(true); } catch(e){}
+        }, 0);
+      }, {capture:false});
+    });
+  });
 })();
 </script>
 </body>
