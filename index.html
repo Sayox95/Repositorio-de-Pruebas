@@ -3622,11 +3622,6 @@ async function marcarSeleccionComoEnviadas(){
 </script>
 
 <script>
-/* === Comportamiento uniforme + excepción: Revisión solo #fFecha por defecto ===
-   - Mostrar inmediatamente el mes actual en #fFecha (UI y filtro) como en Pago.
-   - NO aplicar por defecto a #fFechaRev (queda vacío).
-   - Reaplicar el valor de #fFecha tras hardRefresh() para evitar que se limpie.
-*/
 (function(){
   function monthRange(){
     const now = new Date();
@@ -3635,36 +3630,41 @@ async function marcarSeleccionComoEnviadas(){
     const end   = new Date(y, m+1, 0, 23,59,59,999);
     return [start, end];
   }
-  function setDefaultFFecha(triggerFilter){
+  function paintFFechaOnly(){
     const input = document.getElementById("fFecha");
-    if (!input || !input._flatpickr) return false;
-    const range = monthRange();
-    try { input._flatpickr.setDate(range, true); } catch(e){}
-    input._range = range;
-    if (triggerFilter && typeof window.applyFilters === "function"){
-      try { window.applyFilters(); } catch(e){}
-    }
-    return true;
+    const fp = input?._flatpickr;
+    if (!fp) return false;
+    const r = monthRange();
+    try { fp.setDate(r, false); return true; } catch(e){ return false; }
   }
-
-  // 1) Mostrar de inmediato en la UI al entrar a Revisión (como Pago)
+  function applyFFecha(){
+    const input = document.getElementById("fFecha");
+    const fp = input?._flatpickr;
+    if (!fp) return false;
+    const r = monthRange();
+    try {
+      fp.setDate(r, true);
+      input._range = r;
+      if (typeof window.applyFilters === "function"){ try{ window.applyFilters(); }catch(e){} }
+      return true;
+    } catch(e){ return false; }
+  }
   document.addEventListener("DOMContentLoaded", function(){
-    let t = 0, max = 60;
+    let tries = 0, max = 60;
     const id = setInterval(function(){
-      const ok = setDefaultFFecha(true); // aplica y filtra
-      if (ok || ++t >= max) clearInterval(id);
+      if (paintFFechaOnly()) { clearInterval(id); }
+      else if (++tries >= max) { clearInterval(id); }
     }, 100);
   });
-
-  // 2) Parchear hardRefresh para restablecer #fFecha después de la recarga
   (function(){
     if (!("hardRefresh" in window)) return;
-    if (window.__patchFFechaHardRefresh__) return;
-    window.__patchFFechaHardRefresh__ = true;
+    if (window.__patchHardRefreshPaintThenApply__) return;
+    window.__patchHardRefreshPaintThenApply__ = true;
     const _orig = window.hardRefresh;
     window.hardRefresh = async function(){
+      paintFFechaOnly();
       const out = await _orig.apply(this, arguments);
-      setTimeout(function(){ setDefaultFFecha(true); }, 0);
+      setTimeout(applyFFecha, 0);
       return out;
     };
   })();
