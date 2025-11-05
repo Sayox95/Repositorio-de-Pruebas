@@ -1,23 +1,22 @@
 <!DOCTYPE html>
-
 <html lang="es">
 <head>
-<meta charset="utf-8"/>
-<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>UTCD · Revisión de Facturas</title>
-<!-- Tabulator -->
-<link href="https://unpkg.com/tabulator-tables@6.2.5/dist/css/tabulator.min.css" rel="stylesheet"/>
-<script src="https://unpkg.com/tabulator-tables@6.2.5/dist/js/tabulator.min.js"></script>
-<!-- Flatpickr -->
-<link href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" rel="stylesheet"/>
-<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-<!-- JSZip + FileSaver -->
-<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<!-- Icons -->
-<link href="https://unpkg.com/lucide-static@0.453.0/font/lucide.css" rel="stylesheet"/>
-<style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>UTCD · Revisión de Facturas</title>
+  <!-- Tabulator -->
+  <link href="https://unpkg.com/tabulator-tables@6.2.5/dist/css/tabulator.min.css" rel="stylesheet">
+  <script src="https://unpkg.com/tabulator-tables@6.2.5/dist/js/tabulator.min.js"></script>
+  <!-- Flatpickr -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <!-- JSZip + FileSaver -->
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <!-- Icons -->
+  <link rel="stylesheet" href="https://unpkg.com/lucide-static@0.453.0/font/lucide.css">
+  <style>
 #btnLogout{color:#fff !important;}
 
     :root{
@@ -205,6 +204,7 @@
   }
 
 </style>
+
 <style id="modalPago-wide-tweaks">
   /* Ensancha contenidos internos del modal de pago */
   #modalPago .bubble .card { width: 100%; }
@@ -219,6 +219,7 @@
   /* Alinea el header de Otros Cargos (label + botón) si existe en línea */
   #modalPago .otros-cargos-toolbar { display:flex; align-items:center; justify-content:space-between; gap:12px; width:100%; }
 </style>
+
 <style id="modalPago-field-widen">
   #modalPago #mpFechaPago,
   #modalPago #mpIdPago { width: 100%; max-width: none; font-size: 16px; padding: 12px 14px; letter-spacing: 0.3px; }
@@ -274,252 +275,287 @@
   .toast .spinner { width:16px;height:16px;border:2px solid #e5e7eb;border-top-color:#0FA47E;border-radius:50%; animation:spin .9s linear infinite }
 
 </style>
+
 </head>
 <body>
-<div aria-hidden="true" class="toast-backdrop" id="toastBackdrop"></div>
+
+
+<div id="toastBackdrop" class="toast-backdrop" aria-hidden="true"></div>
 <!-- Toast Agrupación -->
-<div aria-live="polite" class="toast" id="toastGroup" role="status">
-<div class="spinner"></div>
-<span id="toastText">Generando agrupación…</span>
+<div id="toastGroup" class="toast" role="status" aria-live="polite">
+  <div class="spinner"></div>
+  <span id="toastText">Generando agrupación…</span>
 </div>
+
+
 <!-- ===== Login Section ===== -->
 <section id="secLogin" style="display:none;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0f172a10;">
-<div style="width:100%;max-width:440px;background:#fff;border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.08);padding:28px;">
-<h2 style="margin:0 0 10px 0;">Iniciar sesión</h2>
-<p style="margin:0 0 18px 0;color:#64748b;">Ingrese sus credenciales.</p>
-<div style="display:grid;gap:12px;">
-<input autocomplete="username" class="input" id="loginUsuario" placeholder="Usuario"/>
-<input autocomplete="current-password" class="input" id="loginPassword" placeholder="Contraseña" type="password"/>
-<button class="btn btn-primary" id="btnDoLogin">Ingresar</button>
-<small id="loginError" style="display:none;color:#b91c1c;font-weight:600;"></small>
-</div>
-</div>
+  <div style="width:100%;max-width:440px;background:#fff;border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.08);padding:28px;">
+    <h2 style="margin:0 0 10px 0;">Iniciar sesión</h2>
+    <p style="margin:0 0 18px 0;color:#64748b;">Ingrese sus credenciales.</p>
+    <div style="display:grid;gap:12px;">
+      <input id="loginUsuario" class="input" placeholder="Usuario" autocomplete="username" />
+      <input id="loginPassword" class="input" placeholder="Contraseña" type="password" autocomplete="current-password" />
+      <button id="btnDoLogin" class="btn btn-primary">Ingresar</button>
+      <small id="loginError" style="display:none;color:#b91c1c;font-weight:600;"></small>
+    </div>
+  </div>
 </section>
 <!-- ===== /Login Section ===== -->
 <div id="appShell" style="display:none;">
-<div class="app">
-<aside class="sidebar">
-<div class="brand">
-<div class="logo">UTCD</div>
-<div class="caption">
-<span>Aplicativo</span>
-<small>de Facturas</small>
-</div>
-</div>
-<nav>
-<a class="nav-btn active" href="#inicio"><i class="lucide-home"></i><span>Inicio</span></a>
-<a class="nav-btn" href="#revision"><i class="lucide-list"></i><span>Revisión de Facturas</span></a>
-<a class="nav-btn" href="#pago"><i class="lucide-wallet"></i><span>Pago</span></a>
-<a class="nav-btn" href="#anticipos"><i class="lucide-coins"></i><span>Anticipos</span></a>
-<a class="nav-btn" href="#placas"><i class="lucide-car"></i><span>Placas</span></a>
-</nav>
-<div class="spacer"></div>
-<button class="btn btn-ghost" id="btnLogout" style="margin:10px 0; color:#fff;"><i class="lucide-log-out"></i> Cerrar sesión</button>
+
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="logo">UTCD</div>
+        <div class="caption">
+          <span>Aplicativo</span>
+          <small>de Facturas</small>
+        </div>
+      </div>
+
+            <nav>
+        <a class="nav-btn active" href="#inicio"><i class="lucide-home"></i><span>Inicio</span></a>
+        <a class="nav-btn" href="#revision"><i class="lucide-list"></i><span>Revisión de Facturas</span></a>
+        <a class="nav-btn" href="#pago"><i class="lucide-wallet"></i><span>Pago</span></a>
+        <a class="nav-btn" href="#anticipos"><i class="lucide-coins"></i><span>Anticipos</span></a>
+        <a class="nav-btn" href="#placas"><i class="lucide-car"></i><span>Placas</span></a>
+      </nav>
+      <div class="spacer"></div>
+      
+      <button id="btnLogout" class="btn btn-ghost" style="margin:10px 0;" style="margin:10px 0; color:#fff;"><i class="lucide-log-out"></i> Cerrar sesión</button>
 <div class="copyright">© UTCD 2025</div>
-</aside>
-<main class="main">
-<section id="secInicio" style="display:block;">
-<div style="display:flex;align-items:center;justify-content:center;height:60vh;flex-direction:column;gap:12px;">
-<div style="font-size:42px;opacity:.85;">¡Bienvenido!</div>
-<div style="opacity:.7;">Selecciona una sección en el menú para comenzar.</div>
-</div>
-</section>
-<section id="secRevision">
-<div class="toolbar">
-<h1>Revisión de Facturas</h1>
-<div class="actions">
-<span class="last-updated" id="lastUpdated" title="Última actualización">—</span>
-<button class="btn" id="btnActualizar"><i class="lucide-rotate-cw"></i> Actualizar</button>
-<button class="btn btn-ghost" id="btnAgrupar"><i class="lucide-layers-2"></i> Agrupar por colaborador</button> <button class="btn btn-ghost" id="btnExportXLSX"><i class="lucide-download"></i> Excel</button>
-<button class="btn btn-primary" id="btnDescargar"><i class="lucide-file-down"></i> Descargar PDFs</button>
-<button class="btn btn-primary hidden" id="btnRevMarcarRevisadas"><i class="lucide-check"></i> Marcar como Revisadas</button>
-</div>
-</div>
-<div class="grid cols-4">
-<div class="card kpi">
-<span class="label">Registradas</span>
-<span class="value" id="kpiRegistradas">0</span>
-</div>
-<div class="card kpi">
-<span class="label">Revisadas</span>
-<span class="value" id="kpiRevisadas">0</span>
-</div>
-<div class="card kpi">
-<span class="label">Anuladas</span>
-<span class="value" id="kpiAnuladas">0</span>
-</div>
-<div class="card kpi">
-<span class="label">Pagadas</span>
-<span class="value" id="kpiPagadas">0</span>
-</div>
-</div>
-<div class="card" id="kpiRevRangeWrap" style="margin-top:10px; display:none;">
-<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
-<span class="label" style="font-size:13px;color:var(--muted);font-weight:700;">Revisadas (rango revisión):</span>
-<span class="value" id="kpiRevRangeCount" style="font-size:18px;font-weight:800;">0</span>
-<span class="label" style="font-size:13px;color:var(--muted);font-weight:700;">Total L</span>
-<span class="value" id="kpiRevRangeSum" style="font-size:18px;font-weight:800;">0.00</span>
-</div>
-</div>
-<div class="card" style="margin-top:10px;">
-<div class="filters">
-<div class="msel" data-placeholder="Sector" id="msSector"></div>
-<div class="msel" data-placeholder="Estado" id="msEstado"></div>
-<input class="input" id="fNombre" placeholder="Nombre Colaborador…"/>
-<input class="input" id="fNumero" placeholder="Nº Factura…"/>
-<input class="input" id="fFecha" placeholder="Rango de fechas"/>
-<input class="input" id="fFechaRev" placeholder="Rango fecha revisión"/>
-<button class="btn btn-ghost" id="btnLimpiar"><i class="lucide-broom"></i> Limpiar</button>
-</div>
-<div class="table-wrap">
-<div id="tablaRevision"></div>
-</div>
-</div>
-<p class="muted" style="margin-top:10px;">Consejo: usa los filtros para reducir el conjunto y luego “Descargar PDFs”.</p>
-</section>
-<!-- ============== Sección Pago (placeholder) ============== -->
-<!-- ============== Sección Pago ============== -->
-<section id="secPago" style="display:none;">
-<div class="toolbar">
-<h1>Pago de Facturas</h1>
-<div class="actions">
-<span class="last-updated" id="lastUpdatedPago" title="Última actualización">—</span>
-<button class="btn" id="btnPagoActualizar"><i class="lucide-rotate-cw"></i> Actualizar</button>
-<button class="btn btn-ghost" id="btnPagoAgrupar"><i class="lucide-layers-2"></i> Agrupar por colaborador</button>
-<button class="btn btn-ghost" id="btnPagoAgruparId"><i class="lucide-layers-2"></i> Agrupar por ID_PAGO</button>
-<button class="btn btn-ghost" id="btnPagoExportXLSX"><i class="lucide-download"></i> Excel</button>
-<button class="btn btn-primary hidden" disabled="" id="btnPagoAbrirModal"><i class="lucide-credit-card"></i> Pagar seleccionadas</button>
-<button class="btn btn-primary hidden" disabled="" id="btnPagoMarcarEnviadas"><i class="lucide-send"></i> Marcar como Enviadas</button>
-<button class="btn btn-primary hidden" disabled="" id="btnPagoGenerarLiquidacion"><i class="lucide-file-spreadsheet"></i> Generar Liquidación</button>
-</div>
-</div>
-<div class="grid cols-4">
-<div class="card kpi"><span class="label">Pendientes (Revisadas)</span><span class="value" id="kpiPagoPendientes">0</span></div>
-<div class="card kpi"><span class="label">Pagadas</span><span class="value" id="kpiPagoPagadas">0</span></div>
-<div class="card kpi"><span class="label">Total Pendiente</span><span class="value" id="kpiPagoTotalPend">L 0.00</span></div>
-<div class="card kpi"><span class="label">Total Pagado</span><span class="value" id="kpiPagoTotalPag">L 0.00</span></div>
-</div>
-<div class="card" style="margin-top:10px;">
-<div class="filters" style="grid-template-columns: 220px 220px 220px 160px 1fr 220px auto;">
-<div class="msel" data-placeholder="Sector" id="msPagoSector"></div>
-<div class="msel" data-placeholder="Estado" id="msPagoEstado"></div>
-<input class="input" id="fPagoNombre" placeholder="Nombre Colaborador…"/>
-<input class="input" id="fPagoNumero" placeholder="Nº Factura…"/>
-<input class="input" id="fPagoFecha" placeholder="Rango de fechas"/>
-<button class="btn btn-ghost" id="btnPagoLimpiar"><i class="lucide-broom"></i> Limpiar</button>
-</div>
-<div class="table-wrap">
-<div id="tablaPago"></div>
-</div>
-</div>
-<!-- Modal pago -->
-<div class="overlay" id="modalPago" style="display:none;">
-<div class="bubble" style="display:flex;flex-direction:column;gap:12px;min-width:520px;max-width:700px;">
-<div style="font-weight:800;font-size:16px;display:flex;align-items:center;gap:8px;">
-<i class="lucide-credit-card"></i> Registrar pago
+    </aside>
+
+    <main class="main">
+  <section id="secInicio" style="display:block;">
+    <div style="display:flex;align-items:center;justify-content:center;height:60vh;flex-direction:column;gap:12px;">
+      <div style="font-size:42px;opacity:.85;">¡Bienvenido!</div>
+      <div style="opacity:.7;">Selecciona una sección en el menú para comenzar.</div>
     </div>
-<!-- Resumen tipo "factura" -->
-<div class="card" style="padding:12px;display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-<div><small class="muted">Facturas a pagar</small><div id="mpCount" style="font-weight:700;font-size:16px;">0</div></div>
-<div><small class="muted">Monto subtotal</small><div id="mpSubtotal" style="font-weight:700;font-size:16px;">L 0.00</div></div>
-<div><small class="muted">Otros cargos</small><div id="mpCargos" style="font-weight:700;font-size:16px;">L 0.00</div></div>
-<div><small class="muted">Total a pagar</small><div id="mpTotal" style="font-weight:800;font-size:18px;">L 0.00</div></div>
+  </section>
+
+  <section id="secRevision">
+      <div class="toolbar">
+        <h1>Revisión de Facturas</h1>
+        <div class="actions">
+          <span id="lastUpdated" class="last-updated" title="Última actualización">—</span>
+          <button id="btnActualizar" class="btn"><i class="lucide-rotate-cw"></i> Actualizar</button>
+          <button id="btnAgrupar" class="btn btn-ghost"><i class="lucide-layers-2"></i> Agrupar por colaborador</button>          <button id="btnExportXLSX" class="btn btn-ghost"><i class="lucide-download"></i> Excel</button>
+          <button id="btnDescargar" class="btn btn-primary"><i class="lucide-file-down"></i> Descargar PDFs</button>
+          <button id="btnRevMarcarRevisadas" class="btn btn-primary hidden"><i class="lucide-check"></i> Marcar como Revisadas</button>
+        </div>
+      </div>
+
+      <div class="grid cols-4">
+        <div class="card kpi">
+          <span class="label">Registradas</span>
+          <span id="kpiRegistradas" class="value">0</span>
+        </div>
+        <div class="card kpi">
+          <span class="label">Revisadas</span>
+          <span id="kpiRevisadas" class="value">0</span>
+        </div>
+        <div class="card kpi">
+          <span class="label">Anuladas</span>
+          <span id="kpiAnuladas" class="value">0</span>
+        </div>
+        <div class="card kpi">
+          <span class="label">Pagadas</span>
+          <span id="kpiPagadas" class="value">0</span>
+        </div>
+      </div>
+
+      <div id="kpiRevRangeWrap" class="card" style="margin-top:10px; display:none;">
+  <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+    <span class="label" style="font-size:13px;color:var(--muted);font-weight:700;">Revisadas (rango revisión):</span>
+    <span id="kpiRevRangeCount" class="value" style="font-size:18px;font-weight:800;">0</span>
+    <span class="label" style="font-size:13px;color:var(--muted);font-weight:700;">Total L</span>
+    <span id="kpiRevRangeSum" class="value" style="font-size:18px;font-weight:800;">0.00</span>
+  </div>
 </div>
-<div style="display:grid;gap:10px;grid-template-columns:1fr;">
-<label style="display:grid;gap:6px;">
-<small class="muted" style="font-weight:700;">Fecha de pago</small>
-<input class="input" id="mpFechaPago" placeholder="YYYY-MM-DD"/>
-</label>
-</div>
-<div style="display:grid;gap:10px;grid-template-columns:1fr;">
-<label style="display:grid;gap:6px;">
-<small class="muted" style="font-weight:700;">ID_PAGO</small>
-<input class="input" id="mpIdPago" readonly=""/>
-</label>
-</div>
-<!-- Otros cargos -->
-<div class="card" style="padding:12px;display:flex;flex-direction:column;gap:8px;">
-<div style="display:flex;justify-content:space-between;align-items:center;">
-<div style="font-weight:700;">Otros Cargos</div>
-<button class="btn btn-ghost" id="mpAddCargo"><i class="lucide-plus"></i> Agregar cargo</button>
-</div>
-<div id="mpCargosList" style="display:flex;flex-direction:column;gap:8px;"></div>
-</div>
-<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px;">
-<button class="btn btn-ghost" id="mpCancelar"><i class="lucide-x"></i> Cancelar</button>
-<button class="btn btn-primary" id="mpConfirmar"><i class="lucide-check"></i> Confirmar</button>
-</div>
-</div>
-</div>
-</section>
-<!-- ============== Sección Anticipos (placeholder) ============== -->
-<section id="secAnticipos" style="display:none;">
-<div class="card"><h2>Anticipos</h2><p class="muted">Sección en preparación.</p></div>
-</section>
-<!-- ============== Sección Placas ============== -->
-<section id="secPlacas" style="display:none;">
-<div class="header-row" style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;">
-<h2 class="title" style="margin:0;display:flex;align-items:center;gap:8px;"><i class="lucide-car"></i> Placas</h2>
-<div class="actions" style="display:flex;gap:10px;">
-<button class="btn" id="btnPlacasActualizar"><i class="lucide-rotate-cw"></i> Actualizar</button>
-<button class="btn btn-ghost" id="btnPlacasActivar"><i class="lucide-check-circle-2"></i> Activar</button>
-<button class="btn btn-ghost" id="btnPlacasInactivar"><i class="lucide-x-circle"></i> Inactivar</button>
-<button class="btn btn-primary" id="btnPlacasNueva"><i class="lucide-plus"></i> Nueva placa</button>
-</div>
-</div>
-<div class="grid cols-3">
-<div class="card kpi"><span class="label">Total</span><span class="value" id="kpiPlacasTotal">0</span></div>
-<div class="card kpi"><span class="label">Activas</span><span class="value" id="kpiPlacasActivas">0</span></div>
-<div class="card kpi"><span class="label">Inactivas</span><span class="value" id="kpiPlacasInactivas">0</span></div>
-</div>
-<div class="card" id="placasFormWrap" style="margin-top:10px; display:none;">
-<div class="form-grid">
-<div style="display:flex; flex-direction:column; gap:4px;">
-<small class="muted" id="npPlacaLimit">Ingresar Placa/VIN</small>
-<input class="input" id="npPlaca" placeholder="Placa o VIN (requerido)"/>
-<small class="muted" id="npPlacaHint">Sin Guiones</small>
-<small id="npPlacaDup" style="display:none;color:#b91c1c;font-weight:600;">Esta placa/VIN ya existe.</small>
-</div>
-<input class="input" id="npNombre" placeholder="Nombre (Conductor)"/>
-<select class="input" id="npSector"><option value="">Sector…</option></select>
-<select class="input" id="npProceso"><option value="">Proceso…</option></select>
-<input class="input" id="npDesignacion" placeholder="Designación (Cargo)"/>
-<select class="input" id="npEstado">
-<option value="Activa">Activa</option>
-<option value="Inactiva">Inactiva</option>
-</select>
-<button class="btn btn-primary" id="btnPlacaGuardar"><i class="lucide-save"></i> Guardar</button>
-<button class="btn btn-ghost" id="btnPlacaCancelar"><i class="lucide-x"></i> Cancelar</button>
-</div>
-</div>
+
 <div class="card" style="margin-top:10px;">
-<div class="filters" style="grid-template-columns: 180px 180px 1fr 1fr auto">
-<select id="fPlacasEstado">
-<option value="">Estado</option>
-<option value="Activa">Activa</option>
-<option value="Inactiva">Inactiva</option>
-</select>
-<select id="fPlacasSector"><option value="">Sector</option></select>
-<input class="input" id="fPlacasPlaca" placeholder="Placa o VIN…"/>
-<input class="input" id="fPlacasNombre" placeholder="Nombre Colaborador…"/>
-<div style="display:flex; gap:10px; align-items:center;">
-<button class="btn btn-ghost" id="btnPlacasLimpiar"><i class="lucide-broom"></i> Limpiar</button>
-<span class="muted" id="placasNotice" style="font-size:12px; display:none;">Configura Config.api.placas (un solo endpoint).</span>
+        <div class="filters">
+          <div id="msSector" class="msel" data-placeholder="Sector"></div>
+          <div id="msEstado" class="msel" data-placeholder="Estado"></div>
+          <input id="fNombre" class="input" placeholder="Nombre Colaborador…"/>
+          <input id="fNumero" class="input" placeholder="Nº Factura…"/>
+          <input id="fFecha" class="input" placeholder="Rango de fechas"/>
+          <input id="fFechaRev" class="input" placeholder="Rango fecha revisión"/>
+          <button id="btnLimpiar" class="btn btn-ghost"><i class="lucide-broom"></i> Limpiar</button>
+        </div>
+        <div class="table-wrap">
+          <div id="tablaRevision"></div>
+        </div>
+      </div>
+
+      <p class="muted" style="margin-top:10px;">Consejo: usa los filtros para reducir el conjunto y luego “Descargar PDFs”.</p>
+  </section>
+
+  <!-- ============== Sección Pago (placeholder) ============== -->
+  
+  <!-- ============== Sección Pago ============== -->
+  <section id="secPago" style="display:none;">
+    <div class="toolbar">
+      <h1>Pago de Facturas</h1>
+      <div class="actions">
+        <span id="lastUpdatedPago" class="last-updated" title="Última actualización">—</span>
+        <button id="btnPagoActualizar" class="btn"><i class="lucide-rotate-cw"></i> Actualizar</button>
+        <button id="btnPagoAgrupar" class="btn btn-ghost"><i class="lucide-layers-2"></i> Agrupar por colaborador</button>
+        <button id="btnPagoAgruparId" class="btn btn-ghost"><i class="lucide-layers-2"></i> Agrupar por ID_PAGO</button>
+        <button id="btnPagoExportXLSX" class="btn btn-ghost"><i class="lucide-download"></i> Excel</button>
+        <button id="btnPagoAbrirModal" class="btn btn-primary hidden" disabled><i class="lucide-credit-card"></i> Pagar seleccionadas</button>
+        <button id="btnPagoMarcarEnviadas" class="btn btn-primary hidden" disabled><i class="lucide-send"></i> Marcar como Enviadas</button>
+        <button id="btnPagoGenerarLiquidacion" class="btn btn-primary hidden" disabled><i class="lucide-file-spreadsheet"></i> Generar Liquidación</button>
+      </div>
+    </div>
+
+    <div class="grid cols-4">
+      <div class="card kpi"><span class="label">Pendientes (Revisadas)</span><span id="kpiPagoPendientes" class="value">0</span></div>
+      <div class="card kpi"><span class="label">Pagadas</span><span id="kpiPagoPagadas" class="value">0</span></div>
+      <div class="card kpi"><span class="label">Total Pendiente</span><span id="kpiPagoTotalPend" class="value">L 0.00</span></div>
+      <div class="card kpi"><span class="label">Total Pagado</span><span id="kpiPagoTotalPag" class="value">L 0.00</span></div>
+      
+    </div>
+
+    <div class="card" style="margin-top:10px;">
+      <div class="filters" style="grid-template-columns: 220px 220px 220px 160px 1fr 220px auto;">
+        <div id="msPagoSector" class="msel" data-placeholder="Sector"></div>
+        <div id="msPagoEstado" class="msel" data-placeholder="Estado"></div>
+        <input id="fPagoNombre" class="input" placeholder="Nombre Colaborador…"/>
+        <input id="fPagoNumero" class="input" placeholder="Nº Factura…"/>
+        <input id="fPagoFecha" class="input" placeholder="Rango de fechas"/>
+        <button id="btnPagoLimpiar" class="btn btn-ghost"><i class="lucide-broom"></i> Limpiar</button>
+      </div>
+
+      <div class="table-wrap">
+        <div id="tablaPago"></div>
+      </div>
+    </div>
+
+    <!-- Modal pago -->
+<div id="modalPago" class="overlay" style="display:none;">
+  <div class="bubble" style="display:flex;flex-direction:column;gap:12px;min-width:520px;max-width:700px;">
+    <div style="font-weight:800;font-size:16px;display:flex;align-items:center;gap:8px;">
+      <i class="lucide-credit-card"></i> Registrar pago
+    </div>
+
+    <!-- Resumen tipo "factura" -->
+    <div class="card" style="padding:12px;display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div><small class="muted">Facturas a pagar</small><div id="mpCount" style="font-weight:700;font-size:16px;">0</div></div>
+      <div><small class="muted">Monto subtotal</small><div id="mpSubtotal" style="font-weight:700;font-size:16px;">L 0.00</div></div>
+      <div><small class="muted">Otros cargos</small><div id="mpCargos" style="font-weight:700;font-size:16px;">L 0.00</div></div>
+      <div><small class="muted">Total a pagar</small><div id="mpTotal" style="font-weight:800;font-size:18px;">L 0.00</div></div>
+    </div>
+
+    <div style="display:grid;gap:10px;grid-template-columns:1fr;">
+  <label style="display:grid;gap:6px;">
+    <small class="muted" style="font-weight:700;">Fecha de pago</small>
+    <input id="mpFechaPago" class="input" placeholder="YYYY-MM-DD"/>
+  </label>
 </div>
+
+    <div style="display:grid;gap:10px;grid-template-columns:1fr;">
+  <label style="display:grid;gap:6px;">
+    <small class="muted" style="font-weight:700;">ID_PAGO</small>
+    <input id="mpIdPago" class="input" readonly />
+  </label>
 </div>
-<div class="tabulator" id="tablaPlacas" style="margin-top:8px;"></div>
+
+    <!-- Otros cargos -->
+    <div class="card" style="padding:12px;display:flex;flex-direction:column;gap:8px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div style="font-weight:700;">Otros Cargos</div>
+        <button id="mpAddCargo" class="btn btn-ghost"><i class="lucide-plus"></i> Agregar cargo</button>
+      </div>
+      <div id="mpCargosList" style="display:flex;flex-direction:column;gap:8px;"></div>
+    </div>
+
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px;">
+      <button id="mpCancelar" class="btn btn-ghost"><i class="lucide-x"></i> Cancelar</button>
+      <button id="mpConfirmar" class="btn btn-primary"><i class="lucide-check"></i> Confirmar</button>
+    </div>
+  </div>
 </div>
 </section>
-</main>
+
+  <!-- ============== Sección Anticipos (placeholder) ============== -->
+  <section id="secAnticipos" style="display:none;">
+    <div class="card"><h2>Anticipos</h2><p class="muted">Sección en preparación.</p></div>
+  </section>
+
+  <!-- ============== Sección Placas ============== -->
+  <section id="secPlacas" style="display:none;">
+    <div class="header-row" style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;">
+      <h2 class="title" style="margin:0;display:flex;align-items:center;gap:8px;"><i class="lucide-car"></i> Placas</h2>
+      <div class="actions" style="display:flex;gap:10px;">
+        <button id="btnPlacasActualizar" class="btn"><i class="lucide-rotate-cw"></i> Actualizar</button>
+        <button id="btnPlacasActivar" class="btn btn-ghost"><i class="lucide-check-circle-2"></i> Activar</button>
+        <button id="btnPlacasInactivar" class="btn btn-ghost"><i class="lucide-x-circle"></i> Inactivar</button>
+        <button id="btnPlacasNueva" class="btn btn-primary"><i class="lucide-plus"></i> Nueva placa</button>
+      </div>
+    </div>
+
+    <div class="grid cols-3">
+      <div class="card kpi"><span class="label">Total</span><span id="kpiPlacasTotal" class="value">0</span></div>
+      <div class="card kpi"><span class="label">Activas</span><span id="kpiPlacasActivas" class="value">0</span></div>
+      <div class="card kpi"><span class="label">Inactivas</span><span id="kpiPlacasInactivas" class="value">0</span></div>
+    </div>
+
+    <div id="placasFormWrap" class="card" style="margin-top:10px; display:none;">
+  <div class="form-grid">
+    <div style="display:flex; flex-direction:column; gap:4px;">
+      <small id="npPlacaLimit" class="muted">Ingresar Placa/VIN</small>
+      <input id="npPlaca" class="input" placeholder="Placa o VIN (requerido)"/>
+      <small id="npPlacaHint" class="muted">Sin Guiones</small>
+      <small id="npPlacaDup" style="display:none;color:#b91c1c;font-weight:600;">Esta placa/VIN ya existe.</small>
+    </div>
+    <input id="npNombre" class="input" placeholder="Nombre (Conductor)"/>
+    <select id="npSector" class="input"><option value="">Sector…</option></select>
+    <select id="npProceso" class="input"><option value="">Proceso…</option></select>
+    <input id="npDesignacion" class="input" placeholder="Designación (Cargo)"/>
+    <select id="npEstado" class="input">
+      <option value="Activa">Activa</option>
+      <option value="Inactiva">Inactiva</option>
+    </select>
+    <button id="btnPlacaGuardar" class="btn btn-primary"><i class="lucide-save"></i> Guardar</button>
+    <button id="btnPlacaCancelar" class="btn btn-ghost"><i class="lucide-x"></i> Cancelar</button>
+  </div>
 </div>
-<div class="overlay" id="overlay">
-<div class="bubble"><div class="spinner"></div><span id="overlayMsg">Cargando facturas…</span>
-<div class="progress-wrap">
-<div class="progress"><div class="bar" id="overlayBar"></div></div>
-<div class="progress-text" id="overlayCount">0/0</div>
-</div>
-</div>
-</div>
+        
+<div class="card" style="margin-top:10px;">
+      <div class="filters" style="grid-template-columns: 180px 180px 1fr 1fr auto">
+        <select id="fPlacasEstado">
+          <option value="">Estado</option>
+          <option value="Activa">Activa</option>
+          <option value="Inactiva">Inactiva</option>
+        </select>
+        
+        <select id="fPlacasSector"><option value="">Sector</option></select>
+        <input id="fPlacasPlaca" class="input" placeholder="Placa o VIN…"/>
+        <input id="fPlacasNombre" class="input" placeholder="Nombre Colaborador…"/>
+        <div style="display:flex; gap:10px; align-items:center;">
+          <button id="btnPlacasLimpiar" class="btn btn-ghost"><i class="lucide-broom"></i> Limpiar</button>
+          <span id="placasNotice" class="muted" style="font-size:12px; display:none;">Configura Config.api.placas (un solo endpoint).</span>
+        </div>
+      </div>
+      <div id="tablaPlacas" class="tabulator" style="margin-top:8px;"></div>
+    </div>
+  </section>
+
+    </main>
+  </div>
+
+  <div id="overlay" class="overlay">
+    <div class="bubble"><div class="spinner"></div><span id="overlayMsg">Cargando facturas…</span>
+      <div class="progress-wrap">
+        <div class="progress"><div id="overlayBar" class="bar"></div></div>
+        <div class="progress-text" id="overlayCount">0/0</div>
+      </div>
+    </div>
+  </div>
+
 <script>
 /** =========================
  *  Configuración
@@ -1132,7 +1168,18 @@ function initFilters(){
       applyFilters();
     }
   });
-  const fpRev = flatpickr("#fFechaRev", {
+  
+// === Default: mes actual para Revisión ===
+(function(){
+  const now = new Date();
+  const first = new Date(now.getFullYear(), now.getMonth(), 1, 0,0,0,0);
+  const last  = new Date(now.getFullYear(), now.getMonth()+1, 0, 23,59,59,999);
+  try{
+    fp.setDate([first, last], true);              // pinta el input
+    document.getElementById("fFecha")._range = [first, last];  // guarda el rango completo
+  }catch(_){}
+})();
+const fpRev = flatpickr("#fFechaRev", {
     mode:"range",
     dateFormat:"Y-m-d",
     onChange(selectedDates){
@@ -2087,6 +2134,7 @@ async function loadData(){
 window.addEventListener("DOMContentLoaded", bootstrap);
 </script>
 </div>
+
 <script>
 // ===== Auth (Cloudflare Pages Functions) =====
 const Auth = { login: "/api/auth/login", me: "/api/auth/me", logout: "/api/auth/logout" };
@@ -2204,6 +2252,7 @@ async function doLogout(){ await authLogout(); showLogin(); }
 })();
 
 </script>
+
 <script>
 // ============ Util Pago ============
 function setLastUpdatedPago(){
@@ -2612,6 +2661,7 @@ document.addEventListener("DOMContentLoaded", function(){
   });
 })();
 </script>
+
 <script>
 // Simple toast (bottom-center) that fades out
 (function(){
@@ -3099,6 +3149,14 @@ async function fetchOtrosCargos(ids){
   }
 })();
 </script>
+
+
+
+
+
+
+
+
 <script>
 // === Marcar como Enviadas (Pago): sólo handler + click binding ===
 (function(){
@@ -3174,38 +3232,41 @@ async function marcarSeleccionComoEnviadas(){
   });
 })();
 </script>
+
+
+
 <!-- Modal: Generar Liquidación -->
-<div class="modal hidden" id="modalGenerarLiqui">
-<div class="modal-content">
-<h3 class="modal-title">Generar Liquidación</h3>
-<div class="modal-body">
-<div class="grid">
-<label>No. ACREEDOR
-          <input id="liqNoAcreedor" placeholder="Ingresa No. Acreedor" type="text"/>
-</label>
-<label>Fecha de solicitud
-          <input id="liqFechaSolicitud" type="date"/>
-</label>
-<label>Área / Departamento
-          <input id="liqArea" placeholder="Área o Departamento" type="text"/>
-</label>
-<label>Sector
-          <input id="liqSector" placeholder="Sector" type="text"/>
-</label>
-<label>Nombre completo del colaborador
-          <input id="liqColaborador" placeholder="Nombre del colaborador" type="text"/>
-</label>
-<label>Motivo de liquidación por anticipo
-          <input id="liqMotivo" placeholder="Motivo" type="text"/>
-</label>
-</div>
-<p class="muted">Se incluirán facturas <b>Pagadas</b> y sus Otros Cargos vinculados por ID_PAGO.</p>
-</div>
-<div class="modal-actions">
-<button class="btn" id="btnLiquiCancelar">Cancelar</button>
-<button class="btn btn-primary" id="btnLiquiGenerar">Generar</button>
-</div>
-</div>
+<div id="modalGenerarLiqui" class="modal hidden">
+  <div class="modal-content">
+    <h3 class="modal-title">Generar Liquidación</h3>
+    <div class="modal-body">
+      <div class="grid">
+        <label>No. ACREEDOR
+          <input id="liqNoAcreedor" type="text" placeholder="Ingresa No. Acreedor" />
+        </label>
+        <label>Fecha de solicitud
+          <input id="liqFechaSolicitud" type="date" />
+        </label>
+        <label>Área / Departamento
+          <input id="liqArea" type="text" placeholder="Área o Departamento" />
+        </label>
+        <label>Sector
+          <input id="liqSector" type="text" placeholder="Sector" />
+        </label>
+        <label>Nombre completo del colaborador
+          <input id="liqColaborador" type="text" placeholder="Nombre del colaborador" />
+        </label>
+        <label>Motivo de liquidación por anticipo
+          <input id="liqMotivo" type="text" placeholder="Motivo" />
+        </label>
+      </div>
+      <p class="muted">Se incluirán facturas <b>Pagadas</b> y sus Otros Cargos vinculados por ID_PAGO.</p>
+    </div>
+    <div class="modal-actions">
+      <button id="btnLiquiCancelar" class="btn">Cancelar</button>
+      <button id="btnLiquiGenerar" class="btn btn-primary">Generar</button>
+    </div>
+  </div>
 </div>
 <style>
   .modal{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.25);z-index:1000}
@@ -3217,12 +3278,17 @@ async function marcarSeleccionComoEnviadas(){
   .grid input{padding:8px 10px;border:1px solid #e5e7eb;border-radius:10px}
   .modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:6px}
 </style>
+
+
+
+
+
 <!-- Busy Overlay: Generando liquidación -->
-<div class="busy-overlay hidden" id="busyOverlay">
-<div class="busy-box">
-<div class="busy-spinner"></div>
-<div class="busy-text" id="busyText">Generando liquidación…</div>
-</div>
+<div id="busyOverlay" class="busy-overlay hidden">
+  <div class="busy-box">
+    <div class="busy-spinner"></div>
+    <div id="busyText" class="busy-text">Generando liquidación…</div>
+  </div>
 </div>
 <style>
   .busy-overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(17,24,39,.45);backdrop-filter:saturate(140%) blur(2px);z-index:2000}
@@ -3232,7 +3298,10 @@ async function marcarSeleccionComoEnviadas(){
   .busy-spinner{width:36px;height:36px;border-radius:50%;border:3px solid #e5e7eb;border-top-color:#10b981;animation:busyspin 0.9s linear infinite}
   @keyframes busyspin{to{transform:rotate(360deg)}}
 </style>
+
 <!-- === END PATCH === -->
+
+
 <script>
 // === Generar Liquidación (Pago) — RESTAURADO: overlay + popup "Generando…" + redirect XLSX ===
 (function(){
@@ -3326,6 +3395,7 @@ async function marcarSeleccionComoEnviadas(){
   });
 })();
 </script>
+
 <!-- === PATCH v2: Improved robust hooks for Pago action buttons === -->
 <script>
 (function(){
@@ -3427,6 +3497,7 @@ async function marcarSeleccionComoEnviadas(){
 })();
 </script>
 <!-- === END PATCH v2 === -->
+
 <!-- === PATCH: Revisión - agrupar fix + botón "Marcar como Revisadas" === -->
 <script>
 (function(){
@@ -3617,96 +3688,6 @@ async function marcarSeleccionComoEnviadas(){
         for(var k=0;k<rows.length;k++){ try{ rows[k].deselect && rows[k].deselect(); }catch(e){} }
       }
     }catch(e){ /* silent */ }
-  });
-})();
-</script>
-
-
-<script>
-/* === Auto-selección del mes actual (robusto) ===
-   - Asegura que en **Revisión** (#fFecha, #fFechaRev) el rango por defecto
-     se aplique *después* de que:
-       1) flatpickr haya inicializado ambos inputs
-       2) los multiselects estén listos
-       3) la tabla esté construida (tableBuilt === true)
-   - En **Pago** (#fPagoFecha) mantiene la lógica previa.
-*/
-(function(){
-  function monthStartEnd(d){
-    d = d ? new Date(d) : new Date();
-    var y = d.getFullYear(), m = d.getMonth();
-    var start = new Date(y, m, 1, 0, 0, 0, 0);
-    var end   = new Date(y, m + 1, 0, 23, 59, 59, 999);
-    return [start, end];
-  }
-  function setRangeOn(input, range){
-    if (!input) return;
-    try{
-      var fp = input._flatpickr;
-      if (fp && fp.config && fp.config.mode === "range"){
-        fp.setDate(range, true);      // visual + dispara onChange
-        input._range = range.slice(); // compat con lógica interna
-      }
-    }catch(e){ /* noop */ }
-  }
-  function readyForRevision(){
-    var f1 = document.querySelector("#fFecha");
-    var f2 = document.querySelector("#fFechaRev");
-    var okFP = f1 && f1._flatpickr && f2 && f2._flatpickr;
-    var okMS = (typeof window.sectorMS !== "undefined") && (typeof window.estadoMS !== "undefined");
-    var okTable = (typeof window.tableBuilt !== "undefined") && window.tableBuilt === true;
-    return okFP && okMS && okTable;
-  }
-
-  function applyDefaultRevision(){
-    var range = monthStartEnd();
-    setRangeOn(document.querySelector("#fFecha"), range);
-    setRangeOn(document.querySelector("#fFechaRev"), range);
-    if (typeof window.applyFilters === "function"){
-      try { window.applyFilters(); } catch(e){}
-    }
-  }
-
-  function applyDefaultPago(){
-    var input = document.querySelector("#fPagoFecha");
-    var range = monthStartEnd();
-    setRangeOn(input, range);
-    if (typeof window.applyPagoFilters === "function"){
-      try { window.applyPagoFilters(); } catch(e){}
-    }
-  }
-
-  document.addEventListener("DOMContentLoaded", function(){
-    // Pago (como antes, simple)
-    (function waitPago(){
-      var el = document.querySelector("#fPagoFecha");
-      if (el && el._flatpickr) { applyDefaultPago(); }
-      else { setTimeout(waitPago, 120); }
-    })();
-
-    // Revisión: esperar a que todo esté listo para evitar que otra lógica lo borre
-    (function waitRevision(){
-      if (readyForRevision()) {
-        applyDefaultRevision();
-      } else {
-        setTimeout(waitRevision, 150);
-      }
-    })();
-
-    // Defensa adicional: si la tabla emite el evento luego de nuestro set, reintentar una sola vez
-    (function attachOneShot(){
-      try{
-        if (window.table && typeof window.table.on === "function"){
-          var once = false;
-          window.table.on("tableBuilt", function(){
-            if (!once){
-              once = true;
-              setTimeout(applyDefaultRevision, 0);
-            }
-          });
-        }
-      }catch(e){ /* noop */ }
-    })();
   });
 })();
 </script>
