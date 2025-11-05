@@ -1129,21 +1129,13 @@ function initFilters(){
   $("#fFechaRev").value = "";
   $("#fFechaRev")._range = null;
       }
-      applyFilters();
-    }
+      if(selectedDates.length===2){ try{ requeryByActiveDateRange(); }catch(e){} } else { applyFilters(); }}
   });
   const fpRev = flatpickr("#fFechaRev", {
     mode:"range",
     dateFormat:"Y-m-d",
     onChange(selectedDates){
-      if(selectedDates.length===2){
-        selectedDates[0].setHours(0,0,0,0);
-        selectedDates[1].setHours(23,59,59,999);
-        $("#fFechaRev")._range = selectedDates;
-      }else{
-        $("#fFechaRev")._range = null;
-      }
-      applyFilters();
+      if(selectedDates.length===2){selectedDates[0].setHours(0,0,0,0);selectedDates[1].setHours(23,59,59,999);$("#fFechaRev")._range=selectedDates;requeryByActiveDateRange();}else{$("#fFechaRev")._range=null;applyFilters();}
     }
   });
   // MultiSelect con checkboxes
@@ -1279,6 +1271,29 @@ async function descargarZip(){
 /** =========================
  *  Helpers
  *  ========================= */
+/** =========================
+ *  Server requery on date-range changes
+ *  ========================= */
+function ymd(d){ try{ return new Date(d).toISOString().slice(0,10);}catch(e){ return ""; } }
+async function requeryByActiveDateRange(){
+  try{
+    overlay.show("Cargando facturas…");
+    // Llamada estándar; el fetch patch añadirá campoFecha/desde/hasta según los inputs presentes
+    const arr = await API.getFacturas();
+    State.raw = arr;
+    try{ sectorMS.setItems(Array.from(new Set(State.raw.map(r=>r.Sector).filter(Boolean)))); }catch(e){}
+    try{ estadoMS.setItems(getEstadoOptions()); }catch(e){}
+    if (table){
+      try{ await table.replaceData(State.filtered); }catch(_){ table.replaceData(State.filtered); }
+    }
+    updateKpis();
+    try{ updateKpisRevRange(); }catch(e){}
+    setLastUpdatedNow();
+  } finally {
+    overlay.hide();
+  }
+}
+
 function debounce(fn, wait=200){
   let t; return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn.apply(null,args), wait); };
 }
@@ -2496,14 +2511,7 @@ document.addEventListener("DOMContentLoaded", function(){
     flatpickr("#fPagoFecha", {
       mode:"range", dateFormat:"Y-m-d",
       onChange(selectedDates){
-        if(selectedDates.length===2){
-          selectedDates[0].setHours(0,0,0,0);
-          selectedDates[1].setHours(23,59,59,999);
-          document.getElementById("fPagoFecha")._range = selectedDates;
-        }else{
-          document.getElementById("fPagoFecha")._range = null;
-        }
-        applyPagoFilters();
+        if(selectedDates.length===2){selectedDates[0].setHours(0,0,0,0);selectedDates[1].setHours(23,59,59,999);$("#fPagoFecha")._range=selectedDates;requeryByActiveDateRange();}else{$("#fPagoFecha")._range=null;applyPagoFilters();}
       }
     });
   }
