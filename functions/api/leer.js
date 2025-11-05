@@ -30,7 +30,7 @@ export async function onRequestGet({ request }) {
   const hasta       = incoming.searchParams.get("hasta");       // "YYYY-MM-DD"
 
   // Endpoint de Apps Script (ajústalo si cambias el deployment)
-  const url = new URL("https://script.google.com/macros/s/AKfycbx20wSN5UGgv6rxCNZ8LW40P4bqulV_6vrCic1egks38nwMNIo92i46zTzTeAC1fmZbXA/exec");
+  const url = new URL("https://script.google.com/macros/s/AKfycbw_aSYBHHNc1v8XrCn70jMbPkqIUM8G1ETsh9Esg2SQSBlZfF4YD26ik6QduUeAJnhw2Q/exec");
 
   if (otrosCargos) {
     // Modo "Otros Cargos"
