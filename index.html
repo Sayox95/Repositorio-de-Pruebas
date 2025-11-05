@@ -3339,9 +3339,10 @@ async function marcarSeleccionComoEnviadas(){
 </script>
 
 <script>
-/* === Botón "Limpiar" => volver al MES ACTUAL (Revisión y Pago) ===
-   - Revisión: solo #fFecha vuelve al mes actual. #fFechaRev se deja vacío (sin default).
+/* === [PATCH_SAFE_LIMPIAR_TO_MONTH] Botón "Limpiar" → mes actual (Revisión y Pago) ===
+   - Revisión: #fFecha vuelve al mes actual; #fFechaRev se deja vacío.
    - Pago: #fPagoFecha vuelve al mes actual.
+   Nota: No elimina ni modifica scripts existentes.
 */
 (function(){
   function monthRange(){
@@ -3362,7 +3363,7 @@ async function marcarSeleccionComoEnviadas(){
     if (trigger && typeof window.applyFilters === "function"){ try{ window.applyFilters(); }catch(e){} }
   }
 
-  function clearFFechaRev(){ // aseguramos dejarlo vacío
+  function clearFFechaRev(){
     const input = document.getElementById("fFechaRev");
     const fp = input?._flatpickr;
     if (!fp) return;
@@ -3380,15 +3381,14 @@ async function marcarSeleccionComoEnviadas(){
     if (trigger && typeof window.applyPagoFilters === "function"){ try{ window.applyPagoFilters(); }catch(e){} }
   }
 
-  // --- Parchear funciones de limpiar ---
+  // Parchear funciones de limpiar si existen, sin reemplazarlas definitivamente
   (function patchRevisionClear(){
     if (!("clearFilters" in window)) return;
-    if (window.__patchedClearFiltersToMonth__) return;
-    window.__patchedClearFiltersToMonth__ = true;
+    if (window.__patchedClearFiltersToMonthSafe__) return;
+    window.__patchedClearFiltersToMonthSafe__ = true;
     const _orig = window.clearFilters;
     window.clearFilters = function(){
       const out = _orig.apply(this, arguments);
-      // Tras limpiar, dejar #fFecha con el mes actual y #fFechaRev vacío
       setTimeout(function(){
         setFFechaDefault(true);
         clearFFechaRev();
@@ -3399,34 +3399,30 @@ async function marcarSeleccionComoEnviadas(){
 
   (function patchPagoClear(){
     if (!("clearPagoFilters" in window)) return;
-    if (window.__patchedClearPagoFiltersToMonth__) return;
-    window.__patchedClearPagoFiltersToMonth__ = true;
+    if (window.__patchedClearPagoFiltersToMonthSafe__) return;
+    window.__patchedClearPagoFiltersToMonthSafe__ = true;
     const _orig = window.clearPagoFilters;
     window.clearPagoFilters = function(){
       const out = _orig.apply(this, arguments);
-      // Tras limpiar, dejar #fPagoFecha con el mes actual
       setTimeout(function(){ setPagoDefault(true); }, 0);
       return out;
     };
   })();
 
-  // --- Por si los botones "Limpiar" no llaman a las funciones anteriores, enganchamos al click ---
+  // Fallback adicional por si algún botón no llama a las funciones anteriores
   document.addEventListener("DOMContentLoaded", function(){
-    // Buscar botones por texto visible "Limpiar"
-    const candidates = Array.from(document.querySelectorAll("button, a"))
-      .filter(el => /limpiar/i.test(el.textContent || ""));
-    candidates.forEach(btn => {
-      if (btn.__limpiarHooked__) return;
-      btn.__limpiarHooked__ = true;
+    const maybeButtons = Array.from(document.querySelectorAll("button, a"))
+      .filter(el => /(^|\s)limpiar(\s|$)/i.test(el.textContent || ""));
+    maybeButtons.forEach(btn => {
+      if (btn.__limpiarHookedSafe__) return;
+      btn.__limpiarHookedSafe__ = true;
       btn.addEventListener("click", function(){
-        // Damos un micro-turno para que su handler nativo haga el clear
         setTimeout(function(){
-          // Intentamos ambos contextos; el que exista aplicará
-          try { setFFechaDefault(true); } catch(e){}
-          try { clearFFechaRev(); } catch(e){}
-          try { setPagoDefault(true); } catch(e){}
+          try{ setFFechaDefault(true); }catch(e){}
+          try{ clearFFechaRev(); }catch(e){}
+          try{ setPagoDefault(true); }catch(e){}
         }, 0);
-      }, {capture:false});
+      });
     });
   });
 })();
