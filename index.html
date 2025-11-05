@@ -3621,12 +3621,15 @@ async function marcarSeleccionComoEnviadas(){
 })();
 </script>
 
+
 <script>
-/* === Auto-selección del mes actual para rangos flatpickr ===
-   Aplica a: #fFecha, #fFechaRev (Revisión) y #fPagoFecha (Pago)
-   - Selecciona [1er día del mes, último día del mes] por defecto
-   - Dispara onChange de flatpickr para que se apliquen filtros
-   - Setea input._range para compatibilidad con lógicas existentes
+/* === Auto-selección del mes actual (robusto) ===
+   - Asegura que en **Revisión** (#fFecha, #fFechaRev) el rango por defecto
+     se aplique *después* de que:
+       1) flatpickr haya inicializado ambos inputs
+       2) los multiselects estén listos
+       3) la tabla esté construida (tableBuilt === true)
+   - En **Pago** (#fPagoFecha) mantiene la lógica previa.
 */
 (function(){
   function monthStartEnd(d){
@@ -3636,45 +3639,74 @@ async function marcarSeleccionComoEnviadas(){
     var end   = new Date(y, m + 1, 0, 23, 59, 59, 999);
     return [start, end];
   }
-
-  function setDefault(selector, applyFnName){
-    var input = document.querySelector(selector);
+  function setRangeOn(input, range){
     if (!input) return;
-
-    var range = monthStartEnd();
-    function apply(fp){
-      try {
-        // Establece visualmente el rango y dispara onChange
-        fp.setDate(range, true);
-        // Guarda rango normalizado que algunos filtros leen
-        input._range = range;
-        // Si hay una función de aplicar filtros, ejecútala
-        if (applyFnName && typeof window[applyFnName] === "function") {
-          try { window[applyFnName](); } catch(e) { /* noop */ }
-        }
-      } catch (e) {
-        // noop
-      }
-    }
-
-    var tries = 0;
-    (function waitForFlatpickr(){
+    try{
       var fp = input._flatpickr;
-      if (fp && fp.config && fp.config.mode === "range") {
-        apply(fp);
-      } else if (tries < 120) { // ~12s máximo
-        tries++;
-        setTimeout(waitForFlatpickr, 100);
+      if (fp && fp.config && fp.config.mode === "range"){
+        fp.setDate(range, true);      // visual + dispara onChange
+        input._range = range.slice(); // compat con lógica interna
       }
-    })();
+    }catch(e){ /* noop */ }
+  }
+  function readyForRevision(){
+    var f1 = document.querySelector("#fFecha");
+    var f2 = document.querySelector("#fFechaRev");
+    var okFP = f1 && f1._flatpickr && f2 && f2._flatpickr;
+    var okMS = (typeof window.sectorMS !== "undefined") && (typeof window.estadoMS !== "undefined");
+    var okTable = (typeof window.tableBuilt !== "undefined") && window.tableBuilt === true;
+    return okFP && okMS && okTable;
+  }
+
+  function applyDefaultRevision(){
+    var range = monthStartEnd();
+    setRangeOn(document.querySelector("#fFecha"), range);
+    setRangeOn(document.querySelector("#fFechaRev"), range);
+    if (typeof window.applyFilters === "function"){
+      try { window.applyFilters(); } catch(e){}
+    }
+  }
+
+  function applyDefaultPago(){
+    var input = document.querySelector("#fPagoFecha");
+    var range = monthStartEnd();
+    setRangeOn(input, range);
+    if (typeof window.applyPagoFilters === "function"){
+      try { window.applyPagoFilters(); } catch(e){}
+    }
   }
 
   document.addEventListener("DOMContentLoaded", function(){
-    // Revisión
-    setDefault("#fFecha", "applyFilters");
-    setDefault("#fFechaRev", "applyFilters");
-    // Pago
-    setDefault("#fPagoFecha", "applyPagoFilters");
+    // Pago (como antes, simple)
+    (function waitPago(){
+      var el = document.querySelector("#fPagoFecha");
+      if (el && el._flatpickr) { applyDefaultPago(); }
+      else { setTimeout(waitPago, 120); }
+    })();
+
+    // Revisión: esperar a que todo esté listo para evitar que otra lógica lo borre
+    (function waitRevision(){
+      if (readyForRevision()) {
+        applyDefaultRevision();
+      } else {
+        setTimeout(waitRevision, 150);
+      }
+    })();
+
+    // Defensa adicional: si la tabla emite el evento luego de nuestro set, reintentar una sola vez
+    (function attachOneShot(){
+      try{
+        if (window.table && typeof window.table.on === "function"){
+          var once = false;
+          window.table.on("tableBuilt", function(){
+            if (!once){
+              once = true;
+              setTimeout(applyDefaultRevision, 0);
+            }
+          });
+        }
+      }catch(e){ /* noop */ }
+    })();
   });
 })();
 </script>
