@@ -3737,11 +3737,12 @@ async function marcarSeleccionComoEnviadas(){
 })();
 </script>
 
+
 <script>
-/* === Revisión: pintar inmediato (con MutationObserver) + aplicar tras hardRefresh ===
-   - #fFecha: se pinta el mes actual apenas el flatpickr existe (aunque esté el toast).
-   - #fFechaRev: sin default (quedará vacío).
-   - Al finalizar hardRefresh() se aplica el rango (onChange + applyFilters).
+/* === Revisión: mostrar rango del mes incluso durante clearFilters() ===
+   - Parchea clearFilters(): tras limpiar, repinta #fFecha con el mes actual (sin disparar filtros).
+   - Parchea hardRefresh(): al finalizar, aplica el rango (onChange + applyFilters).
+   - #fFechaRev permanece sin default.
 */
 (function(){
   function monthRange(){
@@ -3751,66 +3752,60 @@ async function marcarSeleccionComoEnviadas(){
     const end   = new Date(y, m+1, 0, 23,59,59,999);
     return [start, end];
   }
-
-  // Pinta sólo en UI sin disparar onChange
   function paintFFechaOnly(){
     const el = document.getElementById("fFecha");
     const fp = el?._flatpickr;
     if (!fp) return false;
     try { fp.setDate(monthRange(), false); return true; } catch(e){ return false; }
   }
-
-  // Aplica realmente el filtro
   function applyFFecha(){
     const el = document.getElementById("fFecha");
     const fp = el?._flatpickr;
     if (!fp) return false;
     const r = monthRange();
     try {
-      fp.setDate(r, true);     // dispara onChange
+      fp.setDate(r, true);
       el._range = r;
       if (typeof window.applyFilters === "function"){ try{ window.applyFilters(); }catch(e){} }
       return true;
     } catch(e){ return false; }
   }
 
-  // Observer que pinta en cuanto #fFecha tenga flatpickr (para cubrir init dentro de hardRefresh)
-  function ensurePaintedEarly(){
-    if (paintFFechaOnly()) return; // ya existe, pintado
-    const el = document.getElementById("fFecha");
-    if (!el) return;
-    let tries = 0;
-    const maxTries = 200; // ~20s
-    const tick = setInterval(function(){
-      if (paintFFechaOnly()) { clearInterval(tick); return; }
-      if (++tries >= maxTries) clearInterval(tick);
-    }, 100);
+  // Patch clearFilters: limpiar y repintar inmediatamente (para que se vea durante el toast)
+  (function(){
+    if (!("clearFilters" in window)) return;
+    if (window.__patchClearFiltersPaint__) return;
+    window.__patchClearFiltersPaint__ = true;
+    const _orig = window.clearFilters;
+    window.clearFilters = function(){
+      const out = _orig.apply(this, arguments);
+      // Si ya existe el flatpickr, pintar sin disparar onChange (no queremos filtrar todavía)
+      setTimeout(paintFFechaOnly, 0);
+      return out;
+    };
+  })();
 
-    // Además, por si #fFecha se inserta tarde, observamos el DOM
-    const obs = new MutationObserver(function(){
-      if (paintFFechaOnly()) { obs.disconnect(); }
-    });
-    obs.observe(document.documentElement, {subtree:true, childList:true, attributes:false});
-  }
-
-  // Al cargar documento: intentar pintar ASAP (antes/dependa de hardRefresh/initFilters)
-  document.addEventListener("DOMContentLoaded", ensurePaintedEarly);
-
-  // Parchear hardRefresh para aplicar al final y volver a pintar al inicio si hiciera falta
+  // Patch hardRefresh: aplicar realmente al terminar
   (function(){
     if (!("hardRefresh" in window)) return;
-    if (window.__patchHardRefreshObserver__) return;
-    window.__patchHardRefreshObserver__ = true;
+    if (window.__patchHardRefreshApply__) return;
+    window.__patchHardRefreshApply__ = true;
     const _orig = window.hardRefresh;
     window.hardRefresh = async function(){
-      // Inicio: aseguramos que se vea el rango aunque se esté reconstruyendo todo
-      ensurePaintedEarly();
       const out = await _orig.apply(this, arguments);
-      // Fin: aplicar de verdad (dispara filtros)
       setTimeout(applyFFecha, 0);
       return out;
     };
   })();
+
+  // Primer pintado por si aterrizas directo en Revisión
+  document.addEventListener("DOMContentLoaded", function(){
+    let tries = 0, max = 60;
+    const id = setInterval(function(){
+      if (paintFFechaOnly()) { clearInterval(id); }
+      else if (++tries >= max) { clearInterval(id); }
+    }, 100);
+  });
 })();
 </script>
 </body>
