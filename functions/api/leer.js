@@ -30,7 +30,7 @@ export async function onRequestGet({ request }) {
   const hasta       = incoming.searchParams.get("hasta");       // "YYYY-MM-DD"
 
   // Endpoint de Apps Script (ajústalo si cambias el deployment)
-  const url = new URL("https://script.google.com/macros/s/AKfycbzFvgJhZ6fKaLp5qk05Ogoqbl8qb7W8NG2GxcJoz5Kv0ZwgO4sz8NBxas31kzHtV4XNQQ/exec");
+  const url = new URL("https://script.google.com/macros/s/AKfycbzMBxClAxbep8dhHJy2svFQ8QnXCYS9_Rna1TzwNJaUOkPCH5Nk7FyVUdIUj_H9clOefg/exec");
 
   if (otrosCargos) {
     // Modo "Otros Cargos"
@@ -80,3 +80,6 @@ export async function onRequestGet({ request }) {
     });
   }
 }
+
+
+para que lo conozcas, los codigos estan alojados en github pero los cargue y publique con cloudflare worker pages
