@@ -658,6 +658,7 @@ const API = { _facturasCtl:null,
       url.searchParams.set("desde", String(opts.desde));
       url.searchParams.set("hasta", String(opts.hasta));
     }
+    console.log("[DEBUG] API.getFacturas URL", url.toString());
     const res = await fetch(url.toString(), {cache:"no-store", mode:"cors", signal: ctl.signal});
     if(!res.ok) throw new Error("No se pudo leer facturas");
     const data = await res.json();
@@ -791,6 +792,7 @@ const State = {
     const p = ($("#fPlaca")?.value || "").trim().toLowerCase();
     const n = $("#fNumero").value.trim().toLowerCase();
     const dr = $("#fFecha")._range || null;
+    const skipClientDate = !!($("#fFecha")._serverRangeApplied);
     const dr2 = ($("#fFechaRev")? $("#fFechaRev")._range : null);
     const _normalize = (s)=> String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
     const nombreQ = _normalize(document.getElementById("fNombre")?.value || "");
@@ -810,7 +812,7 @@ const State = {
       const nombreNorm = _normalize(row.Nombre||"");
       if(nombreQ && !nombreNorm.includes(nombreQ)) return false;
 
-      if(dr){
+      if(dr && !skipClientDate){
         const f = parseDateAny(fecha);
         if(isNaN(f)) return false;
         if(f < dr[0] || f > dr[1]) return false;
@@ -868,31 +870,15 @@ async function refreshAfterEstado(){
     }
     const arr = await API.getFacturas(opts);
     State.raw = arr;
-    try {
-      const drDbg = document.getElementById("fFecha")?._range;
-      const dr2Dbg = document.getElementById("fFechaRev")?._range;
-      const sDbg = (typeof sectorMS!=="undefined" && sectorMS && sectorMS.getSelected)? sectorMS.getSelected(): [];
-      const eDbg = (typeof estadoMS!=="undefined" && estadoMS && estadoMS.getSelected)? estadoMS.getSelected(): [];
-      console.log("[DEBUG] State after fetch", {
-        rawLen: (State.raw||[]).length,
-        filteredLen: (State.filtered||[]).length,
-        sectorSel: sDbg, estadoSel: eDbg,
-        nombre: (document.getElementById("fNombre")?.value||""),
-        placa: (document.getElementById("fPlaca")?.value||""),
-        numero: (document.getElementById("fNumero")?.value||""),
-        dr: drDbg, dr2: dr2Dbg,
-        sampleFiltered: (State.filtered||[])[0]
-      });
-    } catch(_e) {}
     try{ sectorMS.setItems(Array.from(new Set(State.raw.map(r=>r.Sector).filter(Boolean)))); } catch (e){ }
     try{ estadoMS.setItems(getEstadoOptions()); } catch (e){ }
     try{ sectorMS.select(currentSector); estadoMS.select(currentEstado); } catch (e){ }
     if(document.getElementById("fNombre")) document.getElementById("fNombre").value = qNombre;
     if(document.getElementById("fPlaca"))  document.getElementById("fPlaca").value = qPlaca;
     document.getElementById("fNumero").value = qNum;
-    if(document.getElementById("fFecha")) document.getElementById("fFecha")._range = dr;
+    if(document.getElementById("fFecha")) { document.getElementById("fFecha")._range = dr; document.getElementById("fFecha")._serverRangeApplied = !!dr; }
     if(document.getElementById("fFechaRev")) document.getElementById("fFechaRev")._range = dr2;
-    if(table){ await table.replaceData(State.filtered); try{ console.log("[DEBUG] table.replaceData done (Revision)", {rows: table.getDataCount? table.getDataCount(): "(no api)"}); }catch(_e){} }
+    if(table){ await table.replaceData(State.filtered); }
     updateKpis();
     try{ updateKpisRevRange(); } catch (e){}
     setLastUpdatedNow();
@@ -1178,29 +1164,13 @@ function initFilters(){
         selectedDates[0].setHours(0,0,0,0);
         selectedDates[1].setHours(23,59,59,999);
         $("#fFecha")._range = selectedDates;
-
+        $("#fFecha")._serverRangeApplied = true; // <-- evitar re-filtrado local por fecha
         // 🔄 Re-cargar desde servidor para el rango elegido
         const desde = selectedDates[0].toISOString().slice(0,10);
         const hasta = selectedDates[1].toISOString().slice(0,10);
         overlay.show("Cargando facturas…");
-        API.getFacturas({ campoFecha:"Fecha", desde, hasta }).then(arr=>{ console.log("[DEBUG] Revision range fetch", {desde, hasta, len: (arr||[]).length, sample: (arr||[])[0], lastURL: (API && API._lastURL)});
+        API.getFacturas({ campoFecha:"Fecha", desde, hasta }).then(arr=>{
           State.raw = arr;
-    try {
-      const drDbg = document.getElementById("fFecha")?._range;
-      const dr2Dbg = document.getElementById("fFechaRev")?._range;
-      const sDbg = (typeof sectorMS!=="undefined" && sectorMS && sectorMS.getSelected)? sectorMS.getSelected(): [];
-      const eDbg = (typeof estadoMS!=="undefined" && estadoMS && estadoMS.getSelected)? estadoMS.getSelected(): [];
-      console.log("[DEBUG] State after fetch", {
-        rawLen: (State.raw||[]).length,
-        filteredLen: (State.filtered||[]).length,
-        sectorSel: sDbg, estadoSel: eDbg,
-        nombre: (document.getElementById("fNombre")?.value||""),
-        placa: (document.getElementById("fPlaca")?.value||""),
-        numero: (document.getElementById("fNumero")?.value||""),
-        dr: drDbg, dr2: dr2Dbg,
-        sampleFiltered: (State.filtered||[])[0]
-      });
-    } catch(_e) {}
           try{ sectorMS.setItems(Array.from(new Set(State.raw.map(r=>r.Sector).filter(Boolean)))); } catch (e){ }
           try{ estadoMS.setItems(getEstadoOptions()); } catch (e){ }
           if(table){ return table.replaceData(State.filtered); }
@@ -1214,6 +1184,8 @@ function initFilters(){
 
       }else{
         $("#fFecha")._range = null;
+        $("#fFecha")._serverRangeApplied = false;
+        
         $("#fFechaRev").value = "";
         $("#fFechaRev")._range = null;
         applyFilters();
@@ -1298,25 +1270,9 @@ async function reloadPagoByFechaRange(selectedDates){
     const desde = selectedDates[0].toISOString().slice(0,10);
     const hasta = selectedDates[1].toISOString().slice(0,10);
     overlay.show("Cargando facturas (Pago)…");
-    const arr = await API.getFacturas({ campoFecha:"Fecha", desde, hasta, estados:["Revisada","Pagada","Enviada"] }); console.log("[DEBUG] Pago range fetch", {desde, hasta, len: (arr||[]).length, sample: (arr||[])[0], lastURL: (API && API._lastURL)});
+    const arr = await API.getFacturas({ campoFecha:"Fecha", desde, hasta, estados:["Revisada","Pagada","Enviada"] });
     // Si existe estado/gatillos de Pago, propagar datos
-    if (typeof window.PagoState === "object") { window.PagoState.raw = arr;
-    try {
-      const drDbg = document.getElementById("fFecha")?._range;
-      const dr2Dbg = document.getElementById("fFechaRev")?._range;
-      const sDbg = (typeof sectorMS!=="undefined" && sectorMS && sectorMS.getSelected)? sectorMS.getSelected(): [];
-      const eDbg = (typeof estadoMS!=="undefined" && estadoMS && estadoMS.getSelected)? estadoMS.getSelected(): [];
-      console.log("[DEBUG] State after fetch", {
-        rawLen: (State.raw||[]).length,
-        filteredLen: (State.filtered||[]).length,
-        sectorSel: sDbg, estadoSel: eDbg,
-        nombre: (document.getElementById("fNombre")?.value||""),
-        placa: (document.getElementById("fPlaca")?.value||""),
-        numero: (document.getElementById("fNumero")?.value||""),
-        dr: drDbg, dr2: dr2Dbg,
-        sampleFiltered: (State.filtered||[])[0]
-      });
-    } catch(_e) {} }
+    if (typeof window.PagoState === "object") { window.PagoState.raw = arr; }
     // Si existe tabla de Pago (Tabulator), actualizar
     const pagoEl = document.getElementById("tablaPago");
     if (pagoEl && typeof Tabulator !== "undefined" && window.tablePago && typeof window.tablePago.replaceData === "function") {
@@ -2389,7 +2345,7 @@ const Pago = {
       if(estados.length  && !estados.includes(estado)) return false;
       if(nroQ && !numCanon.includes(nroQ)) return false;
       if(nomQ && !nombreCanon.includes(nomQ)) return false;
-      if(dr){
+      if(dr && !skipClientDate){
         const d = new Date(fecha);
         if(isNaN(d) || d < dr[0] || d > dr[1]) return false;
       }
@@ -2601,7 +2557,7 @@ async function cargarPago(){
     const TARGET = new Set(["Revisada","Pagada","Enviada"]);
 
     if (typeof API!=="undefined" && typeof API.getFacturas === "function") {
-      try { arr = await API.getFacturas({ estados: ["Revisada","Pagada","Enviada"] }); console.log("[DEBUG] Pago cargar (estados only)", {len: (arr||[]).length, sample: (arr||[])[0], lastURL: (API && API._lastURL)}); } catch (e){ arr = null; }
+      try { arr = await API.getFacturas({ estados: ["Revisada","Pagada","Enviada"] }); } catch (e){ arr = null; }
     }
     let data = Array.isArray(arr) ? arr : [];
 
