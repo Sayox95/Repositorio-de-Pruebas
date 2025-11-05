@@ -539,6 +539,10 @@ const Config = {
   tablaHeight: "560px",
 };
 
+// Guard to prevent duplicate reloads when setting dates programmatically
+window.__suppressRangeReload = false;
+
+
 /** =========================
  *  Utilidades de UI
  *  ========================= */
@@ -1275,7 +1279,7 @@ function initPagoDateFilterHook(){
         selectedDates[0].setHours(0,0,0,0);
         selectedDates[1].setHours(23,59,59,999);
         el._range = selectedDates;
-        reloadPagoByFechaRange(selectedDates);
+        if (!window.__suppressRangeReload) { try{ if (typeof cargarPago === 'function') cargarPago(); }catch(e){} }
       }else{
         el._range = null;
       }
@@ -3751,7 +3755,7 @@ async function marcarSeleccionComoEnviadas(){
     const fp = el?._flatpickr;
     if (!fp) return false;
     const r = monthRange();
-    try { fp.setDate(r, true); el._range = r; } catch(e){ return false; }
+    try { window.__suppressRangeReload = True; fp.setDate(r, true); el._range = r; } catch(e){ return false; } finally { window.__suppressRangeReload = false; }
     if (typeof window.applyFilters === "function"){ try{ window.applyFilters(); }catch(e){} }
     return true;
   }
@@ -3876,7 +3880,7 @@ async function marcarSeleccionComoEnviadas(){
           const el = document.getElementById("fPagoFecha");
           const fp = el?._flatpickr;
           const r = twoDates(el) || monthRange();
-          try { if (fp) { fp.setDate(r, true); el._range = r; } } catch(e){}
+          try { window.__suppressRangeReload = true; if (fp) { fp.setDate(r, true); el._range = r; } } catch(e){} finally { window.__suppressRangeReload = false; }
           if (typeof window.applyPagoFilters === "function"){ try{ window.applyPagoFilters(); }catch(e){} }
         }, 0);
         return out;
