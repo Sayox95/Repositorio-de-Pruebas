@@ -868,6 +868,22 @@ async function refreshAfterEstado(){
     }
     const arr = await API.getFacturas(opts);
     State.raw = arr;
+    try {
+      const drDbg = document.getElementById("fFecha")?._range;
+      const dr2Dbg = document.getElementById("fFechaRev")?._range;
+      const sDbg = (typeof sectorMS!=="undefined" && sectorMS && sectorMS.getSelected)? sectorMS.getSelected(): [];
+      const eDbg = (typeof estadoMS!=="undefined" && estadoMS && estadoMS.getSelected)? estadoMS.getSelected(): [];
+      console.log("[DEBUG] State after fetch", {
+        rawLen: (State.raw||[]).length,
+        filteredLen: (State.filtered||[]).length,
+        sectorSel: sDbg, estadoSel: eDbg,
+        nombre: (document.getElementById("fNombre")?.value||""),
+        placa: (document.getElementById("fPlaca")?.value||""),
+        numero: (document.getElementById("fNumero")?.value||""),
+        dr: drDbg, dr2: dr2Dbg,
+        sampleFiltered: (State.filtered||[])[0]
+      });
+    } catch(_e) {}
     try{ sectorMS.setItems(Array.from(new Set(State.raw.map(r=>r.Sector).filter(Boolean)))); } catch (e){ }
     try{ estadoMS.setItems(getEstadoOptions()); } catch (e){ }
     try{ sectorMS.select(currentSector); estadoMS.select(currentEstado); } catch (e){ }
@@ -876,7 +892,7 @@ async function refreshAfterEstado(){
     document.getElementById("fNumero").value = qNum;
     if(document.getElementById("fFecha")) document.getElementById("fFecha")._range = dr;
     if(document.getElementById("fFechaRev")) document.getElementById("fFechaRev")._range = dr2;
-    if(table){ await table.replaceData(State.filtered); }
+    if(table){ await table.replaceData(State.filtered); try{ console.log("[DEBUG] table.replaceData done (Revision)", {rows: table.getDataCount? table.getDataCount(): "(no api)"}); }catch(_e){} }
     updateKpis();
     try{ updateKpisRevRange(); } catch (e){}
     setLastUpdatedNow();
@@ -1169,6 +1185,22 @@ function initFilters(){
         overlay.show("Cargando facturas…");
         API.getFacturas({ campoFecha:"Fecha", desde, hasta }).then(arr=>{ console.log("[DEBUG] Revision range fetch", {desde, hasta, len: (arr||[]).length, sample: (arr||[])[0], lastURL: (API && API._lastURL)});
           State.raw = arr;
+    try {
+      const drDbg = document.getElementById("fFecha")?._range;
+      const dr2Dbg = document.getElementById("fFechaRev")?._range;
+      const sDbg = (typeof sectorMS!=="undefined" && sectorMS && sectorMS.getSelected)? sectorMS.getSelected(): [];
+      const eDbg = (typeof estadoMS!=="undefined" && estadoMS && estadoMS.getSelected)? estadoMS.getSelected(): [];
+      console.log("[DEBUG] State after fetch", {
+        rawLen: (State.raw||[]).length,
+        filteredLen: (State.filtered||[]).length,
+        sectorSel: sDbg, estadoSel: eDbg,
+        nombre: (document.getElementById("fNombre")?.value||""),
+        placa: (document.getElementById("fPlaca")?.value||""),
+        numero: (document.getElementById("fNumero")?.value||""),
+        dr: drDbg, dr2: dr2Dbg,
+        sampleFiltered: (State.filtered||[])[0]
+      });
+    } catch(_e) {}
           try{ sectorMS.setItems(Array.from(new Set(State.raw.map(r=>r.Sector).filter(Boolean)))); } catch (e){ }
           try{ estadoMS.setItems(getEstadoOptions()); } catch (e){ }
           if(table){ return table.replaceData(State.filtered); }
@@ -1268,7 +1300,23 @@ async function reloadPagoByFechaRange(selectedDates){
     overlay.show("Cargando facturas (Pago)…");
     const arr = await API.getFacturas({ campoFecha:"Fecha", desde, hasta, estados:["Revisada","Pagada","Enviada"] }); console.log("[DEBUG] Pago range fetch", {desde, hasta, len: (arr||[]).length, sample: (arr||[])[0], lastURL: (API && API._lastURL)});
     // Si existe estado/gatillos de Pago, propagar datos
-    if (typeof window.PagoState === "object") { window.PagoState.raw = arr; }
+    if (typeof window.PagoState === "object") { window.PagoState.raw = arr;
+    try {
+      const drDbg = document.getElementById("fFecha")?._range;
+      const dr2Dbg = document.getElementById("fFechaRev")?._range;
+      const sDbg = (typeof sectorMS!=="undefined" && sectorMS && sectorMS.getSelected)? sectorMS.getSelected(): [];
+      const eDbg = (typeof estadoMS!=="undefined" && estadoMS && estadoMS.getSelected)? estadoMS.getSelected(): [];
+      console.log("[DEBUG] State after fetch", {
+        rawLen: (State.raw||[]).length,
+        filteredLen: (State.filtered||[]).length,
+        sectorSel: sDbg, estadoSel: eDbg,
+        nombre: (document.getElementById("fNombre")?.value||""),
+        placa: (document.getElementById("fPlaca")?.value||""),
+        numero: (document.getElementById("fNumero")?.value||""),
+        dr: drDbg, dr2: dr2Dbg,
+        sampleFiltered: (State.filtered||[])[0]
+      });
+    } catch(_e) {} }
     // Si existe tabla de Pago (Tabulator), actualizar
     const pagoEl = document.getElementById("tablaPago");
     if (pagoEl && typeof Tabulator !== "undefined" && window.tablePago && typeof window.tablePago.replaceData === "function") {
