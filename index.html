@@ -520,7 +520,90 @@
 </div>
 </div>
 </div>
+
+</div>
+
+
+
+
+<!-- Modal: Generar Liquidación -->
+<div class="modal hidden" id="modalGenerarLiqui">
+<div class="modal-content">
+<h3 class="modal-title">Generar Liquidación</h3>
+<div class="modal-body">
+<div class="grid">
+<label>No. ACREEDOR
+          <input id="liqNoAcreedor" placeholder="Ingresa No. Acreedor" type="text"/>
+</label>
+<label>Fecha de solicitud
+          <input id="liqFechaSolicitud" type="date"/>
+</label>
+<label>Área / Departamento
+          <input id="liqArea" placeholder="Área o Departamento" type="text"/>
+</label>
+<label>Sector
+          <input id="liqSector" placeholder="Sector" type="text"/>
+</label>
+<label>Nombre completo del colaborador
+          <input id="liqColaborador" placeholder="Nombre del colaborador" type="text"/>
+</label>
+<label>Motivo de liquidación por anticipo
+          <input id="liqMotivo" placeholder="Motivo" type="text"/>
+</label>
+</div>
+<p class="muted">Se incluirán facturas <b>Pagadas</b> y sus Otros Cargos vinculados por ID_PAGO.</p>
+</div>
+<div class="modal-actions">
+<button class="btn" id="btnLiquiCancelar">Cancelar</button>
+<button class="btn btn-primary" id="btnLiquiGenerar">Generar</button>
+</div>
+</div>
+</div>
+<style>
+  .modal{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.25);z-index:1000}
+  .modal.hidden{display:none}
+  .modal-content{background:#fff;border-radius:16px;min-width:min(720px,96vw);max-width:96vw;padding:20px;box-shadow:0 10px 40px rgba(0,0,0,.2)}
+  .modal-title{font-size:1.1rem;margin-bottom:10px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:8px 0 12px}
+  .grid label{display:flex;flex-direction:column;font-size:.9rem;gap:6px}
+  .grid input{padding:8px 10px;border:1px solid #e5e7eb;border-radius:10px}
+  .modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:6px}
+</style>
+<!-- Busy Overlay: Generando liquidación -->
+<div class="busy-overlay hidden" id="busyOverlay">
+<div class="busy-box">
+<div class="busy-spinner"></div>
+<div class="busy-text" id="busyText">Generando liquidación…</div>
+</div>
+</div>
+<style>
+  .busy-overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(17,24,39,.45);backdrop-filter:saturate(140%) blur(2px);z-index:2000}
+  .busy-overlay.hidden{display:none}
+  .busy-box{background:#fff;padding:20px 24px;border-radius:16px;box-shadow:0 15px 40px rgba(0,0,0,.25);min-width:260px;display:flex;flex-direction:column;align-items:center;gap:12px}
+  .busy-text{font-size:15px;font-weight:600;color:#111827;text-align:center}
+  .busy-spinner{width:36px;height:36px;border-radius:50%;border:3px solid #e5e7eb;border-top-color:#10b981;animation:busyspin 0.9s linear infinite}
+  @keyframes busyspin{to{transform:rotate(360deg)}}
+</style>
+<!-- === END PATCH === -->
+
+<!-- === PATCH v2: Improved robust hooks for Pago action buttons === -->
+
+<!-- === END PATCH v2 === -->
+<!-- === PATCH: Revisión - agrupar fix + botón "Marcar como Revisadas" === -->
+
+<!-- === END PATCH === -->
+
+<!-- Group checkbox handler for Pago -->
+
+
+
+
 <script>
+
+
+
+
+
 /** =========================
  *  Configuración
  *  ========================= */
@@ -2085,9 +2168,8 @@ async function loadData(){
 }
 
 window.addEventListener("DOMContentLoaded", bootstrap);
-</script>
-</div>
-<script>
+
+
 // ===== Auth (Cloudflare Pages Functions) =====
 const Auth = { login: "/api/auth/login", me: "/api/auth/me", logout: "/api/auth/logout" };
 
@@ -2203,8 +2285,8 @@ async function doLogout(){ await authLogout(); showLogin(); }
   });
 })();
 
-</script>
-<script>
+
+
 // ============ Util Pago ============
 function setLastUpdatedPago(){
   const el=document.getElementById("lastUpdatedPago"); if(!el) return;
@@ -2608,8 +2690,8 @@ document.addEventListener("DOMContentLoaded", function(){
     }
   });
 })();
-</script>
-<script>
+
+
 // Simple toast (bottom-center) that fades out
 (function(){
   window.toast = function(msg, timeoutMs){
@@ -3095,8 +3177,8 @@ async function fetchOtrosCargos(ids){
     window.initPagoMassPay.__wrapped = true;
   }
 })();
-</script>
-<script>
+
+
 // === Marcar como Enviadas (Pago): sólo handler + click binding ===
 (function(){
 async function marcarSeleccionComoEnviadas(){
@@ -3170,67 +3252,8 @@ async function marcarSeleccionComoEnviadas(){
     }
   });
 })();
-</script>
-<!-- Modal: Generar Liquidación -->
-<div class="modal hidden" id="modalGenerarLiqui">
-<div class="modal-content">
-<h3 class="modal-title">Generar Liquidación</h3>
-<div class="modal-body">
-<div class="grid">
-<label>No. ACREEDOR
-          <input id="liqNoAcreedor" placeholder="Ingresa No. Acreedor" type="text"/>
-</label>
-<label>Fecha de solicitud
-          <input id="liqFechaSolicitud" type="date"/>
-</label>
-<label>Área / Departamento
-          <input id="liqArea" placeholder="Área o Departamento" type="text"/>
-</label>
-<label>Sector
-          <input id="liqSector" placeholder="Sector" type="text"/>
-</label>
-<label>Nombre completo del colaborador
-          <input id="liqColaborador" placeholder="Nombre del colaborador" type="text"/>
-</label>
-<label>Motivo de liquidación por anticipo
-          <input id="liqMotivo" placeholder="Motivo" type="text"/>
-</label>
-</div>
-<p class="muted">Se incluirán facturas <b>Pagadas</b> y sus Otros Cargos vinculados por ID_PAGO.</p>
-</div>
-<div class="modal-actions">
-<button class="btn" id="btnLiquiCancelar">Cancelar</button>
-<button class="btn btn-primary" id="btnLiquiGenerar">Generar</button>
-</div>
-</div>
-</div>
-<style>
-  .modal{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.25);z-index:1000}
-  .modal.hidden{display:none}
-  .modal-content{background:#fff;border-radius:16px;min-width:min(720px,96vw);max-width:96vw;padding:20px;box-shadow:0 10px 40px rgba(0,0,0,.2)}
-  .modal-title{font-size:1.1rem;margin-bottom:10px}
-  .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:8px 0 12px}
-  .grid label{display:flex;flex-direction:column;font-size:.9rem;gap:6px}
-  .grid input{padding:8px 10px;border:1px solid #e5e7eb;border-radius:10px}
-  .modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:6px}
-</style>
-<!-- Busy Overlay: Generando liquidación -->
-<div class="busy-overlay hidden" id="busyOverlay">
-<div class="busy-box">
-<div class="busy-spinner"></div>
-<div class="busy-text" id="busyText">Generando liquidación…</div>
-</div>
-</div>
-<style>
-  .busy-overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(17,24,39,.45);backdrop-filter:saturate(140%) blur(2px);z-index:2000}
-  .busy-overlay.hidden{display:none}
-  .busy-box{background:#fff;padding:20px 24px;border-radius:16px;box-shadow:0 15px 40px rgba(0,0,0,.25);min-width:260px;display:flex;flex-direction:column;align-items:center;gap:12px}
-  .busy-text{font-size:15px;font-weight:600;color:#111827;text-align:center}
-  .busy-spinner{width:36px;height:36px;border-radius:50%;border:3px solid #e5e7eb;border-top-color:#10b981;animation:busyspin 0.9s linear infinite}
-  @keyframes busyspin{to{transform:rotate(360deg)}}
-</style>
-<!-- === END PATCH === -->
-<script>
+
+
 // === Generar Liquidación (Pago) — RESTAURADO: overlay + popup "Generando…" + redirect XLSX ===
 (function(){
   function pagoTableSafe(){
@@ -3322,9 +3345,8 @@ async function marcarSeleccionComoEnviadas(){
     }
   });
 })();
-</script>
-<!-- === PATCH v2: Improved robust hooks for Pago action buttons === -->
-<script>
+
+
 (function(){
   const $ = (sel)=>document.querySelector(sel);
 
@@ -3422,10 +3444,8 @@ async function marcarSeleccionComoEnviadas(){
     if (sec && sec.contains(e.target)) setTimeout(reevaluatePagoActionButtons, 150);
   });
 })();
-</script>
-<!-- === END PATCH v2 === -->
-<!-- === PATCH: Revisión - agrupar fix + botón "Marcar como Revisadas" === -->
-<script>
+
+
 (function(){
   // Fallback global para evitar error en toggleGrouping()
   if (!window.hideGroupToast){
@@ -3541,9 +3561,8 @@ async function marcarSeleccionComoEnviadas(){
     }, 300);
   });
 })();
-</script>
-<!-- === END PATCH === -->
-<script>
+
+
 // === Group parent checkbox handlers (Revision & Pago) ===
 (function(){
   function getTable(id){
@@ -3585,9 +3604,8 @@ async function marcarSeleccionComoEnviadas(){
     toggleGroup(ev, ".group-select-pago", "#tablaPago", ["reevaluatePagoButtons","updateButtonsPago","updateButtons"]);
   });
 })();
-</script>
-<!-- Group checkbox handler for Pago -->
-<script>
+
+
 (function(){
   document.addEventListener("change", function(ev){
     var t = ev.target;
@@ -3616,8 +3634,8 @@ async function marcarSeleccionComoEnviadas(){
     }catch(e){ /* silent */ }
   });
 })();
-</script>
-<script>
+
+
 (function(){
   function monthRange(){
     const now = new Date();
@@ -3665,8 +3683,8 @@ async function marcarSeleccionComoEnviadas(){
     };
   })();
 })();
-</script>
-<script>
+
+
 /* === Pago: pintar primero y aplicar después ===
    Objetivo: que el UX de Pago sea idéntico al de Revisión.
    - Pinta el mes actual en #fPagoFecha apenas se entra (para que el usuario lo vea aunque el toast siga).
@@ -3732,10 +3750,8 @@ async function marcarSeleccionComoEnviadas(){
     };
   })();
 })();
-</script>
 
 
-<script>
 /* === Revisión: mostrar rango del mes incluso durante clearFilters() ===
    - Parchea clearFilters(): tras limpiar, repinta #fFecha con el mes actual (sin disparar filtros).
    - Parchea hardRefresh(): al finalizar, aplica el rango (onChange + applyFilters).
@@ -3804,6 +3820,6 @@ async function marcarSeleccionComoEnviadas(){
     }, 100);
   });
 })();
-</script>
-</body>
+
+</script></body>
 </html>
