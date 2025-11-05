@@ -80,6 +80,3 @@ export async function onRequestGet({ request }) {
     });
   }
 }
-
-
-para que lo conozcas, los codigos estan alojados en github pero los cargue y publique con cloudflare worker pages
