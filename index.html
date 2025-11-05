@@ -3709,10 +3709,11 @@ async function marcarSeleccionComoEnviadas(){
     window.fetch = function(input, init){
       try{
         let url = (typeof input === "string") ? input : (input && input.url) || "";
-        if (url && url.indexOf("/api/leer") !== -1){
+        if (url && url.indexOf("/api/leer") !== -1) {
           const u = new URL(url, location.origin);
-          // Avoid overwriting if already present
-          if (!u.searchParams.get("desde") && !u.searchParams.get("hasta")){
+          const isLeer = u.searchParams.get("leerFacturas") === "true";
+// Avoid overwriting if already present
+          if (isLeer && !u.searchParams.get("desde") && !u.searchParams.get("hasta")){
             const iPago = document.getElementById("fPagoFecha");
             const iFac  = document.getElementById("fFecha");
             const iRev  = document.getElementById("fFechaRev");
@@ -3737,8 +3738,8 @@ async function marcarSeleccionComoEnviadas(){
           input = (typeof input === "string") ? u.toString() : new Request(u.toString(), input);
         }
       }catch(e){ /* ignore */ }
-      return _fetch.apply(this, arguments);
-    };
+      return _fetch.call(this, input, init);
+};
   })();
 
   // 3) Revisión: paint early and apply after hardRefresh; repaint after clearFilters
