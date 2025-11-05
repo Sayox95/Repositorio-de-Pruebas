@@ -1129,13 +1129,21 @@ function initFilters(){
   $("#fFechaRev").value = "";
   $("#fFechaRev")._range = null;
       }
-      if(selectedDates.length===2){ try{ requeryByActiveDateRange(); }catch(e){} } else { applyFilters(); }}
+      applyFilters();
+    }
   });
   const fpRev = flatpickr("#fFechaRev", {
     mode:"range",
     dateFormat:"Y-m-d",
     onChange(selectedDates){
-      if(selectedDates.length===2){selectedDates[0].setHours(0,0,0,0);selectedDates[1].setHours(23,59,59,999);$("#fFechaRev")._range=selectedDates;requeryByActiveDateRange();}else{$("#fFechaRev")._range=null;applyFilters();}
+      if(selectedDates.length===2){
+        selectedDates[0].setHours(0,0,0,0);
+        selectedDates[1].setHours(23,59,59,999);
+        $("#fFechaRev")._range = selectedDates;
+      }else{
+        $("#fFechaRev")._range = null;
+      }
+      applyFilters();
     }
   });
   // MultiSelect con checkboxes
@@ -1271,29 +1279,6 @@ async function descargarZip(){
 /** =========================
  *  Helpers
  *  ========================= */
-/** =========================
- *  Server requery on date-range changes
- *  ========================= */
-function ymd(d){ try{ return new Date(d).toISOString().slice(0,10);}catch(e){ return ""; } }
-async function requeryByActiveDateRange(){
-  try{
-    overlay.show("Cargando facturas…");
-    // Llamada estándar; el fetch patch añadirá campoFecha/desde/hasta según los inputs presentes
-    const arr = await API.getFacturas();
-    State.raw = arr;
-    try{ sectorMS.setItems(Array.from(new Set(State.raw.map(r=>r.Sector).filter(Boolean)))); }catch(e){}
-    try{ estadoMS.setItems(getEstadoOptions()); }catch(e){}
-    if (table){
-      try{ await table.replaceData(State.filtered); }catch(_){ table.replaceData(State.filtered); }
-    }
-    updateKpis();
-    try{ updateKpisRevRange(); }catch(e){}
-    setLastUpdatedNow();
-  } finally {
-    overlay.hide();
-  }
-}
-
 function debounce(fn, wait=200){
   let t; return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn.apply(null,args), wait); };
 }
@@ -2511,7 +2496,14 @@ document.addEventListener("DOMContentLoaded", function(){
     flatpickr("#fPagoFecha", {
       mode:"range", dateFormat:"Y-m-d",
       onChange(selectedDates){
-        if(selectedDates.length===2){selectedDates[0].setHours(0,0,0,0);selectedDates[1].setHours(23,59,59,999);$("#fPagoFecha")._range=selectedDates;requeryByActiveDateRange();}else{$("#fPagoFecha")._range=null;applyPagoFilters();}
+        if(selectedDates.length===2){
+          selectedDates[0].setHours(0,0,0,0);
+          selectedDates[1].setHours(23,59,59,999);
+          document.getElementById("fPagoFecha")._range = selectedDates;
+        }else{
+          document.getElementById("fPagoFecha")._range = null;
+        }
+        applyPagoFilters();
       }
     });
   }
@@ -3709,46 +3701,68 @@ async function marcarSeleccionComoEnviadas(){
     }
   })();
 
-  // 2) Make first server fetch already filtered by adding params at fetch-time
+  // 2) Make server fetches always mirror the current date filters (both sections)
   (function(){
     if (window.__patchedFetchForLeer__) return;
     window.__patchedFetchForLeer__ = true;
     const _fetch = window.fetch;
+
+    function fmt(d){
+      try{
+        const x = new Date(d);
+        if (!isNaN(x)) return x.toISOString().slice(0,10);
+      }catch(_){}
+      return "";
+    }
+    function twoDates(el){
+      try{
+        const fp = el && el._flatpickr;
+        if (fp && Array.isArray(fp.selectedDates) && fp.selectedDates.length === 2){
+          return fp.selectedDates;
+        }
+      }catch(_){}
+      return null;
+    }
+    function monthRangeNow(){
+      const now = new Date();
+      const start = new Date(now.getFullYear(), now.getMonth(), 1, 0,0,0,0);
+      const end   = new Date(now.getFullYear(), now.getMonth()+1, 0, 23,59,59,999);
+      return [start, end];
+    }
+
     window.fetch = function(input, init){
       try{
         let url = (typeof input === "string") ? input : (input && input.url) || "";
         if (url && url.indexOf("/api/leer") !== -1) {
           const u = new URL(url, location.origin);
-          const isLeer = u.searchParams.get("leerFacturas") === "true";
-// Avoid overwriting if already present
-          if (isLeer && !u.searchParams.get("desde") && !u.searchParams.get("hasta")){
+          // Leer facturas cuando no se usa 'otrosCargos' o cuando explícitamente leerFacturas=true
+          const isLeer = (u.searchParams.get("leerFacturas") === "true") || !u.searchParams.has("otrosCargos");
+          if (isLeer){
             const iPago = document.getElementById("fPagoFecha");
             const iFac  = document.getElementById("fFecha");
             const iRev  = document.getElementById("fFechaRev");
             const rPago = twoDates(iPago);
             const rFac  = twoDates(iFac);
             const rRev  = twoDates(iRev);
-            if (rPago){
-              u.searchParams.set("campoFecha", "Fecha de Pago");
-              u.searchParams.set("desde", fmt(rPago[0]));
-              u.searchParams.set("hasta", fmt(rPago[1]));
-            } else if (rFac){
-              u.searchParams.set("campoFecha", "Fecha");
-              u.searchParams.set("desde", fmt(rFac[0]));
-              u.searchParams.set("hasta", fmt(rFac[1]));
-            } else if (rRev){
-              u.searchParams.set("campoFecha", "Fecha de Revision");
-              u.searchParams.set("desde", fmt(rRev[0]));
-              u.searchParams.set("hasta", fmt(rRev[1]));
-            }
+
+            let campo = null, r = null;
+            if (rPago){ campo = "Fecha de Pago"; r = rPago; }
+            else if (rFac){ campo = "Fecha"; r = rFac; }
+            else if (rRev){ campo = "Fecha de Revision"; r = rRev; }
+            else { campo = "Fecha"; r = monthRangeNow(); }
+
+            u.searchParams.set("leerFacturas", "true");
+            u.searchParams.set("campoFecha", campo);
+            u.searchParams.set("desde", fmt(r[0]));
+            u.searchParams.set("hasta", fmt(r[1]));
           }
           // Replace input with modified URL
-          input = (typeof input === "string") ? u.toString() : new Request(u.toString(), input);
+          input = (typeof input === "string") ? u.toString() : new Request(u.toString(), init);
         }
-      }catch(e){ /* ignore */ }
-      return _fetch.call(this, input, init);
-};
-  })();
+      }catch(_){}
+      return _fetch.apply(this, arguments);
+    };
+  })();;
 
   // 3) Revisión: paint early and apply after hardRefresh; repaint after clearFilters
   document.addEventListener("DOMContentLoaded", function(){
