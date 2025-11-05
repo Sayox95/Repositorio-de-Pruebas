@@ -3621,52 +3621,53 @@ async function marcarSeleccionComoEnviadas(){
 })();
 </script>
 
-
 <script>
-// === Patch: aplicar MES ACTUAL en Revisión DESPUÉS de hardRefresh =================
+/* === Comportamiento uniforme + excepción: Revisión solo #fFecha por defecto ===
+   - Mostrar inmediatamente el mes actual en #fFecha (UI y filtro) como en Pago.
+   - NO aplicar por defecto a #fFechaRev (queda vacío).
+   - Reaplicar el valor de #fFecha tras hardRefresh() para evitar que se limpie.
+*/
 (function(){
-  function monthStartEnd(){
+  function monthRange(){
     const now = new Date();
     const y = now.getFullYear(), m = now.getMonth();
     const start = new Date(y, m, 1, 0,0,0,0);
     const end   = new Date(y, m+1, 0, 23,59,59,999);
     return [start, end];
   }
-  function setRevisionDefaults(){
-    const r = monthStartEnd();
-    const f1 = document.getElementById("fFecha");
-    const f2 = document.getElementById("fFechaRev");
-    if (f1 && f1._flatpickr){ try{ f1._flatpickr.setDate(r, true); }catch(e){} f1._range = r; }
-    if (f2 && f2._flatpickr){ try{ f2._flatpickr.setDate(r, true); }catch(e){} f2._range = r; }
-    if (typeof window.applyFilters === "function"){ try{ window.applyFilters(); }catch(e){} }
+  function setDefaultFFecha(triggerFilter){
+    const input = document.getElementById("fFecha");
+    if (!input || !input._flatpickr) return false;
+    const range = monthRange();
+    try { input._flatpickr.setDate(range, true); } catch(e){}
+    input._range = range;
+    if (triggerFilter && typeof window.applyFilters === "function"){
+      try { window.applyFilters(); } catch(e){}
+    }
+    return true;
   }
 
-  // Monkey-patch async hardRefresh to restore defaults al final
+  // 1) Mostrar de inmediato en la UI al entrar a Revisión (como Pago)
+  document.addEventListener("DOMContentLoaded", function(){
+    let t = 0, max = 60;
+    const id = setInterval(function(){
+      const ok = setDefaultFFecha(true); // aplica y filtra
+      if (ok || ++t >= max) clearInterval(id);
+    }, 100);
+  });
+
+  // 2) Parchear hardRefresh para restablecer #fFecha después de la recarga
   (function(){
     if (!("hardRefresh" in window)) return;
-    if (window.__patchedHardRefresh__) return;
-    window.__patchedHardRefresh__ = true;
+    if (window.__patchFFechaHardRefresh__) return;
+    window.__patchFFechaHardRefresh__ = true;
     const _orig = window.hardRefresh;
     window.hardRefresh = async function(){
       const out = await _orig.apply(this, arguments);
-      // Espera un microturno para permitir que Tabulator termine replaceData()
-      setTimeout(setRevisionDefaults, 0);
+      setTimeout(function(){ setDefaultFFecha(true); }, 0);
       return out;
     };
   })();
-
-  // Si se entra directo a Revisión sin pasar por el botón, aplica al construir la tabla
-  document.addEventListener("DOMContentLoaded", function(){
-    let tries = 0;
-    const id = setInterval(function(){
-      // Cuando la tabla indique que se construyó por primera vez
-      if (window.tableBuilt === true && document.getElementById("fFecha")?._flatpickr){
-        setRevisionDefaults();
-        clearInterval(id);
-      }
-      if (++tries > 100) clearInterval(id);
-    }, 120);
-  });
 })();
 </script>
 </body>
