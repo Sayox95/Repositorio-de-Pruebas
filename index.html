@@ -621,19 +621,33 @@ const fmt = {
   money(v){ const n=Number(v||0); return "L " + n.toLocaleString("es-HN",{minimumFractionDigits:2, maximumFractionDigits:2}); },
   dateISO(d){ const x = new Date(d); if(isNaN(x)) return ""; return x.toISOString().slice(0,10); },
 };
-// === Helpers de fechas para filtro por rango ===
+// === Helpers de fechas y de tablas ===
 function ymd(d){
-  try{
-    return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10);
-  }catch(_){
-    const x=new Date(d); return isNaN(x)? "" : x.toISOString().slice(0,10);
-  }
+  try{ return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10); }
+  catch(_){ const x=new Date(d); return isNaN(x)? "" : x.toISOString().slice(0,10); }
 }
 function currentMonthRange(){
   const now = new Date();
   const start = new Date(now.getFullYear(), now.getMonth(), 1, 0,0,0,0);
   const end = new Date(now.getFullYear(), now.getMonth()+1, 0, 23,59,59,999);
   return { start, end, startStr: ymd(start), endStr: ymd(end) };
+}
+function wait(ms){ return new Promise(r=>setTimeout(r, ms)); }
+async function ensureTableBuilt(){
+  if (window.table) return;
+  if (typeof buildTable === "function"){ buildTable(); }
+  let tries = 0;
+  while(!window.table && tries < 20){
+    await wait(50); tries++;
+  }
+}
+async function ensurePagoTableBuilt(){
+  if (window.tablePago) return;
+  if (typeof buildTablePago === "function"){ buildTablePago(); }
+  let tries = 0;
+  while(!window.tablePago && tries < 20){
+    await wait(50); tries++;
+  }
 }
 
 
@@ -688,23 +702,6 @@ function toDirectDriveUrl(url){
  *  Capa de datos (API)
  *  ========================= */
 const API = { _facturasCtl:null,
-  async getFacturasRange({ estados = [], dateMin = null, dateMax = null } = {}){
-    if(this._facturasCtl){ try{ this._facturasCtl.abort(); }catch(e){} }
-    const ctl = new AbortController();
-    this._facturasCtl = ctl;
-    const u = new URL(Config.api.leerFacturas, location.origin);
-    u.searchParams.set("leerFacturas","true");
-    if (Array.isArray(estados) && estados.length) u.searchParams.set("estados", estados.join(","));
-    if (dateMin) u.searchParams.set("dateMin", dateMin);
-    if (dateMax) u.searchParams.set("dateMax", dateMax);
-    const res = await fetch(u.toString(), {cache:"no-store", mode:"cors", signal: ctl.signal});
-    if(!res.ok) throw new Error("No se pudo leer facturas");
-    const data = await res.json().catch(()=>[]);
-    if(ctl.signal.aborted) throw new Error("ABORTED");
-    const arr = Array.isArray(data)? data : [];
-    return arr.map(normalizeRow).filter(Boolean);
-  },
-
   async getFacturas(){
     if(this._facturasCtl) try{ this._facturasCtl.abort(); } catch (e){}
     const ctl = new AbortController();
@@ -716,6 +713,36 @@ const API = { _facturasCtl:null,
     const arr = Array.isArray(data)? data : [];
 return arr.map(normalizeRow).filter(r=>r); // no filtramos por nº factura todavía
   },
+   async getFacturasRange({ estados = [], dateMin = null, dateMax = null } = {}){
+    if(this._facturasCtl){ try{ this._facturasCtl.abort(); }catch(e){} }
+    const ctl = new AbortController();
+    this._facturasCtl = ctl;
+    const u = new URL(Config.api.leerFacturas, location.origin);
+    u.searchParams.set("leerFacturas","true");
+    if (Array.isArray(estados) && estados.length) u.searchParams.set("estados", estados.join(","));
+    if (dateMin) u.searchParams.set("dateMin", dateMin);
+    if (dateMax) u.searchParams.set("dateMax", dateMax);
+
+    const maxRetries = 2;
+    for (let attempt=0; attempt<=maxRetries; attempt++){
+      try{
+        const res = await fetch(u.toString(), { cache:"no-store", mode:"cors", signal: ctl.signal });
+        if (res.status === 429 && attempt < maxRetries){
+          await wait(600 * (attempt + 1));
+          continue;
+        }
+        if (!res.ok) throw new Error("No se pudo leer facturas");
+        const data = await res.json();
+        if (ctl.signal.aborted) throw new Error("ABORTED");
+        const arr = Array.isArray(data)? data : [];
+        return arr.map(normalizeRow).filter(Boolean);
+      }catch(err){
+        if (attempt === maxRetries) throw err;
+        await wait(400 * (attempt + 1));
+      }
+    }
+  }
+,
   proxied(url){
     const base = Config.api.proxyBase.replace(/\/$/,"");
     const u = encodeURIComponent(url);
@@ -1178,19 +1205,14 @@ function updateKpisRevRange(){
 /** =========================
  *  Filtros
  *  ========================= */
-
-let sectorMS, estadoMS;
-
-
 /** =========================
- *  Carga por rango desde servidor
+ *  Carga por rango desde servidor (Revisión y Pago)
  *  ========================= */
 async function loadFacturasFromServerByCurrentRange(){
   const inp = document.getElementById("fFecha");
   let dateMin, dateMax;
   if (inp && Array.isArray(inp._range) && inp._range.length===2){
-    dateMin = ymd(inp._range[0]);
-    dateMax = ymd(inp._range[1]);
+    dateMin = ymd(inp._range[0]); dateMax = ymd(inp._range[1]);
   } else {
     const {startStr,endStr,start,end} = currentMonthRange();
     dateMin = startStr; dateMax = endStr;
@@ -1200,46 +1222,43 @@ async function loadFacturasFromServerByCurrentRange(){
   try{
     const arr = await API.getFacturasRange({ dateMin, dateMax });
     State.raw = arr;
-    if (!table){ buildTable(); }
+    await ensureTableBuilt();
     if (table && table.replaceData){ await table.replaceData(State.filtered); }
     updateKpis(); setLastUpdatedNow();
-  } catch (e) {
-    console.error(e);
+    try{ updateKpisRevRange(); }catch(_){}
   } finally {
     overlay.hide();
   }
 }
-
+let _pagoLoadedOnce = false;
 async function loadPagoFromServerByCurrentRange(){
   const inp = document.getElementById("fPagoFecha");
   let dateMin, dateMax;
   if (inp && Array.isArray(inp._range) && inp._range.length===2){
-    dateMin = ymd(inp._range[0]);
-    dateMax = ymd(inp._range[1]);
+    dateMin = ymd(inp._range[0]); dateMax = ymd(inp._range[1]);
   } else {
     const {startStr,endStr,start,end} = currentMonthRange();
     dateMin = startStr; dateMax = endStr;
     if (inp && inp._flatpickr){ inp._flatpickr.setDate([startStr,endStr], true); inp._range=[start,end]; }
   }
-  // Si tienes una tabla de pago separada, puedes reemplazar sus datos aquí.
   try{
-    // Reutilizamos misma fuente por ahora
     const arr = await API.getFacturasRange({ dateMin, dateMax });
-    if (window.tablePago && tablePago.replaceData){ await tablePago.replaceData(arr); }
-    const lp = document.getElementById("lastUpdatedPago");
-    if (lp){
-      const now = new Date();
-      const yyyy = now.getFullYear();
-      const mm = String(now.getMonth()+1).padStart(2,"0");
-      const dd = String(now.getDate()).padStart(2,"0");
-      const hh = String(now.getHours()).padStart(2,"0");
-      const mi = String(now.getMinutes()).padStart(2,"0");
-      lp.textContent = `Actualizado: ${yyyy}-${mm}-${dd} ${hh}:${mi}`;
+    await ensurePagoTableBuilt();
+    if (window.tablePago && tablePago.replaceData) await tablePago.replaceData(arr);
+    const el = document.getElementById("lastUpdatedPago");
+    if (el){
+      const now=new Date();
+      const yyyy=now.getFullYear(), mm=String(now.getMonth()+1).padStart(2,"0"), dd=String(now.getDate()).padStart(2,"0");
+      const hh=String(now.getHours()).padStart(2,"0"), mi=String(now.getMinutes()).padStart(2,"0");
+      el.textContent = `Actualizado: ${yyyy}-${mm}-${dd} ${hh}:${mi}`;
     }
-  } catch (e) {
-    console.error(e);
-  }
+    _pagoLoadedOnce = true;
+  } catch (e){ console.warn(e); }
 }
+
+
+let sectorMS, estadoMS;
+
 function initFilters(){
   // Flatpickr range
   const fp = flatpickr("#fFecha", {
@@ -1265,7 +1284,24 @@ function initFilters(){
     onChange(selectedDates){
       if(selectedDates.length===2){
         selectedDates[0].setHours(0,0,0,0);
+        
+try{
+  flatpickr("#fPagoFecha", {
+    mode:"range",
+    dateFormat:"Y-m-d",
+    onChange(selectedDates){
+      if(selectedDates.length===2){
+        selectedDates[0].setHours(0,0,0,0);
         selectedDates[1].setHours(23,59,59,999);
+        document.querySelector("#fPagoFecha")._range = selectedDates;
+        loadPagoFromServerByCurrentRange();
+      }else{
+        document.querySelector("#fPagoFecha")._range = null;
+      }
+    }
+  });
+}catch(_){}
+selectedDates[1].setHours(23,59,59,999);
         $("#fFechaRev")._range = selectedDates;
       }else{
         $("#fFechaRev")._range = null;
@@ -1450,6 +1486,13 @@ function toggleGrouping(){
 
 /** =========================
  *  Navegación (overlay al cambiar de sección)
+
+// Carga diferida de Pago al entrar por primera vez
+window.addEventListener("hashchange", ()=>{
+  if (location.hash === "#pago" && !_pagoLoadedOnce){
+    loadPagoFromServerByCurrentRange().catch(console.warn);
+  }
+});
  *  ========================= */
 function showOnly(sectionId){
   document.querySelectorAll('main > section').forEach(s => s.style.display='none');
@@ -3770,15 +3813,6 @@ async function marcarSeleccionComoEnviadas(){
     }catch(e){ /* silent */ }
   });
 })();
-
-document.addEventListener("DOMContentLoaded", async ()=>{
-  try{ await loadFacturasFromServerByCurrentRange(); }catch(e){ console.warn(e); }
-  try{
-    // Pago inicial por mes actual, si existe filtro
-    await loadPagoFromServerByCurrentRange();
-  }catch(e){ console.warn(e); }
-});
-
 </script>
 </body>
 </html>
