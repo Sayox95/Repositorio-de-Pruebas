@@ -6,7 +6,7 @@ export async function onRequestGet({ request }) {
   const estados     = incoming.searchParams.get("estados");     // opcional
   const ids         = incoming.searchParams.getAll("ids");      // múltiples ids para byId
 
-  const url = new URL("https://script.google.com/macros/s/AKfycbz-QMvr8tL0LTvFM6g5g2z6vsA8VRusOnUPpurmeacPZli9XUoNJQJWswDkBRpoY0DfUQ/exec"); 
+  const url = new URL("https://script.google.com/macros/s/AKfycbxXX33uWG9XFaF1Hh8UvrEBxMOSsDN2B2OYicpQE4kVGRidwJLCJuZJ3otmqkR4p_nAEQ/exec"); 
 
   if (otrosCargos) {
     // Modo "Otros Cargos"
