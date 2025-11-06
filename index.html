@@ -1378,24 +1378,13 @@ async function navigateTo(sectionId, loader){
   }finally{
     }
 }
-
-// Controla si Pago hace 2º fetch local como fallback (por defecto desactivado)
-const TRY_PAGO_FALLBACK = false;
-
-// === Anti-rebote Pago: evita doble disparo click + hashchange ===
-let __pagoLastLoadAt = 0;
-function cargarPagoOnce(){
-  const now = Date.now();
-  if (now - __pagoLastLoadAt < 600) return; // ignora segundo disparo inmediato (<600ms)
-  __pagoLastLoadAt = now;
-  try { cargarPago(); } catch(e) { /* noop */ }
-}
+let __revisionLoadedOnce = false;
 document.querySelectorAll('.sidebar .nav-btn').forEach(a=>{
   a.addEventListener('click', (ev)=>{
     ev.preventDefault();
     const href = a.getAttribute('href')||'';
     if(href==='#inicio') return navigateTo('secInicio');
-    if(href==='#revision') return navigateTo('secRevision', async()=>{ await hardRefresh(); });
+    if(href==='#revision') return navigateTo('secRevision', async()=>{ if(!__revisionLoadedOnce){ __revisionLoadedOnce = true; await hardRefresh(); } });
     if(href==='#pago')     return navigateTo('secPago', async()=>{ await initPagoMassPay(); });
     if(href==='#anticipos')return navigateTo('secAnticipos');
     if(href==='#placas')   return navigateTo('secPlacas', async()=>{ await cargarPlacas(); });
@@ -2511,7 +2500,7 @@ async function cargarPago(){
     let data = Array.isArray(arr) ? arr : [];
 
     const serverFiltered = data.length>0 && data.every(r => TARGET.has(String((r && r.Estado) || "")));
-    if (!serverFiltered && TRY_PAGO_FALLBACK) {
+    if (!serverFiltered) {
       const all = await (typeof API!=="undefined" ? API.getFacturas() : Promise.resolve([]));
       data = (all || []).filter(r => TARGET.has(String((r && r.Estado) || "")));
     }
@@ -2569,8 +2558,8 @@ document.addEventListener("DOMContentLoaded", function(){
 
   // Carga cuando se navega a #pago o al hacer click en su pestaña
   const navPago = document.querySelector('.sidebar .nav-btn[href="#pago"]');
-  if(navPago){ navPago.addEventListener("click", function(){ setTimeout(function(){ cargarPagoOnce(); }, 0); }); }
-  window.addEventListener("hashchange", function(){ if(location.hash==="#pago"){ setTimeout(function(){ cargarPagoOnce(); }, 0); } });
+  if(navPago){ navPago.addEventListener("click", function(){ setTimeout(function(){ cargarPago(); }, 0); }); }
+  window.addEventListener("hashchange", function(){ if(location.hash==="#pago"){ setTimeout(function(){ cargarPago(); }, 0); } });
 });
 
 /* ====== Pago: resumen, cargos e integración pagoLote (sin Fondo/Periodo) ====== */
