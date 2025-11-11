@@ -1360,7 +1360,27 @@ function toggleGrouping(){
 /** =========================
  *  Navegación (overlay al cambiar de sección)
  *  ========================= */
+
 function showOnly(sectionId){
+  try {
+    if (sectionId === 'secRevision') {
+      setTimeout(function(){
+        try {
+          if (typeof clearFilters === 'function') clearFilters();
+          if (typeof loadData === 'function') {
+            var p = loadData();
+            if (p && typeof p.then === 'function') {
+              p.then(function(){ if (typeof resetTableScroll === 'function') resetTableScroll(); });
+            } else {
+              if (typeof resetTableScroll === 'function') resetTableScroll();
+            }
+          }
+          if (typeof setLastUpdatedNow === 'function') setLastUpdatedNow();
+        } catch(e) { /* noop */ }
+      }, 0);
+    }
+  } catch(e){ /* noop */ }
+
   document.querySelectorAll('main > section').forEach(s => s.style.display='none');
   const tgt = document.getElementById(sectionId);
   if(tgt) tgt.style.display = 'block';
@@ -3679,56 +3699,6 @@ async function marcarSeleccionComoEnviadas(){
       }
     }catch(e){ /* silent */ }
   });
-})();
-</script>
-<script>
-(function() {
-  function sectionVisible(el){
-    if (!el) return false;
-    if (el.offsetParent !== null) return true;
-    try { return getComputedStyle(el).display !== "none" && getComputedStyle(el).visibility !== "hidden"; } catch(e){ return false; }
-  }
-  function canRefreshRevision(){
-    if (location.hash !== "#revision") return false;
-    var sec = document.getElementById("secRevision") || document.querySelector('[data-section="revision"]');
-    if (!sectionVisible(sec)) return false;
-    if (!(window.Config && Config.api && Config.api.leerFacturas)) return false;
-    var app = document.getElementById("appShell");
-    if (app && getComputedStyle(app).display === "none") return false;
-    return true;
-  }
-  function refreshRevision() {
-    if (!canRefreshRevision()) return;
-    try {
-      if (typeof clearFilters === "function") clearFilters();
-      if (typeof loadData === "function") {
-        const p = loadData();
-        if (p && typeof p.then === "function") {
-          p.then(function(){ if (typeof resetTableScroll === "function") resetTableScroll(); });
-        } else {
-          if (typeof resetTableScroll === "function") resetTableScroll();
-        }
-      }
-      if (typeof setLastUpdatedNow === "function") setLastUpdatedNow();
-    } catch (e) {
-      console && console.warn && console.warn("refreshRevision error:", e);
-    }
-  }
-
-  document.addEventListener("DOMContentLoaded", function(){
-    var navRev = document.querySelector('.sidebar .nav-btn[href="#revision"]');
-    if (navRev) {
-      navRev.addEventListener("click", function(){
-        setTimeout(refreshRevision, 0);
-      });
-    }
-  });
-
-  window.addEventListener("hashchange", function() {
-    setTimeout(refreshRevision, 0);
-  });
-
-  // no auto-refresh on DOMContentLoaded to avoid early fetch before login
 })();
 </script>
 </body>
