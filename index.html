@@ -1360,27 +1360,7 @@ function toggleGrouping(){
 /** =========================
  *  Navegación (overlay al cambiar de sección)
  *  ========================= */
-
 function showOnly(sectionId){
-  try {
-    if (sectionId === 'secRevision') {
-      setTimeout(function(){
-        try {
-          if (typeof clearFilters === 'function') clearFilters();
-          if (typeof loadData === 'function') {
-            var p = loadData();
-            if (p && typeof p.then === 'function') {
-              p.then(function(){ if (typeof resetTableScroll === 'function') resetTableScroll(); });
-            } else {
-              if (typeof resetTableScroll === 'function') resetTableScroll();
-            }
-          }
-          if (typeof setLastUpdatedNow === 'function') setLastUpdatedNow();
-        } catch(e) { /* noop */ }
-      }, 0);
-    }
-  } catch(e){ /* noop */ }
-
   document.querySelectorAll('main > section').forEach(s => s.style.display='none');
   const tgt = document.getElementById(sectionId);
   if(tgt) tgt.style.display = 'block';
@@ -1398,13 +1378,12 @@ async function navigateTo(sectionId, loader){
   }finally{
     }
 }
-let __revisionLoadedOnce = false;
 document.querySelectorAll('.sidebar .nav-btn').forEach(a=>{
   a.addEventListener('click', (ev)=>{
     ev.preventDefault();
     const href = a.getAttribute('href')||'';
     if(href==='#inicio') return navigateTo('secInicio');
-    if(href==='#revision') return navigateTo('secRevision', async()=>{ if(!__revisionLoadedOnce){ __revisionLoadedOnce = true; await hardRefresh(); } });
+    if(href==='#revision') return navigateTo('secRevision', async()=>{ await hardRefresh(); });
     if(href==='#pago')     return navigateTo('secPago', async()=>{ await initPagoMassPay(); });
     if(href==='#anticipos')return navigateTo('secAnticipos');
     if(href==='#placas')   return navigateTo('secPlacas', async()=>{ await cargarPlacas(); });
