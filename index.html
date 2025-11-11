@@ -3388,300 +3388,6 @@ async function marcarSeleccionComoEnviadas(){
 
 <!-- === PATCH v2: Improved robust hooks for Pago action buttons === -->
 <script>
-(function(){
-  const $ = (sel)=>document.querySelector(sel);
-
-  function getPagoTable(){
-    if (window.pagoTable && typeof window.pagoTable.getSelectedData === "function") return window.pagoTable;
-    try{
-      const arr = (window.Tabulator && Tabulator.findTable) ? Tabulator.findTable("#tablaPago") : null;
-      if (arr && arr[0]) return arr[0];
-    }catch(_){}
-    return null;
-  }
-
-  function reevaluatePagoActionButtons(){
-    const tbl = getPagoTable();
-    const sel = (tbl && typeof tbl.getSelectedData === "function") ? (tbl.getSelectedData() || []) : [];
-    const allPaid = sel.length > 0 && sel.every(r => String(((r && r.Estado) || '')).trim() === "Pagada");
-
-    const btnGen = document.getElementById("btnPagoGenerarLiquidacion");
-    const btnEnv = document.getElementById("btnPagoMarcarEnviadas");
-
-    if (btnGen){
-      btnGen.classList.toggle("hidden", !allPaid);
-      btnGen.disabled = !allPaid;
-    }
-    if (btnEnv){
-      btnEnv.classList.toggle("hidden", !allPaid);
-      btnEnv.disabled = !allPaid;
-    }
-  }
-
-  function attachPagoTableHooksOnce(tbl){
-    if (!tbl || typeof tbl.on !== "function") return false;
-    if (tbl.__pago_action_hooks_v2__) return true;
-
-    tbl.on("rowSelectionChanged",  reevaluatePagoActionButtons);
-    tbl.on("dataProcessed",        reevaluatePagoActionButtons);
-    tbl.on("dataFiltered",         reevaluatePagoActionButtons);
-    tbl.on("dataLoaded",           reevaluatePagoActionButtons);
-    tbl.on("tableBuilt",           reevaluatePagoActionButtons);
-
-    tbl.__pago_action_hooks_v2__ = true;
-    setTimeout(reevaluatePagoActionButtons, 0);
-    return true;
-  }
-
-  async function initPagoButtonsHook(){
-    const tbl = getPagoTable();
-    if (!tbl) return false;
-    attachPagoTableHooksOnce(tbl);
-
-    window.updatePagoGenerarLiquiButton   = reevaluatePagoActionButtons;
-    window.updatePagoMarcarEnviadasButton = reevaluatePagoActionButtons;
-
-    reevaluatePagoActionButtons();
-    return true;
-  }
-
-  document.addEventListener("DOMContentLoaded", function(){
-    let tries = 0;
-    const iv = setInterval(async ()=>{
-      tries++;
-      if (await initPagoButtonsHook() || tries > 120){
-        clearInterval(iv);
-      }
-    }, 300);
-  });
-
-  const _initPagoMassPay = (typeof window.initPagoMassPay === "function") ? window.initPagoMassPay : null;
-  if (_initPagoMassPay && !_initPagoMassPay.__wrapPagoActionBtns_v2){
-    window.initPagoMassPay = async function(){
-      const r = await _initPagoMassPay.apply(this, arguments);
-      setTimeout(initPagoButtonsHook, 60);
-      return r;
-    };
-    window.initPagoMassPay.__wrapPagoActionBtns_v2 = true;
-  }
-
-  window.addEventListener("hashchange", ()=>{
-    if (location.hash === "#pago") setTimeout(initPagoButtonsHook, 60);
-  });
-
-  document.addEventListener("click", function(e){
-    const t = e.target;
-    if (t && t.id === "btnPagoActualizar"){
-      setTimeout(reevaluatePagoActionButtons, 800);
-    }
-  });
-
-  document.addEventListener("change", function(e){
-    const sec = document.getElementById("sectionPago") || document.querySelector("[data-section='pago']");
-    if (sec && sec.contains(e.target)) setTimeout(reevaluatePagoActionButtons, 50);
-  });
-  document.addEventListener("input", function(e){
-    const sec = document.getElementById("sectionPago") || document.querySelector("[data-section='pago']");
-    if (sec && sec.contains(e.target)) setTimeout(reevaluatePagoActionButtons, 150);
-  });
-})();
-</script>
-<!-- === END PATCH v2 === -->
-
-<!-- === PATCH: Revisión - agrupar fix + botón "Marcar como Revisadas" === -->
-<script>
-(function(){
-  // Fallback global para evitar error en toggleGrouping()
-  if (!window.hideGroupToast){
-    window.hideGroupToast = function(){
-      try{
-        var el = document.getElementById("toastGroup");
-        var bd = document.getElementById("toastBackdrop");
-        if (el) el.classList.remove("show");
-        if (bd) bd.classList.remove("show");
-        if (document.body) document.body.style.overflow = "";
-      }catch(e){}
-    };
-  }
-
-  function getRevTable(){
-    try{
-      if (window.Tabulator && Tabulator.findTable){
-        var arr = Tabulator.findTable("#tablaRevision");
-        if (arr && arr[0]) return arr[0];
-      }
-    }catch(e){}
-    return null;
-  }
-
-  function reevaluateRevBtns(){
-    var btn = document.getElementById("btnRevMarcarRevisadas");
-    var tbl = getRevTable();
-    if (!btn || !tbl || typeof tbl.getSelectedData !== "function") return;
-    var sel = tbl.getSelectedData() || [];
-    var ok  = sel.length >= 2 && sel.every(function(r){ return String((r && r.Estado) || "").trim() === "Registrada"; });
-    btn.classList.toggle("hidden", !ok);
-    btn.disabled = !ok;
-  }
-
-  function bulkMarkRevisadas(){
-    var tbl = getRevTable();
-    if (!tbl){ alert("Tabla no disponible"); return; }
-    var sel = (typeof tbl.getSelectedData === "function") ? (tbl.getSelectedData() || []) : [];
-    var valid = sel.filter(function(r){ return String((r && r.Estado) || "").trim() === "Registrada"; });
-    var filas = valid.map(function(r){ return parseInt(r.fila,10); }).filter(function(x){return !!x;});
-    if (filas.length < 2){ alert("Selecciona al menos dos facturas en estado Registrada."); return; }
-
-    // now string for UI
-    function pad(n){ return (n<10?'0':'')+n; }
-    var d = new Date();
-    var nowStr = d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())+" "+pad(d.getHours())+":"+pad(d.getMinutes())+":"+pad(d.getSeconds());
-
-    try{
-      if (window.overlay && overlay.show) overlay.show("Actualizando…");
-      fetch((window.Config&&Config.api&&Config.api.guardar)||'/api/guardar', {
-        method: 'POST',
-        headers: { 'Content-Type':'application/json' },
-        body: JSON.stringify({ accion:"actualizarEstadoLote", filas: filas, nuevoEstado:"Revisada" })
-      })
-      .then(function(resp){ return resp.json().then(function(j){ return {ok:resp.ok, json:j}; }); })
-      .then(function(res){
-        if (!res.ok || !res.json || res.json.status !== "OK"){
-          throw new Error((res.json && res.json.message) ? res.json.message : "No se pudo actualizar estados.");
-        }
-        try{
-          if (typeof tbl.blockRedraw === "function") tbl.blockRedraw();
-          var updates = valid.map(function(r){ return { fila: r.fila, Estado: "Revisada", "FechaRevision": nowStr }; });
-          if (typeof tbl.updateData === "function") tbl.updateData(updates);
-          if (typeof window.updateKpis === "function") updateKpis();
-        }catch(e){}
-        try{ if (window.toast && toast.success) toast.success("Actualizadas a Revisada"); }catch(e){}
-      })
-      .catch(function(e){
-        alert(e && e.message ? e.message : "Error al actualizar.");
-      })
-      .finally(function(){
-        try{ if (typeof tbl.restoreRedraw === "function") tbl.restoreRedraw(); }catch(e){}
-        try{ if (window.overlay && overlay.hide) overlay.hide(); }catch(e){}
-        setTimeout(reevaluateRevBtns, 50);
-      });
-    }catch(e){
-      alert(e.message || "Error al actualizar.");
-      try{ if (window.overlay && overlay.hide) overlay.hide(); }catch(_){}
-    }
-  }
-
-  function attachRevHooksOnce(tbl){
-    if (!tbl || typeof tbl.on !== "function") return false;
-    if (tbl.__rev_mass_hooks__) return true;
-    tbl.on("rowSelectionChanged", reevaluateRevBtns);
-    tbl.on("dataProcessed",       reevaluateRevBtns);
-    tbl.on("dataFiltered",        reevaluateRevBtns);
-    tbl.on("dataLoaded",          reevaluateRevBtns);
-    tbl.on("tableBuilt",          reevaluateRevBtns);
-    tbl.__rev_mass_hooks__ = true;
-    setTimeout(reevaluateRevBtns, 0);
-    return true;
-  }
-
-  function initRevMass(){
-    var tbl = getRevTable();
-    if (!tbl) return false;
-    attachRevHooksOnce(tbl);
-    var btn = document.getElementById("btnRevMarcarRevisadas");
-    if (btn && !btn.__wired){
-      btn.addEventListener("click", bulkMarkRevisadas);
-      btn.__wired = true;
-    }
-    setTimeout(reevaluateRevBtns, 0);
-    return true;
-  }
-
-  document.addEventListener("DOMContentLoaded", function(){
-    var tries = 0;
-    var iv = setInterval(function(){
-      tries++;
-      if (initRevMass() || tries > 120){ clearInterval(iv); }
-    }, 300);
-  });
-})();
-</script>
-<!-- === END PATCH === -->
-<script>
-// === Group parent checkbox handlers (Revision & Pago) ===
-(function(){
-  function getTable(id){
-    try{
-      if (window.Tabulator && Tabulator.findTable){
-        var arr = Tabulator.findTable(id);
-        if (arr && arr[0]) return arr[0];
-      }
-    }catch(e){}
-    return null;
-  }
-  function toggleGroup(ev, className, tableId, reevaluateFns){
-    var chk = ev.target && ev.target.closest(className);
-    if(!chk) return;
-    var tbl = getTable(tableId);
-    if(!tbl) return;
-    var key = chk.getAttribute("data-group-key") || "";
-    var groups = (typeof tbl.getGroups==="function") ? (tbl.getGroups()||[]) : [];
-    var target = null;
-    for (var i=0;i<groups.length;i++){
-      try{
-        var gk = (typeof groups[i].getKey==="function") ? groups[i].getKey() : groups[i].key;
-        if (String(gk) === String(key)){ target = groups[i]; break; }
-      }catch(e){}
-    }
-    if(!target) return;
-    var rows = (typeof target.getRows==="function") ? (target.getRows()||[]) : [];
-    if (chk.checked){
-      rows.forEach(function(r){ try{ r.select && r.select(); }catch(e){} });
-    }else{
-      rows.forEach(function(r){ try{ r.deselect && r.deselect(); }catch(e){} });
-    }
-    (reevaluateFns||[]).forEach(function(name){
-      try{ if (typeof window[name]==="function") window[name](); }catch(e){}
-    });
-  }
-  document.addEventListener("change", function(ev){
-    toggleGroup(ev, ".group-select-rev", "#tablaRevision", ["reevaluateRevBtns","updateButtons","updateKpisRevRange"]);
-    toggleGroup(ev, ".group-select-pago", "#tablaPago", ["reevaluatePagoButtons","updateButtonsPago","updateButtons"]);
-  });
-})();
-</script>
-<!-- Group checkbox handler for Pago -->
-<script>
-(function(){
-  document.addEventListener("change", function(ev){
-    var t = ev.target;
-    if(!t) return;
-    var chk = t.closest ? t.closest(".group-select-pago") : null;
-    if(!chk) return;
-    try{
-      var arr = (window.Tabulator && Tabulator.findTable) ? Tabulator.findTable("#tablaPago") : null;
-      var tbl = (arr && arr[0]) ? arr[0] : null;
-      if(!tbl) return;
-      var key = chk.getAttribute("data-group-key") || "";
-      var groups = (typeof tbl.getGroups === "function") ? tbl.getGroups() : [];
-      var grp = null;
-      for(var i=0;i<groups.length;i++){
-        var g = groups[i];
-        var gk = (typeof g.getKey === "function") ? g.getKey() : g.key;
-        if(String(gk) === String(key)){ grp = g; break; }
-      }
-      if(!grp) return;
-      var rows = (typeof grp.getRows === "function") ? grp.getRows() : [];
-      if (chk.checked){
-        for(var j=0;j<rows.length;j++){ try{ rows[j].select && rows[j].select(); }catch(e){} }
-      } else {
-        for(var k=0;k<rows.length;k++){ try{ rows[k].deselect && rows[k].deselect(); }catch(e){} }
-      }
-    }catch(e){ /* silent */ }
-  });
-})();
-</script>
-<script>
 (function() {
   function refreshRevision() {
     try {
@@ -3700,17 +3406,28 @@ async function marcarSeleccionComoEnviadas(){
     }
   }
 
+  // Click on the sidebar/nav link to revision should force refresh too
+  document.addEventListener("DOMContentLoaded", function(){
+    var navRev = document.querySelector('.sidebar .nav-btn[href="#revision"]');
+    if (navRev) {
+      navRev.addEventListener("click", function(){
+        // give the UI a tick to switch sections before loading
+        setTimeout(refreshRevision, 60);
+      });
+    }
+  });
+
   // On hash change, if we land on the revision section, refresh & clear filters
   window.addEventListener("hashchange", function() {
     if (location.hash === "#revision") {
-      setTimeout(refreshRevision, 0);
+      setTimeout(refreshRevision, 60);
     }
   });
 
   // On initial load, if already on the revision section, refresh & clear filters
   document.addEventListener("DOMContentLoaded", function() {
     if (location.hash === "#revision") {
-      setTimeout(refreshRevision, 0);
+      setTimeout(refreshRevision, 60);
     }
   });
 })();
