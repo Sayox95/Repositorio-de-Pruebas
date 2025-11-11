@@ -1378,12 +1378,13 @@ async function navigateTo(sectionId, loader){
   }finally{
     }
 }
+let __revisionLoadedOnce = false;
 document.querySelectorAll('.sidebar .nav-btn').forEach(a=>{
   a.addEventListener('click', (ev)=>{
     ev.preventDefault();
     const href = a.getAttribute('href')||'';
     if(href==='#inicio') return navigateTo('secInicio');
-    if(href==='#revision') return navigateTo('secRevision', async()=>{ await hardRefresh(); });
+    if(href==='#revision') return navigateTo('secRevision', async()=>{ await hardRefresh();});
     if(href==='#pago')     return navigateTo('secPago', async()=>{ await initPagoMassPay(); });
     if(href==='#anticipos')return navigateTo('secAnticipos');
     if(href==='#placas')   return navigateTo('secPlacas', async()=>{ await cargarPlacas(); });
