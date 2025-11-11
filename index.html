@@ -3681,5 +3681,39 @@ async function marcarSeleccionComoEnviadas(){
   });
 })();
 </script>
+<script>
+(function() {
+  function refreshRevision() {
+    try {
+      if (typeof clearFilters === "function") clearFilters();
+      if (typeof loadData === "function") {
+        const p = loadData();
+        if (p && typeof p.then === "function") {
+          p.then(function(){ if (typeof resetTableScroll === "function") resetTableScroll(); });
+        } else {
+          if (typeof resetTableScroll === "function") resetTableScroll();
+        }
+      }
+      if (typeof setLastUpdatedNow === "function") setLastUpdatedNow();
+    } catch (e) {
+      console && console.warn && console.warn("refreshRevision error:", e);
+    }
+  }
+
+  // On hash change, if we land on the revision section, refresh & clear filters
+  window.addEventListener("hashchange", function() {
+    if (location.hash === "#revision") {
+      setTimeout(refreshRevision, 0);
+    }
+  });
+
+  // On initial load, if already on the revision section, refresh & clear filters
+  document.addEventListener("DOMContentLoaded", function() {
+    if (location.hash === "#revision") {
+      setTimeout(refreshRevision, 0);
+    }
+  });
+})();
+</script>
 </body>
 </html>
