@@ -2421,9 +2421,8 @@ function togglePagoGrouping(){
     pagoGroupMode = "none";
     pagoGrouped = false;
 
-    // Quitamos agrupación y header
+    // Quitamos agrupación
     table.setGroupBy(false);
-    table.setGroupHeader(false);
 
     const bCol = document.getElementById("btnPagoAgrupar");
     if(bCol) bCol.innerHTML = '<i class="lucide-layers-2"></i> Agrupar por colaborador';
@@ -3103,9 +3102,8 @@ async function fetchOtrosCargos(ids){
       const btn = document.getElementById("btnPagoAgruparId");
       if(btn) btn.innerHTML = '<i class="lucide-layers-2"></i> Desagrupar ID_PAGO';
     }else{
-      // Desagrupamos y apagamos header (no se necesita header si no hay grupos)
+      // Desagrupamos (no se necesita header si no hay grupos)
       table.setGroupBy(false);
-      table.setGroupHeader(false);
       hideGroupToast();
       const btn = document.getElementById("btnPagoAgruparId");
       if(btn) btn.innerHTML = '<i class="lucide-layers-2"></i> Agrupar por ID_PAGO';
