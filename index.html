@@ -2401,8 +2401,10 @@ function clearPagoFilters(){
 
 function togglePagoGrouping(){
   if(!pagoTable) return;
-  // limpiar cualquier encabezado de grupo personalizado (por ejemplo, el de ID_PAGO)
-  try{ pagoTable.setGroupHeader(false); }catch(e){}
+  // Si estaba activa la agrupación por ID_PAGO, desactivarla primero
+  if(typeof window.desagruparPagoPorId === "function"){
+    try{ window.desagruparPagoPorId(); }catch(e){}
+  }
   pagoGrouped = !pagoGrouped;
   if(pagoGrouped){
     pagoTable.setGroupBy(["Identidad"]);
@@ -2412,6 +2414,7 @@ function togglePagoGrouping(){
     const b = document.getElementById("btnPagoAgrupar"); if(b) b.innerHTML = '<i class="lucide-layers-2"></i> Agrupar por colaborador';
   }
 }
+
 
 // ——— API: extender getFacturas(opts) y pagarFacturas ———
 if (typeof API !== "undefined") {
@@ -3068,15 +3071,33 @@ async function fetchOtrosCargos(ids){
       if(btn) btn.innerHTML = '<i class="lucide-layers-2"></i> Desagrupar ID_PAGO';
     }else{
       table.setGroupBy(false);
-      // restaurar encabezado de grupo por defecto para evitar mezclar encabezados de ID_PAGO
-      try{ table.setGroupHeader(false); }catch(e){}
       hideGroupToast();
       const btn = document.getElementById("btnPagoAgruparId");
       if(btn) btn.innerHTML = '<i class="lucide-layers-2"></i> Agrupar por ID_PAGO';
     }
   }
 
+
+  // Helper global para permitir que la otra agrupación (por colaborador) pueda desactivar ésta
+  window.desagruparPagoPorId = function(){
+    try{
+      if(pagoGroupById){
+        pagoGroupById = false;
+        applyPagoGroupingById();
+      }
+    }catch(e){}
+  };
+
   function togglePagoGroupingById(){
+    // Si la agrupación por colaborador está activa, desactivarla primero
+    try{
+      if(window.pagoGrouped && window.pagoTable){
+        window.pagoGrouped = false;
+        window.pagoTable.setGroupBy(false);
+        const bCol = document.getElementById("btnPagoAgrupar");
+        if(bCol) bCol.innerHTML = '<i class="lucide-layers-2"></i> Agrupar por colaborador';
+      }
+    }catch(e){}
     pagoGroupById = !pagoGroupById;
     if(pagoGroupById){ showGroupToast('Generando agrupación…'); }
     applyPagoGroupingById();
