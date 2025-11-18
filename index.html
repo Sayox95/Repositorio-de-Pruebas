@@ -2401,6 +2401,8 @@ function clearPagoFilters(){
 
 function togglePagoGrouping(){
   if(!pagoTable) return;
+  // limpiar cualquier encabezado de grupo personalizado (por ejemplo, el de ID_PAGO)
+  try{ pagoTable.setGroupHeader(false); }catch(e){}
   pagoGrouped = !pagoGrouped;
   if(pagoGrouped){
     pagoTable.setGroupBy(["Identidad"]);
@@ -3066,6 +3068,8 @@ async function fetchOtrosCargos(ids){
       if(btn) btn.innerHTML = '<i class="lucide-layers-2"></i> Desagrupar ID_PAGO';
     }else{
       table.setGroupBy(false);
+      // restaurar encabezado de grupo por defecto para evitar mezclar encabezados de ID_PAGO
+      try{ table.setGroupHeader(false); }catch(e){}
       hideGroupToast();
       const btn = document.getElementById("btnPagoAgruparId");
       if(btn) btn.innerHTML = '<i class="lucide-layers-2"></i> Agrupar por ID_PAGO';
