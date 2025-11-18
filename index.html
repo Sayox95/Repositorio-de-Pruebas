@@ -2251,8 +2251,7 @@ function setLastUpdatedPago(){
   el.textContent = "Actualizado: " + t.getFullYear()+"-"+pad(t.getMonth()+1)+"-"+pad(t.getDate())+" "+pad(t.getHours())+":"+pad(t.getMinutes());
 }
 
-let pagoTable=null, pagoTableReady=false, pagoPendingData=null, pagoGrouped=false;
-let pagoGroupMode="none";
+let pagoTable=null, pagoTableReady=false, pagoPendingData=null, pagoGrouped=false, pagoGroupMode="none";
 let pagoSectorMS=null, pagoEstadoMS=null;
 
 const Pago = {
@@ -2307,23 +2306,33 @@ function buildPagoTable(){
   if(pagoTable) return;
 
   const defaultPagoGroupHeader = function(value, count, data, group){
-    const nombre = (data && data[0] && (data[0].Nombre||data[0].Identidad)) || value;
-    const suma = (data||[]).reduce((acc,r)=> acc + (Number(r.Total)||0), 0);
-    const totalTxt = new Intl.NumberFormat("es-HN",{minimumFractionDigits:2, maximumFractionDigits:2}).format(suma);
-    const key = String(value ?? "").replace(/"/g,"&quot;");
-    return `<label class="group-toggle">
-              <input type="checkbox" class="group-select-pago" data-group-key="${key}">
-              <span>${nombre} (${count})</span>
-            </label>
-            <span class="kpi-mini">L ${totalTxt}</span>`;
-  };
+      const nombre = (data && data[0] && (data[0].Nombre||data[0].Identidad)) || value;
+      const suma = (data||[]).reduce((acc,r)=> acc + (Number(r.Total)||0), 0);
+      const totalTxt = new Intl.NumberFormat("es-HN",{minimumFractionDigits:2, maximumFractionDigits:2}).format(suma);
+      const key = String(value ?? "").replace(/"/g,"&quot;");
+      return `<label class="group-toggle">
+                <input type="checkbox" class="group-select-pago" data-group-key="${key}">
+                <span>${nombre} (${count})</span>
+              </label>
+              <span class="kpi-mini">L ${totalTxt}</span>`;  };
   window.pagoGroupHeaderDefault = defaultPagoGroupHeader;
 
   pagoTable = new Tabulator("#tablaPago", { index: "fila", 
     height: (typeof Config!=="undefined" && Config.tablaHeight) ? Config.tablaHeight : "560px",
     data: [], layout: "fitColumns", selectable: true, placeholder: "Sin datos",
     groupStartOpen:false,
-    groupHeader: defaultPagoGroupHeader,
+    groupHeader:function(value, count, data, group){
+      const nombre = (data && data[0] && (data[0].Nombre||data[0].Identidad)) || value;
+      const suma = (data||[]).reduce((acc,r)=> acc + (Number(r.Total)||0), 0);
+      const totalTxt = new Intl.NumberFormat("es-HN",{minimumFractionDigits:2, maximumFractionDigits:2}).format(suma);
+      const key = String(value ?? "").replace(/"/g,"&quot;");
+      return `<label class="group-toggle">
+                <input type="checkbox" class="group-select-pago" data-group-key="${key}">
+                <span>${nombre} (${count})</span>
+              </label>
+              <span class="kpi-mini">L ${totalTxt}</span>`;
+    },
+    
     columns: [
       { formatter:"rowSelection", titleFormatter:"rowSelection", hozAlign:"center", headerSort:false, width:40 },
       { title:"#", formatter:"rownum", hozAlign:"center", width:60 },
@@ -2411,16 +2420,10 @@ function togglePagoGrouping(){
   if(pagoGroupMode === "colaborador"){
     pagoGroupMode = "none";
     pagoGrouped = false;
-    if(typeof pagoGroupById !== "undefined"){
-      pagoGroupById = false;
-    }
 
+    // Quitamos agrupación y header
     table.setGroupBy(false);
-    if(window.pagoGroupHeaderDefault){
-      table.setGroupHeader(window.pagoGroupHeaderDefault);
-    }else{
-      table.setGroupHeader(null);
-    }
+    table.setGroupHeader(false);
 
     const bCol = document.getElementById("btnPagoAgrupar");
     if(bCol) bCol.innerHTML = '<i class="lucide-layers-2"></i> Agrupar por colaborador';
@@ -2431,28 +2434,17 @@ function togglePagoGrouping(){
     return;
   }
 
-  // Si veníamos de ID_PAGO o de none, pasamos a "colaborador"
+  // Vamos a entrar a modo "colaborador"
   pagoGroupMode = "colaborador";
   pagoGrouped = true;
-  if(typeof pagoGroupById !== "undefined"){
-    pagoGroupById = false;
-  }
 
-  // Quitamos cualquier agrupación anterior y restauramos header por defecto
-  table.setGroupBy(false);
-  if(window.pagoGroupHeaderDefault){
-    table.setGroupHeader(window.pagoGroupHeaderDefault);
-  }else{
-    table.setGroupHeader(null);
-  }
-
-  // Agrupamos por Identidad
+  // Activamos la agrupación por Identidad y luego el header por defecto
   table.setGroupBy(["Identidad"]);
+  table.setGroupHeader(window.pagoGroupHeaderDefault || null);
 
   const bCol = document.getElementById("btnPagoAgrupar");
   if(bCol) bCol.innerHTML = '<i class="lucide-layers-2"></i> Desagrupar';
 
-  // Aseguramos que el botón de ID_PAGO quede como "Agrupar"
   const bId = document.getElementById("btnPagoAgruparId");
   if(bId) bId.innerHTML = '<i class="lucide-layers-2"></i> Agrupar por ID_PAGO';
 }
@@ -3087,6 +3079,7 @@ async function fetchOtrosCargos(ids){
   async function applyPagoGroupingById(){
     const table = getPagoTable();
     if(!table) return;
+     // <-- asegura la columna antes de agrupar
 
     if(pagoGroupById){
       const rows = table.getData("active") || [];
@@ -3110,34 +3103,31 @@ async function fetchOtrosCargos(ids){
       const btn = document.getElementById("btnPagoAgruparId");
       if(btn) btn.innerHTML = '<i class="lucide-layers-2"></i> Desagrupar ID_PAGO';
     }else{
+      // Desagrupamos y apagamos header (no se necesita header si no hay grupos)
       table.setGroupBy(false);
-      if(window.pagoGroupHeaderDefault){
-        table.setGroupHeader(window.pagoGroupHeaderDefault);
-      }else{
-        table.setGroupHeader(null);
-      }
+      table.setGroupHeader(false);
       hideGroupToast();
       const btn = document.getElementById("btnPagoAgruparId");
       if(btn) btn.innerHTML = '<i class="lucide-layers-2"></i> Agrupar por ID_PAGO';
     }
   }
-function togglePagoGroupingById(){
+
+  function togglePagoGroupingById(){
     const table = getPagoTable();
     if(!table) return;
 
-    // Si YA estamos en modo ID_PAGO, esto significa "desagrupar"
+    // Si YA estamos en modo ID_PAGO, esto es desagrupar
     if(pagoGroupMode === "idpago"){
       pagoGroupMode = "none";
       pagoGroupById = false;
-      applyPagoGroupingById(); // entra al else y desagrupa + header default
+      applyPagoGroupingById();
       return;
     }
 
-    // Vamos a entrar a modo ID_PAGO → apagamos colaborador si estuviera activo
+    // Entramos a modo ID_PAGO → apagamos colaborador si estaba activo
     pagoGroupMode = "idpago";
     pagoGroupById = true;
 
-    // Apaga visualmente el botón de colaborador
     try{
       if(typeof window.pagoGrouped !== "undefined"){
         window.pagoGrouped = false;
