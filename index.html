@@ -2401,17 +2401,28 @@ function clearPagoFilters(){
 
 function togglePagoGrouping(){
   if(!pagoTable) return;
+
   // Si estaba activa la agrupación por ID_PAGO, desactivarla primero
   if(typeof window.desagruparPagoPorId === "function"){
     try{ window.desagruparPagoPorId(); }catch(e){}
   }
+
   pagoGrouped = !pagoGrouped;
   if(pagoGrouped){
     pagoTable.setGroupBy(["Identidad"]);
-    const b = document.getElementById("btnPagoAgrupar"); if(b) b.innerHTML = '<i class="lucide-layers-2"></i> Desagrupar';
+    // Encabezado de grupo por colaborador
+    try{
+      pagoTable.setGroupHeader(function(value, count, data){
+        const nombre = (value && String(value).trim()) || "(sin Identidad)";
+        return nombre + " (" + count + ")";
+      });
+    }catch(e){}
+    const b = document.getElementById("btnPagoAgrupar");
+    if(b) b.innerHTML = '<i class="lucide-layers-2"></i> Desagrupar';
   }else{
     pagoTable.setGroupBy(false);
-    const b = document.getElementById("btnPagoAgrupar"); if(b) b.innerHTML = '<i class="lucide-layers-2"></i> Agrupar por colaborador';
+    const b = document.getElementById("btnPagoAgrupar");
+    if(b) b.innerHTML = '<i class="lucide-layers-2"></i> Agrupar por colaborador';
   }
 }
 
@@ -3078,7 +3089,7 @@ async function fetchOtrosCargos(ids){
   }
 
 
-  // Helper global para permitir que la otra agrupación (por colaborador) pueda desactivar ésta
+  // Helper global para que otros scripts puedan desactivar la agrupación por ID_PAGO
   window.desagruparPagoPorId = function(){
     try{
       if(pagoGroupById){
