@@ -1345,29 +1345,14 @@ let isGrouped = false;
 function toggleGrouping(){
   if(!table) return;
   isGrouped = !isGrouped;
-  const btn = document.getElementById("btnAgrupar");
-
   if(isGrouped){
-    // Activar agrupación + paginación local
-    if(table.updateOptions){
-      table.updateOptions({
-        pagination: "local",
-        paginationSize: 50,
-        paginationSizeSelector: [25, 50, 100, 200],
-        paginationCounter: "rows",
-      });
-    }
     table.setGroupBy(["Identidad"]);
+    const btn = document.getElementById("btnAgrupar");
     if(btn) btn.innerHTML = '<i class="lucide-layers-2"></i> Desagrupar';
   }else{
-    // Quitar agrupación + desactivar paginación
     table.setGroupBy(false);
-    hideGroupToast();
-    if(table.updateOptions){
-      table.updateOptions({
-        pagination: false,
-      });
-    }
+      hideGroupToast();
+    const btn = document.getElementById("btnAgrupar");
     if(btn) btn.innerHTML = '<i class="lucide-layers-2"></i> Agrupar por colaborador';
   }
 }
