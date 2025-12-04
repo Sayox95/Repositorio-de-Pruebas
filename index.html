@@ -977,6 +977,7 @@ function buildTable(){
   table.on("tableBuilt", ()=>{
     // Fallback: delegado por si el cellClick no se dispara en algunos navegadores
     const root = document.getElementById("tablaRevision");
+    attachRevScrollGuard();
     root.addEventListener("click", (ev)=>{
     // Cerrar menú al hacer scroll horizontal/vertical en la tabla
     const closeMenuIfOpen = ()=>{ if(statusMenuEl){ statusMenuEl.classList.remove("open"); } };
@@ -1339,6 +1340,29 @@ function setLastUpdatedNow(){
   const hh = String(now.getHours()).padStart(2,"0");
   const mi = String(now.getMinutes()).padStart(2,"0");
   el.textContent = `Actualizado: ${yyyy}-${mm}-${dd} ${hh}:${mi}`;
+}
+
+let revPrevScrollTop = 0;
+let revScrollGuardAttached = false;
+
+function attachRevScrollGuard(){
+  const root = document.getElementById("tablaRevision");
+  if(!root || revScrollGuardAttached) return;
+  const holder = root.querySelector(".tabulator-tableholder");
+  const el = holder || root;
+  revScrollGuardAttached = true;
+
+  el.addEventListener("scroll", ()=>{
+    const cur = el.scrollTop || 0;
+    // Si estamos agrupados y el scroll "salta" de muy abajo a casi arriba, lo restauramos.
+    if(isGrouped && revPrevScrollTop > 80 && cur < 5){
+      try{
+        el.scrollTop = revPrevScrollTop;
+        return;
+      }catch(e){}
+    }
+    revPrevScrollTop = cur;
+  }, {passive:true});
 }
 
 let isGrouped = false;
