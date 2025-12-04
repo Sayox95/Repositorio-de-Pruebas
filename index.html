@@ -902,6 +902,7 @@ function buildTable(){
   table = new Tabulator("#tablaRevision", { index: "fila",
 
     height: Config.tablaHeight,
+    renderVertical:"basic",
     data: State.filtered,
     layout:"fitColumns",
     placeholder:"Sin datos",
@@ -1329,42 +1330,6 @@ function resetTableScroll(){
   }
 }
 
-function withRevScrollPreserved(fn){
-  const root = document.getElementById("tablaRevision");
-  if(!root || typeof fn !== "function") return fn && fn();
-  const holder = root.querySelector(".tabulator-tableholder");
-  const el = holder || root;
-  const top = el.scrollTop || 0;
-  const left = el.scrollLeft || 0;
-  let result;
-  try{
-    result = fn();
-  }catch(e){
-    // silencioso
-  }
-  if(result && typeof result.then === "function"){
-    try{
-      result.finally(function(){
-        try{
-          el.scrollTop = top;
-          el.scrollLeft = left;
-        }catch(e){}
-      });
-    }catch(e){
-      try{
-        el.scrollTop = top;
-        el.scrollLeft = left;
-      }catch(_e){}
-    }
-  }else{
-    try{
-      el.scrollTop = top;
-      el.scrollLeft = left;
-    }catch(e){}
-  }
-  return result;
-}
-
 function setLastUpdatedNow(){
   const el = document.getElementById("lastUpdated");
   if(!el) return;
@@ -1381,19 +1346,16 @@ let isGrouped = false;
 function toggleGrouping(){
   if(!table) return;
   isGrouped = !isGrouped;
-
-  withRevScrollPreserved(function(){
-    if(isGrouped){
-      table.setGroupBy(["Identidad"]);
-      const btn = document.getElementById("btnAgrupar");
-      if(btn) btn.innerHTML = '<i class="lucide-layers-2"></i> Desagrupar';
-    }else{
-      table.setGroupBy(false);
-      try{ hideGroupToast && hideGroupToast(); }catch(e){}
-      const btn = document.getElementById("btnAgrupar");
-      if(btn) btn.innerHTML = '<i class="lucide-layers-2"></i> Agrupar por colaborador';
-    }
-  });
+  if(isGrouped){
+    table.setGroupBy(["Identidad"]);
+    const btn = document.getElementById("btnAgrupar");
+    if(btn) btn.innerHTML = '<i class="lucide-layers-2"></i> Desagrupar';
+  }else{
+    table.setGroupBy(false);
+      hideGroupToast();
+    const btn = document.getElementById("btnAgrupar");
+    if(btn) btn.innerHTML = '<i class="lucide-layers-2"></i> Agrupar por colaborador';
+  }
 }
 
 /** =========================
