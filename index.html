@@ -342,7 +342,9 @@
           <span id="lastUpdated" class="last-updated" title="Última actualización">—</span>
           <button id="btnActualizar" class="btn"><i class="lucide-rotate-cw"></i> Actualizar</button>
           <button id="btnAgrupar" class="btn btn-ghost"><i class="lucide-layers-2"></i> Agrupar por colaborador</button>
-          <button id="btnRevExpandirTodo" class="btn btn-ghost"><i class="lucide-chevron-down"></i> Mostrar todas las facturas</button>          <button id="btnExportXLSX" class="btn btn-ghost"><i class="lucide-download"></i> Excel</button>
+          <button id="btnRevExpandirTodo" class="btn btn-ghost">
+            <i class="lucide-chevron-down"></i> Mostrar todas las facturas
+          </button>          <button id="btnExportXLSX" class="btn btn-ghost"><i class="lucide-download"></i> Excel</button>
           <button id="btnDescargar" class="btn btn-primary"><i class="lucide-file-down"></i> Descargar PDFs</button>
           <button id="btnRevMarcarRevisadas" class="btn btn-primary hidden"><i class="lucide-check"></i> Marcar como Revisadas</button>
         </div>
@@ -405,7 +407,9 @@
         <button id="btnPagoActualizar" class="btn"><i class="lucide-rotate-cw"></i> Actualizar</button>
         <button id="btnPagoAgrupar" class="btn btn-ghost"><i class="lucide-layers-2"></i> Agrupar por colaborador</button>
         <button id="btnPagoAgruparId" class="btn btn-ghost"><i class="lucide-layers-2"></i> Agrupar por ID_PAGO</button>
-        <button id="btnPagoExpandirTodo" class="btn btn-ghost"><i class="lucide-chevron-down"></i> Mostrar todas las facturas</button>
+        <button id="btnPagoExpandirTodo" class="btn btn-ghost">
+          <i class="lucide-chevron-down"></i> Mostrar todas las facturas
+        </button>
         <button id="btnPagoExportXLSX" class="btn btn-ghost"><i class="lucide-download"></i> Excel</button>
         <button id="btnPagoAbrirModal" class="btn btn-primary hidden" disabled><i class="lucide-credit-card"></i> Pagar seleccionadas</button>
         <button id="btnPagoMarcarEnviadas" class="btn btn-primary hidden" disabled><i class="lucide-send"></i> Marcar como Enviadas</button>
@@ -3744,42 +3748,127 @@ async function marcarSeleccionComoEnviadas(){
 </script>
 
 <script>
-// Expande todos los grupos de la tabla de Revisión
-function expandAllRevGroups(){
-  if(!window.table || typeof table.getGroups !== "function") return;
-  try{
-    var groups = table.getGroups() || [];
-    groups.forEach(function(g){
-      if(g && typeof g.show === "function") g.show();
-    });
-  }catch(e){}
-}
+(function () {
+  var revExpanded = false;
+  var pagoExpanded = false;
 
-// Expande todos los grupos de la tabla de Pago
-function expandAllPagoGroups(){
-  if(!window.pagoTable || typeof pagoTable.getGroups !== "function") return;
-  try{
-    var groups = pagoTable.getGroups() || [];
-    groups.forEach(function(g){
-      if(g && typeof g.show === "function") g.show();
-    });
-  }catch(e){}
-}
+  function updateRevButton(){
+    var btn = document.getElementById("btnRevExpandirTodo");
+    if(!btn) return;
 
-document.addEventListener("DOMContentLoaded", function(){
-  var btnRev = document.getElementById("btnRevExpandirTodo");
-  if(btnRev){
-    btnRev.addEventListener("click", function(){
-      expandAllRevGroups();
-    });
+    var grouped = false;
+    try{
+      if(typeof isGrouped !== "undefined" && isGrouped === true){
+        grouped = true;
+      }
+    }catch(e){}
+
+    if(!grouped){
+      btn.style.display = "none";
+      revExpanded = false;
+      btn.innerHTML = '<i class="lucide-chevron-down"></i> Mostrar todas las facturas';
+      return;
+    }
+
+    btn.style.display = "inline-flex";
+    if(revExpanded){
+      btn.innerHTML = '<i class="lucide-chevron-up"></i> Ocultar todas las facturas';
+    }else{
+      btn.innerHTML = '<i class="lucide-chevron-down"></i> Mostrar todas las facturas';
+    }
   }
-  var btnPago = document.getElementById("btnPagoExpandirTodo");
-  if(btnPago){
-    btnPago.addEventListener("click", function(){
-      expandAllPagoGroups();
-    });
+
+  function updatePagoButton(){
+    var btn = document.getElementById("btnPagoExpandirTodo");
+    if(!btn) return;
+
+    var grouped = false;
+    try{
+      if(typeof pagoGroupMode !== "undefined" && pagoGroupMode && pagoGroupMode !== "none"){
+        grouped = true;
+      }
+    }catch(e){}
+
+    if(!grouped){
+      btn.style.display = "none";
+      pagoExpanded = false;
+      btn.innerHTML = '<i class="lucide-chevron-down"></i> Mostrar todas las facturas';
+      return;
+    }
+
+    btn.style.display = "inline-flex";
+    if(pagoExpanded){
+      btn.innerHTML = '<i class="lucide-chevron-up"></i> Ocultar todas las facturas';
+    }else{
+      btn.innerHTML = '<i class="lucide-chevron-down"></i> Mostrar todas las facturas';
+    }
   }
-});
+
+  function setAllRevGroupsVisible(visible){
+    try{
+      if(typeof table === "undefined" || !table || typeof table.getGroups !== "function") return;
+    }catch(e){ return; }
+
+    try{
+      var groups = table.getGroups() || [];
+      groups.forEach(function(g){
+        if(!g) return;
+        if(visible && typeof g.show === "function") g.show();
+        if(!visible && typeof g.hide === "function") g.hide();
+      });
+    }catch(e){}
+  }
+
+  function setAllPagoGroupsVisible(visible){
+    try{
+      if(typeof pagoTable === "undefined" || !pagoTable || typeof pagoTable.getGroups !== "function") return;
+    }catch(e){ return; }
+
+    try{
+      var groups = pagoTable.getGroups() || [];
+      groups.forEach(function(g){
+        if(!g) return;
+        if(visible && typeof g.show === "function") g.show();
+        if(!visible && typeof g.hide === "function") g.hide();
+      });
+    }catch(e){}
+  }
+
+  document.addEventListener("click", function(ev){
+    var target = ev.target;
+
+    // Revisión: cuando se hace clic en Agrupar/Desagrupar
+    if(target && target.closest && target.closest("#btnAgrupar")){
+      setTimeout(updateRevButton, 250);
+    }
+
+    // Pago: cuando se hace clic en los botones de agrupación
+    if(target && target.closest && (target.closest("#btnPagoAgrupar") || target.closest("#btnPagoAgruparId"))){
+      setTimeout(updatePagoButton, 250);
+    }
+
+    // Revisión: Mostrar/Ocultar todas
+    if(target && target.closest && target.closest("#btnRevExpandirTodo")){
+      revExpanded = !revExpanded;
+      setAllRevGroupsVisible(revExpanded);
+      updateRevButton();
+    }
+
+    // Pago: Mostrar/Ocultar todas
+    if(target && target.closest && target.closest("#btnPagoExpandirTodo")){
+      pagoExpanded = !pagoExpanded;
+      setAllPagoGroupsVisible(pagoExpanded);
+      updatePagoButton();
+    }
+  });
+
+  document.addEventListener("DOMContentLoaded", function(){
+    setTimeout(function(){
+      updateRevButton();
+      updatePagoButton();
+    }, 600);
+  });
+})();
 </script>
 
 </body>
