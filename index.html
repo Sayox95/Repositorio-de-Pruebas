@@ -129,7 +129,7 @@
     }
     .input:focus, select:focus{ outline:2px solid var(--ring); outline-offset:2px}
     .choices.is-open .choices__inner{ border-color: var(--ring); box-shadow: 0 0 0 2px var(--ring); }
-    .table-wrap{ margin-top:8px; max-height:560px; overflow:auto; }
+    .table-wrap{ margin-top:8px }
     .tabulator{ border-radius:14px; border:1px solid #e5e7eb }
     .muted{ color:var(--muted) }
 
@@ -901,6 +901,7 @@ function buildTable(){
   if(table){ return; }
   table = new Tabulator("#tablaRevision", { index: "fila",
 
+    height: Config.tablaHeight,
     data: State.filtered,
     layout:"fitColumns",
     placeholder:"Sin datos",
@@ -1361,7 +1362,7 @@ function toggleGrouping(){
   }else{
     // Quitar agrupación + desactivar paginación
     table.setGroupBy(false);
-    try{ hideGroupToast && hideGroupToast(); }catch(e){}
+    hideGroupToast();
     if(table.updateOptions){
       table.updateOptions({
         pagination: false,
