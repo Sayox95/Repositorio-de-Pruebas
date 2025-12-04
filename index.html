@@ -901,6 +901,7 @@ function buildTable(){
   if(table){ return; }
   table = new Tabulator("#tablaRevision", { index: "fila",
 
+    height: Config.tablaHeight,
     data: State.filtered,
     layout:"fitColumns",
     placeholder:"Sin datos",
@@ -976,6 +977,7 @@ function buildTable(){
   table.on("tableBuilt", ()=>{
     // Fallback: delegado por si el cellClick no se dispara en algunos navegadores
     const root = document.getElementById("tablaRevision");
+    attachRevScrollGuard();
     root.addEventListener("click", (ev)=>{
     // Cerrar menú al hacer scroll horizontal/vertical en la tabla
     const closeMenuIfOpen = ()=>{ if(statusMenuEl){ statusMenuEl.classList.remove("open"); } };
@@ -1018,6 +1020,42 @@ function buildTable(){
     updateKpis();
     updateButtons();
   });
+}
+
+let revPrevScrollTop = 0;
+let revPrevScrollHeight = 0;
+let revScrollGuardAttached = false;
+
+function attachRevScrollGuard(){
+  const root = document.getElementById("tablaRevision");
+  if(!root || revScrollGuardAttached) return;
+  const holder = root.querySelector(".tabulator-tableholder");
+  const el = holder || root;
+  revScrollGuardAttached = true;
+
+  revPrevScrollTop = el.scrollTop || 0;
+  revPrevScrollHeight = el.scrollHeight || 0;
+
+  el.addEventListener("scroll", ()=>{
+    const curTop = el.scrollTop || 0;
+    const curHeight = el.scrollHeight || 0;
+
+    if(isGrouped){
+      const bigJumpUp = (revPrevScrollTop > 80 && curTop < 5 && curHeight >= revPrevScrollHeight - 5);
+      if(bigJumpUp){
+        try{
+          el.scrollTop = revPrevScrollTop;
+        }catch(e){}
+        // actualizar referencias y salir
+        revPrevScrollTop = el.scrollTop || revPrevScrollTop;
+        revPrevScrollHeight = el.scrollHeight || curHeight;
+        return;
+      }
+    }
+
+    revPrevScrollTop = curTop;
+    revPrevScrollHeight = curHeight;
+  }, {passive:true});
 }
 
 let statusMenuEl;
