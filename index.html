@@ -3747,10 +3747,17 @@ async function marcarSeleccionComoEnviadas(){
 })();
 </script>
 
+
 <script>
 (function () {
   function getTable(selector){
     try{
+      if(selector === "#tablaRevision" && window.table){
+        return window.table;
+      }
+      if(selector === "#tablaPago" && window.pagoTable){
+        return window.pagoTable;
+      }
       if(window.Tabulator && Tabulator.findTable){
         var arr = Tabulator.findTable(selector);
         if(arr && arr[0]) return arr[0];
@@ -3770,25 +3777,35 @@ async function marcarSeleccionComoEnviadas(){
     var revBtn  = document.getElementById("btnRevExpandirTodo");
     var revTable = getTable("#tablaRevision");
     if(revBtn){
-      revBtn.style.display = (revTable && hasGroups(revTable)) ? "inline-flex" : "none";
+      if(revTable && hasGroups(revTable)){
+        revBtn.style.display = "inline-flex";
+      }else{
+        revBtn.style.display = "none";
+      }
     }
 
     var pagoBtn = document.getElementById("btnPagoExpandirTodo");
     var pagoTable = getTable("#tablaPago");
     if(pagoBtn){
-      pagoBtn.style.display = (pagoTable && hasGroups(pagoTable)) ? "inline-flex" : "none";
+      if(pagoTable && hasGroups(pagoTable)){
+        pagoBtn.style.display = "inline-flex";
+      }else{
+        pagoBtn.style.display = "none";
+      }
     }
   }
 
   function expandAllGroups(selector){
     var t = getTable(selector);
     if(!t || typeof t.getGroups !== "function") return;
-    var groups = t.getGroups() || [];
-    groups.forEach(function(g){
-      try{
-        if(typeof g.show === "function") g.show();
-      }catch(e){}
-    });
+    try{
+      var groups = t.getGroups() || [];
+      groups.forEach(function(g){
+        try{
+          if(typeof g.show === "function") g.show();
+        }catch(e){}
+      });
+    }catch(e){}
   }
 
   document.addEventListener("click", function(ev){
@@ -3804,16 +3821,16 @@ async function marcarSeleccionComoEnviadas(){
       return;
     }
 
-    // Cualquier cambio de agrupación en estas funciones
     if(target && (target.closest("#btnAgrupar") ||
                   target.closest("#btnPagoAgrupar") ||
                   target.closest("#btnPagoAgruparId"))){
-      setTimeout(updateExpandButtons, 200);
+      setTimeout(updateExpandButtons, 250);
     }
   });
 
   document.addEventListener("DOMContentLoaded", function(){
-    updateExpandButtons();
+    // Intento inicial por si la tabla ya está construida
+    setTimeout(updateExpandButtons, 300);
   });
 })();
 </script>
