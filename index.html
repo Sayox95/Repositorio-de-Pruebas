@@ -129,7 +129,7 @@
     }
     .input:focus, select:focus{ outline:2px solid var(--ring); outline-offset:2px}
     .choices.is-open .choices__inner{ border-color: var(--ring); box-shadow: 0 0 0 2px var(--ring); }
-    .table-wrap{ margin-top:8px }
+    .table-wrap{ margin-top:8px; max-height:560px; overflow:auto; }
     .tabulator{ border-radius:14px; border:1px solid #e5e7eb }
     .muted{ color:var(--muted) }
 
@@ -901,16 +901,11 @@ function buildTable(){
   if(table){ return; }
   table = new Tabulator("#tablaRevision", { index: "fila",
 
-    height: Config.tablaHeight,
     data: State.filtered,
     layout:"fitColumns",
     placeholder:"Sin datos",
     selectable:true,
-    pagination: "local",
-    paginationSize: 50,
-    paginationSizeSelector: [25, 50, 100, 200],
-    paginationCounter: "rows",
-pagination:false,
+    pagination:false,
     reactiveData:false,
     groupStartOpen:false,
     groupHeader:function(value, count, data, group){
@@ -1349,14 +1344,29 @@ let isGrouped = false;
 function toggleGrouping(){
   if(!table) return;
   isGrouped = !isGrouped;
+  const btn = document.getElementById("btnAgrupar");
+
   if(isGrouped){
+    // Activar agrupación + paginación local
+    if(table.updateOptions){
+      table.updateOptions({
+        pagination: "local",
+        paginationSize: 50,
+        paginationSizeSelector: [25, 50, 100, 200],
+        paginationCounter: "rows",
+      });
+    }
     table.setGroupBy(["Identidad"]);
-    const btn = document.getElementById("btnAgrupar");
     if(btn) btn.innerHTML = '<i class="lucide-layers-2"></i> Desagrupar';
   }else{
+    // Quitar agrupación + desactivar paginación
     table.setGroupBy(false);
-      hideGroupToast();
-    const btn = document.getElementById("btnAgrupar");
+    try{ hideGroupToast && hideGroupToast(); }catch(e){}
+    if(table.updateOptions){
+      table.updateOptions({
+        pagination: false,
+      });
+    }
     if(btn) btn.innerHTML = '<i class="lucide-layers-2"></i> Agrupar por colaborador';
   }
 }
