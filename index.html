@@ -129,7 +129,7 @@
     }
     .input:focus, select:focus{ outline:2px solid var(--ring); outline-offset:2px}
     .choices.is-open .choices__inner{ border-color: var(--ring); box-shadow: 0 0 0 2px var(--ring); }
-    .table-wrap{ margin-top:8px }
+    .table-wrap{ margin-top:8px; max-height:560px; overflow:auto; }
     .tabulator{ border-radius:14px; border:1px solid #e5e7eb }
     .muted{ color:var(--muted) }
 
@@ -901,8 +901,6 @@ function buildTable(){
   if(table){ return; }
   table = new Tabulator("#tablaRevision", { index: "fila",
 
-    height: Config.tablaHeight,
-    virtualDom:false,
     data: State.filtered,
     layout:"fitColumns",
     placeholder:"Sin datos",
@@ -2318,8 +2316,7 @@ function buildPagoTable(){
               <span class="kpi-mini">L ${totalTxt}</span>`;  };
   window.pagoGroupHeaderDefault = defaultPagoGroupHeader;
 
-  pagoTable = new Tabulator("#tablaPago", { index: "fila", 
-    height: (typeof Config!=="undefined" && Config.tablaHeight) ? Config.tablaHeight : "560px",
+  pagoTable = new Tabulator("#tablaPago", { index: "fila",
     data: [], layout: "fitColumns", selectable: true, placeholder: "Sin datos",
     groupStartOpen:false,
     groupHeader:function(value, count, data, group){
