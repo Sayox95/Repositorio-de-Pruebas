@@ -572,7 +572,7 @@ const Config = {
     proxyBase: "https://repositorio-de-pruebas.pages.dev/api",
       placas: "/api/placas",
 },
-  tablaHeight: "900px",
+  tablaHeight: "560px",
 };
 
 /** =========================
@@ -1269,7 +1269,50 @@ function applyFilters(){
 function exportXLSX(){
   if(!table) return;
   const fname = `Facturas_UTCD_${new Date().toISOString().slice(0,10)}.xlsx`;
-  // Usa el downloader nativo de Tabulator (requiere XLSX global)
+
+  // Si la tabla está agrupada por colaborador, exportar RESUMEN por colaborador
+  if(typeof isGrouped !== "undefined" && isGrouped && table.getGroups){
+    const groups = table.getGroups() || [];
+    const summary = [];
+
+    for(const g of groups){
+      if(!g || !g.getRows) continue;
+      const rows = g.getRows() || [];
+      if(!rows.length) continue;
+
+      // Tomamos el primer row para obtener el nombre/identidad
+      const d0 = rows[0].getData ? rows[0].getData() : null;
+      const nombreBase = d0 ? (d0.Nombre || d0.Identidad || "") : "";
+      const key = g.getKey ? g.getKey() : "";
+      const nombre = nombreBase || String(key || "Sin nombre");
+
+      const count = rows.length;
+      let total = 0;
+      for(const r of rows){
+        try{
+          const d = r.getData ? r.getData() : null;
+          total += d && d.Total ? Number(d.Total) || 0 : 0;
+        }catch(e){}
+      }
+
+      summary.push({
+        "Colaborador": nombre,
+        "Cantidad de facturas": count,
+        "Total": Number(total.toFixed(2)),
+      });
+    }
+
+    if(summary.length > 0 && typeof XLSX !== "undefined" && XLSX && XLSX.utils){
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(summary);
+      XLSX.utils.book_append_sheet(wb, ws, "Resumen");
+      XLSX.writeFile(wb, fname);
+      return;
+    }
+    // Si algo falla, usamos el export tradicional
+  }
+
+  // Export tradicional: todas las filas activas con sus columnas
   table.download("xlsx", fname, { sheetName:"Revisión", rowRange:"active" });
 }
 
@@ -2318,7 +2361,7 @@ function buildPagoTable(){
   window.pagoGroupHeaderDefault = defaultPagoGroupHeader;
 
   pagoTable = new Tabulator("#tablaPago", { index: "fila", 
-    height: (typeof Config!=="undefined" && Config.tablaHeight) ? Config.tablaHeight : "900px",
+    height: (typeof Config!=="undefined" && Config.tablaHeight) ? Config.tablaHeight : "560px",
     data: [], layout: "fitColumns", selectable: true, placeholder: "Sin datos",
     groupStartOpen:false,
     groupHeader:function(value, count, data, group){
