@@ -2444,6 +2444,61 @@ function updatePagoKpis(){
   $("#kpiPagoTotalPag").textContent  = fmtMoney(sg);
 }
 
+function exportPagoXLSX(){
+  if(!pagoTable) return;
+  const fname = `Pago_UTCD_${new Date().toISOString().slice(0,10)}.xlsx`;
+
+  // Si está agrupado por colaborador, exportar RESUMEN por colaborador
+  if(typeof pagoGroupMode !== "undefined" && pagoGroupMode === "colaborador" && pagoTable.getGroups){
+    const groups = pagoTable.getGroups() || [];
+    const summary = [];
+
+    for(const g of groups){
+      if(!g || !g.getRows) continue;
+      const rows = g.getRows() || [];
+      if(!rows.length) continue;
+
+      // Tomamos el primer row para obtener el nombre/identidad
+      const d0 = rows[0].getData ? rows[0].getData() : null;
+      const nombreBase = d0 ? (d0.Nombre || d0.Identidad || "") : "";
+      const key = g.getKey ? g.getKey() : "";
+      const nombre = nombreBase || String(key || "Sin nombre");
+
+      const count = rows.length;
+      let total = 0;
+      for(const r of rows){
+        try{
+          const d = r.getData ? r.getData() : null;
+          if(!d) continue;
+          const rawTotal = (d["Total Gastado"] !== undefined && d["Total Gastado"] !== null) ? d["Total Gastado"] : d.Total;
+          const v = rawTotal !== undefined && rawTotal !== null ? Number(rawTotal) : 0;
+          if(!isNaN(v)) total += v;
+        }catch(e){}
+      }
+
+      summary.push({
+        "Colaborador": nombre,
+        "Cantidad de facturas": count,
+        "Total": Number(total.toFixed(2)),
+      });
+    }
+
+    if(summary.length > 0 && typeof XLSX !== "undefined" && XLSX && XLSX.utils){
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(summary);
+      XLSX.utils.book_append_sheet(wb, ws, "Resumen Pago");
+      XLSX.writeFile(wb, fname);
+      return;
+    }
+    // Si algo falla, usamos el export tradicional
+  }
+
+  // Export tradicional: todas las filas activas con sus columnas
+  pagoTable.download("xlsx", fname, { sheetName:"Pago", rowRange:"active" });
+}
+
+
+
 function clearPagoFilters(){
   pagoSectorMS && pagoSectorMS.clear();
   pagoEstadoMS && pagoEstadoMS.clear();
@@ -2630,7 +2685,7 @@ document.addEventListener("DOMContentLoaded", function(){
   const $ = (sel)=>document.querySelector(sel);
   $("#btnPagoLimpiar")?.addEventListener("click", clearPagoFilters);
   $("#btnPagoActualizar")?.addEventListener("click", cargarPago);
-  $("#btnPagoExportXLSX")?.addEventListener("click", ()=> pagoTable?.download("xlsx", "Pago_UTCD_" + new Date().toISOString().slice(0,10) + ".xlsx", {sheetName:"Pago", rowRange:"active"}));
+  $("#btnPagoExportXLSX")?.addEventListener("click", exportPagoXLSX);
   $("#btnPagoAgrupar")?.addEventListener("click", togglePagoGrouping);
   $("#mpCancelar")?.addEventListener("click", closePagoModal);
   $("#fPagoNombre")?.addEventListener("input", applyPagoFilters);
