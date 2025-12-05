@@ -572,7 +572,7 @@ const Config = {
     proxyBase: "https://repositorio-de-pruebas.pages.dev/api",
       placas: "/api/placas",
 },
-  tablaHeight: "560px",
+  tablaHeight: "900px",
 };
 
 /** =========================
@@ -2318,7 +2318,7 @@ function buildPagoTable(){
   window.pagoGroupHeaderDefault = defaultPagoGroupHeader;
 
   pagoTable = new Tabulator("#tablaPago", { index: "fila", 
-    height: (typeof Config!=="undefined" && Config.tablaHeight) ? Config.tablaHeight : "560px",
+    height: (typeof Config!=="undefined" && Config.tablaHeight) ? Config.tablaHeight : "900px",
     data: [], layout: "fitColumns", selectable: true, placeholder: "Sin datos",
     groupStartOpen:false,
     groupHeader:function(value, count, data, group){
