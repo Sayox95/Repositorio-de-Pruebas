@@ -901,7 +901,7 @@ function buildTable(){
   if(table){ return; }
   table = new Tabulator("#tablaRevision", { index: "fila",
 
-    height: "auto",
+    height: Config.tablaHeight,
     data: State.filtered,
     layout:"fitColumns",
     placeholder:"Sin datos",
