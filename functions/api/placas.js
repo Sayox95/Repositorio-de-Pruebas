@@ -1,5 +1,5 @@
 // functions/api/placas.js
-const GAS_URL = "https://script.google.com/macros/s/AKfycbwC-SA8uCWBIrZO1865EzQSnoKtaExKb49F1KZLwQupmbOCJ7sjZLQ7db6-AyWOTPu0ng/exec";
+const GAS_URL = "https://script.google.com/macros/s/AKfycbzdhDX7NEzpJM8xl0OPZDW8HRGjBvSuCWJ26LlhQCwCszS2loVRqQu-qUnt_Wc9g9OCYQ/exec";
 
 export async function onRequest({ request }) {
   const url = new URL(request.url);
