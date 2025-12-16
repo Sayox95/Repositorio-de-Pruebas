@@ -1913,11 +1913,15 @@ async function onSectorEdited(cell){
       jefe = (await fetchJefeBySector(newSector)) || getJefeBySector(newSector);
     }
     const patch = { Sector: newSector };
-    if(jefe) patch.JefeInmediato = jefe;
+    // Siempre actualizar/limpiar el JefeInmediato para evitar que quede estático de un sector anterior
+    patch.JefeInmediato = jefe || "";
     cell.getRow().update(patch);
 
     const idx = (Placas.data||[]).findIndex(r => (r.Placa||r.PLACA) === placaKey);
-    if(idx>=0){ Placas.data[idx].Sector = newSector; if(jefe) Placas.data[idx].JefeInmediato = jefe; }
+    if(idx>=0){
+      Placas.data[idx].Sector = newSector;
+      Placas.data[idx].JefeInmediato = jefe || "";
+    }
 
     toastLoading.hide();
     quickToast("Sector actualizado");
