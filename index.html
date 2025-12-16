@@ -1901,19 +1901,19 @@ async function onSectorEdited(cell){
     const res = await fetch(Config.api.placas, {
       method: "POST",
       headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({ action:"cambiarSector", placa: placaKey, sector: newSector, actualizarJefe:true })
+      body: JSON.stringify({ action:"cambiarSector", placa: placaKey, sector: newSector })
     });
     const txt = await res.text();
     if(!res.ok) throw new Error("HTTP "+res.status+" - "+txt.slice(0,120));
     let data; try{ data = JSON.parse(txt); } catch { data = {}; }
 
     const jefe = (data && (data.JefeInmediato || data.jefe)) || getJefeBySector(newSector);
-    // Siempre actualizar el Jefe inmediato en paralelo al cambio de sector (aunque venga vacío)
-    const patch = { Sector: newSector, JefeInmediato: (jefe || "") };
+    const patch = { Sector: newSector };
+    if(jefe) patch.JefeInmediato = jefe;
     cell.getRow().update(patch);
 
     const idx = (Placas.data||[]).findIndex(r => (r.Placa||r.PLACA) === placaKey);
-    if(idx>=0){ Placas.data[idx].Sector = newSector; Placas.data[idx].JefeInmediato = (jefe || ""); }
+    if(idx>=0){ Placas.data[idx].Sector = newSector; if(jefe) Placas.data[idx].JefeInmediato = jefe; }
 
     toastLoading.hide();
     quickToast("Sector actualizado");
