@@ -1901,27 +1901,19 @@ async function onSectorEdited(cell){
     const res = await fetch(Config.api.placas, {
       method: "POST",
       headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({ action:"cambiarSector", placa: placaKey, sector: newSector })
+      body: JSON.stringify({ action:"cambiarSector", placa: placaKey, sector: newSector, actualizarJefe:true })
     });
     const txt = await res.text();
     if(!res.ok) throw new Error("HTTP "+res.status+" - "+txt.slice(0,120));
     let data; try{ data = JSON.parse(txt); } catch { data = {}; }
 
-    let jefe = (data && (data.JefeInmediato || data.jefe)) || "";
-    if(!jefe){
-      // Intentar obtener el jefe correcto desde el backend para el nuevo sector
-      jefe = (await fetchJefeBySector(newSector)) || getJefeBySector(newSector);
-    }
-    const patch = { Sector: newSector };
-    // Siempre actualizar/limpiar el JefeInmediato para evitar que quede estático de un sector anterior
-    patch.JefeInmediato = jefe || "";
+    const jefe = (data && (data.JefeInmediato || data.jefe)) || getJefeBySector(newSector);
+    // Siempre actualizar el Jefe inmediato en paralelo al cambio de sector (aunque venga vacío)
+    const patch = { Sector: newSector, JefeInmediato: (jefe || "") };
     cell.getRow().update(patch);
 
     const idx = (Placas.data||[]).findIndex(r => (r.Placa||r.PLACA) === placaKey);
-    if(idx>=0){
-      Placas.data[idx].Sector = newSector;
-      Placas.data[idx].JefeInmediato = jefe || "";
-    }
+    if(idx>=0){ Placas.data[idx].Sector = newSector; Placas.data[idx].JefeInmediato = (jefe || ""); }
 
     toastLoading.hide();
     quickToast("Sector actualizado");
@@ -1939,25 +1931,6 @@ function getUniqueSectors(){
     .filter(Boolean);
   return Array.from(new Set(all)).sort((a,b)=>a.localeCompare(b));
 }
-async function fetchJefeBySector(sector){
-  try{
-    const s = String(sector||"").trim();
-    if(!s) return "";
-    // Se espera que el backend responda el jefe del sector (para mantener consistencia con la fuente de verdad: Sheet)
-    const res = await fetch(Config.api.placas, {
-      method: "POST",
-      headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({ action: "jefePorSector", sector: s })
-    });
-    const txt = await res.text();
-    if(!res.ok) return "";
-    let data; try{ data = JSON.parse(txt); } catch { data = {}; }
-    return (data && (data.JefeInmediato || data.jefe || data.Jefe || data.jefeInmediato)) || "";
-  }catch(e){
-    return "";
-  }
-}
-
 function getJefeBySector(sector){
   const s = String(sector||"").trim().toUpperCase();
   for(const r of (Placas.data||[])){
