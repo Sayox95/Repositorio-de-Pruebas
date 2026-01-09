@@ -2350,12 +2350,14 @@ function buildPagoTable(){
 
   const defaultPagoGroupHeader = function(value, count, data, group){
       const nombre = (data && data[0] && (data[0].Nombre||data[0].Identidad)) || value;
-      const suma = (data||[]).reduce((acc,r)=> acc + (Number(r.Total)||0), 0);
+      
+      const proceso = (data && data[0] && data[0].Proceso) ? String(data[0].Proceso) : "";const suma = (data||[]).reduce((acc,r)=> acc + (Number(r.Total)||0), 0);
       const totalTxt = new Intl.NumberFormat("es-HN",{minimumFractionDigits:2, maximumFractionDigits:2}).format(suma);
       const key = String(value ?? "").replace(/"/g,"&quot;");
-      return `<label class="group-toggle">
+      
+      const labelTxt = `${nombre} (${count})${proceso ? " - " + proceso : ""}`;return `<label class="group-toggle">
                 <input type="checkbox" class="group-select-pago" data-group-key="${key}">
-                <span>${nombre} (${count})</span>
+                <span>${labelTxt}</span>
               </label>
               <span class="kpi-mini">L ${totalTxt}</span>`;  };
   window.pagoGroupHeaderDefault = defaultPagoGroupHeader;
@@ -2366,12 +2368,14 @@ function buildPagoTable(){
     groupStartOpen:false,
     groupHeader:function(value, count, data, group){
       const nombre = (data && data[0] && (data[0].Nombre||data[0].Identidad)) || value;
-      const suma = (data||[]).reduce((acc,r)=> acc + (Number(r.Total)||0), 0);
+      
+      const proceso = (data && data[0] && data[0].Proceso) ? String(data[0].Proceso) : "";const suma = (data||[]).reduce((acc,r)=> acc + (Number(r.Total)||0), 0);
       const totalTxt = new Intl.NumberFormat("es-HN",{minimumFractionDigits:2, maximumFractionDigits:2}).format(suma);
       const key = String(value ?? "").replace(/"/g,"&quot;");
-      return `<label class="group-toggle">
+      
+      const labelTxt = `${nombre} (${count})${proceso ? " - " + proceso : ""}`;return `<label class="group-toggle">
                 <input type="checkbox" class="group-select-pago" data-group-key="${key}">
-                <span>${nombre} (${count})</span>
+                <span>${labelTxt}</span>
               </label>
               <span class="kpi-mini">L ${totalTxt}</span>`;
     },
