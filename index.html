@@ -204,15 +204,6 @@
   }
 
 </style>
-<script>
-function fmtYMD(d){
-  const y = d.getFullYear();
-  const m = String(d.getMonth()+1).padStart(2,"0");
-  const day = String(d.getDate()).padStart(2,"0");
-  return `${y}-${m}-${day}`;
-}
-</script>
-
 
 <style id="modalPago-wide-tweaks">
   /* Ensancha contenidos internos del modal de pago */
@@ -228,15 +219,6 @@ function fmtYMD(d){
   /* Alinea el header de Otros Cargos (label + botón) si existe en línea */
   #modalPago .otros-cargos-toolbar { display:flex; align-items:center; justify-content:space-between; gap:12px; width:100%; }
 </style>
-<script>
-function fmtYMD(d){
-  const y = d.getFullYear();
-  const m = String(d.getMonth()+1).padStart(2,"0");
-  const day = String(d.getDate()).padStart(2,"0");
-  return `${y}-${m}-${day}`;
-}
-</script>
-
 
 <style id="modalPago-field-widen">
   #modalPago #mpFechaPago,
@@ -293,15 +275,6 @@ function fmtYMD(d){
   .toast .spinner { width:16px;height:16px;border:2px solid #e5e7eb;border-top-color:#0FA47E;border-radius:50%; animation:spin .9s linear infinite }
 
 </style>
-<script>
-function fmtYMD(d){
-  const y = d.getFullYear();
-  const m = String(d.getMonth()+1).padStart(2,"0");
-  const day = String(d.getDate()).padStart(2,"0");
-  return `${y}-${m}-${day}`;
-}
-</script>
-
 
 </head>
 <body>
@@ -1201,7 +1174,28 @@ function initFilters(){
         selectedDates[0].setHours(0,0,0,0);
         selectedDates[1].setHours(23,59,59,999);
         $("#fFecha")._range = selectedDates;
+
+        // (Opcional) si quieres que elegir Fecha Factura limpie Fecha Revisión:
+        $("#fFechaRev").value = "";
+        $("#fFechaRev")._range = null;
+
+        // ✅ Solo pedir al servidor cuando el rango está completo
+        reloadRevisionFromServer({fallbackToCurrentMonth:false, resetScroll:false});
+      }else if(selectedDates.length===0){
+        // Limpieza del filtro
+        $("#fFecha")._range = null;
+
+        $("#fFechaRev").value = "";
+        $("#fFechaRev")._range = null;
+
+        reloadRevisionFromServer({fallbackToCurrentMonth:true, resetScroll:false});
       }else{
+        // selectedDates.length===1 (solo fecha inicial): NO pedir al servidor todavía
+        // dejamos el rango como null hasta que esté completo
+        $("#fFecha")._range = null;
+      }
+    }
+else{
         $("#fFecha")._range = null;
   $("#fFechaRev").value = "";
   $("#fFechaRev")._range = null;
@@ -1217,7 +1211,18 @@ function initFilters(){
         selectedDates[0].setHours(0,0,0,0);
         selectedDates[1].setHours(23,59,59,999);
         $("#fFechaRev")._range = selectedDates;
+
+        // ✅ Solo pedir al servidor cuando el rango está completo
+        reloadRevisionFromServer({fallbackToCurrentMonth:false, resetScroll:false});
+      }else if(selectedDates.length===0){
+        $("#fFechaRev")._range = null;
+        reloadRevisionFromServer({fallbackToCurrentMonth:true, resetScroll:false});
       }else{
+        // selectedDates.length===1: NO pedir al servidor todavía
+        $("#fFechaRev")._range = null;
+      }
+    }
+else{
         $("#fFechaRev")._range = null;
       }
       reloadRevisionFromServer({fallbackToCurrentMonth:true, resetScroll:false});
@@ -3512,15 +3517,6 @@ async function marcarSeleccionComoEnviadas(){
   .grid input{padding:8px 10px;border:1px solid #e5e7eb;border-radius:10px}
   .modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:6px}
 </style>
-<script>
-function fmtYMD(d){
-  const y = d.getFullYear();
-  const m = String(d.getMonth()+1).padStart(2,"0");
-  const day = String(d.getDate()).padStart(2,"0");
-  return `${y}-${m}-${day}`;
-}
-</script>
-
 
 
 
@@ -3541,15 +3537,6 @@ function fmtYMD(d){
   .busy-spinner{width:36px;height:36px;border-radius:50%;border:3px solid #e5e7eb;border-top-color:#10b981;animation:busyspin 0.9s linear infinite}
   @keyframes busyspin{to{transform:rotate(360deg)}}
 </style>
-<script>
-function fmtYMD(d){
-  const y = d.getFullYear();
-  const m = String(d.getMonth()+1).padStart(2,"0");
-  const day = String(d.getDate()).padStart(2,"0");
-  return `${y}-${m}-${day}`;
-}
-</script>
-
 
 <!-- === END PATCH === -->
 
