@@ -16,7 +16,7 @@ export async function onRequestGet({ request }) {
     if (ids && ids.length) {
       ids.forEach(id => {
         if (id) url.searchParams.append("ids", id);
-      });
+      }); 
     }
   } else {
     // Modo facturas (existente)
