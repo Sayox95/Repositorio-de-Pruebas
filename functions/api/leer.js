@@ -38,7 +38,7 @@ export async function onRequest({ request }) {
   const revDesde = incoming.searchParams.get("revDesde");
   const revHasta = incoming.searchParams.get("revHasta");
 
-  const url = new URL("https://script.google.com/macros/s/AKfycbxsV0ObcDwf5QTNjTMCZNbWAMuagU3MlcHf_htYpngk48YPXYoEYjBHqpVnydv5VasW8w/exec");
+  const url = new URL("https://script.google.com/macros/s/AKfycbxiFF9R1vC8V-XoMBsGMa5-Zhe-La7D4DX5tCw5cgX4hAj_c4j9OXgtkX4LfFte-OaUeA/exec");
 
   if (otrosCargos) {
     // Modo "Otros Cargos"
