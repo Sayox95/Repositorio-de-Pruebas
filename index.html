@@ -1165,71 +1165,45 @@ let sectorMS, estadoMS;
 
 function initFilters(){
   // Flatpickr range
-  const fp = 
-flatpickr("#fFecha", {
-  mode: "range",
-  dateFormat: "Y-m-d",
-  onChange: function(selectedDates){
-    // no-op mientras el rango no esté completo
-    if (!selectedDates || selectedDates.length !== 2) return;
-  },
-  onClose: function(selectedDates){
-    if (!selectedDates || selectedDates.length !== 2) return;
-    const desde = fmtYMD(selectedDates[0]);
-    const hasta = fmtYMD(selectedDates[1]);
-    hardRefresh({ desde, hasta, source: "fFecha" });
-  }
-});
-});
-      }else if(selectedDates.length===0){
-        // Limpieza del filtro
-        $("#fFecha")._range = null;
-
-        $("#fFechaRev").value = "";
-        $("#fFechaRev")._range = null;
-
-        reloadRevisionFromServer({fallbackToCurrentMonth:true, resetScroll:false});
-      }else{
-        // selectedDates.length===1 (solo fecha inicial): NO pedir al servidor todavía
-        // dejamos el rango como null hasta que esté completo
-        $("#fFecha")._range = null;
+  // Flatpickr (modo rango). Solo recargamos desde servidor cuando el rango está completo (2 fechas).
+  const fp = flatpickr("#fFecha", {
+    mode: "range",
+    dateFormat: "Y-m-d",
+    onChange: function(selectedDates){
+      // Mientras el usuario elige, no recargar (evita pedir con 1 sola fecha).
+      if(!selectedDates || selectedDates.length !== 2){
+        document.getElementById("fFecha")._range = null;
+        return;
       }
-    }
-else{
-        $("#fFecha")._range = null;
-  $("#fFechaRev").value = "";
-  $("#fFechaRev")._range = null;
-      }
-      reloadRevisionFromServer({fallbackToCurrentMonth:true, resetScroll:false});
+    },
+    onClose: function(selectedDates){
+      if(!selectedDates || selectedDates.length !== 2) return;
+      const desde = fmtYMD(selectedDates[0]);
+      const hasta = fmtYMD(selectedDates[1]);
+      document.getElementById("fFecha")._range = [selectedDates[0], selectedDates[1]];
+      // Limpia rango de revisión si el usuario está filtrando por fecha factura
+      // (si quieres combinar ambos rangos, quita estas 2 líneas):
+      // document.getElementById("fFechaRev").value = "";
+      // document.getElementById("fFechaRev")._range = null;
+      hardRefresh({ desde, hasta, source: "fFecha" });
     }
   });
-  const fpRev = 
-flatpickr("#fFechaRev", {
-  mode: "range",
-  dateFormat: "Y-m-d",
-  onChange: function(selectedDates){
-    if (!selectedDates || selectedDates.length !== 2) return;
-  },
-  onClose: function(selectedDates){
-    if (!selectedDates || selectedDates.length !== 2) return;
-    const revDesde = fmtYMD(selectedDates[0]);
-    const revHasta = fmtYMD(selectedDates[1]);
-    hardRefresh({ revDesde, revHasta, source: "fFechaRev" });
-  }
-});
-});
-      }else if(selectedDates.length===0){
-        $("#fFechaRev")._range = null;
-        reloadRevisionFromServer({fallbackToCurrentMonth:true, resetScroll:false});
-      }else{
-        // selectedDates.length===1: NO pedir al servidor todavía
-        $("#fFechaRev")._range = null;
+
+  const fpRev = flatpickr("#fFechaRev", {
+    mode: "range",
+    dateFormat: "Y-m-d",
+    onChange: function(selectedDates){
+      if(!selectedDates || selectedDates.length !== 2){
+        document.getElementById("fFechaRev")._range = null;
+        return;
       }
-    }
-else{
-        $("#fFechaRev")._range = null;
-      }
-      reloadRevisionFromServer({fallbackToCurrentMonth:true, resetScroll:false});
+    },
+    onClose: function(selectedDates){
+      if(!selectedDates || selectedDates.length !== 2) return;
+      const revDesde = fmtYMD(selectedDates[0]);
+      const revHasta = fmtYMD(selectedDates[1]);
+      document.getElementById("fFechaRev")._range = [selectedDates[0], selectedDates[1]];
+      hardRefresh({ revDesde, revHasta, source: "fFechaRev" });
     }
   });
   // MultiSelect con checkboxes
