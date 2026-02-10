@@ -1165,22 +1165,22 @@ let sectorMS, estadoMS;
 
 function initFilters(){
   // Flatpickr range
-  const fp = flatpickr("#fFecha", {
-    mode:"range",
-    dateFormat:"Y-m-d",
-    onChange(selectedDates){
-      if(selectedDates.length===2){
-        // normalizamos a extremos del día
-        selectedDates[0].setHours(0,0,0,0);
-        selectedDates[1].setHours(23,59,59,999);
-        $("#fFecha")._range = selectedDates;
-
-        // (Opcional) si quieres que elegir Fecha Factura limpie Fecha Revisión:
-        $("#fFechaRev").value = "";
-        $("#fFechaRev")._range = null;
-
-        // ✅ Solo pedir al servidor cuando el rango está completo
-        reloadRevisionFromServer({fallbackToCurrentMonth:false, resetScroll:false});
+  const fp = 
+flatpickr("#fFecha", {
+  mode: "range",
+  dateFormat: "Y-m-d",
+  onChange: function(selectedDates){
+    // no-op mientras el rango no esté completo
+    if (!selectedDates || selectedDates.length !== 2) return;
+  },
+  onClose: function(selectedDates){
+    if (!selectedDates || selectedDates.length !== 2) return;
+    const desde = fmtYMD(selectedDates[0]);
+    const hasta = fmtYMD(selectedDates[1]);
+    hardRefresh({ desde, hasta, source: "fFecha" });
+  }
+});
+});
       }else if(selectedDates.length===0){
         // Limpieza del filtro
         $("#fFecha")._range = null;
@@ -1203,17 +1203,21 @@ else{
       reloadRevisionFromServer({fallbackToCurrentMonth:true, resetScroll:false});
     }
   });
-  const fpRev = flatpickr("#fFechaRev", {
-    mode:"range",
-    dateFormat:"Y-m-d",
-    onChange(selectedDates){
-      if(selectedDates.length===2){
-        selectedDates[0].setHours(0,0,0,0);
-        selectedDates[1].setHours(23,59,59,999);
-        $("#fFechaRev")._range = selectedDates;
-
-        // ✅ Solo pedir al servidor cuando el rango está completo
-        reloadRevisionFromServer({fallbackToCurrentMonth:false, resetScroll:false});
+  const fpRev = 
+flatpickr("#fFechaRev", {
+  mode: "range",
+  dateFormat: "Y-m-d",
+  onChange: function(selectedDates){
+    if (!selectedDates || selectedDates.length !== 2) return;
+  },
+  onClose: function(selectedDates){
+    if (!selectedDates || selectedDates.length !== 2) return;
+    const revDesde = fmtYMD(selectedDates[0]);
+    const revHasta = fmtYMD(selectedDates[1]);
+    hardRefresh({ revDesde, revHasta, source: "fFechaRev" });
+  }
+});
+});
       }else if(selectedDates.length===0){
         $("#fFechaRev")._range = null;
         reloadRevisionFromServer({fallbackToCurrentMonth:true, resetScroll:false});
