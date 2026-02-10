@@ -1,12 +1,44 @@
-export async function onRequestGet({ request }) {
+export async function onRequest({ request }) {
   const origin = request.headers.get("Origin") || "*";
+
+  // Preflight CORS
+  if (request.method === "OPTIONS") {
+    return new Response(null, {
+      status: 204,
+      headers: {
+        "Access-Control-Allow-Origin": origin,
+        "Access-Control-Allow-Methods": "GET, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type",
+        "Cache-Control": "no-store",
+      },
+    });
+  }
+
+  if (request.method !== "GET") {
+    return new Response(JSON.stringify({ status: "ERROR", message: "Method not allowed" }), {
+      status: 405,
+      headers: {
+        "Access-Control-Allow-Origin": origin,
+        "Access-Control-Allow-Methods": "GET, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type",
+        "Content-Type": "application/json",
+      },
+    });
+  }
+
   const incoming = new URL(request.url);
 
   const otrosCargos = incoming.searchParams.get("otrosCargos"); // "total" | "byId" (opcional)
   const estados     = incoming.searchParams.get("estados");     // opcional
   const ids         = incoming.searchParams.getAll("ids");      // múltiples ids para byId
 
-  const url = new URL("https://script.google.com/macros/s/AKfycbxsV0ObcDwf5QTNjTMCZNbWAMuagU3MlcHf_htYpngk48YPXYoEYjBHqpVnydv5VasW8w/exec"); 
+  // ✅ NUEVO: rangos de fechas
+  const desde    = incoming.searchParams.get("desde");
+  const hasta    = incoming.searchParams.get("hasta");
+  const revDesde = incoming.searchParams.get("revDesde");
+  const revHasta = incoming.searchParams.get("revHasta");
+
+  const url = new URL("https://script.google.com/macros/s/AKfycbxsV0ObcDwf5QTNjTMCZNbWAMuagU3MlcHf_htYpngk48YPXYoEYjBHqpVnydv5VasW8w/exec");
 
   if (otrosCargos) {
     // Modo "Otros Cargos"
@@ -19,9 +51,15 @@ export async function onRequestGet({ request }) {
       });
     }
   } else {
-    // Modo facturas (existente)
+    // Modo facturas
     url.searchParams.set("leerFacturas", "true");
     if (estados) url.searchParams.set("estados", estados);
+
+    // ✅ NUEVO: reenvío de rangos
+    if (desde) url.searchParams.set("desde", desde);
+    if (hasta) url.searchParams.set("hasta", hasta);
+    if (revDesde) url.searchParams.set("revDesde", revDesde);
+    if (revHasta) url.searchParams.set("revHasta", revHasta);
   }
 
   try {
@@ -35,8 +73,8 @@ export async function onRequestGet({ request }) {
         "Access-Control-Allow-Methods": "GET, OPTIONS",
         "Access-Control-Allow-Headers": "Content-Type",
         "Content-Type": resp.headers.get("Content-Type") || "application/json",
-        "Cache-Control": "no-store"
-      }
+        "Cache-Control": "no-store",
+      },
     });
   } catch (e) {
     return new Response(JSON.stringify({ status: "ERROR", message: e.message }), {
@@ -45,8 +83,8 @@ export async function onRequestGet({ request }) {
         "Access-Control-Allow-Origin": origin,
         "Access-Control-Allow-Methods": "GET, OPTIONS",
         "Access-Control-Allow-Headers": "Content-Type",
-        "Content-Type": "application/json"
-      }
+        "Content-Type": "application/json",
+      },
     });
   }
 }
