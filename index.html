@@ -204,6 +204,15 @@
   }
 
 </style>
+<script>
+function fmtYMD(d){
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,"0");
+  const day = String(d.getDate()).padStart(2,"0");
+  return `${y}-${m}-${day}`;
+}
+</script>
+
 
 <style id="modalPago-wide-tweaks">
   /* Ensancha contenidos internos del modal de pago */
@@ -219,6 +228,15 @@
   /* Alinea el header de Otros Cargos (label + botón) si existe en línea */
   #modalPago .otros-cargos-toolbar { display:flex; align-items:center; justify-content:space-between; gap:12px; width:100%; }
 </style>
+<script>
+function fmtYMD(d){
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,"0");
+  const day = String(d.getDate()).padStart(2,"0");
+  return `${y}-${m}-${day}`;
+}
+</script>
+
 
 <style id="modalPago-field-widen">
   #modalPago #mpFechaPago,
@@ -275,6 +293,15 @@
   .toast .spinner { width:16px;height:16px;border:2px solid #e5e7eb;border-top-color:#0FA47E;border-radius:50%; animation:spin .9s linear infinite }
 
 </style>
+<script>
+function fmtYMD(d){
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,"0");
+  const day = String(d.getDate()).padStart(2,"0");
+  return `${y}-${m}-${day}`;
+}
+</script>
+
 
 </head>
 <body>
@@ -694,7 +721,9 @@ const API = { _facturasCtl:null,
     if(ctl.signal.aborted) throw new Error('ABORTED');
 
     const arr = Array.isArray(data) ? data : [];
-    return arr.map(normalizeRow).filter(r=>r);
+    
+    console.log('[API] Facturas recibidas:', arr.length, {opts});
+return arr.map(normalizeRow).filter(r=>r);
   },
   proxied(url){
     const base = Config.api.proxyBase.replace(/\/$/,"");
@@ -3483,6 +3512,15 @@ async function marcarSeleccionComoEnviadas(){
   .grid input{padding:8px 10px;border:1px solid #e5e7eb;border-radius:10px}
   .modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:6px}
 </style>
+<script>
+function fmtYMD(d){
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,"0");
+  const day = String(d.getDate()).padStart(2,"0");
+  return `${y}-${m}-${day}`;
+}
+</script>
+
 
 
 
@@ -3503,6 +3541,15 @@ async function marcarSeleccionComoEnviadas(){
   .busy-spinner{width:36px;height:36px;border-radius:50%;border:3px solid #e5e7eb;border-top-color:#10b981;animation:busyspin 0.9s linear infinite}
   @keyframes busyspin{to{transform:rotate(360deg)}}
 </style>
+<script>
+function fmtYMD(d){
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,"0");
+  const day = String(d.getDate()).padStart(2,"0");
+  return `${y}-${m}-${day}`;
+}
+</script>
+
 
 <!-- === END PATCH === -->
 
