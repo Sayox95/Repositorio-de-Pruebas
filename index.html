@@ -673,30 +673,16 @@ function toDirectDriveUrl(url){
  *  Capa de datos (API)
  *  ========================= */
 const API = { _facturasCtl:null,
-  async getFacturas(opts = {}){
+  async getFacturas(){
     if(this._facturasCtl) try{ this._facturasCtl.abort(); } catch (e){}
     const ctl = new AbortController();
     this._facturasCtl = ctl;
-
-    // Construir URL con parámetros (no traer todo el histórico)
-    const url = new URL(Config.api.leerFacturas, window.location.origin);
-    url.searchParams.set("leerFacturas", "true");
-
-    if (opts.estados)  url.searchParams.set("estados", opts.estados);
-    if (opts.desde)    url.searchParams.set("desde", opts.desde);
-    if (opts.hasta)    url.searchParams.set("hasta", opts.hasta);
-    if (opts.revDesde) url.searchParams.set("revDesde", opts.revDesde);
-    if (opts.revHasta) url.searchParams.set("revHasta", opts.revHasta);
-
-    const res = await fetch(url.toString(), { cache:"no-store", mode:"cors", signal: ctl.signal });
+    const res = await fetch(Config.api.leerFacturas, {cache:"no-store", mode:"cors", signal: ctl.signal});
     if(!res.ok) throw new Error("No se pudo leer facturas");
     const data = await res.json();
     if(ctl.signal.aborted) throw new Error('ABORTED');
-
-    const arr = Array.isArray(data) ? data : [];
-    
-    console.log('[API] Facturas recibidas:', arr.length, {opts});
-return arr.map(normalizeRow).filter(r=>r);
+    const arr = Array.isArray(data)? data : [];
+return arr.map(normalizeRow).filter(r=>r); // no filtramos por nº factura todavía
   },
   proxied(url){
     const base = Config.api.proxyBase.replace(/\/$/,"");
@@ -1165,45 +1151,35 @@ let sectorMS, estadoMS;
 
 function initFilters(){
   // Flatpickr range
-  // Flatpickr (modo rango). Solo recargamos desde servidor cuando el rango está completo (2 fechas).
   const fp = flatpickr("#fFecha", {
-    mode: "range",
-    dateFormat: "Y-m-d",
-    onChange: function(selectedDates){
-      // Mientras el usuario elige, no recargar (evita pedir con 1 sola fecha).
-      if(!selectedDates || selectedDates.length !== 2){
-        document.getElementById("fFecha")._range = null;
-        return;
+    mode:"range",
+    dateFormat:"Y-m-d",
+    onChange(selectedDates){
+      if(selectedDates.length===2){
+        // normalizamos a extremos del día
+        selectedDates[0].setHours(0,0,0,0);
+        selectedDates[1].setHours(23,59,59,999);
+        $("#fFecha")._range = selectedDates;
+      }else{
+        $("#fFecha")._range = null;
+  $("#fFechaRev").value = "";
+  $("#fFechaRev")._range = null;
       }
-    },
-    onClose: function(selectedDates){
-      if(!selectedDates || selectedDates.length !== 2) return;
-      const desde = fmtYMD(selectedDates[0]);
-      const hasta = fmtYMD(selectedDates[1]);
-      document.getElementById("fFecha")._range = [selectedDates[0], selectedDates[1]];
-      // Limpia rango de revisión si el usuario está filtrando por fecha factura
-      // (si quieres combinar ambos rangos, quita estas 2 líneas):
-      // document.getElementById("fFechaRev").value = "";
-      // document.getElementById("fFechaRev")._range = null;
-      hardRefresh({ desde, hasta, source: "fFecha" });
+      applyFilters();
     }
   });
-
   const fpRev = flatpickr("#fFechaRev", {
-    mode: "range",
-    dateFormat: "Y-m-d",
-    onChange: function(selectedDates){
-      if(!selectedDates || selectedDates.length !== 2){
-        document.getElementById("fFechaRev")._range = null;
-        return;
+    mode:"range",
+    dateFormat:"Y-m-d",
+    onChange(selectedDates){
+      if(selectedDates.length===2){
+        selectedDates[0].setHours(0,0,0,0);
+        selectedDates[1].setHours(23,59,59,999);
+        $("#fFechaRev")._range = selectedDates;
+      }else{
+        $("#fFechaRev")._range = null;
       }
-    },
-    onClose: function(selectedDates){
-      if(!selectedDates || selectedDates.length !== 2) return;
-      const revDesde = fmtYMD(selectedDates[0]);
-      const revHasta = fmtYMD(selectedDates[1]);
-      document.getElementById("fFechaRev")._range = [selectedDates[0], selectedDates[1]];
-      hardRefresh({ revDesde, revHasta, source: "fFechaRev" });
+      applyFilters();
     }
   });
   // MultiSelect con checkboxes
@@ -1904,7 +1880,8 @@ async function hardRefresh(){
 
   // Limpia filtros, recarga y resetea scroll; luego muestra hora de actualización
   clearFilters();
-  await reloadRevisionFromServer({fallbackToCurrentMonth:true, resetScroll:true});
+  await loadData();
+  resetTableScroll();
   setLastUpdatedNow();
   const now = new Date();
   const hh = String(now.getHours()).padStart(2,"0");
@@ -2162,10 +2139,10 @@ async function bootstrap(){
   $("#btnDescargar").addEventListener("click", descargarZip);  $("#btnExportXLSX").addEventListener("click", exportXLSX);
   navigateTo("secInicio");}
 
-async function loadData(opts = {}){
+async function loadData(){
   overlay.show("Cargando facturas…");
   try{
-    const data = await API.getFacturas(opts);
+    const data = await API.getFacturas();
     State.raw = data;
     // poblar selects dinámicamente
     const sectores = Array.from(new Set(data.map(r=>r.Sector).filter(Boolean))).sort();
@@ -2187,43 +2164,6 @@ async function loadData(opts = {}){
   }
 }
 
-
-function getCurrentMonthRangeYMD(){
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = d.getMonth(); // 0-based
-  const first = new Date(y, m, 1);
-  const last  = new Date(y, m + 1, 0);
-  const pad = (n)=> (n<10?("0"+n):(""+n));
-  const iso = (dt)=> dt.getFullYear()+"-"+pad(dt.getMonth()+1)+"-"+pad(dt.getDate());
-  return { desde: iso(first), hasta: iso(last) };
-}
-
-async function reloadRevisionFromServer({fallbackToCurrentMonth=true, resetScroll=false} = {}){
-  const q = {};
-  const f1 = document.getElementById("fFecha");
-  const f2 = document.getElementById("fFechaRev");
-  const r1 = f1 && f1._range ? f1._range : null;
-  const r2 = f2 && f2._range ? f2._range : null;
-
-  const pad = (n)=> (n<10?("0"+n):(""+n));
-  const iso = (dt)=> dt.getFullYear()+"-"+pad(dt.getMonth()+1)+"-"+pad(dt.getDate());
-
-  if(r1 && r1.length===2){
-    q.desde = iso(r1[0]);
-    q.hasta = iso(r1[1]);
-  }
-  if(r2 && r2.length===2){
-    q.revDesde = iso(r2[0]);
-    q.revHasta = iso(r2[1]);
-  }
-
-  const hasAny = !!(q.desde||q.hasta||q.revDesde||q.revHasta);
-  const finalQ = (fallbackToCurrentMonth && !hasAny) ? getCurrentMonthRangeYMD() : q;
-
-  await loadData(finalQ);
-  if(resetScroll) resetTableScroll();
-}
 window.addEventListener("DOMContentLoaded", bootstrap);
 </script>
 </div>
@@ -2629,15 +2569,9 @@ if (typeof API !== "undefined") {
 
     const base = Config?.api?.leerFacturas || "/api/leer";
     const url  = buildUrl(base);
-        // Compat Apps Script
-    if(!url.searchParams.has("leerFacturas")) url.searchParams.set("leerFacturas","true");
-if (opts && Array.isArray(opts.estados) && opts.estados.length){
+    if (opts && Array.isArray(opts.estados) && opts.estados.length){
       url.searchParams.set("estados", opts.estados.join(","));
     }
-    if(opts && opts.desde)    url.searchParams.set("desde", String(opts.desde));
-    if(opts && opts.hasta)    url.searchParams.set("hasta", String(opts.hasta));
-    if(opts && opts.revDesde) url.searchParams.set("revDesde", String(opts.revDesde));
-    if(opts && opts.revHasta) url.searchParams.set("revHasta", String(opts.revHasta));
 
     const res = await fetch(url.toString(), { cache:"no-store", mode:"cors", signal: ctl.signal });
     if(!res.ok) throw new Error("No se pudo leer facturas");
@@ -3908,16 +3842,5 @@ async function marcarSeleccionComoEnviadas(){
   });
 })();
 </script>
-
-<script>
-// Helper global para rangos de fecha (YYYY-MM-DD)
-function fmtYMD(d){
-  const y = d.getFullYear();
-  const m = String(d.getMonth()+1).padStart(2,"0");
-  const day = String(d.getDate()).padStart(2,"0");
-  return `${y}-${m}-${day}`;
-}
-</script>
-
 </body>
 </html>
