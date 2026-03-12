@@ -381,7 +381,7 @@
           <div id="msEstado" class="msel" data-placeholder="Estado"></div>
           <input id="fNombre" class="input" placeholder="Nombre Colaborador…"/>
           <input id="fNumero" class="input" placeholder="Nº Factura…"/>
-          <input id="fFecha" class="input" placeholder="Rango de fechas"/>
+          <input id="fFecha" class="input" placeholder="Rango de fechas (mes actual por defecto)"/>
           <input id="fFechaRev" class="input" placeholder="Rango fecha revisión"/>
           <button id="btnLimpiar" class="btn btn-ghost"><i class="lucide-broom"></i> Limpiar</button>
         </div>
@@ -673,16 +673,31 @@ function toDirectDriveUrl(url){
  *  Capa de datos (API)
  *  ========================= */
 const API = { _facturasCtl:null,
-  async getFacturas(){
+  /**
+   * getFacturas({ fechaDesde, fechaHasta, fechaRevDesde, fechaRevHasta })
+   * - fechaDesde/fechaHasta: filtra por fecha de factura (col "Fecha")
+   * - fechaRevDesde/fechaRevHasta: filtra por fecha de revisión; cuando se usa,
+   *   el backend ignora el filtro de fecha de factura automáticamente.
+   * Si no se pasan parámetros, carga el mes actual por defecto.
+   */
+  async getFacturas({ fechaDesde, fechaHasta, fechaRevDesde, fechaRevHasta } = {}){
     if(this._facturasCtl) try{ this._facturasCtl.abort(); } catch (e){}
     const ctl = new AbortController();
     this._facturasCtl = ctl;
-    const res = await fetch(Config.api.leerFacturas, {cache:"no-store", mode:"cors", signal: ctl.signal});
+
+    const url = new URL(Config.api.leerFacturas);
+    url.searchParams.set("leerFacturas", "true");
+    if(fechaDesde)    url.searchParams.set("fechaDesde",    fechaDesde);
+    if(fechaHasta)    url.searchParams.set("fechaHasta",    fechaHasta);
+    if(fechaRevDesde) url.searchParams.set("fechaRevDesde", fechaRevDesde);
+    if(fechaRevHasta) url.searchParams.set("fechaRevHasta", fechaRevHasta);
+
+    const res = await fetch(url.toString(), {cache:"no-store", mode:"cors", signal: ctl.signal});
     if(!res.ok) throw new Error("No se pudo leer facturas");
     const data = await res.json();
     if(ctl.signal.aborted) throw new Error('ABORTED');
     const arr = Array.isArray(data)? data : [];
-return arr.map(normalizeRow).filter(r=>r); // no filtramos por nº factura todavía
+    return arr.map(normalizeRow).filter(r=>r);
   },
   proxied(url){
     const base = Config.api.proxyBase.replace(/\/$/,"");
@@ -875,9 +890,26 @@ async function refreshAfterEstado(){
     const qNombre = document.getElementById("fNombre")?.value || "";
     const qPlaca = document.getElementById("fPlaca")?.value || "";
     const qNum   = document.getElementById("fNumero")?.value || "";
-    const dr = document.getElementById("fFecha")? document.getElementById("fFecha")._range : null;
     const dr2 = document.getElementById("fFechaRev")? document.getElementById("fFechaRev")._range : null;
-    const arr = await API.getFacturas();
+
+    // Determinar qué parámetros de fecha usar para el fetch
+    const drActivo    = document.getElementById("fFecha")._range;
+    const drRevActivo = document.getElementById("fFechaRev") ? document.getElementById("fFechaRev")._range : null;
+    const pad = n => String(n).padStart(2,"0");
+    const fmt = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+
+    let fetchParams = {};
+    if(drRevActivo && drRevActivo.length === 2){
+      // Filtro de revisión activo: ir al backend sin filtro de factura
+      fetchParams = { fechaRevDesde: fmt(drRevActivo[0]), fechaRevHasta: fmt(drRevActivo[1]) };
+    } else if(drActivo && drActivo.length === 2){
+      fetchParams = { fechaDesde: fmt(drActivo[0]), fechaHasta: fmt(drActivo[1]) };
+    } else {
+      const rango = getMesActualRange();
+      fetchParams = { fechaDesde: rango.fechaDesde, fechaHasta: rango.fechaHasta };
+    }
+
+    const arr = await API.getFacturas(fetchParams);
     State.raw = arr;
     try{ sectorMS.setItems(Array.from(new Set(State.raw.map(r=>r.Sector).filter(Boolean)))); } catch (e){ }
     try{ estadoMS.setItems(getEstadoOptions()); } catch (e){ }
@@ -885,7 +917,6 @@ async function refreshAfterEstado(){
     if(document.getElementById("fNombre")) document.getElementById("fNombre").value = qNombre;
     if(document.getElementById("fPlaca"))  document.getElementById("fPlaca").value = qPlaca;
     document.getElementById("fNumero").value = qNum;
-    if(document.getElementById("fFecha")) document.getElementById("fFecha")._range = dr;
     if(document.getElementById("fFechaRev")) document.getElementById("fFechaRev")._range = dr2;
     if(table){ await table.replaceData(State.filtered); }
     updateKpis();
@@ -1150,22 +1181,25 @@ function updateKpisRevRange(){
 let sectorMS, estadoMS;
 
 function initFilters(){
-  // Flatpickr range
+  // Flatpickr range — Fecha de Factura (dispara fetch al backend)
   const fp = flatpickr("#fFecha", {
     mode:"range",
     dateFormat:"Y-m-d",
     onChange(selectedDates){
       if(selectedDates.length===2){
-        // normalizamos a extremos del día
         selectedDates[0].setHours(0,0,0,0);
         selectedDates[1].setHours(23,59,59,999);
         $("#fFecha")._range = selectedDates;
+        // Formatear como YYYY-MM-DD para el backend
+        const pad = n => String(n).padStart(2,"0");
+        const fmt = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+        const desde = fmt(selectedDates[0]);
+        const hasta = fmt(selectedDates[1]);
+        // Nueva petición al backend con ese rango
+        loadData(desde, hasta);
       }else{
         $("#fFecha")._range = null;
-  $("#fFechaRev").value = "";
-  $("#fFechaRev")._range = null;
       }
-      applyFilters();
     }
   });
   const fpRev = flatpickr("#fFechaRev", {
@@ -1176,10 +1210,15 @@ function initFilters(){
         selectedDates[0].setHours(0,0,0,0);
         selectedDates[1].setHours(23,59,59,999);
         $("#fFechaRev")._range = selectedDates;
+        // Fetch al backend filtrando por fecha de revisión (ignora rango de factura)
+        const pad = n => String(n).padStart(2,"0");
+        const fmt = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+        const revDesde = fmt(selectedDates[0]);
+        const revHasta = fmt(selectedDates[1]);
+        loadData(null, null, revDesde, revHasta);
       }else{
         $("#fFechaRev")._range = null;
       }
-      applyFilters();
     }
   });
   // MultiSelect con checkboxes
@@ -1231,12 +1270,21 @@ function clearFilters(){
   if(sectorMS){ sectorMS.clear(); }
   if(estadoMS){ estadoMS.clear(); }
   const placaInput = document.getElementById("fPlaca"); if(placaInput){ placaInput.value = ""; }
+  const nombreInput = document.getElementById("fNombre"); if(nombreInput){ nombreInput.value = ""; }
   $("#fNumero").value = "";
+  // Limpiar visualmente el picker de fecha de factura (sin disparar onChange)
+  const fpInst = document.querySelector("#fFecha")._flatpickr;
+  if(fpInst){ fpInst.clear(false); }
   $("#fFecha").value = "";
   $("#fFecha")._range = null;
+  // Limpiar fecha de revisión y aplicar filtros locales
+  const fpRevInst = document.querySelector("#fFechaRev")._flatpickr;
+  if(fpRevInst){ fpRevInst.clear(false); }
   $("#fFechaRev").value = "";
   $("#fFechaRev")._range = null;
-  applyFilters();
+  // Recargar el mes actual desde el backend
+  const { fechaDesde, fechaHasta } = getMesActualRange();
+  loadData(fechaDesde, fechaHasta);
 }
 
 function applyFilters(){
@@ -1878,15 +1926,12 @@ document.addEventListener("change", (ev) => {
 async function hardRefresh(){
   try{ console.time("[Revision] cargar"); }catch(_e){}
 
-  // Limpia filtros, recarga y resetea scroll; luego muestra hora de actualización
+  // Limpia filtros, recarga el mes actual y resetea scroll
   clearFilters();
-  await loadData();
+  // clearFilters ya llama a loadData(mesActual), así que solo esperamos el scroll
   resetTableScroll();
   setLastUpdatedNow();
-  const now = new Date();
-  const hh = String(now.getHours()).padStart(2,"0");
-  const mm = String(now.getMinutes()).padStart(2,"0");
-  
+
   try{ console.timeEnd("[Revision] cargar"); }catch(_e){}
 }
 
@@ -2139,10 +2184,33 @@ async function bootstrap(){
   $("#btnDescargar").addEventListener("click", descargarZip);  $("#btnExportXLSX").addEventListener("click", exportXLSX);
   navigateTo("secInicio");}
 
-async function loadData(){
+/** Devuelve { fechaDesde, fechaHasta } con el primer y último día del mes actual en formato YYYY-MM-DD */
+function getMesActualRange(){
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const primerDia = `${y}-${m}-01`;
+  const ultimoDia = new Date(y, now.getMonth() + 1, 0);
+  const uu = String(ultimoDia.getDate()).padStart(2, "0");
+  return { fechaDesde: primerDia, fechaHasta: `${y}-${m}-${uu}` };
+}
+
+async function loadData(fechaDesde, fechaHasta, fechaRevDesde, fechaRevHasta){
   overlay.show("Cargando facturas…");
   try{
-    const data = await API.getFacturas();
+    // Si hay filtro de revisión activo, ignora el rango de factura y va al backend sin él
+    // Si no hay ningún filtro, usa el mes actual
+    let params = {};
+    if(fechaRevDesde || fechaRevHasta){
+      params = { fechaRevDesde, fechaRevHasta };
+    } else if(fechaDesde || fechaHasta){
+      params = { fechaDesde, fechaHasta };
+    } else {
+      const rango = getMesActualRange();
+      params = { fechaDesde: rango.fechaDesde, fechaHasta: rango.fechaHasta };
+    }
+
+    const data = await API.getFacturas(params);
     State.raw = data;
     // poblar selects dinámicamente
     const sectores = Array.from(new Set(data.map(r=>r.Sector).filter(Boolean))).sort();
