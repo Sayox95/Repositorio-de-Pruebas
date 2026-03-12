@@ -2629,7 +2629,6 @@ if (typeof API !== "undefined") {
       return new URL(base, "http://localhost");
     }
   };
-  const _origGet = API.getFacturas?.bind(API);
   API.getFacturas = async function(opts = {}){
     if(this._facturasCtl) try{ this._facturasCtl.abort(); } catch (e){}
     const ctl = new AbortController();
@@ -2637,9 +2636,17 @@ if (typeof API !== "undefined") {
 
     const base = Config?.api?.leerFacturas || "/api/leer";
     const url  = buildUrl(base);
+    url.searchParams.set("leerFacturas", "true");
+    // Filtro por estados
     if (opts && Array.isArray(opts.estados) && opts.estados.length){
       url.searchParams.set("estados", opts.estados.join(","));
     }
+    // Filtros por rango de fecha de factura
+    if (opts && opts.fechaDesde)    url.searchParams.set("fechaDesde",    opts.fechaDesde);
+    if (opts && opts.fechaHasta)    url.searchParams.set("fechaHasta",    opts.fechaHasta);
+    // Filtros por rango de fecha de revision (excluyen filtro de factura en el backend)
+    if (opts && opts.fechaRevDesde) url.searchParams.set("fechaRevDesde", opts.fechaRevDesde);
+    if (opts && opts.fechaRevHasta) url.searchParams.set("fechaRevHasta", opts.fechaRevHasta);
 
     const res = await fetch(url.toString(), { cache:"no-store", mode:"cors", signal: ctl.signal });
     if(!res.ok) throw new Error("No se pudo leer facturas");
