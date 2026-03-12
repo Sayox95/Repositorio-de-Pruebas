@@ -1285,7 +1285,7 @@ function initFilters(){
             State.raw = rows;
             applyFilters();
             toastLoading.hide();
-            showToast(`Se encontraron ${rows.length} factura(s) en el historial completo`, "info", 4000);
+            try{ toast.info(`Se encontraron ${rows.length} factura(s) en el historial completo`); }catch(_){}
           } else {
             toastLoading.hide();
           }
