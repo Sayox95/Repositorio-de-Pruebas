@@ -1,59 +1,94 @@
-export async function onRequestGet({ request }) {
-  const origin = request.headers.get("Origin") || "*";
-  const incoming = new URL(request.url);
+// functions/api/leer.js
+// Lecturas de facturas → D1 (rápido, con índices reales)
+// Otros cargos        → AppScript (sin cambios)
 
-  const otrosCargos  = incoming.searchParams.get("otrosCargos"); // "total" | "byId"
-  const estados      = incoming.searchParams.get("estados");     // opcional
-  const ids          = incoming.searchParams.getAll("ids");      // múltiples ids para byId
+const APPSCRIPT_URL = "https://script.google.com/macros/s/AKfycbzr5N-ORnbLhggsg_ssWZ7acPdK5rXlD_RlftaAWI0so368s1oOFo7CpuMwqB-AaJWduA/exec";
 
-  // Parámetros de filtro por fecha (nuevos)
-  const fechaDesde    = incoming.searchParams.get("fechaDesde");    // YYYY-MM-DD
-  const fechaHasta    = incoming.searchParams.get("fechaHasta");    // YYYY-MM-DD
-  const fechaRevDesde = incoming.searchParams.get("fechaRevDesde"); // YYYY-MM-DD
-  const fechaRevHasta = incoming.searchParams.get("fechaRevHasta"); // YYYY-MM-DD
+const CORS = (origin) => ({
+  "Access-Control-Allow-Origin": origin,
+  "Access-Control-Allow-Methods": "GET, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+  "Content-Type": "application/json",
+  "Cache-Control": "no-store",
+});
 
-  const url = new URL("https://script.google.com/macros/s/AKfycbzr5N-ORnbLhggsg_ssWZ7acPdK5rXlD_RlftaAWI0so368s1oOFo7CpuMwqB-AaJWduA/exec");
+export async function onRequestGet({ request, env }) {
+  const origin   = request.headers.get("Origin") || "*";
+  const params   = new URL(request.url).searchParams;
 
+  const otrosCargos   = params.get("otrosCargos");
+  const ids           = params.getAll("ids");
+  const estados       = params.get("estados");
+  const fechaDesde    = params.get("fechaDesde");
+  const fechaHasta    = params.get("fechaHasta");
+  const fechaRevDesde = params.get("fechaRevDesde");
+  const fechaRevHasta = params.get("fechaRevHasta");
+
+  // ── Modo otrosCargos: sigue yendo al AppScript ──────────────────────────
   if (otrosCargos) {
-    // Modo "Otros Cargos"
+    const url = new URL(APPSCRIPT_URL);
     url.searchParams.set("otrosCargos", otrosCargos);
-    if (ids && ids.length) {
-      ids.forEach(id => {
-        if (id) url.searchParams.append("ids", id);
+    ids.forEach(id => { if (id) url.searchParams.append("ids", id); });
+    try {
+      const resp = await fetch(url.toString());
+      const text = await resp.text();
+      return new Response(text, { status: resp.status, headers: CORS(origin) });
+    } catch (e) {
+      return new Response(JSON.stringify({ status: "ERROR", message: e.message }), {
+        status: 502, headers: CORS(origin)
       });
     }
-  } else {
-    // Modo facturas — pasa leerFacturas + todos los filtros disponibles
-    url.searchParams.set("leerFacturas", "true");
-    if (estados)      url.searchParams.set("estados",      estados);
-    if (fechaDesde)    url.searchParams.set("fechaDesde",    fechaDesde);
-    if (fechaHasta)    url.searchParams.set("fechaHasta",    fechaHasta);
-    if (fechaRevDesde) url.searchParams.set("fechaRevDesde", fechaRevDesde);
-    if (fechaRevHasta) url.searchParams.set("fechaRevHasta", fechaRevHasta);
   }
 
+  // ── Modo facturas: consultar D1 ─────────────────────────────────────────
   try {
-    const resp = await fetch(url.toString(), { method: "GET" });
-    const text = await resp.text();
-    return new Response(text, {
-      status: resp.status,
-      headers: {
-        "Access-Control-Allow-Origin": origin,
-        "Access-Control-Allow-Methods": "GET, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type",
-        "Content-Type": resp.headers.get("Content-Type") || "application/json",
-        "Cache-Control": "no-store"
-      }
+    const hayRevision = !!(fechaRevDesde || fechaRevHasta);
+    const hayFecha    = !hayRevision && !!(fechaDesde || fechaHasta);
+    const estadosArr  = estados ? estados.split(",").map(s => s.trim()).filter(Boolean) : [];
+
+    // Construir WHERE dinámicamente
+    const conditions = [];
+    const bindings   = [];
+
+    if (hayRevision) {
+      conditions.push("FechaRevision IS NOT NULL AND FechaRevision != ''");
+      if (fechaRevDesde) { conditions.push("FechaRevision >= ?"); bindings.push(fechaRevDesde); }
+      if (fechaRevHasta) { conditions.push("FechaRevision <= ?"); bindings.push(fechaRevHasta); }
+    } else if (hayFecha) {
+      if (fechaDesde) { conditions.push("Fecha >= ?"); bindings.push(fechaDesde); }
+      if (fechaHasta) { conditions.push("Fecha <= ?"); bindings.push(fechaHasta); }
+    }
+
+    if (estadosArr.length) {
+      const placeholders = estadosArr.map(() => "?").join(", ");
+      conditions.push(`Estado IN (${placeholders})`);
+      estadosArr.forEach(s => bindings.push(s));
+    }
+
+    const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+    const sql   = `SELECT * FROM facturas ${where} ORDER BY fila ASC`;
+
+    const { results } = await env.DB.prepare(sql).bind(...bindings).all();
+
+    return new Response(JSON.stringify(results || []), {
+      status: 200, headers: CORS(origin)
     });
+
   } catch (e) {
     return new Response(JSON.stringify({ status: "ERROR", message: e.message }), {
-      status: 502,
-      headers: {
-        "Access-Control-Allow-Origin": origin,
-        "Access-Control-Allow-Methods": "GET, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type",
-        "Content-Type": "application/json"
-      }
+      status: 500, headers: CORS(origin)
     });
   }
+}
+
+export async function onRequestOptions({ request }) {
+  const origin = request.headers.get("Origin") || "*";
+  return new Response(null, {
+    status: 204,
+    headers: {
+      "Access-Control-Allow-Origin": origin,
+      "Access-Control-Allow-Methods": "GET, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type",
+    }
+  });
 }
