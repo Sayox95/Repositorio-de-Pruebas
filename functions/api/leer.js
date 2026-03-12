@@ -10,7 +10,7 @@ export async function onRequestGet({ request }) {
 
   if (otrosCargos) {
     // Modo "Otros Cargos"
-    url.searchParams.set("otrosCargos", otrosCargos);
+    url.searchParams.set("otrosCargos", otrosCargos); 
 
     // Si se pidieron totales por ID_PAGO, reenvía todos los ids recibidos
     if (ids && ids.length) {
