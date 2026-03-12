@@ -1262,7 +1262,11 @@ function initFilters(){
 
   const debouncedNumero = debounce(applyFilters, 250);
   $("#fNumero").addEventListener("input", debouncedNumero);
-  $("#btnLimpiar").addEventListener("click", clearFilters);
+  $("#btnLimpiar").addEventListener("click", async () => {
+    clearFilters();
+    const { fechaDesde, fechaHasta } = getMesActualRange();
+    await loadData(fechaDesde, fechaHasta);
+  });
 }
 
 function clearFilters(){
@@ -1282,9 +1286,7 @@ function clearFilters(){
   if(fpRevInst){ fpRevInst.clear(false); }
   $("#fFechaRev").value = "";
   $("#fFechaRev")._range = null;
-  // Recargar el mes actual desde el backend
-  const { fechaDesde, fechaHasta } = getMesActualRange();
-  loadData(fechaDesde, fechaHasta);
+  // Nota: quien llame a clearFilters debe encargarse de llamar a loadData después
 }
 
 function applyFilters(){
@@ -1926,10 +1928,13 @@ document.addEventListener("change", (ev) => {
 async function hardRefresh(){
   try{ console.time("[Revision] cargar"); }catch(_e){}
 
-  // Limpia filtros, recarga el mes actual y resetea scroll
+  // Limpia filtros de UI sin disparar fetch
   clearFilters();
-  // clearFilters ya llama a loadData(mesActual), así que solo esperamos el scroll
   resetTableScroll();
+
+  // Carga el mes actual y espera a que termine antes de loggear
+  const { fechaDesde, fechaHasta } = getMesActualRange();
+  await loadData(fechaDesde, fechaHasta);
   setLastUpdatedNow();
 
   try{ console.timeEnd("[Revision] cargar"); }catch(_e){}
