@@ -12,7 +12,7 @@ export async function onRequestGet({ request }) {
   const fechaRevDesde = incoming.searchParams.get("fechaRevDesde"); // YYYY-MM-DD
   const fechaRevHasta = incoming.searchParams.get("fechaRevHasta"); // YYYY-MM-DD
 
-  const url = new URL("https://script.google.com/macros/s/AKfycbynLlcMQofAXQKYaNsd0RBOCrHkpG2m8Pei11DGconF3kVOUx6D3vIqdFKiqcNe4yYR_A/exec");
+  const url = new URL("https://script.google.com/macros/s/AKfycbwvhE-Qtoa58gtuG6Ti8OkoBHaeS2PeWlVGH4gfOp1W610WX3lq3RM8-kpZqdV-J79v_g/exec");
 
   if (otrosCargos) {
     // Modo "Otros Cargos"
