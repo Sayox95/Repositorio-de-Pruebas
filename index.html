@@ -1260,7 +1260,48 @@ function initFilters(){
   const nombreInput = document.getElementById("fNombre");
   if(nombreInput){ nombreInput.addEventListener("input", debouncedNombre); }
 
-  const debouncedNumero = debounce(applyFilters, 250);
+  // Búsqueda de Nº Factura: primero local, si no hay resultados busca en D1
+  const debouncedNumero = debounce(async () => {
+    const q = ($("#fNumero")?.value || "").trim();
+
+    // Siempre aplicar filtro local primero
+    applyFilters();
+
+    // Si hay texto y no se encontró nada localmente, buscar en D1 sin restricción de fecha
+    if (q.length >= 4) {
+      const localCount = State.filtered.length;
+      if (localCount === 0) {
+        try {
+          toastLoading.show("Buscando en historial completo…");
+          const base = Config?.api?.leerFacturas || "/api/leer";
+          const url = new URL(base, location.origin);
+          url.searchParams.set("numeroFactura", q);
+          const res = await fetch(url.toString(), { cache: "no-store", mode: "cors" });
+          if (!res.ok) throw new Error("Error al buscar");
+          const data = await res.json();
+          const rows = Array.isArray(data) ? data.map(normalizeRow).filter(Boolean) : [];
+          if (rows.length > 0) {
+            // Cargar resultados del historial en la tabla temporalmente
+            State.raw = rows;
+            applyFilters();
+            toastLoading.hide();
+            showToast(`Se encontraron ${rows.length} factura(s) en el historial completo`, "info", 4000);
+          } else {
+            toastLoading.hide();
+          }
+        } catch (e) {
+          toastLoading.hide();
+          console.warn("Error buscando en historial:", e);
+        }
+      }
+    }
+
+    // Si se borra el campo, recargar el mes actual
+    if (q.length === 0 && State.raw.length > 0) {
+      const { fechaDesde, fechaHasta } = getMesActualRange();
+      await loadData(fechaDesde, fechaHasta);
+    }
+  }, 500);
   $("#fNumero").addEventListener("input", debouncedNumero);
   $("#btnLimpiar").addEventListener("click", async () => {
     clearFilters();
