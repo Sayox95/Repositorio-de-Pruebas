@@ -9,7 +9,7 @@ const CORS = (origin) => ({
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type",
   "Content-Type": "application/json",
-});
+}); 
 
 export async function onRequestOptions({ request }) {
   const origin = request.headers.get("Origin") || "*";
