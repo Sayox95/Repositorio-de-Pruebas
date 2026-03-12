@@ -1,8 +1,7 @@
 // functions/api/guardar.js
-// POST: guarda en AppScript/Sheets y luego sincroniza el registro en D1
+// POST: guarda en AppScript/Sheets y luego sincroniza en D1
 
 const APPSCRIPT_URL = "https://script.google.com/macros/s/AKfycbynLlcMQofAXQKYaNsd0RBOCrHkpG2m8Pei11DGconF3kVOUx6D3vIqdFKiqcNe4yYR_A/exec";
-const SYNC_SECRET   = "utcd-facturas-2026-sync-xK9mP"; // mismo token que sincronizar.js
 
 const CORS = (origin) => ({
   "Access-Control-Allow-Origin": origin,
@@ -44,99 +43,78 @@ export async function onRequestPost({ request, env }) {
     return new Response(appText, { status: appResp.status, headers: CORS(origin) });
   }
 
-  // ── 2) Sincronizar el registro actualizado en D1 ─────────────────────────
-  // AppScript devuelve el registro actualizado en appJson.row
-  // Si no lo devuelve, intentamos leerlo desde D1 usando la fila del body
+  // ── 2) Sincronizar en D1 ─────────────────────────────────────────────────
   try {
-    const updatedRow = appJson?.row ?? null;
-    const fila = updatedRow?.fila ?? bodyJson?.fila ?? null;
+    if (env.DB && bodyJson) {
+      const accion = (bodyJson.accion || "").trim();
 
-    if (fila && env.DB) {
-      if (updatedRow) {
-        // Tenemos el registro completo — hacer upsert directo
-        await env.DB.prepare(`
-          INSERT OR REPLACE INTO facturas (
-            fila, Sector, Placa, Proceso, Nombre, Identidad,
-            TotalGastado, LitrosConsumidos, MotivoLlenado, Fecha,
-            HorasViaje, KmActual, NombreComercio, NumeroFactura,
-            FechaRegistro, IDvehiculo, EnlacePDF, Estado, Fondo,
-            FechaPago, FechaRevision, submission_id, EstatusF,
-            FacturaPrevia, ID_PAGO
-          ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-        `).bind(
-          fila,
-          updatedRow.Sector         ?? null,
-          updatedRow.Placa          ?? null,
-          updatedRow.Proceso        ?? null,
-          updatedRow.Nombre         ?? null,
-          updatedRow.Identidad      ?? null,
-          updatedRow.TotalGastado   ?? null,
-          updatedRow.LitrosConsumidos ?? null,
-          updatedRow.MotivoLlenado  ?? null,
-          updatedRow.Fecha          ?? null,
-          updatedRow.HorasViaje     ?? null,
-          updatedRow.KmActual       ?? null,
-          updatedRow.NombreComercio ?? null,
-          updatedRow.NumeroFactura  ?? null,
-          updatedRow.FechaRegistro  ?? null,
-          updatedRow.IDvehiculo     ?? null,
-          updatedRow.EnlacePDF      ?? null,
-          updatedRow.Estado         ?? null,
-          updatedRow.Fondo          ?? null,
-          updatedRow.FechaPago      ?? null,
-          updatedRow.FechaRevision  ?? null,
-          updatedRow.submission_id  ?? null,
-          updatedRow.EstatusF       ?? null,
-          updatedRow.FacturaPrevia  ?? null,
-          updatedRow.ID_PAGO        ?? null
-        ).run();
-      } else {
-        // No tenemos el registro completo — actualizar campos conocidos del body
-        // Mapeo de nombres del body → columnas D1
-        const camposMap = {
-          "nuevoEstado":   "Estado",       // cambio de estado: { actualizarEstado, fila, nuevoEstado }
-          "Estado":        "Estado",
-          "FechaRevision": "FechaRevision",
-          "fechaRevision": "FechaRevision",
-          "FechaPago":     "FechaPago",
-          "fechaPago":     "FechaPago",
-          "Fondo":         "Fondo",
-          "fondoPeriodo":  "Fondo",
-          "ID_PAGO":       "ID_PAGO",
-          "Sector":        "Sector",
-          "EstatusF":      "EstatusF",
-          "FacturaPrevia": "FacturaPrevia",
-        };
+      // Helper: actualizar una fila en D1 con campos específicos
+      async function actualizarFila(fila, campos) {
+        if (!fila || !Object.keys(campos).length) return;
+        const sets = Object.keys(campos).map(c => `${c} = ?`);
+        const vals = [...Object.values(campos), fila];
+        await env.DB.prepare(
+          `UPDATE facturas SET ${sets.join(", ")} WHERE fila = ?`
+        ).bind(...vals).run();
+      }
 
-        const sets = [];
-        const vals = [];
-        const colsAgregadas = new Set();
+      if (accion === "pagoLote") {
+        // { accion:"pagoLote", filas:[123,124,...], fechaPago, idPago }
+        const filas    = Array.isArray(bodyJson.filas) ? bodyJson.filas : [];
+        const fechaPago = bodyJson.fechaPago ?? null;
+        const idPago    = bodyJson.idPago    ?? null;
 
-        if (bodyJson) {
-          for (const [bodyKey, d1Col] of Object.entries(camposMap)) {
-            if (bodyJson[bodyKey] !== undefined && bodyJson[bodyKey] !== null && !colsAgregadas.has(d1Col)) {
-              sets.push(`${d1Col} = ?`);
-              vals.push(bodyJson[bodyKey]);
-              colsAgregadas.add(d1Col);
-            }
-          }
-          // Si cambia a Revisada y no viene FechaRevision, registrar fecha actual
-          if (bodyJson.nuevoEstado === "Revisada" && !colsAgregadas.has("FechaRevision")) {
-            sets.push("FechaRevision = ?");
-            vals.push(new Date().toISOString().slice(0, 10));
+        if (filas.length && (fechaPago || idPago)) {
+          const stmts = filas.map(fila =>
+            env.DB.prepare(
+              `UPDATE facturas SET Estado = 'Pagada', FechaPago = ?, ID_PAGO = ? WHERE fila = ?`
+            ).bind(fechaPago, idPago, fila)
+          );
+          // Ejecutar en lotes de 50
+          for (let i = 0; i < stmts.length; i += 50) {
+            await env.DB.batch(stmts.slice(i, i + 50));
           }
         }
 
-        if (sets.length) {
-          vals.push(fila);
-          await env.DB.prepare(
-            `UPDATE facturas SET ${sets.join(", ")} WHERE fila = ?`
-          ).bind(...vals).run();
+      } else if (accion === "actualizarEstadoLote") {
+        // { accion:"actualizarEstadoLote", filas:[...], nuevoEstado }
+        const filas       = Array.isArray(bodyJson.filas) ? bodyJson.filas : [];
+        const nuevoEstado = bodyJson.nuevoEstado ?? null;
+        if (filas.length && nuevoEstado) {
+          const fechaHoy   = new Date().toISOString().slice(0, 10);
+          const esRevisada = nuevoEstado === "Revisada";
+          const stmts = filas.map(fila =>
+            esRevisada
+              ? env.DB.prepare(`UPDATE facturas SET Estado = ?, FechaRevision = ? WHERE fila = ?`).bind(nuevoEstado, fechaHoy, fila)
+              : env.DB.prepare(`UPDATE facturas SET Estado = ? WHERE fila = ?`).bind(nuevoEstado, fila)
+          );
+          for (let i = 0; i < stmts.length; i += 50) {
+            await env.DB.batch(stmts.slice(i, i + 50));
+          }
         }
+
+      } else if (bodyJson.actualizarEstado) {
+        // { actualizarEstado:true, fila, nuevoEstado }
+        const fila        = bodyJson.fila        ?? null;
+        const nuevoEstado = bodyJson.nuevoEstado  ?? null;
+        if (fila && nuevoEstado) {
+          const campos = { Estado: nuevoEstado };
+          if (nuevoEstado === "Revisada") {
+            campos.FechaRevision = new Date().toISOString().slice(0, 10);
+          }
+          await actualizarFila(fila, campos);
+        }
+
+      } else if (bodyJson.fila && bodyJson.fechaPago) {
+        // Pago individual compat: { fila, fechaPago, fondoPeriodo?, idPago? }
+        const campos = { Estado: "Pagada", FechaPago: bodyJson.fechaPago };
+        if (bodyJson.fondoPeriodo) campos.Fondo   = bodyJson.fondoPeriodo;
+        if (bodyJson.idPago)       campos.ID_PAGO = bodyJson.idPago;
+        await actualizarFila(bodyJson.fila, campos);
       }
     }
   } catch (e) {
-    // Error en D1 no debe bloquear la respuesta — Sheets ya está actualizado
+    // Error en D1 no bloquea la respuesta — Sheets ya está actualizado
     console.error("D1 sync error:", e.message);
   }
 
