@@ -23,6 +23,7 @@ export async function onRequestGet({ request, env }) {
   const fechaHasta    = params.get("fechaHasta");
   const fechaRevDesde = params.get("fechaRevDesde");
   const fechaRevHasta = params.get("fechaRevHasta");
+  const numeroFactura = params.get("numeroFactura"); // búsqueda por número en historial completo
 
   // ── Modo otrosCargos: sigue yendo al AppScript ──────────────────────────
   if (otrosCargos) {
@@ -42,15 +43,18 @@ export async function onRequestGet({ request, env }) {
 
   // ── Modo facturas: consultar D1 ─────────────────────────────────────────
   try {
-    const hayRevision = !!(fechaRevDesde || fechaRevHasta);
-    const hayFecha    = !hayRevision && !!(fechaDesde || fechaHasta);
-    const estadosArr  = estados ? estados.split(",").map(s => s.trim()).filter(Boolean) : [];
+    const hayRevision   = !!(fechaRevDesde || fechaRevHasta);
+    const hayFecha      = !hayRevision && !!(fechaDesde || fechaHasta);
+    const estadosArr    = estados ? estados.split(",").map(s => s.trim()).filter(Boolean) : [];
 
-    // Construir WHERE dinámicamente
     const conditions = [];
     const bindings   = [];
 
-    if (hayRevision) {
+    // Búsqueda por número de factura en historial completo (sin restricción de fecha)
+    if (numeroFactura) {
+      conditions.push("NumeroFactura LIKE ?");
+      bindings.push(`%${numeroFactura}%`);
+    } else if (hayRevision) {
       conditions.push("FechaRevision IS NOT NULL AND FechaRevision != ''");
       if (fechaRevDesde) { conditions.push("FechaRevision >= ?"); bindings.push(fechaRevDesde); }
       if (fechaRevHasta) { conditions.push("FechaRevision <= ?"); bindings.push(fechaRevHasta); }
