@@ -1,4 +1,4 @@
- // functions/api/guardar.js
+// functions/api/guardar.js
 // POST: guarda en AppScript/Sheets y luego sincroniza el registro en D1
 
 const APPSCRIPT_URL = "https://script.google.com/macros/s/AKfycbynLlcMQofAXQKYaNsd0RBOCrHkpG2m8Pei11DGconF3kVOUx6D3vIqdFKiqcNe4yYR_A/exec";
@@ -9,7 +9,7 @@ const CORS = (origin) => ({
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type",
   "Content-Type": "application/json",
-}); 
+});
 
 export async function onRequestOptions({ request }) {
   const origin = request.headers.get("Origin") || "*";
@@ -91,18 +91,42 @@ export async function onRequestPost({ request, env }) {
           updatedRow.ID_PAGO        ?? null
         ).run();
       } else {
-        // No tenemos el registro completo — actualizar solo los campos que vienen en el body
-        // Los campos que AppScript suele modificar: Estado, FechaRevision, FechaPago, Fondo, ID_PAGO
-        const campos = ["Estado", "FechaRevision", "FechaPago", "Fondo", "ID_PAGO",
-                        "Sector", "EstatusF", "FacturaPrevia"];
+        // No tenemos el registro completo — actualizar campos conocidos del body
+        // Mapeo de nombres del body → columnas D1
+        const camposMap = {
+          "nuevoEstado":   "Estado",       // cambio de estado: { actualizarEstado, fila, nuevoEstado }
+          "Estado":        "Estado",
+          "FechaRevision": "FechaRevision",
+          "fechaRevision": "FechaRevision",
+          "FechaPago":     "FechaPago",
+          "fechaPago":     "FechaPago",
+          "Fondo":         "Fondo",
+          "fondoPeriodo":  "Fondo",
+          "ID_PAGO":       "ID_PAGO",
+          "Sector":        "Sector",
+          "EstatusF":      "EstatusF",
+          "FacturaPrevia": "FacturaPrevia",
+        };
+
         const sets = [];
         const vals = [];
-        for (const c of campos) {
-          if (bodyJson && bodyJson[c] !== undefined) {
-            sets.push(`${c} = ?`);
-            vals.push(bodyJson[c]);
+        const colsAgregadas = new Set();
+
+        if (bodyJson) {
+          for (const [bodyKey, d1Col] of Object.entries(camposMap)) {
+            if (bodyJson[bodyKey] !== undefined && bodyJson[bodyKey] !== null && !colsAgregadas.has(d1Col)) {
+              sets.push(`${d1Col} = ?`);
+              vals.push(bodyJson[bodyKey]);
+              colsAgregadas.add(d1Col);
+            }
+          }
+          // Si cambia a Revisada y no viene FechaRevision, registrar fecha actual
+          if (bodyJson.nuevoEstado === "Revisada" && !colsAgregadas.has("FechaRevision")) {
+            sets.push("FechaRevision = ?");
+            vals.push(new Date().toISOString().slice(0, 10));
           }
         }
+
         if (sets.length) {
           vals.push(fila);
           await env.DB.prepare(
