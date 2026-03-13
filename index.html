@@ -1309,15 +1309,17 @@ function initFilters(){
       }
     }
 
-    // Si se borra el campo, recargar mes actual SOLO si los datos actuales
-    // no corresponden al mes actual (ej: vinieron de búsqueda en historial)
-    if (q.length === 0 && State.raw.length > 0) {
+    // Si se borra el campo, recargar siempre para restaurar el estado correcto
+    if (q.length === 0) {
       const { fechaDesde, fechaHasta } = getMesActualRange();
       const lr = State.loadedRange;
       const yaCargadoMesActual = lr && lr.desde === fechaDesde && lr.hasta === fechaHasta;
       if (!yaCargadoMesActual) {
+        // Datos vienen de historial o de otro rango — recargar mes actual
         await loadData(fechaDesde, fechaHasta);
+        updateRangoLabel(fechaDesde, fechaHasta, null, null);
       } else {
+        // Ya tenemos el mes actual — solo reaplicar filtros locales
         applyFilters();
       }
     }
