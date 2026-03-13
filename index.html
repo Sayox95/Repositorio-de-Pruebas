@@ -347,6 +347,10 @@
         </div>
       </div>
 
+      <div style="padding:0 0 6px 0;">
+        <span id="rangoActivoLabel" style="font-size:0.82rem;color:var(--muted,#888);font-weight:500;letter-spacing:0.01em;"></span>
+      </div>
+
       <div class="grid cols-4">
         <div class="card kpi">
           <span class="label">Registradas</span>
@@ -1185,39 +1189,43 @@ function initFilters(){
   const fp = flatpickr("#fFecha", {
     mode:"range",
     dateFormat:"Y-m-d",
-    onChange(selectedDates){
-      if(selectedDates.length===2){
-        selectedDates[0].setHours(0,0,0,0);
-        selectedDates[1].setHours(23,59,59,999);
-        $("#fFecha")._range = selectedDates;
-        // Formatear como YYYY-MM-DD para el backend
-        const pad = n => String(n).padStart(2,"0");
-        const fmt = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
-        const desde = fmt(selectedDates[0]);
-        const hasta = fmt(selectedDates[1]);
-        // Nueva petición al backend con ese rango
+    onClose(selectedDates){
+      const pad = n => String(n).padStart(2,"0");
+      const fmt = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+      // Si seleccionó 1 fecha, usar el mismo día como desde y hasta
+      if(selectedDates.length >= 1){
+        const d0 = new Date(selectedDates[0]); d0.setHours(0,0,0,0);
+        const d1 = selectedDates.length === 2 ? new Date(selectedDates[1]) : new Date(selectedDates[0]);
+        d1.setHours(23,59,59,999);
+        $("#fFecha")._range = [d0, d1];
+        const desde = fmt(d0);
+        const hasta = fmt(d1);
+        updateRangoLabel(desde, hasta, null, null);
         loadData(desde, hasta);
-      }else{
+      } else {
         $("#fFecha")._range = null;
+        updateRangoLabel(null, null, null, null);
       }
     }
   });
   const fpRev = flatpickr("#fFechaRev", {
     mode:"range",
     dateFormat:"Y-m-d",
-    onChange(selectedDates){
-      if(selectedDates.length===2){
-        selectedDates[0].setHours(0,0,0,0);
-        selectedDates[1].setHours(23,59,59,999);
-        $("#fFechaRev")._range = selectedDates;
-        // Fetch al backend filtrando por fecha de revisión (ignora rango de factura)
-        const pad = n => String(n).padStart(2,"0");
-        const fmt = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
-        const revDesde = fmt(selectedDates[0]);
-        const revHasta = fmt(selectedDates[1]);
+    onClose(selectedDates){
+      const pad = n => String(n).padStart(2,"0");
+      const fmt = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+      if(selectedDates.length >= 1){
+        const d0 = new Date(selectedDates[0]); d0.setHours(0,0,0,0);
+        const d1 = selectedDates.length === 2 ? new Date(selectedDates[1]) : new Date(selectedDates[0]);
+        d1.setHours(23,59,59,999);
+        $("#fFechaRev")._range = [d0, d1];
+        const revDesde = fmt(d0);
+        const revHasta = fmt(d1);
+        updateRangoLabel(null, null, revDesde, revHasta);
         loadData(null, null, revDesde, revHasta);
-      }else{
+      } else {
         $("#fFechaRev")._range = null;
+        updateRangoLabel(null, null, null, null);
       }
     }
   });
@@ -1307,6 +1315,7 @@ function initFilters(){
     clearFilters();
     const { fechaDesde, fechaHasta } = getMesActualRange();
     await loadData(fechaDesde, fechaHasta);
+    updateRangoLabel(fechaDesde, fechaHasta, null, null);
   });
 }
 
@@ -1976,6 +1985,7 @@ async function hardRefresh(){
   // Carga el mes actual y espera a que termine antes de loggear
   const { fechaDesde, fechaHasta } = getMesActualRange();
   await loadData(fechaDesde, fechaHasta);
+  updateRangoLabel(fechaDesde, fechaHasta, null, null);
   setLastUpdatedNow();
 
   try{ console.timeEnd("[Revision] cargar"); }catch(_e){}
@@ -2231,6 +2241,30 @@ async function bootstrap(){
   navigateTo("secInicio");}
 
 /** Devuelve { fechaDesde, fechaHasta } con el primer y último día del mes actual en formato YYYY-MM-DD */
+function updateRangoLabel(fechaDesde, fechaHasta, revDesde, revHasta){
+  const el = document.getElementById("rangoActivoLabel");
+  if(!el) return;
+  if(revDesde || revHasta){
+    const desde = revDesde || "…";
+    const hasta  = revHasta  || "…";
+    el.textContent = desde === hasta
+      ? `Revisión: ${desde}`
+      : `Revisión: ${desde} → ${hasta}`;
+    el.style.display = "";
+  } else if(fechaDesde || fechaHasta){
+    const desde = fechaDesde || "…";
+    const hasta  = fechaHasta  || "…";
+    el.textContent = desde === hasta
+      ? `Mostrando: ${desde}`
+      : `Mostrando: ${desde} → ${hasta}`;
+    el.style.display = "";
+  } else {
+    const { fechaDesde: d, fechaHasta: h } = getMesActualRange();
+    el.textContent = d === h ? `Mostrando: ${d}` : `Mostrando: ${d} → ${h}`;
+    el.style.display = "";
+  }
+}
+
 function getMesActualRange(){
   const now = new Date();
   const y = now.getFullYear();
