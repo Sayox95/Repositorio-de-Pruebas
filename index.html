@@ -2508,7 +2508,7 @@ const Pago = {
       if(nroQ && !numCanon.includes(nroQ)) return false;
       if(nomQ && !nombreCanon.includes(nomQ)) return false;
       if(dr){
-        const d = new Date(fecha);
+        const d = new Date((fecha||"").slice(0,10) + "T00:00:00");
         if(isNaN(d) || d < dr[0] || d > dr[1]) return false;
       }
       return true;
@@ -2863,9 +2863,10 @@ document.addEventListener("DOMContentLoaded", function(){
       mode:"range", dateFormat:"Y-m-d",
       onChange(selectedDates){
         if(selectedDates.length===2){
-          selectedDates[0].setHours(0,0,0,0);
-          selectedDates[1].setHours(23,59,59,999);
-          document.getElementById("fPagoFecha")._range = selectedDates;
+          // Copias independientes para evitar mutación del mismo objeto
+          const d0 = new Date(selectedDates[0].getFullYear(), selectedDates[0].getMonth(), selectedDates[0].getDate(), 0, 0, 0, 0);
+          const d1 = new Date(selectedDates[1].getFullYear(), selectedDates[1].getMonth(), selectedDates[1].getDate(), 23, 59, 59, 999);
+          document.getElementById("fPagoFecha")._range = [d0, d1];
         }else{
           document.getElementById("fPagoFecha")._range = null;
         }
