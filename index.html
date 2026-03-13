@@ -1174,7 +1174,8 @@ function updateKpisRevRange(){
   let cnt = 0; let sum = 0;
   for(const r of rows){
     if((r.Estado||"") === "Revisada"){
-      const fr = new Date((r.FechaRevision||r["Fecha de Revisión"]||r["Fecha de Revision"]||"").toString());
+      const frStr = (r.FechaRevision||r["Fecha de Revisión"]||r["Fecha de Revision"]||"").toString().slice(0,10);
+      const fr = new Date(frStr + "T00:00:00");
       if(!isNaN(fr) && fr >= dr2[0] && fr <= dr2[1]){ cnt++; sum += Number(r.Total)||0; }
     }
   }
