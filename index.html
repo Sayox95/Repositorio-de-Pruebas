@@ -824,6 +824,9 @@ function createMultiSelect(selector, placeholder="Seleccione…", onChange=()=>{
  *  ========================= */
 const State = {
   raw: [],
+  // Rango actualmente cargado en memoria { desde, hasta } como strings YYYY-MM-DD
+  // null significa que se cargó por filtro de revisión o sin rango definido
+  loadedRange: null,
   get filtered(){
     const sVals = sectorMS? sectorMS.getSelected() : [];
     const eVals = estadoMS? estadoMS.getSelected() : [];
@@ -1202,7 +1205,13 @@ function initFilters(){
         const desde = fmtD(d0);
         const hasta  = fmtD(d1);
         updateRangoLabel(desde, hasta, null, null);
-        loadData(desde, hasta);
+        // Si el rango seleccionado está dentro del rango ya cargado, filtrar en memoria
+        const lr = State.loadedRange;
+        if(lr && desde >= lr.desde && hasta <= lr.hasta){
+          applyFilters();
+        } else {
+          loadData(desde, hasta);
+        }
       } else {
         $("#fFecha")._range = null;
       }
@@ -1300,10 +1309,17 @@ function initFilters(){
       }
     }
 
-    // Si se borra el campo, recargar el mes actual
+    // Si se borra el campo, recargar mes actual SOLO si los datos actuales
+    // no corresponden al mes actual (ej: vinieron de búsqueda en historial)
     if (q.length === 0 && State.raw.length > 0) {
       const { fechaDesde, fechaHasta } = getMesActualRange();
-      await loadData(fechaDesde, fechaHasta);
+      const lr = State.loadedRange;
+      const yaCargadoMesActual = lr && lr.desde === fechaDesde && lr.hasta === fechaHasta;
+      if (!yaCargadoMesActual) {
+        await loadData(fechaDesde, fechaHasta);
+      } else {
+        applyFilters();
+      }
     }
   }, 500);
   $("#fNumero").addEventListener("input", debouncedNumero);
@@ -2288,6 +2304,12 @@ async function loadData(fechaDesde, fechaHasta, fechaRevDesde, fechaRevHasta){
 
     const data = await API.getFacturas(params);
     State.raw = data;
+    // Guardar el rango cargado para evitar peticiones innecesarias
+    if(params.fechaDesde && params.fechaHasta && !params.fechaRevDesde && !params.fechaRevHasta){
+      State.loadedRange = { desde: params.fechaDesde, hasta: params.fechaHasta };
+    } else {
+      State.loadedRange = null;
+    }
     // poblar selects dinámicamente
     const sectores = Array.from(new Set(data.map(r=>r.Sector).filter(Boolean))).sort();
     const estados  = Array.from(new Set(data.map(r=>r.Estado||"Registrada"))).sort();
