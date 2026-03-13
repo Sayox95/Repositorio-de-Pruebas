@@ -1190,21 +1190,37 @@ function initFilters(){
   const pad = n => String(n).padStart(2,"0");
   const fmtD = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 
+  // Helper para procesar y disparar carga con un rango de fechas
+  function aplicarRangoFecha(d0raw, d1raw, esRevision){
+    const d0 = new Date(d0raw); d0.setHours(0,0,0,0);
+    const d1 = new Date(d1raw); d1.setHours(23,59,59,999);
+    const desde = fmtD(d0);
+    const hasta  = fmtD(d1);
+    if(esRevision){
+      $("#fFechaRev")._range = [d0, d1];
+      updateRangoLabel(null, null, desde, hasta);
+      loadData(null, null, desde, hasta);
+    } else {
+      $("#fFecha")._range = [d0, d1];
+      updateRangoLabel(desde, hasta, null, null);
+      loadData(desde, hasta);
+    }
+  }
+
   const fp = flatpickr("#fFecha", {
     mode:"range",
     dateFormat:"Y-m-d",
-    allowSingleDateInRange: true,
+    onChange(selectedDates){
+      // Cuando selecciona 2 fechas distintas, disparar inmediatamente
+      if(selectedDates.length === 2){
+        aplicarRangoFecha(selectedDates[0], selectedDates[1], false);
+      }
+    },
     onClose(selectedDates){
-      if(selectedDates.length >= 1){
-        const d0 = new Date(selectedDates[0]); d0.setHours(0,0,0,0);
-        const d1 = selectedDates.length === 2 ? new Date(selectedDates[1]) : new Date(selectedDates[0]);
-        d1.setHours(23,59,59,999);
-        $("#fFecha")._range = [d0, d1];
-        const desde = fmtD(d0);
-        const hasta  = fmtD(d1);
-        updateRangoLabel(desde, hasta, null, null);
-        loadData(desde, hasta);
-      } else {
+      // Cuando cierra con 1 sola fecha (mismo día), usar esa fecha como rango de un día
+      if(selectedDates.length === 1){
+        aplicarRangoFecha(selectedDates[0], selectedDates[0], false);
+      } else if(selectedDates.length === 0){
         $("#fFecha")._range = null;
         updateRangoLabel(null, null, null, null);
       }
@@ -1213,18 +1229,15 @@ function initFilters(){
   const fpRev = flatpickr("#fFechaRev", {
     mode:"range",
     dateFormat:"Y-m-d",
-    allowSingleDateInRange: true,
+    onChange(selectedDates){
+      if(selectedDates.length === 2){
+        aplicarRangoFecha(selectedDates[0], selectedDates[1], true);
+      }
+    },
     onClose(selectedDates){
-      if(selectedDates.length >= 1){
-        const d0 = new Date(selectedDates[0]); d0.setHours(0,0,0,0);
-        const d1 = selectedDates.length === 2 ? new Date(selectedDates[1]) : new Date(selectedDates[0]);
-        d1.setHours(23,59,59,999);
-        $("#fFechaRev")._range = [d0, d1];
-        const revDesde = fmtD(d0);
-        const revHasta  = fmtD(d1);
-        updateRangoLabel(null, null, revDesde, revHasta);
-        loadData(null, null, revDesde, revHasta);
-      } else {
+      if(selectedDates.length === 1){
+        aplicarRangoFecha(selectedDates[0], selectedDates[0], true);
+      } else if(selectedDates.length === 0){
         $("#fFechaRev")._range = null;
         updateRangoLabel(null, null, null, null);
       }
