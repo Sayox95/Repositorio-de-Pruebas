@@ -1192,16 +1192,21 @@ function initFilters(){
 
   // Helper para procesar y disparar carga con un rango de fechas
   function aplicarRangoFecha(d0raw, d1raw, esRevision){
-    const d0 = new Date(d0raw); d0.setHours(0,0,0,0);
-    const d1 = new Date(d1raw); d1.setHours(23,59,59,999);
+    // Validar que las fechas sean objetos Date válidos
+    const d0 = d0raw instanceof Date && !isNaN(d0raw) ? new Date(d0raw) : null;
+    const d1 = d1raw instanceof Date && !isNaN(d1raw) ? new Date(d1raw) : null;
+    if(!d0) return; // fecha inválida, ignorar
+    d0.setHours(0,0,0,0);
+    const d1v = d1 || new Date(d0);
+    d1v.setHours(23,59,59,999);
     const desde = fmtD(d0);
-    const hasta  = fmtD(d1);
+    const hasta  = fmtD(d1v);
     if(esRevision){
-      $("#fFechaRev")._range = [d0, d1];
+      $("#fFechaRev")._range = [d0, d1v];
       updateRangoLabel(null, null, desde, hasta);
       loadData(null, null, desde, hasta);
     } else {
-      $("#fFecha")._range = [d0, d1];
+      $("#fFecha")._range = [d0, d1v];
       updateRangoLabel(desde, hasta, null, null);
       loadData(desde, hasta);
     }
@@ -1211,15 +1216,22 @@ function initFilters(){
     mode:"range",
     dateFormat:"Y-m-d",
     onChange(selectedDates){
-      // Cuando selecciona 2 fechas distintas, disparar inmediatamente
-      if(selectedDates.length === 2){
+      // Rango completo con 2 fechas válidas
+      if(selectedDates.length === 2 &&
+         selectedDates[0] instanceof Date && !isNaN(selectedDates[0]) &&
+         selectedDates[1] instanceof Date && !isNaN(selectedDates[1])){
         aplicarRangoFecha(selectedDates[0], selectedDates[1], false);
       }
     },
     onClose(selectedDates){
-      // Cuando cierra con 1 sola fecha (mismo día), usar esa fecha como rango de un día
-      if(selectedDates.length === 1){
+      // Mismo día: 1 fecha válida
+      if(selectedDates.length === 1 &&
+         selectedDates[0] instanceof Date && !isNaN(selectedDates[0])){
         aplicarRangoFecha(selectedDates[0], selectedDates[0], false);
+      } else if(selectedDates.length === 2 &&
+         selectedDates[0] instanceof Date && !isNaN(selectedDates[0]) &&
+         selectedDates[1] instanceof Date && !isNaN(selectedDates[1])){
+        aplicarRangoFecha(selectedDates[0], selectedDates[1], false);
       } else if(selectedDates.length === 0){
         $("#fFecha")._range = null;
         updateRangoLabel(null, null, null, null);
@@ -1230,13 +1242,20 @@ function initFilters(){
     mode:"range",
     dateFormat:"Y-m-d",
     onChange(selectedDates){
-      if(selectedDates.length === 2){
+      if(selectedDates.length === 2 &&
+         selectedDates[0] instanceof Date && !isNaN(selectedDates[0]) &&
+         selectedDates[1] instanceof Date && !isNaN(selectedDates[1])){
         aplicarRangoFecha(selectedDates[0], selectedDates[1], true);
       }
     },
     onClose(selectedDates){
-      if(selectedDates.length === 1){
+      if(selectedDates.length === 1 &&
+         selectedDates[0] instanceof Date && !isNaN(selectedDates[0])){
         aplicarRangoFecha(selectedDates[0], selectedDates[0], true);
+      } else if(selectedDates.length === 2 &&
+         selectedDates[0] instanceof Date && !isNaN(selectedDates[0]) &&
+         selectedDates[1] instanceof Date && !isNaN(selectedDates[1])){
+        aplicarRangoFecha(selectedDates[0], selectedDates[1], true);
       } else if(selectedDates.length === 0){
         $("#fFechaRev")._range = null;
         updateRangoLabel(null, null, null, null);
