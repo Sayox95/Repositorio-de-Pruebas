@@ -850,12 +850,13 @@ const State = {
       if(nombreQ && !nombreNorm.includes(nombreQ)) return false;
 
       if(dr){
-        const f = new Date(fecha);
+        // Parsear como fecha local (agregar T00:00 evita interpretación UTC)
+        const f = new Date((fecha||"").slice(0,10) + "T00:00:00");
         if(isNaN(f)) return false;
         if(f < dr[0] || f > dr[1]) return false;
       }
       if(dr2){
-        const fr = new Date(fechaRev);
+        const fr = new Date((fechaRev||"").slice(0,10) + "T00:00:00");
         if(isNaN(fr)) return false;
         if(fr < dr2[0] || fr > dr2[1]) return false;
       }
