@@ -347,8 +347,9 @@
         </div>
       </div>
 
-      <div style="padding:0 0 6px 0;">
-        <span id="rangoActivoLabel" style="font-size:0.82rem;color:var(--muted,#888);font-weight:500;letter-spacing:0.01em;"></span>
+      <div style="padding:0 0 8px 0; display:flex; flex-direction:column; gap:3px;">
+        <span id="rangoActivoLabel" style="font-size:0.95rem;color:var(--text,#cdd6f4);font-weight:600;letter-spacing:0.01em;"></span>
+        <span style="font-size:0.78rem;color:var(--muted,#888);">Para ver otras fechas utilizar el filtro de Rango de Fecha</span>
       </div>
 
       <div class="grid cols-4">
@@ -1186,20 +1187,21 @@ let sectorMS, estadoMS;
 
 function initFilters(){
   // Flatpickr range — Fecha de Factura (dispara fetch al backend)
+  const pad = n => String(n).padStart(2,"0");
+  const fmtD = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+
   const fp = flatpickr("#fFecha", {
     mode:"range",
     dateFormat:"Y-m-d",
+    allowSingleDateInRange: true,
     onClose(selectedDates){
-      const pad = n => String(n).padStart(2,"0");
-      const fmt = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
-      // Si seleccionó 1 fecha, usar el mismo día como desde y hasta
       if(selectedDates.length >= 1){
         const d0 = new Date(selectedDates[0]); d0.setHours(0,0,0,0);
         const d1 = selectedDates.length === 2 ? new Date(selectedDates[1]) : new Date(selectedDates[0]);
         d1.setHours(23,59,59,999);
         $("#fFecha")._range = [d0, d1];
-        const desde = fmt(d0);
-        const hasta = fmt(d1);
+        const desde = fmtD(d0);
+        const hasta  = fmtD(d1);
         updateRangoLabel(desde, hasta, null, null);
         loadData(desde, hasta);
       } else {
@@ -1211,16 +1213,15 @@ function initFilters(){
   const fpRev = flatpickr("#fFechaRev", {
     mode:"range",
     dateFormat:"Y-m-d",
+    allowSingleDateInRange: true,
     onClose(selectedDates){
-      const pad = n => String(n).padStart(2,"0");
-      const fmt = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
       if(selectedDates.length >= 1){
         const d0 = new Date(selectedDates[0]); d0.setHours(0,0,0,0);
         const d1 = selectedDates.length === 2 ? new Date(selectedDates[1]) : new Date(selectedDates[0]);
         d1.setHours(23,59,59,999);
         $("#fFechaRev")._range = [d0, d1];
-        const revDesde = fmt(d0);
-        const revHasta = fmt(d1);
+        const revDesde = fmtD(d0);
+        const revHasta  = fmtD(d1);
         updateRangoLabel(null, null, revDesde, revHasta);
         loadData(null, null, revDesde, revHasta);
       } else {
