@@ -1190,33 +1190,11 @@ function initFilters(){
   const pad = n => String(n).padStart(2,"0");
   const fmtD = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 
-  // Helper para procesar y disparar carga con un rango de fechas
-  function aplicarRangoFecha(d0raw, d1raw, esRevision){
-    // Validar que las fechas sean objetos Date válidos
-    if(!(d0raw instanceof Date) || isNaN(d0raw)) return;
-    // Siempre crear nuevas instancias para evitar mutar el mismo objeto
-    const d0 = new Date(d0raw.getFullYear(), d0raw.getMonth(), d0raw.getDate(), 0, 0, 0, 0);
-    const d1src = (d1raw instanceof Date && !isNaN(d1raw)) ? d1raw : d0raw;
-    const d1v = new Date(d1src.getFullYear(), d1src.getMonth(), d1src.getDate(), 23, 59, 59, 999);
-    const desde = fmtD(d0);
-    const hasta  = fmtD(d1v);
-    if(esRevision){
-      $("#fFechaRev")._range = [d0, d1v];
-      updateRangoLabel(null, null, desde, hasta);
-      loadData(null, null, desde, hasta);
-    } else {
-      $("#fFecha")._range = [d0, d1v];
-      updateRangoLabel(desde, hasta, null, null);
-      loadData(desde, hasta);
-    }
-  }
-
   const fp = flatpickr("#fFecha", {
     mode:"range",
     dateFormat:"Y-m-d",
     onChange(selectedDates){
       if(selectedDates.length === 2){
-        // Crear copias independientes para no mutar el mismo objeto
         const d0 = new Date(selectedDates[0].getFullYear(), selectedDates[0].getMonth(), selectedDates[0].getDate(), 0, 0, 0, 0);
         const d1 = new Date(selectedDates[1].getFullYear(), selectedDates[1].getMonth(), selectedDates[1].getDate(), 23, 59, 59, 999);
         $("#fFecha")._range = [d0, d1];
