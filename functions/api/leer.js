@@ -19,8 +19,10 @@ export async function onRequestGet({ request, env }) {
   const otrosCargos   = params.get("otrosCargos");
   const ids           = params.getAll("ids");
   const estados       = params.get("estados");
-  const fechaDesde    = params.get("fechaDesde");
-  const fechaHasta    = params.get("fechaHasta");
+  const fechaDesde    = params.get("fechaDesde") || null;
+  // Si fechaHasta está vacío pero fechaDesde tiene valor, usar fechaDesde como fechaHasta
+  const _fechaHastaRaw = params.get("fechaHasta") || null;
+  const fechaHasta    = _fechaHastaRaw || fechaDesde;
   const fechaRevDesde = params.get("fechaRevDesde");
   const fechaRevHasta = params.get("fechaRevHasta");
   const numeroFactura = params.get("numeroFactura"); // búsqueda por número en historial completo
