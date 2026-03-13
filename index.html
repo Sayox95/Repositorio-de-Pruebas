@@ -1294,7 +1294,8 @@ function initFilters(){
           const data = await res.json();
           const rows = Array.isArray(data) ? data.map(normalizeRow).filter(Boolean) : [];
           if (rows.length > 0) {
-            // Cargar resultados del historial — marcar que ya no tenemos el rango original
+            // Guardar rango anterior para restaurarlo al borrar la búsqueda
+            State.preSearchRange = State.loadedRange;
             State.raw = rows;
             State.loadedRange = null;
             applyFilters();
@@ -1310,17 +1311,28 @@ function initFilters(){
       }
     }
 
-    // Si se borra el campo, recargar siempre para restaurar el estado correcto
+    // Si se borra el campo, restaurar el rango previo a la búsqueda
     if (q.length === 0) {
-      const { fechaDesde, fechaHasta } = getMesActualRange();
       const lr = State.loadedRange;
-      const yaCargadoMesActual = lr && lr.desde === fechaDesde && lr.hasta === fechaHasta;
-      if (!yaCargadoMesActual) {
-        // Datos vienen de historial o de otro rango — recargar mes actual
-        await loadData(fechaDesde, fechaHasta);
-        updateRangoLabel(fechaDesde, fechaHasta, null, null);
+      if (!lr) {
+        // Datos vienen de historial — restaurar rango anterior si existe, sino mes actual
+        const restore = State.preSearchRange;
+        State.preSearchRange = null;
+        if(restore){
+          await loadData(restore.desde, restore.hasta);
+          updateRangoLabel(restore.desde, restore.hasta, null, null);
+          // Restaurar el valor visual del flatpickr
+          try {
+            const fpInst = document.querySelector("#fFecha")._flatpickr;
+            if(fpInst) fpInst.setDate([restore.desde, restore.hasta], false);
+          } catch(_){}
+        } else {
+          const { fechaDesde, fechaHasta } = getMesActualRange();
+          await loadData(fechaDesde, fechaHasta);
+          updateRangoLabel(fechaDesde, fechaHasta, null, null);
+        }
       } else {
-        // Ya tenemos el mes actual — solo reaplicar filtros locales
+        // Ya tenemos datos válidos — solo reaplicar filtros locales
         applyFilters();
       }
     }
