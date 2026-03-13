@@ -1294,8 +1294,9 @@ function initFilters(){
           const data = await res.json();
           const rows = Array.isArray(data) ? data.map(normalizeRow).filter(Boolean) : [];
           if (rows.length > 0) {
-            // Cargar resultados del historial en la tabla temporalmente
+            // Cargar resultados del historial — marcar que ya no tenemos el rango original
             State.raw = rows;
+            State.loadedRange = null;
             applyFilters();
             toastLoading.hide();
             try{ toast.info(`Se encontraron ${rows.length} factura(s) en el historial completo`); }catch(_){}
