@@ -1193,12 +1193,11 @@ function initFilters(){
   // Helper para procesar y disparar carga con un rango de fechas
   function aplicarRangoFecha(d0raw, d1raw, esRevision){
     // Validar que las fechas sean objetos Date válidos
-    const d0 = d0raw instanceof Date && !isNaN(d0raw) ? new Date(d0raw) : null;
-    const d1 = d1raw instanceof Date && !isNaN(d1raw) ? new Date(d1raw) : null;
-    if(!d0) return; // fecha inválida, ignorar
-    d0.setHours(0,0,0,0);
-    const d1v = d1 || new Date(d0);
-    d1v.setHours(23,59,59,999);
+    if(!(d0raw instanceof Date) || isNaN(d0raw)) return;
+    // Siempre crear nuevas instancias para evitar mutar el mismo objeto
+    const d0 = new Date(d0raw.getFullYear(), d0raw.getMonth(), d0raw.getDate(), 0, 0, 0, 0);
+    const d1src = (d1raw instanceof Date && !isNaN(d1raw)) ? d1raw : d0raw;
+    const d1v = new Date(d1src.getFullYear(), d1src.getMonth(), d1src.getDate(), 23, 59, 59, 999);
     const desde = fmtD(d0);
     const hasta  = fmtD(d1v);
     if(esRevision){
