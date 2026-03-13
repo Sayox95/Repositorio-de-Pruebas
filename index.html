@@ -1215,25 +1215,17 @@ function initFilters(){
     mode:"range",
     dateFormat:"Y-m-d",
     onChange(selectedDates){
-      // Rango completo con 2 fechas válidas
-      if(selectedDates.length === 2 &&
-         selectedDates[0] instanceof Date && !isNaN(selectedDates[0]) &&
-         selectedDates[1] instanceof Date && !isNaN(selectedDates[1])){
-        aplicarRangoFecha(selectedDates[0], selectedDates[1], false);
-      }
-    },
-    onClose(selectedDates){
-      // Mismo día: 1 fecha válida
-      if(selectedDates.length === 1 &&
-         selectedDates[0] instanceof Date && !isNaN(selectedDates[0])){
-        aplicarRangoFecha(selectedDates[0], selectedDates[0], false);
-      } else if(selectedDates.length === 2 &&
-         selectedDates[0] instanceof Date && !isNaN(selectedDates[0]) &&
-         selectedDates[1] instanceof Date && !isNaN(selectedDates[1])){
-        aplicarRangoFecha(selectedDates[0], selectedDates[1], false);
-      } else if(selectedDates.length === 0){
+      if(selectedDates.length === 2){
+        // Crear copias independientes para no mutar el mismo objeto
+        const d0 = new Date(selectedDates[0].getFullYear(), selectedDates[0].getMonth(), selectedDates[0].getDate(), 0, 0, 0, 0);
+        const d1 = new Date(selectedDates[1].getFullYear(), selectedDates[1].getMonth(), selectedDates[1].getDate(), 23, 59, 59, 999);
+        $("#fFecha")._range = [d0, d1];
+        const desde = fmtD(d0);
+        const hasta  = fmtD(d1);
+        updateRangoLabel(desde, hasta, null, null);
+        loadData(desde, hasta);
+      } else {
         $("#fFecha")._range = null;
-        updateRangoLabel(null, null, null, null);
       }
     }
   });
@@ -1241,23 +1233,16 @@ function initFilters(){
     mode:"range",
     dateFormat:"Y-m-d",
     onChange(selectedDates){
-      if(selectedDates.length === 2 &&
-         selectedDates[0] instanceof Date && !isNaN(selectedDates[0]) &&
-         selectedDates[1] instanceof Date && !isNaN(selectedDates[1])){
-        aplicarRangoFecha(selectedDates[0], selectedDates[1], true);
-      }
-    },
-    onClose(selectedDates){
-      if(selectedDates.length === 1 &&
-         selectedDates[0] instanceof Date && !isNaN(selectedDates[0])){
-        aplicarRangoFecha(selectedDates[0], selectedDates[0], true);
-      } else if(selectedDates.length === 2 &&
-         selectedDates[0] instanceof Date && !isNaN(selectedDates[0]) &&
-         selectedDates[1] instanceof Date && !isNaN(selectedDates[1])){
-        aplicarRangoFecha(selectedDates[0], selectedDates[1], true);
-      } else if(selectedDates.length === 0){
+      if(selectedDates.length === 2){
+        const d0 = new Date(selectedDates[0].getFullYear(), selectedDates[0].getMonth(), selectedDates[0].getDate(), 0, 0, 0, 0);
+        const d1 = new Date(selectedDates[1].getFullYear(), selectedDates[1].getMonth(), selectedDates[1].getDate(), 23, 59, 59, 999);
+        $("#fFechaRev")._range = [d0, d1];
+        const revDesde = fmtD(d0);
+        const revHasta  = fmtD(d1);
+        updateRangoLabel(null, null, revDesde, revHasta);
+        loadData(null, null, revDesde, revHasta);
+      } else {
         $("#fFechaRev")._range = null;
-        updateRangoLabel(null, null, null, null);
       }
     }
   });
