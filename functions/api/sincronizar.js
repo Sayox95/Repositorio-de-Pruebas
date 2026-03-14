@@ -2,7 +2,7 @@
 // Recibe lotes de facturas desde AppScript y los inserta/actualiza en D1
 // POST /api/sincronizar  { rows: [...], truncate?: boolean }
 
-const SYNC_SECRET = "CAMBIA_ESTO_POR_UN_TOKEN_SECRETO"; // debe coincidir con AppScript
+const SYNC_SECRET = "utcd-facturas-2026-sync-xK9mP"; // debe coincidir con AppScript
 
 export async function onRequestPost({ request, env }) {
   const origin = request.headers.get("Origin") || "*";
