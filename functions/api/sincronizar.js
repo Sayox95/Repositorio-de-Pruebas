@@ -2,7 +2,7 @@
 // Recibe lotes de facturas desde AppScript y los inserta/actualiza en D1
 // POST /api/sincronizar  { rows: [...], truncate?: boolean }
 
-const SYNC_SECRET = "utcd-facturas-2026-sync-xK9mP"; // debe coincidir con AppScript
+const SYNC_SECRET = "CAMBIA_ESTO_POR_UN_TOKEN_SECRETO"; // debe coincidir con AppScript
 
 export async function onRequestPost({ request, env }) {
   const origin = request.headers.get("Origin") || "*";
@@ -53,14 +53,14 @@ export async function onRequestPost({ request, env }) {
             HorasViaje, KmActual, NombreComercio, NumeroFactura,
             FechaRegistro, IDvehiculo, EnlacePDF, Estado, Fondo,
             FechaPago, FechaRevision, submission_id, EstatusF,
-            FacturaPrevia, ID_PAGO
+            FacturaPrevia, ID_PAGO, Marca, Modelo
           ) VALUES (
             ?, ?, ?, ?, ?, ?,
             ?, ?, ?, ?,
             ?, ?, ?, ?,
             ?, ?, ?, ?, ?,
             ?, ?, ?, ?,
-            ?, ?
+            ?, ?, ?, ?
           )
         `).bind(
           r.fila           ?? null,
@@ -87,7 +87,9 @@ export async function onRequestPost({ request, env }) {
           r.submission_id  ?? null,
           r.EstatusF       ?? null,
           r.FacturaPrevia  ?? null,
-          r.ID_PAGO        ?? null
+          r.ID_PAGO        ?? null,
+          r.Marca          ?? null,
+          r.Modelo         ?? null
         )
       );
 
