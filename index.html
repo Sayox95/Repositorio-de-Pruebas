@@ -656,6 +656,8 @@ function normalizeRow(src){
     FechaRevision: g(["FechaRevision","Fecha de Revisión","Fecha de Revision","Fecha_Revision","Fecha_Revisión","Fecha Revisada","FechaRevisionISO"]),
     ID_PAGO: g(["ID_PAGO","IdPago","ID PAGO","ID-PAGO","Id_Pago","COD_TRANSACCION"]),
     Estado:    g(["Estado","ESTADO","estado"], "Registrada"),
+    Marca:     g(["Marca","MARCA","marca"]),
+    Modelo:    g(["Modelo","MODELO","modelo"]),
   };
   return row;
 }
@@ -1007,7 +1009,9 @@ function buildTable(){
           const cls = disabled? "status-pill disabled" : "status-pill";
           const title = disabled? "No editable cuando está Pagada o Enviada" : "Cambiar estado";
           return `<span class="${cls}" title="${title}"><span class="dot" style="background:${color}"></span>${v}</span>`;
-      } }
+      } },
+      { title:"Marca", field:"Marca", width:120 },
+      { title:"Modelo", field:"Modelo", width:130 },
 
     ],
     dataLoaded:()=>{ updateKpis(); },
@@ -2596,8 +2600,9 @@ cellClick: (e, cell)=>{
   if((d.Estado||"")==="Pagada" || (d.Estado||"")==="Enviada") return;
   if(typeof openPagoModalSingle==="function") openPagoModalSingle(d);
 }
-}
-,
+},
+      { title:"Marca", field:"Marca", width:120 },
+      { title:"Modelo", field:"Modelo", width:130 },
     ],
     dataLoaded: updatePagoKpis,
     dataFiltered: updatePagoKpis,
