@@ -1,6 +1,6 @@
 // functions/api/placas.js
 // GET  → lista vehículos desde D1
-// POST → cambia estado de placas en D1
+// POST → crear, cambiarEstado, cambiarSector, actualizarPlaca
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -20,7 +20,7 @@ export async function onRequestGet({ request, env }) {
   const q      = (params.get("q")      || "").trim().toUpperCase();
 
   try {
-    let query  = "SELECT IDvehiculo, Estado, Placa, Sector, Conductor, Proceso, Jefe, Designacion, Marca, Modelo FROM vehiculos WHERE 1=1";
+    let query = "SELECT IDvehiculo, Estado, Placa, Sector, Conductor, Proceso, Jefe, Designacion, Marca, Modelo FROM vehiculos WHERE 1=1";
     const bindings = [];
 
     if (estado) {
@@ -51,48 +51,113 @@ export async function onRequestGet({ request, env }) {
 }
 
 export async function onRequestPost({ request, env }) {
-  let bodyJson = null;
-  try { bodyJson = await request.json(); } catch (_) {}
+  let body = null;
+  try { body = await request.json(); } catch (_) {}
 
-  if (!bodyJson) {
+  if (!body) {
     return new Response(JSON.stringify({ ok: false, message: "Payload inválido" }), {
-      status: 400,
-      headers: { ...CORS, "Content-Type": "application/json" }
+      status: 400, headers: { ...CORS, "Content-Type": "application/json" }
     });
   }
 
-  // { action: "cambiarEstado", placas: [...], estado: "ACTIVO"|"INACTIVO" }
-  if (bodyJson.action === "cambiarEstado") {
-    const placas  = Array.isArray(bodyJson.placas) ? bodyJson.placas : [];
-    const estado  = (bodyJson.estado || "").trim();
-    if (!placas.length || !estado) {
-      return new Response(JSON.stringify({ ok: false, message: "Faltan placas o estado" }), {
-        status: 400,
-        headers: { ...CORS, "Content-Type": "application/json" }
+  const action = (body.action || "").trim();
+
+  try {
+    // ── Crear nueva placa ──────────────────────────────────────────────────
+    if (action === "crear") {
+      const { placa, nombre, sector, proceso, designacion, estado } = body;
+      if (!placa) {
+        return new Response(JSON.stringify({ ok: false, message: "Placa requerida" }), {
+          status: 400, headers: { ...CORS, "Content-Type": "application/json" }
+        });
+      }
+      await env.DB.prepare(`
+        INSERT INTO vehiculos (Placa, Conductor, Sector, Proceso, Designacion, Estado)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).bind(
+        placa.toString().trim().toUpperCase(),
+        (nombre      || "").trim() || null,
+        (sector      || "").trim() || null,
+        (proceso     || "").trim() || null,
+        (designacion || "").trim() || null,
+        (estado      || "Activa").trim()
+      ).run();
+
+      return new Response(JSON.stringify({ ok: true }), {
+        status: 200, headers: { ...CORS, "Content-Type": "application/json" }
       });
     }
-    try {
-      const stmts = placas.map(placa =>
+
+    // ── Cambiar estado (Activa/Inactiva) ───────────────────────────────────
+    if (action === "cambiarEstado") {
+      const placas  = Array.isArray(body.placas) ? body.placas : [];
+      const estado  = (body.estado || "").trim();
+      if (!placas.length || !estado) {
+        return new Response(JSON.stringify({ ok: false, message: "Faltan placas o estado" }), {
+          status: 400, headers: { ...CORS, "Content-Type": "application/json" }
+        });
+      }
+      const stmts = placas.map(p =>
         env.DB.prepare("UPDATE vehiculos SET Estado = ? WHERE Placa = ?")
-          .bind(estado, placa.toString().trim().toUpperCase())
+          .bind(estado, p.toString().trim().toUpperCase())
       );
       for (let i = 0; i < stmts.length; i += 50) {
         await env.DB.batch(stmts.slice(i, i + 50));
       }
       return new Response(JSON.stringify({ ok: true, actualizadas: placas.length }), {
-        status: 200,
-        headers: { ...CORS, "Content-Type": "application/json" }
-      });
-    } catch (e) {
-      return new Response(JSON.stringify({ ok: false, message: e.message }), {
-        status: 500,
-        headers: { ...CORS, "Content-Type": "application/json" }
+        status: 200, headers: { ...CORS, "Content-Type": "application/json" }
       });
     }
-  }
 
-  return new Response(JSON.stringify({ ok: false, message: "Acción no reconocida" }), {
-    status: 400,
-    headers: { ...CORS, "Content-Type": "application/json" }
-  });
+    // ── Cambiar sector ─────────────────────────────────────────────────────
+    if (action === "cambiarSector") {
+      const { placa, sector } = body;
+      if (!placa || !sector) {
+        return new Response(JSON.stringify({ ok: false, message: "Faltan placa o sector" }), {
+          status: 400, headers: { ...CORS, "Content-Type": "application/json" }
+        });
+      }
+      await env.DB.prepare("UPDATE vehiculos SET Sector = ? WHERE Placa = ?")
+        .bind(sector.trim(), placa.toString().trim().toUpperCase())
+        .run();
+
+      // Buscar jefe del nuevo sector
+      const { results } = await env.DB
+        .prepare("SELECT Jefe FROM vehiculos WHERE Sector = ? AND Jefe IS NOT NULL LIMIT 1")
+        .bind(sector.trim())
+        .all();
+      const jefe = results && results.length > 0 ? results[0].Jefe : null;
+
+      return new Response(JSON.stringify({ ok: true, jefe }), {
+        status: 200, headers: { ...CORS, "Content-Type": "application/json" }
+      });
+    }
+
+    // ── Actualizar placa (VIN → Placa) ─────────────────────────────────────
+    if (action === "actualizarPlaca") {
+      const { placaActual, nuevaPlaca } = body;
+      if (!placaActual || !nuevaPlaca) {
+        return new Response(JSON.stringify({ ok: false, message: "Faltan placaActual o nuevaPlaca" }), {
+          status: 400, headers: { ...CORS, "Content-Type": "application/json" }
+        });
+      }
+      await env.DB.prepare("UPDATE vehiculos SET Placa = ? WHERE Placa = ?")
+        .bind(nuevaPlaca.toString().trim().toUpperCase(), placaActual.toString().trim().toUpperCase())
+        .run();
+
+      return new Response(JSON.stringify({ ok: true }), {
+        status: 200, headers: { ...CORS, "Content-Type": "application/json" }
+      });
+    }
+
+    // ── Acción no reconocida ───────────────────────────────────────────────
+    return new Response(JSON.stringify({ ok: false, message: "Acción no reconocida" }), {
+      status: 400, headers: { ...CORS, "Content-Type": "application/json" }
+    });
+
+  } catch (e) {
+    return new Response(JSON.stringify({ ok: false, message: e.message }), {
+      status: 500, headers: { ...CORS, "Content-Type": "application/json" }
+    });
+  }
 }
