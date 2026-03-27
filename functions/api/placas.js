@@ -117,16 +117,18 @@ export async function onRequestPost({ request, env }) {
           status: 400, headers: { ...CORS, "Content-Type": "application/json" }
         });
       }
-      await env.DB.prepare("UPDATE vehiculos SET Sector = ? WHERE Placa = ?")
-        .bind(sector.trim(), placa.toString().trim().toUpperCase())
-        .run();
 
-      // Buscar jefe del nuevo sector
-      const { results } = await env.DB
-        .prepare("SELECT Jefe FROM vehiculos WHERE Sector = ? AND Jefe IS NOT NULL LIMIT 1")
+      // Buscar jefe del nuevo sector primero
+      const { results: jefeResults } = await env.DB
+        .prepare("SELECT Jefe FROM vehiculos WHERE Sector = ? AND Jefe IS NOT NULL AND Jefe != '' LIMIT 1")
         .bind(sector.trim())
         .all();
-      const jefe = results && results.length > 0 ? results[0].Jefe : null;
+      const jefe = jefeResults && jefeResults.length > 0 ? jefeResults[0].Jefe : null;
+
+      // Actualizar Sector y Jefe del vehículo
+      await env.DB.prepare("UPDATE vehiculos SET Sector = ?, Jefe = ? WHERE Placa = ?")
+        .bind(sector.trim(), jefe, placa.toString().trim().toUpperCase())
+        .run();
 
       return new Response(JSON.stringify({ ok: true, jefe }), {
         status: 200, headers: { ...CORS, "Content-Type": "application/json" }
