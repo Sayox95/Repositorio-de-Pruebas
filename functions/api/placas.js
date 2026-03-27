@@ -20,7 +20,7 @@ export async function onRequestGet({ request, env }) {
   const q      = (params.get("q")      || "").trim().toUpperCase();
 
   try {
-    let query = "SELECT IDvehiculo, Estado, Placa, Sector, Conductor, Proceso, Jefe, Designacion, Marca, Modelo FROM vehiculos WHERE 1=1";
+    let query = "SELECT IDvehiculo, Estado, Placa, Sector, Conductor, Proceso, Jefe AS JefeInmediato, Designacion, Marca, Modelo FROM vehiculos WHERE 1=1";
     const bindings = [];
 
     if (estado) {
