@@ -2,7 +2,7 @@
 // Cambios de estado y pagos → directo a D1
 // Liquidación → AppScript (necesita plantilla de Sheets)
 
-const APPSCRIPT_URL = "https://script.google.com/macros/s/AKfycbynLlcMQofAXQKYaNsd0RBOCrHkpG2m8Pei11DGconF3kVOUx6D3vIqdFKiqcNe4yYR_A/exec";
+const APPSCRIPT_URL = "https://script.google.com/macros/s/AKfycbxZ2pIfZy4aJ4NT3xQTHKNjFSEYfSUxiV1aBpgIXIZVthOUYbjbm-mllTQc2ZLkdTL1Ww/exec";
 
 const CORS = (origin) => ({
   "Access-Control-Allow-Origin": origin,
