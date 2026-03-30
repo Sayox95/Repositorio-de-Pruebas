@@ -2382,7 +2382,7 @@ function applyRolRestrictions(rol){
     // Solo mostrar sección Revisión en el sidebar
     document.querySelectorAll('.nav-btn[href="#pago"], .nav-btn[href="#placas"], .nav-btn[href="#anticipos"]').forEach(el => el.style.display = "none");
     // Ocultar botones de acción en Revisión
-    const hideIds = ["btnRevMarcarRevisadas","btnActualizar","btnDescargar","btnAgrupar","btnExportXLSX"];
+    const hideIds = ["btnRevMarcarRevisadas","btnDescargar"];
     hideIds.forEach(id => { const el = document.getElementById(id); if(el) el.style.display = "none"; });
     // Deshabilitar cambio de estado en celdas
     window.__viewerMode = true;
