@@ -108,7 +108,7 @@ export async function onRequestPost({ request, env }) {
       for (let i = 0; i < stmts.length; i += 50) {
         await env.DB.batch(stmts.slice(i, i + 50));
       }
-      return new Response(JSON.stringify({ ok: true, status: "OK", pagadas: filas.length }), {
+      return new Response(JSON.stringify({ ok: true, status: "OK", pagoLote: true, pagadas: filas.length }), {
         status: 200, headers: CORS(origin)
       });
     }
@@ -119,7 +119,7 @@ export async function onRequestPost({ request, env }) {
       if (bodyJson.fondoPeriodo) campos.Fondo   = bodyJson.fondoPeriodo;
       if (bodyJson.idPago)       campos.ID_PAGO = bodyJson.idPago;
       await actualizarFila(bodyJson.fila, campos);
-      return new Response(JSON.stringify({ ok: true, status: "OK" }), {
+      return new Response(JSON.stringify({ ok: true, status: "OK", pagoLote: true }), {
         status: 200, headers: CORS(origin)
       });
     }
