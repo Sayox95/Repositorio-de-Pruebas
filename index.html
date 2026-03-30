@@ -1032,6 +1032,7 @@ function buildTable(){
 
       const cellEl = ev.target.closest(".tabulator-cell");
       if(!cellEl) return;
+      if(window.__viewerMode) return; // viewer no puede cambiar estado
       if(cellEl.getAttribute("tabulator-field") !== "Estado") return;
       // Evitar abrir si la fila está Pagada
       const rowEl = cellEl.closest(".tabulator-row");
@@ -1402,43 +1403,50 @@ function exportXLSX(){
   if(!table) return;
   const fname = `Facturas_UTCD_${new Date().toISOString().slice(0,10)}.xlsx`;
 
-  // Obtener filas seleccionadas o todas las activas
-  const selData = table.getSelectedData ? table.getSelectedData() : [];
-  const sourceData = selData.length > 0 ? selData : (table.getData ? table.getData("active") : []);
+  // Si la tabla está agrupada por colaborador, exportar RESUMEN por colaborador
+  if(typeof isGrouped !== "undefined" && isGrouped && table.getGroups){
+    const groups = table.getGroups() || [];
+    const summary = [];
 
-  if(!sourceData.length){ alert("No hay filas para exportar."); return; }
+    for(const g of groups){
+      if(!g || !g.getRows) continue;
+      const rows = g.getRows() || [];
+      if(!rows.length) continue;
 
-  if(typeof XLSX === "undefined" || !XLSX || !XLSX.utils){
-    // Fallback al export nativo de Tabulator
-    table.download("xlsx", fname, { sheetName:"Revisión", rowRange: selData.length > 0 ? "selected" : "active" });
-    return;
+      // Tomamos el primer row para obtener el nombre/identidad
+      const d0 = rows[0].getData ? rows[0].getData() : null;
+      const nombreBase = d0 ? (d0.Nombre || d0.Identidad || "") : "";
+      const key = g.getKey ? g.getKey() : "";
+      const nombre = nombreBase || String(key || "Sin nombre");
+
+      const count = rows.length;
+      let total = 0;
+      for(const r of rows){
+        try{
+          const d = r.getData ? r.getData() : null;
+          total += d && d.Total ? Number(d.Total) || 0 : 0;
+        }catch(e){}
+      }
+
+      summary.push({
+        "Colaborador": nombre,
+        "Cantidad de facturas": count,
+        "Total": Number(total.toFixed(2)),
+      });
+    }
+
+    if(summary.length > 0 && typeof XLSX !== "undefined" && XLSX && XLSX.utils){
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(summary);
+      XLSX.utils.book_append_sheet(wb, ws, "Resumen");
+      XLSX.writeFile(wb, fname);
+      return;
+    }
+    // Si algo falla, usamos el export tradicional
   }
 
-  // Mapear campos a nombres legibles
-  const rows = sourceData.map(r => ({
-    "Sector":              r.Sector              || "",
-    "Placa":               r.Placa               || "",
-    "Proceso":             r.Proceso             || "",
-    "Nombre":              r.Nombre              || "",
-    "Identidad":           r.Identidad           || "",
-    "Total Gastado":       r.Total               || r.TotalGastado || 0,
-    "Litros Consumidos":   r["Litros Consumidos"] || r.LitrosConsumidos || "",
-    "Fecha":               r.Fecha               || "",
-    "Fecha de Revisión":   r.FechaRevision        || "",
-    "Nombre del comercio": r["Nombre del comercio"] || r.NombreComercio || "",
-    "Número de Factura":   r["Numero de Factura"] || r.NumeroFactura || "",
-    "Km Actual":           r["Km Actual"]         || r.KmActual || "",
-    "Estado":              r.Estado              || "",
-    "Fecha de Pago":       r.FechaPago           || "",
-    "ID Pago":             r.ID_PAGO             || "",
-    "Marca":               r.Marca               || "",
-    "Modelo":              r.Modelo              || "",
-  }));
-
-  const wb = XLSX.utils.book_new();
-  const ws = XLSX.utils.json_to_sheet(rows);
-  XLSX.utils.book_append_sheet(wb, ws, "Facturas");
-  XLSX.writeFile(wb, fname);
+  // Export tradicional: todas las filas activas con sus columnas
+  table.download("xlsx", fname, { sheetName:"Revisión", rowRange:"active" });
 }
 
 /** =========================
@@ -2365,8 +2373,28 @@ async function authMe(){
 }
 async function authLogout(){ try{ await fetch(Auth.logout, { method:"POST" }); } catch (e){} }
 
+// Rol global del usuario autenticado
+window.userRol = "admin";
+
+function applyRolRestrictions(rol){
+  window.userRol = rol || "admin";
+  if(rol === "viewer"){
+    // Solo mostrar sección Revisión en el sidebar
+    document.querySelectorAll('.nav-btn[href="#pago"], .nav-btn[href="#placas"], .nav-btn[href="#anticipos"]').forEach(el => el.style.display = "none");
+    // Ocultar botones de acción en Revisión
+    const hideIds = ["btnRevMarcarRevisadas","btnActualizar","btnDescargar","btnAgrupar","btnExportXLSX"];
+    hideIds.forEach(id => { const el = document.getElementById(id); if(el) el.style.display = "none"; });
+    // Deshabilitar cambio de estado en celdas
+    window.__viewerMode = true;
+  }
+}
+
 function showLogin(){ const app=document.getElementById("appShell"); if(app) app.style.display="none"; const s=document.getElementById("secLogin"); if(s) s.style.display="flex"; }
-function showApp(){ const s=document.getElementById("secLogin"); if(s) s.style.display="none"; const app=document.getElementById("appShell"); if(app) app.style.display="block"; }
+function showApp(me){ 
+  const s=document.getElementById("secLogin"); if(s) s.style.display="none"; 
+  const app=document.getElementById("appShell"); if(app) app.style.display="block";
+  if(me && me.rol) applyRolRestrictions(me.rol);
+}
 
 // Login button + Enter key
 (function wireLoginUI(){
@@ -2380,8 +2408,8 @@ function showApp(){ const s=document.getElementById("secLogin"); if(s) s.style.d
     if(!user || !pass){ if(err){ err.textContent="Ingrese usuario y contraseña."; err.style.display="inline"; } return; }
     try{
       btn.disabled = true;
-      await authLogin(user, pass);
-      showApp();
+      const meData = await authLogin(user, pass);
+      showApp(meData);
       try{ navigateTo('inicio'); } catch (e){}
     }catch(e){
       if(err){ err.textContent = "Credenciales inválidas o usuario inactivo."; err.style.display = "inline"; }
@@ -2397,7 +2425,7 @@ function showApp(){ const s=document.getElementById("secLogin"); if(s) s.style.d
 // Session check on load
 (async function(){
   const me = await authMe();
-  if(me && me.usuario){ showApp(); } else { showLogin(); }
+  if(me && me.usuario){ showApp(me); } else { showLogin(); }
 })();
 
 async function doLogout(){ await authLogout(); showLogin(); }
@@ -2632,40 +2660,53 @@ function exportPagoXLSX(){
   if(!pagoTable) return;
   const fname = `Pago_UTCD_${new Date().toISOString().slice(0,10)}.xlsx`;
 
-  // Obtener filas seleccionadas o todas las activas
-  const selData = pagoTable.getSelectedData ? pagoTable.getSelectedData() : [];
-  const sourceData = selData.length > 0 ? selData : (pagoTable.getData ? pagoTable.getData("active") : []);
+  // Si está agrupado por colaborador, exportar RESUMEN por colaborador
+  if(typeof pagoGroupMode !== "undefined" && pagoGroupMode === "colaborador" && pagoTable.getGroups){
+    const groups = pagoTable.getGroups() || [];
+    const summary = [];
 
-  if(!sourceData.length){ alert("No hay filas para exportar."); return; }
+    for(const g of groups){
+      if(!g || !g.getRows) continue;
+      const rows = g.getRows() || [];
+      if(!rows.length) continue;
 
-  if(typeof XLSX === "undefined" || !XLSX || !XLSX.utils){
-    pagoTable.download("xlsx", fname, { sheetName:"Pago", rowRange: selData.length > 0 ? "selected" : "active" });
-    return;
+      // Tomamos el primer row para obtener el nombre/identidad
+      const d0 = rows[0].getData ? rows[0].getData() : null;
+      const nombreBase = d0 ? (d0.Nombre || d0.Identidad || "") : "";
+      const key = g.getKey ? g.getKey() : "";
+      const nombre = nombreBase || String(key || "Sin nombre");
+
+      const count = rows.length;
+      let total = 0;
+      for(const r of rows){
+        try{
+          const d = r.getData ? r.getData() : null;
+          if(!d) continue;
+          const rawTotal = (d["Total Gastado"] !== undefined && d["Total Gastado"] !== null) ? d["Total Gastado"] : d.Total;
+          const v = rawTotal !== undefined && rawTotal !== null ? Number(rawTotal) : 0;
+          if(!isNaN(v)) total += v;
+        }catch(e){}
+      }
+
+      summary.push({
+        "Colaborador": nombre,
+        "Cantidad de facturas": count,
+        "Total": Number(total.toFixed(2)),
+      });
+    }
+
+    if(summary.length > 0 && typeof XLSX !== "undefined" && XLSX && XLSX.utils){
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(summary);
+      XLSX.utils.book_append_sheet(wb, ws, "Resumen Pago");
+      XLSX.writeFile(wb, fname);
+      return;
+    }
+    // Si algo falla, usamos el export tradicional
   }
 
-  const rows = sourceData.map(r => ({
-    "Sector":              r.Sector              || "",
-    "Placa":               r.Placa               || "",
-    "Proceso":             r.Proceso             || "",
-    "Nombre":              r.Nombre              || "",
-    "Identidad":           r.Identidad           || "",
-    "Total Gastado":       r.Total               || r.TotalGastado || 0,
-    "Litros Consumidos":   r["Litros Consumidos"] || r.LitrosConsumidos || "",
-    "Fecha":               r.Fecha               || "",
-    "Nombre del comercio": r["Nombre del comercio"] || r.NombreComercio || "",
-    "Número de Factura":   r["Numero de Factura"] || r.NumeroFactura || "",
-    "Km Actual":           r["Km Actual"]         || r.KmActual || "",
-    "Estado":              r.Estado              || "",
-    "Fecha de Pago":       r.FechaPago           || "",
-    "ID Pago":             r.ID_PAGO             || "",
-    "Marca":               r.Marca               || "",
-    "Modelo":              r.Modelo              || "",
-  }));
-
-  const wb = XLSX.utils.book_new();
-  const ws = XLSX.utils.json_to_sheet(rows);
-  XLSX.utils.book_append_sheet(wb, ws, "Pago");
-  XLSX.writeFile(wb, fname);
+  // Export tradicional: todas las filas activas con sus columnas
+  pagoTable.download("xlsx", fname, { sheetName:"Pago", rowRange:"active" });
 }
 
 
@@ -3208,7 +3249,7 @@ async function confirmarPago(){
 
       // Cerrar modal y refrescar KPI
       const modal = document.getElementById("modalPago"); if(modal) modal.style.display = "none";
-      try{ if(typeof quickToast === "function") quickToast("✅ Pago registrado correctamente", 2500); }catch(_){}
+      
       if(table.deselectRow) table.deselectRow();
       updatePagoButtonVisibility();
       return;
@@ -3243,7 +3284,7 @@ async function confirmarPago(){
     });
 
     const modal = document.getElementById("modalPago"); if(modal) modal.style.display = "none";
-    try{ if(typeof quickToast === "function") quickToast(`✅ ${filas.length} factura(s) pagadas correctamente`, 2500); }catch(_){}
+    
     if(table.deselectRow) table.deselectRow();
     updatePagoButtonVisibility();
 
