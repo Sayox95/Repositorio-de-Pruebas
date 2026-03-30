@@ -3225,7 +3225,7 @@ async function confirmarPago(){
 
       // Cerrar modal y refrescar KPI
       const modal = document.getElementById("modalPago"); if(modal) modal.style.display = "none";
-      
+      try{ toast.info("✅ Pago registrado correctamente."); }catch(_){}
       if(table.deselectRow) table.deselectRow();
       updatePagoButtonVisibility();
       return;
@@ -3260,7 +3260,7 @@ async function confirmarPago(){
     });
 
     const modal = document.getElementById("modalPago"); if(modal) modal.style.display = "none";
-    
+    try{ toast.info(`✅ ${filas.length} factura(s) pagadas correctamente.`); }catch(_){}
     if(table.deselectRow) table.deselectRow();
     updatePagoButtonVisibility();
 
