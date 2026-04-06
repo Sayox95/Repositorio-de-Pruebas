@@ -24,7 +24,7 @@ export async function onRequestGet({ request, env }) {
     const bindings = [];
 
     if (estado) {
-      query += " AND UPPER(Estado) = ?";
+      query += " AND UPPER(Estado) = UPPER(?)";
       bindings.push(estado);
     }
     if (q) {
@@ -97,7 +97,7 @@ export async function onRequestPost({ request, env }) {
         (sector      || "").trim() || null,
         (proceso     || "").trim() || null,
         (designacion || "").trim() || null,
-        (estado      || "Activa").trim()
+        (estado      || "ACTIVO").trim()
       ).run();
 
       return new Response(JSON.stringify({ ok: true, IDvehiculo: nuevoId }), {
