@@ -71,10 +71,27 @@ export async function onRequestPost({ request, env }) {
           status: 400, headers: { ...CORS, "Content-Type": "application/json" }
         });
       }
+
+      // Generar IDvehiculo consecutivo (VEH-00001)
+      let nuevoId = "VEH-00001";
+      try {
+        const { results } = await env.DB
+          .prepare("SELECT IDvehiculo FROM vehiculos WHERE IDvehiculo LIKE 'VEH-%' ORDER BY IDvehiculo DESC LIMIT 1")
+          .all();
+        if (results && results.length > 0) {
+          const ultimo = results[0].IDvehiculo || "";
+          const num = parseInt(ultimo.replace("VEH-", "")) || 0;
+          nuevoId = "VEH-" + String(num + 1).padStart(5, "0");
+        }
+      } catch (e) {
+        console.error("Error generando IDvehiculo:", e.message);
+      }
+
       await env.DB.prepare(`
-        INSERT INTO vehiculos (Placa, Conductor, Sector, Proceso, Designacion, Estado)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO vehiculos (IDvehiculo, Placa, Conductor, Sector, Proceso, Designacion, Estado)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
       `).bind(
+        nuevoId,
         placa.toString().trim().toUpperCase(),
         (nombre      || "").trim() || null,
         (sector      || "").trim() || null,
@@ -83,7 +100,7 @@ export async function onRequestPost({ request, env }) {
         (estado      || "Activa").trim()
       ).run();
 
-      return new Response(JSON.stringify({ ok: true }), {
+      return new Response(JSON.stringify({ ok: true, IDvehiculo: nuevoId }), {
         status: 200, headers: { ...CORS, "Content-Type": "application/json" }
       });
     }
