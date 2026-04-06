@@ -2,7 +2,7 @@
 // Lecturas de facturas → D1 (rápido, con índices reales)
 // Otros cargos        → AppScript (sin cambios)
 
-const APPSCRIPT_URL = "https://script.google.com/macros/s/AKfycbzr5N-ORnbLhggsg_ssWZ7acPdK5rXlD_RlftaAWI0so368s1oOFo7CpuMwqB-AaJWduA/exec";
+const APPSCRIPT_URL = "https://script.google.com/macros/s/AKfycbxZ2pIfZy4aJ4NT3xQTHKNjFSEYfSUxiV1aBpgIXIZVthOUYbjbm-mllTQc2ZLkdTL1Ww/exec";
 
 const CORS = (origin) => ({
   "Access-Control-Allow-Origin": origin,
