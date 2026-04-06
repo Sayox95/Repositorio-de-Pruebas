@@ -419,6 +419,7 @@
     <div class="grid cols-4">
       <div class="card kpi"><span class="label">Pendientes (Revisadas)</span><span id="kpiPagoPendientes" class="value">0</span></div>
       <div class="card kpi"><span class="label">Pagadas</span><span id="kpiPagoPagadas" class="value">0</span></div>
+      <div class="card kpi"><span class="label">Enviadas</span><span id="kpiPagoEnviadas" class="value">0</span></div>
       <div class="card kpi"><span class="label">Total Pendiente</span><span id="kpiPagoTotalPend" class="value">L 0.00</span></div>
       <div class="card kpi"><span class="label">Total Pagado</span><span id="kpiPagoTotalPag" class="value">L 0.00</span></div>
       
@@ -2633,18 +2634,20 @@ cellClick: (e, cell)=>{
 
 function updatePagoKpis(){
   const rows = pagoTable? pagoTable.getData("active") : [];
-  let pend=0, pag=0, sp=0, sg=0;
+  let pend=0, pag=0, env=0, sp=0, sg=0;
   for(const r of rows){
     const total = Number(r["Total Gastado"] ?? r.Total) || 0;
     if((r.Estado||"")==="Revisada"){ pend++; sp += total; }
-    if((r.Estado||"")==="Pagada"){ pag++; sg += total; }
+    if((r.Estado||"")==="Pagada"){   pag++; sg += total; }
+    if((r.Estado||"")==="Enviada"){  env++; sg += total; } // Enviadas también suman al total pagado
   }
   const fmtMoney = (v)=> "L " + (Number(v)||0).toLocaleString("es-HN",{minimumFractionDigits:2,maximumFractionDigits:2});
   const $ = (sel)=>document.querySelector(sel);
   $("#kpiPagoPendientes").textContent = String(pend);
-  $("#kpiPagoPagadas").textContent = String(pag);
-  $("#kpiPagoTotalPend").textContent = fmtMoney(sp);
-  $("#kpiPagoTotalPag").textContent  = fmtMoney(sg);
+  $("#kpiPagoPagadas").textContent    = String(pag);
+  const envEl = $("#kpiPagoEnviadas"); if(envEl) envEl.textContent = String(env);
+  $("#kpiPagoTotalPend").textContent  = fmtMoney(sp);
+  $("#kpiPagoTotalPag").textContent   = fmtMoney(sg);
 }
 
 function exportPagoXLSX(){
