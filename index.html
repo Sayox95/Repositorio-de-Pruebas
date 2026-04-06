@@ -521,8 +521,8 @@
     <select id="npProceso" class="input"><option value="">Proceso…</option></select>
     <input id="npDesignacion" class="input" placeholder="Designación (Cargo)"/>
     <select id="npEstado" class="input">
-      <option value="Activa">Activa</option>
-      <option value="Inactiva">Inactiva</option>
+      <option value="ACTIVO">Activo</option>
+      <option value="INACTIVO">Inactivo</option>
     </select>
     <button id="btnPlacaGuardar" class="btn btn-primary"><i class="lucide-save"></i> Guardar</button>
     <button id="btnPlacaCancelar" class="btn btn-ghost"><i class="lucide-x"></i> Cancelar</button>
@@ -533,8 +533,8 @@
       <div class="filters" style="grid-template-columns: 180px 180px 1fr 1fr auto">
         <select id="fPlacasEstado">
           <option value="">Estado</option>
-          <option value="Activa">Activa</option>
-          <option value="Inactiva">Inactiva</option>
+          <option value="ACTIVO">Activo</option>
+          <option value="INACTIVO">Inactivo</option>
         </select>
         
         <select id="fPlacasSector"><option value="">Sector</option></select>
@@ -1431,6 +1431,7 @@ function exportXLSX(){
     "ID Pago":             r.ID_PAGO             || "",
     "Marca":               r.Marca               || "",
     "Modelo":              r.Modelo              || "",
+    "Enlace PDF":          r["Enlace PDF"]        || r.EnlacePDF || "",
   }));
 
   const wb = XLSX.utils.book_new();
@@ -1636,7 +1637,7 @@ async function loadProcesosOptions(){
     }
     Placas.data = rows.map(r=>({
       IDvehiculo: r.IDvehiculo || r.Id || "",
-      Estado: r.Estado || r.ESTADO || "Activa",
+      Estado: r.Estado || r.ESTADO || "ACTIVO",
       Placa: r.Placa || r.PLACA || "",
       Sector: r.Sector || r.SECTOR || "",
       Nombre: r.Nombre || r.CONDUCTOR || "",
@@ -1659,8 +1660,8 @@ async function loadProcesosOptions(){
           { title:"ID", field:"IDvehiculo", width:120 },
           { title:"Placa", field:"Placa", width:160, editor:"input", editable:(cell)=>canEditPlaca(cell), cellEdited:onPlacaEdited },
           { title:"Estado", field:"Estado", width:120, formatter:(c)=>{
-              const v = c.getValue() || "Activa";
-              return `<span class="status-pill ${v==="Activa"?"":"disabled"}"><span class="dot" style="background:${v==="Activa"?"#10b981":"#f59e0b"}"></span>${v}</span>`;
+              const v = c.getValue() || "ACTIVO";
+              return `<span class="status-pill ${(v||"").toUpperCase()==="ACTIVO"?"":"disabled"}"><span class="dot" style="background:${v==="Activa"?"#10b981":"#f59e0b"}"></span>${v}</span>`;
             }},
           { title:"Nombre", field:"Nombre" },
           { title:"Sector", field:"Sector", width:140 , editor:"list" , editorParams:function(){ return {values:getUniqueSectors()}; } , cellEdited:onSectorEdited },
@@ -1718,8 +1719,8 @@ const est = (document.getElementById("fPlacasEstado")?.value || "").trim();
 }
 function actualizarKpisPlacas(){
   const total = Placas.filtered.length;
-  const act = Placas.filtered.filter(r=> r.Estado==="Activa").length;
-  const ina = Placas.filtered.filter(r=> r.Estado==="Inactiva").length;
+  const act = Placas.filtered.filter(r=> (r.Estado||"").toUpperCase()==="ACTIVO").length;
+  const ina = Placas.filtered.filter(r=> (r.Estado||"").toUpperCase()==="INACTIVO").length;
   document.getElementById("kpiPlacasTotal").textContent = total;
   document.getElementById("kpiPlacasActivas").textContent = act;
   document.getElementById("kpiPlacasInactivas").textContent = ina;
@@ -1776,7 +1777,7 @@ let placa = document.getElementById("npPlaca").value.trim();
     document.getElementById("npSector").value="";
     document.getElementById("npProceso").value="";
     document.getElementById("npDesignacion").value="";
-    document.getElementById("npEstado").value="Activa";
+    document.getElementById("npEstado").value="ACTIVO";
   }catch(e){
     alert("No fue posible guardar la placa.");
   }finally{ overlay.hide(); }
@@ -2677,6 +2678,7 @@ function exportPagoXLSX(){
     "ID Pago":             r.ID_PAGO             || "",
     "Marca":               r.Marca               || "",
     "Modelo":              r.Modelo              || "",
+    "Enlace PDF":          r["Enlace PDF"]        || r.EnlacePDF || "",
   }));
 
   const wb = XLSX.utils.book_new();
