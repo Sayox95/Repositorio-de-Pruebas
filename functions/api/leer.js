@@ -27,18 +27,40 @@ export async function onRequestGet({ request, env }) {
   const fechaRevHasta = params.get("fechaRevHasta");
   const numeroFactura = params.get("numeroFactura"); // búsqueda por número en historial completo
 
-  // ── Modo otrosCargos: sigue yendo al AppScript ──────────────────────────
+  // ── Modo otrosCargos: leer desde D1 ────────────────────────────────────
   if (otrosCargos) {
-    const url = new URL(APPSCRIPT_URL);
-    url.searchParams.set("otrosCargos", otrosCargos);
-    ids.forEach(id => { if (id) url.searchParams.append("ids", id); });
     try {
-      const resp = await fetch(url.toString());
-      const text = await resp.text();
-      return new Response(text, { status: resp.status, headers: CORS(origin) });
+      if (otrosCargos === "total") {
+        // Total global de otros cargos
+        const { results } = await env.DB
+          .prepare("SELECT SUM(MONTO) as total FROM otros_cargos")
+          .all();
+        const total = (results && results[0] && results[0].total) || 0;
+        return new Response(JSON.stringify({ ok: true, totalOtrosCargos: total }), {
+          status: 200, headers: CORS(origin)
+        });
+
+      } else if (otrosCargos === "byId") {
+        // Totales por ID_PAGO
+        if (!ids.length) {
+          return new Response(JSON.stringify({ ok: true, byId: {} }), {
+            status: 200, headers: CORS(origin)
+          });
+        }
+        const placeholders = ids.map(() => "?").join(", ");
+        const { results } = await env.DB
+          .prepare(`SELECT ID_PAGO, SUM(MONTO) as total FROM otros_cargos WHERE ID_PAGO IN (${placeholders}) GROUP BY ID_PAGO`)
+          .bind(...ids)
+          .all();
+        const byId = {};
+        (results || []).forEach(r => { byId[r.ID_PAGO] = r.total || 0; });
+        return new Response(JSON.stringify({ ok: true, byId }), {
+          status: 200, headers: CORS(origin)
+        });
+      }
     } catch (e) {
       return new Response(JSON.stringify({ status: "ERROR", message: e.message }), {
-        status: 502, headers: CORS(origin)
+        status: 500, headers: CORS(origin)
       });
     }
   }
