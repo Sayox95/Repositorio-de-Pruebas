@@ -3667,6 +3667,18 @@ async function marcarSeleccionComoEnviadas(){
     if(!allPaid){ alert("Solo puedes generar liquidación con facturas en estado Pagada."); return; }
 
     var filas = sel.map(function(r){ return parseInt(r.fila,10); }).filter(Boolean);
+    var facturas = sel.map(function(r){
+      return {
+        fila:           r.fila,
+        Fecha:          r.Fecha    || "",
+        NumeroFactura:  r["Numero de Factura"] || r.NumeroFactura || r["Nº Factura"] || "",
+        NombreComercio: r["Nombre del comercio"] || r.NombreComercio || "",
+        Total:          r.Total    || r.TotalGastado || 0,
+        Placa:          r.Placa    || "",
+        Estado:         r.Estado   || "",
+        ID_PAGO:        r.ID_PAGO  || ""
+      };
+    });
     var headers = {
       noAcreedor: (document.getElementById('liqNoAcreedor')?.value||'').trim(),
       fechaSolicitud: (document.getElementById('liqFechaSolicitud')?.value||'').trim(),
@@ -3675,7 +3687,7 @@ async function marcarSeleccionComoEnviadas(){
       colaborador: (document.getElementById('liqColaborador')?.value||'').trim(),
       motivo: (document.getElementById('liqMotivo')?.value||'').trim()
     };
-    var payload = { accion:'generarLiquidacion', filas: filas, headers: headers };
+    var payload = { accion:'generarLiquidacion', filas: filas, facturas: facturas, headers: headers };
 
     if(window.busy) try{ busy.show('Generando liquidación…'); }catch(_){}
     var popupWin = null;
