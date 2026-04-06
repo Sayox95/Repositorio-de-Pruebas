@@ -2,7 +2,7 @@
 // Cambios de estado y pagos → directo a D1
 // Liquidación → AppScript (necesita plantilla de Sheets)
 
-const APPSCRIPT_URL = "https://script.google.com/macros/s/AKfycbxZ2pIfZy4aJ4NT3xQTHKNjFSEYfSUxiV1aBpgIXIZVthOUYbjbm-mllTQc2ZLkdTL1Ww/exec";
+const APPSCRIPT_URL = "https://script.google.com/macros/s/AKfycbxZ2pIfZy4aJ4NT3xQTHKNjFSEYfSUxiV1aBpgIXIZVthOUYbjbm-mllTQc2ZLkdTL1Ww";
 
 const CORS = (origin) => ({
   "Access-Control-Allow-Origin": origin,
@@ -95,11 +95,14 @@ export async function onRequestPost({ request, env }) {
       const filas     = Array.isArray(bodyJson.filas) ? bodyJson.filas : [];
       const fechaPago = bodyJson.fechaPago ?? null;
       const idPago    = bodyJson.idPago    ?? null;
+      const cargos    = Array.isArray(bodyJson.cargos) ? bodyJson.cargos : [];
       if (!filas.length || !fechaPago) {
         return new Response(JSON.stringify({ ok: false, status: "ERROR", message: "Faltan filas o fechaPago" }), {
           status: 400, headers: CORS(origin)
         });
       }
+
+      // Actualizar estado de facturas
       const stmts = filas.map(fila =>
         env.DB.prepare(
           `UPDATE facturas SET Estado = 'Pagada', FechaPago = ?, ID_PAGO = ? WHERE fila = ?`
@@ -108,7 +111,30 @@ export async function onRequestPost({ request, env }) {
       for (let i = 0; i < stmts.length; i += 50) {
         await env.DB.batch(stmts.slice(i, i + 50));
       }
-      return new Response(JSON.stringify({ ok: true, status: "OK", pagoLote: true, pagadas: filas.length }), {
+
+      // Guardar Otros Cargos en D1
+      let cargosGuardados = 0;
+      if (cargos.length && idPago) {
+        const hoy = new Date().toISOString().slice(0, 10);
+        const cargoStmts = cargos.map(c =>
+          env.DB.prepare(`
+            INSERT INTO otros_cargos (ID_PAGO, MONTO, TIPO, FECHA, COD_TRANSACCION)
+            VALUES (?, ?, ?, ?, ?)
+          `).bind(
+            idPago,
+            Number(c.monto) || 0,
+            (c.tipo   || "").trim() || null,
+            (c.fecha  || fechaPago || hoy),
+            (c.codigo || "").trim() || null
+          )
+        );
+        for (let i = 0; i < cargoStmts.length; i += 50) {
+          await env.DB.batch(cargoStmts.slice(i, i + 50));
+        }
+        cargosGuardados = cargos.length;
+      }
+
+      return new Response(JSON.stringify({ ok: true, status: "OK", pagoLote: true, pagadas: filas.length, cargos: cargosGuardados }), {
         status: 200, headers: CORS(origin)
       });
     }
