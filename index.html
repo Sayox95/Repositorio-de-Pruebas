@@ -521,8 +521,8 @@
     <select id="npProceso" class="input"><option value="">Proceso…</option></select>
     <input id="npDesignacion" class="input" placeholder="Designación (Cargo)"/>
     <select id="npEstado" class="input">
-      <option value="Activa">Activa</option>
-      <option value="Inactiva">Inactiva</option>
+      <option value="ACTIVO">Activo</option>
+      <option value="INACTIVO">Inactivo</option>
     </select>
     <button id="btnPlacaGuardar" class="btn btn-primary"><i class="lucide-save"></i> Guardar</button>
     <button id="btnPlacaCancelar" class="btn btn-ghost"><i class="lucide-x"></i> Cancelar</button>
@@ -533,8 +533,8 @@
       <div class="filters" style="grid-template-columns: 180px 180px 1fr 1fr auto">
         <select id="fPlacasEstado">
           <option value="">Estado</option>
-          <option value="Activa">Activa</option>
-          <option value="Inactiva">Inactiva</option>
+          <option value="ACTIVO">Activo</option>
+          <option value="INACTIVO">Inactivo</option>
         </select>
         
         <select id="fPlacasSector"><option value="">Sector</option></select>
@@ -1032,6 +1032,7 @@ function buildTable(){
 
       const cellEl = ev.target.closest(".tabulator-cell");
       if(!cellEl) return;
+      if(window.__viewerMode) return; // viewer no puede cambiar estado
       if(cellEl.getAttribute("tabulator-field") !== "Estado") return;
       // Evitar abrir si la fila está Pagada
       const rowEl = cellEl.closest(".tabulator-row");
@@ -1402,50 +1403,41 @@ function exportXLSX(){
   if(!table) return;
   const fname = `Facturas_UTCD_${new Date().toISOString().slice(0,10)}.xlsx`;
 
-  // Si la tabla está agrupada por colaborador, exportar RESUMEN por colaborador
-  if(typeof isGrouped !== "undefined" && isGrouped && table.getGroups){
-    const groups = table.getGroups() || [];
-    const summary = [];
+  const selData = table.getSelectedData ? table.getSelectedData() : [];
+  const sourceData = selData.length > 0 ? selData : (table.getData ? table.getData("active") : []);
 
-    for(const g of groups){
-      if(!g || !g.getRows) continue;
-      const rows = g.getRows() || [];
-      if(!rows.length) continue;
+  if(!sourceData.length){ alert("No hay filas para exportar."); return; }
 
-      // Tomamos el primer row para obtener el nombre/identidad
-      const d0 = rows[0].getData ? rows[0].getData() : null;
-      const nombreBase = d0 ? (d0.Nombre || d0.Identidad || "") : "";
-      const key = g.getKey ? g.getKey() : "";
-      const nombre = nombreBase || String(key || "Sin nombre");
-
-      const count = rows.length;
-      let total = 0;
-      for(const r of rows){
-        try{
-          const d = r.getData ? r.getData() : null;
-          total += d && d.Total ? Number(d.Total) || 0 : 0;
-        }catch(e){}
-      }
-
-      summary.push({
-        "Colaborador": nombre,
-        "Cantidad de facturas": count,
-        "Total": Number(total.toFixed(2)),
-      });
-    }
-
-    if(summary.length > 0 && typeof XLSX !== "undefined" && XLSX && XLSX.utils){
-      const wb = XLSX.utils.book_new();
-      const ws = XLSX.utils.json_to_sheet(summary);
-      XLSX.utils.book_append_sheet(wb, ws, "Resumen");
-      XLSX.writeFile(wb, fname);
-      return;
-    }
-    // Si algo falla, usamos el export tradicional
+  if(typeof XLSX === "undefined" || !XLSX || !XLSX.utils){
+    table.download("xlsx", fname, { sheetName:"Revisión", rowRange: selData.length > 0 ? "selected" : "active" });
+    return;
   }
 
-  // Export tradicional: todas las filas activas con sus columnas
-  table.download("xlsx", fname, { sheetName:"Revisión", rowRange:"active" });
+  const rows = sourceData.map(r => ({
+    "Sector":              r.Sector              || "",
+    "Placa":               r.Placa               || "",
+    "Proceso":             r.Proceso             || "",
+    "Nombre":              r.Nombre              || "",
+    "Identidad":           r.Identidad           || "",
+    "Total Gastado":       r.Total               || r.TotalGastado || 0,
+    "Litros Consumidos":   r["Litros Consumidos"] || r.LitrosConsumidos || "",
+    "Fecha":               r.Fecha               || "",
+    "Fecha de Revisión":   r.FechaRevision        || "",
+    "Nombre del comercio": r["Nombre del comercio"] || r.NombreComercio || "",
+    "Número de Factura":   r["Numero de Factura"] || r.NumeroFactura || "",
+    "Km Actual":           r["Km Actual"]         || r.KmActual || "",
+    "Estado":              r.Estado              || "",
+    "Fecha de Pago":       r.FechaPago           || "",
+    "ID Pago":             r.ID_PAGO             || "",
+    "Marca":               r.Marca               || "",
+    "Modelo":              r.Modelo              || "",
+    "Enlace PDF":          r["Enlace PDF"]        || r.EnlacePDF || "",
+  }));
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.json_to_sheet(rows);
+  XLSX.utils.book_append_sheet(wb, ws, "Facturas");
+  XLSX.writeFile(wb, fname);
 }
 
 /** =========================
@@ -1645,7 +1637,7 @@ async function loadProcesosOptions(){
     }
     Placas.data = rows.map(r=>({
       IDvehiculo: r.IDvehiculo || r.Id || "",
-      Estado: r.Estado || r.ESTADO || "Activa",
+      Estado: r.Estado || r.ESTADO || "ACTIVO",
       Placa: r.Placa || r.PLACA || "",
       Sector: r.Sector || r.SECTOR || "",
       Nombre: r.Nombre || r.CONDUCTOR || "",
@@ -1668,8 +1660,8 @@ async function loadProcesosOptions(){
           { title:"ID", field:"IDvehiculo", width:120 },
           { title:"Placa", field:"Placa", width:160, editor:"input", editable:(cell)=>canEditPlaca(cell), cellEdited:onPlacaEdited },
           { title:"Estado", field:"Estado", width:120, formatter:(c)=>{
-              const v = c.getValue() || "Activa";
-              return `<span class="status-pill ${v==="Activa"?"":"disabled"}"><span class="dot" style="background:${v==="Activa"?"#10b981":"#f59e0b"}"></span>${v}</span>`;
+              const v = c.getValue() || "ACTIVO";
+              return `<span class="status-pill ${(v||"").toUpperCase()==="ACTIVO"?"":"disabled"}"><span class="dot" style="background:${v==="Activa"?"#10b981":"#f59e0b"}"></span>${v}</span>`;
             }},
           { title:"Nombre", field:"Nombre" },
           { title:"Sector", field:"Sector", width:140 , editor:"list" , editorParams:function(){ return {values:getUniqueSectors()}; } , cellEdited:onSectorEdited },
@@ -1727,8 +1719,8 @@ const est = (document.getElementById("fPlacasEstado")?.value || "").trim();
 }
 function actualizarKpisPlacas(){
   const total = Placas.filtered.length;
-  const act = Placas.filtered.filter(r=> r.Estado==="Activa").length;
-  const ina = Placas.filtered.filter(r=> r.Estado==="Inactiva").length;
+  const act = Placas.filtered.filter(r=> (r.Estado||"").toUpperCase()==="ACTIVO").length;
+  const ina = Placas.filtered.filter(r=> (r.Estado||"").toUpperCase()==="INACTIVO").length;
   document.getElementById("kpiPlacasTotal").textContent = total;
   document.getElementById("kpiPlacasActivas").textContent = act;
   document.getElementById("kpiPlacasInactivas").textContent = ina;
@@ -1785,7 +1777,7 @@ let placa = document.getElementById("npPlaca").value.trim();
     document.getElementById("npSector").value="";
     document.getElementById("npProceso").value="";
     document.getElementById("npDesignacion").value="";
-    document.getElementById("npEstado").value="Activa";
+    document.getElementById("npEstado").value="ACTIVO";
   }catch(e){
     alert("No fue posible guardar la placa.");
   }finally{ overlay.hide(); }
@@ -2372,8 +2364,28 @@ async function authMe(){
 }
 async function authLogout(){ try{ await fetch(Auth.logout, { method:"POST" }); } catch (e){} }
 
+// Rol global del usuario autenticado
+window.userRol = "admin";
+
+function applyRolRestrictions(rol){
+  window.userRol = rol || "admin";
+  if(rol === "viewer"){
+    // Solo mostrar sección Revisión en el sidebar
+    document.querySelectorAll('.nav-btn[href="#pago"], .nav-btn[href="#placas"], .nav-btn[href="#anticipos"]').forEach(el => el.style.display = "none");
+    // Ocultar botones de acción en Revisión
+    const hideIds = ["btnRevMarcarRevisadas","btnDescargar"];
+    hideIds.forEach(id => { const el = document.getElementById(id); if(el) el.style.display = "none"; });
+    // Deshabilitar cambio de estado en celdas
+    window.__viewerMode = true;
+  }
+}
+
 function showLogin(){ const app=document.getElementById("appShell"); if(app) app.style.display="none"; const s=document.getElementById("secLogin"); if(s) s.style.display="flex"; }
-function showApp(){ const s=document.getElementById("secLogin"); if(s) s.style.display="none"; const app=document.getElementById("appShell"); if(app) app.style.display="block"; }
+function showApp(me){ 
+  const s=document.getElementById("secLogin"); if(s) s.style.display="none"; 
+  const app=document.getElementById("appShell"); if(app) app.style.display="block";
+  if(me && me.rol) applyRolRestrictions(me.rol);
+}
 
 // Login button + Enter key
 (function wireLoginUI(){
@@ -2387,8 +2399,8 @@ function showApp(){ const s=document.getElementById("secLogin"); if(s) s.style.d
     if(!user || !pass){ if(err){ err.textContent="Ingrese usuario y contraseña."; err.style.display="inline"; } return; }
     try{
       btn.disabled = true;
-      await authLogin(user, pass);
-      showApp();
+      const meData = await authLogin(user, pass);
+      showApp(meData);
       try{ navigateTo('inicio'); } catch (e){}
     }catch(e){
       if(err){ err.textContent = "Credenciales inválidas o usuario inactivo."; err.style.display = "inline"; }
@@ -2404,7 +2416,7 @@ function showApp(){ const s=document.getElementById("secLogin"); if(s) s.style.d
 // Session check on load
 (async function(){
   const me = await authMe();
-  if(me && me.usuario){ showApp(); } else { showLogin(); }
+  if(me && me.usuario){ showApp(me); } else { showLogin(); }
 })();
 
 async function doLogout(){ await authLogout(); showLogin(); }
@@ -2639,53 +2651,40 @@ function exportPagoXLSX(){
   if(!pagoTable) return;
   const fname = `Pago_UTCD_${new Date().toISOString().slice(0,10)}.xlsx`;
 
-  // Si está agrupado por colaborador, exportar RESUMEN por colaborador
-  if(typeof pagoGroupMode !== "undefined" && pagoGroupMode === "colaborador" && pagoTable.getGroups){
-    const groups = pagoTable.getGroups() || [];
-    const summary = [];
+  const selData = pagoTable.getSelectedData ? pagoTable.getSelectedData() : [];
+  const sourceData = selData.length > 0 ? selData : (pagoTable.getData ? pagoTable.getData("active") : []);
 
-    for(const g of groups){
-      if(!g || !g.getRows) continue;
-      const rows = g.getRows() || [];
-      if(!rows.length) continue;
+  if(!sourceData.length){ alert("No hay filas para exportar."); return; }
 
-      // Tomamos el primer row para obtener el nombre/identidad
-      const d0 = rows[0].getData ? rows[0].getData() : null;
-      const nombreBase = d0 ? (d0.Nombre || d0.Identidad || "") : "";
-      const key = g.getKey ? g.getKey() : "";
-      const nombre = nombreBase || String(key || "Sin nombre");
-
-      const count = rows.length;
-      let total = 0;
-      for(const r of rows){
-        try{
-          const d = r.getData ? r.getData() : null;
-          if(!d) continue;
-          const rawTotal = (d["Total Gastado"] !== undefined && d["Total Gastado"] !== null) ? d["Total Gastado"] : d.Total;
-          const v = rawTotal !== undefined && rawTotal !== null ? Number(rawTotal) : 0;
-          if(!isNaN(v)) total += v;
-        }catch(e){}
-      }
-
-      summary.push({
-        "Colaborador": nombre,
-        "Cantidad de facturas": count,
-        "Total": Number(total.toFixed(2)),
-      });
-    }
-
-    if(summary.length > 0 && typeof XLSX !== "undefined" && XLSX && XLSX.utils){
-      const wb = XLSX.utils.book_new();
-      const ws = XLSX.utils.json_to_sheet(summary);
-      XLSX.utils.book_append_sheet(wb, ws, "Resumen Pago");
-      XLSX.writeFile(wb, fname);
-      return;
-    }
-    // Si algo falla, usamos el export tradicional
+  if(typeof XLSX === "undefined" || !XLSX || !XLSX.utils){
+    pagoTable.download("xlsx", fname, { sheetName:"Pago", rowRange: selData.length > 0 ? "selected" : "active" });
+    return;
   }
 
-  // Export tradicional: todas las filas activas con sus columnas
-  pagoTable.download("xlsx", fname, { sheetName:"Pago", rowRange:"active" });
+  const rows = sourceData.map(r => ({
+    "Sector":              r.Sector              || "",
+    "Placa":               r.Placa               || "",
+    "Proceso":             r.Proceso             || "",
+    "Nombre":              r.Nombre              || "",
+    "Identidad":           r.Identidad           || "",
+    "Total Gastado":       r.Total               || r.TotalGastado || 0,
+    "Litros Consumidos":   r["Litros Consumidos"] || r.LitrosConsumidos || "",
+    "Fecha":               r.Fecha               || "",
+    "Nombre del comercio": r["Nombre del comercio"] || r.NombreComercio || "",
+    "Número de Factura":   r["Numero de Factura"] || r.NumeroFactura || "",
+    "Km Actual":           r["Km Actual"]         || r.KmActual || "",
+    "Estado":              r.Estado              || "",
+    "Fecha de Pago":       r.FechaPago           || "",
+    "ID Pago":             r.ID_PAGO             || "",
+    "Marca":               r.Marca               || "",
+    "Modelo":              r.Modelo              || "",
+    "Enlace PDF":          r["Enlace PDF"]        || r.EnlacePDF || "",
+  }));
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.json_to_sheet(rows);
+  XLSX.utils.book_append_sheet(wb, ws, "Pago");
+  XLSX.writeFile(wb, fname);
 }
 
 
@@ -3228,7 +3227,7 @@ async function confirmarPago(){
 
       // Cerrar modal y refrescar KPI
       const modal = document.getElementById("modalPago"); if(modal) modal.style.display = "none";
-      
+      try{ toast("✅ Pago registrado correctamente."); }catch(_){}
       if(table.deselectRow) table.deselectRow();
       updatePagoButtonVisibility();
       return;
@@ -3263,7 +3262,7 @@ async function confirmarPago(){
     });
 
     const modal = document.getElementById("modalPago"); if(modal) modal.style.display = "none";
-    
+    try{ toast(`✅ ${filas.length} factura(s) pagadas correctamente.`); }catch(_){}
     if(table.deselectRow) table.deselectRow();
     updatePagoButtonVisibility();
 
@@ -3668,18 +3667,6 @@ async function marcarSeleccionComoEnviadas(){
     if(!allPaid){ alert("Solo puedes generar liquidación con facturas en estado Pagada."); return; }
 
     var filas = sel.map(function(r){ return parseInt(r.fila,10); }).filter(Boolean);
-    var facturas = sel.map(function(r){
-      return {
-        fila:           r.fila,
-        Fecha:          r.Fecha    || "",
-        NumeroFactura:  r["Numero de Factura"] || r.NumeroFactura || r["Nº Factura"] || "",
-        NombreComercio: r["Nombre del comercio"] || r.NombreComercio || "",
-        Total:          r.Total    || r.TotalGastado || 0,
-        Placa:          r.Placa    || "",
-        Estado:         r.Estado   || "",
-        ID_PAGO:        r.ID_PAGO  || ""
-      };
-    });
     var headers = {
       noAcreedor: (document.getElementById('liqNoAcreedor')?.value||'').trim(),
       fechaSolicitud: (document.getElementById('liqFechaSolicitud')?.value||'').trim(),
@@ -3688,7 +3675,7 @@ async function marcarSeleccionComoEnviadas(){
       colaborador: (document.getElementById('liqColaborador')?.value||'').trim(),
       motivo: (document.getElementById('liqMotivo')?.value||'').trim()
     };
-    var payload = { accion:'generarLiquidacion', filas: filas, facturas: facturas, headers: headers };
+    var payload = { accion:'generarLiquidacion', filas: filas, headers: headers };
 
     if(window.busy) try{ busy.show('Generando liquidación…'); }catch(_){}
     var popupWin = null;
