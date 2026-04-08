@@ -94,7 +94,13 @@ export async function onRequestGet({ request, env }) {
     }
 
     const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
-    const sql   = `SELECT * FROM facturas ${where} ORDER BY fila ASC`;
+
+    // Sin filtros: no devolver nada para evitar scan completo de la tabla
+    if (!conditions.length) {
+      return new Response(JSON.stringify([]), { status: 200, headers: CORS(origin) });
+    }
+
+    const sql = `SELECT * FROM facturas ${where} ORDER BY fila ASC`;
 
     const { results } = await env.DB.prepare(sql).bind(...bindings).all();
 
