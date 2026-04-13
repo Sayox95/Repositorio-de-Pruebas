@@ -699,6 +699,10 @@ const API = { _facturasCtl:null,
     if(fechaHasta)    url.searchParams.set("fechaHasta",    fechaHasta);
     if(fechaRevDesde) url.searchParams.set("fechaRevDesde", fechaRevDesde);
     if(fechaRevHasta) url.searchParams.set("fechaRevHasta", fechaRevHasta);
+    // Filtro de sectores del usuario — si tiene sectores asignados los manda al backend
+    if(window.userSectores && window.userSectores.length > 0){
+      url.searchParams.set("sectores", window.userSectores.join(","));
+    }
 
     const res = await fetch(url.toString(), {cache:"no-store", mode:"cors", signal: ctl.signal});
     if(!res.ok) throw new Error("No se pudo leer facturas");
@@ -2365,11 +2369,36 @@ async function authMe(){
 }
 async function authLogout(){ try{ await fetch(Auth.logout, { method:"POST" }); } catch (e){} }
 
-// Rol global del usuario autenticado
+// Rol y sectores globales del usuario autenticado
 window.userRol = "admin";
+window.userSectores = []; // [] = acceso a todos los sectores
 
-function applyRolRestrictions(rol){
+function applyRolRestrictions(rol, sectores){
   window.userRol = rol || "admin";
+  window.userSectores = Array.isArray(sectores) && sectores.length ? sectores : [];
+
+  // Si el usuario tiene sectores asignados, pre-filtrar el selector de sector
+  if(window.userSectores.length > 0){
+    // Bloquear selector de sector en revisión y pago
+    setTimeout(function(){
+      try{
+        // Multiselect de sector en revisión
+        const sectorSelects = document.querySelectorAll('[id*="Sector"], [id*="sector"]');
+        sectorSelects.forEach(function(el){
+          if(el && el.tagName === 'SELECT'){
+            // Deshabilitar opciones que no sean del usuario
+            Array.from(el.options).forEach(function(opt){
+              if(opt.value && !window.userSectores.includes(opt.value)){
+                opt.disabled = true;
+                opt.style.display = 'none';
+              }
+            });
+          }
+        });
+      }catch(e){}
+    }, 1500);
+  }
+
   if(rol === "viewer"){
     // Solo mostrar sección Revisión en el sidebar
     document.querySelectorAll('.nav-btn[href="#pago"], .nav-btn[href="#placas"], .nav-btn[href="#anticipos"]').forEach(el => el.style.display = "none");
@@ -2385,7 +2414,7 @@ function showLogin(){ const app=document.getElementById("appShell"); if(app) app
 function showApp(me){ 
   const s=document.getElementById("secLogin"); if(s) s.style.display="none"; 
   const app=document.getElementById("appShell"); if(app) app.style.display="block";
-  if(me && me.rol) applyRolRestrictions(me.rol);
+  if(me && me.rol) applyRolRestrictions(me.rol, me.sectores);
 }
 
 // Login button + Enter key
