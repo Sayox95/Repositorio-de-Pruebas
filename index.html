@@ -2414,6 +2414,8 @@ function showLogin(){ const app=document.getElementById("appShell"); if(app) app
 function showApp(me){ 
   const s=document.getElementById("secLogin"); if(s) s.style.display="none"; 
   const app=document.getElementById("appShell"); if(app) app.style.display="block";
+  // Asignar sectores ANTES de cualquier loadData
+  window.userSectores = (me && Array.isArray(me.sectores) && me.sectores.length) ? me.sectores : [];
   if(me && me.rol) applyRolRestrictions(me.rol, me.sectores);
 }
 
