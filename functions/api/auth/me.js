@@ -4,7 +4,8 @@ export async function onRequest({ request, env }) {
   if (!token) return j({ error: "no_session" }, 401);
   const payload = await verifyJWT(token, env.SESSION_SECRET);
   if (!payload)  return j({ error: "invalid_or_expired" }, 401);
-  return j({ ok:true, usuario: payload.sub, rol: payload.rol || "usuario" });
+  const sectores = Array.isArray(payload.sectores) ? payload.sectores : [];
+  return j({ ok:true, usuario: payload.sub, rol: payload.rol || "usuario", sectores });
 }
 
 function getCookie(cookie, name){
