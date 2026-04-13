@@ -2799,6 +2799,10 @@ if (typeof API !== "undefined") {
     // Filtros por rango de fecha de revision (excluyen filtro de factura en el backend)
     if (opts && opts.fechaRevDesde) url.searchParams.set("fechaRevDesde", opts.fechaRevDesde);
     if (opts && opts.fechaRevHasta) url.searchParams.set("fechaRevHasta", opts.fechaRevHasta);
+    // Filtro de sectores del usuario
+    if (window.userSectores && window.userSectores.length > 0) {
+      url.searchParams.set("sectores", window.userSectores.join(","));
+    }
 
     const res = await fetch(url.toString(), { cache:"no-store", mode:"cors", signal: ctl.signal });
     if(!res.ok) throw new Error("No se pudo leer facturas");
