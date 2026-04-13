@@ -22,7 +22,7 @@ export async function onRequest({ request, env }) {
   let user = null;
   try {
     const { results } = await env.DB
-      .prepare("SELECT usuario, hash, salt, rol, activo, intentos FROM usuarios WHERE usuario = ? LIMIT 1")
+      .prepare("SELECT usuario, hash, salt, rol, activo, intentos, sectores FROM usuarios WHERE usuario = ? LIMIT 1")
       .bind(usuario)
       .all();
     user = results && results.length > 0 ? results[0] : null;
@@ -51,10 +51,11 @@ export async function onRequest({ request, env }) {
     .bind(now, usuario).run().catch(() => {});
 
   const nowTs   = Math.floor(Date.now() / 1000);
-  const payload = { sub: user.usuario, rol: user.rol || "usuario", iat: nowTs, exp: nowTs + 60*60*24*7 };
+  const sectores = user.sectores ? user.sectores.split(",").map(s => s.trim()).filter(Boolean) : [];
+  const payload = { sub: user.usuario, rol: user.rol || "usuario", sectores, iat: nowTs, exp: nowTs + 60*60*24*7 };
   const token   = await signJWT(payload, env.SESSION_SECRET);
 
-  return new Response(JSON.stringify({ ok: true, usuario: user.usuario, rol: user.rol }), {
+  return new Response(JSON.stringify({ ok: true, usuario: user.usuario, rol: user.rol, sectores }), {
     headers: {
       "Content-Type": "application/json",
       "Set-Cookie": `utcd_session=${token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${60*60*24*7}`
