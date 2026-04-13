@@ -1300,6 +1300,10 @@ function initFilters(){
           const base = Config?.api?.leerFacturas || "/api/leer";
           const url = new URL(base, location.origin);
           url.searchParams.set("numeroFactura", q);
+          // Filtro de sectores en búsqueda de historial
+          if (window.userSectores && window.userSectores.length > 0) {
+            url.searchParams.set("sectores", window.userSectores.join(","));
+          }
           const res = await fetch(url.toString(), { cache: "no-store", mode: "cors" });
           if (!res.ok) throw new Error("Error al buscar");
           const data = await res.json();
