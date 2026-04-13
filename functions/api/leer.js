@@ -19,6 +19,7 @@ export async function onRequestGet({ request, env }) {
   const otrosCargos   = params.get("otrosCargos");
   const ids           = params.getAll("ids");
   const estados       = params.get("estados");
+  const sectoresParam = params.get("sectores"); // filtro de sectores por usuario
   const fechaDesde    = params.get("fechaDesde") || null;
   // Si fechaHasta está vacío pero fechaDesde tiene valor, usar fechaDesde como fechaHasta
   const _fechaHastaRaw = params.get("fechaHasta") || null;
@@ -91,6 +92,16 @@ export async function onRequestGet({ request, env }) {
       const placeholders = estadosArr.map(() => "?").join(", ");
       conditions.push(`Estado IN (${placeholders})`);
       estadosArr.forEach(s => bindings.push(s));
+    }
+
+    // Filtro de sectores del usuario — solo muestra sus sectores asignados
+    if (sectoresParam) {
+      const sectoresArr = sectoresParam.split(",").map(s => s.trim()).filter(Boolean);
+      if (sectoresArr.length > 0) {
+        const placeholders = sectoresArr.map(() => "?").join(", ");
+        conditions.push(`Sector IN (${placeholders})`);
+        sectoresArr.forEach(s => bindings.push(s));
+      }
     }
 
     const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
