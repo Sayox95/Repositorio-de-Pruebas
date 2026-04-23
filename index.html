@@ -366,12 +366,12 @@
           <span id="kpiRevisadas" class="value">0</span>
         </div>
         <div class="card kpi">
-          <span class="label">Anuladas</span>
-          <span id="kpiAnuladas" class="value">0</span>
-        </div>
-        <div class="card kpi">
           <span class="label">Pagadas</span>
           <span id="kpiPagadas" class="value">0</span>
+        </div>
+        <div class="card kpi">
+          <span class="label">Anuladas</span>
+          <span id="kpiAnuladas" class="value" style="color:#C0392B;">0</span>
         </div>
       </div>
 
@@ -389,12 +389,12 @@
           <span id="kpiMontoRevisadas" class="value">L 0.00</span>
         </div>
         <div class="card kpi">
-          <span class="label">L Anuladas</span>
-          <span id="kpiMontoAnuladas" class="value">L 0.00</span>
-        </div>
-        <div class="card kpi">
           <span class="label">L Pagadas (Pag + Env)</span>
           <span id="kpiMontoPagadas" class="value">L 0.00</span>
+        </div>
+        <div class="card kpi">
+          <span class="label">L Anuladas</span>
+          <span id="kpiMontoAnuladas" class="value" style="color:#C0392B;">L 0.00</span>
         </div>
       </div>
 
@@ -1189,17 +1189,18 @@ function updateButtons(){
 function updateKpis(){
   const rows = table? table.getData("active") : [];
   const fmt  = (v) => "L " + (Number(v)||0).toLocaleString("es-HN",{minimumFractionDigits:2,maximumFractionDigits:2});
-  const total       = rows.length;
-  const registradas = rows.filter(r=> (r.Estado||"") === "Registrada").length;
-  const revisadas   = rows.filter(r=> (r.Estado||"") === "Revisada").length;
-  const pagadas     = rows.filter(r=> (r.Estado||"") === "Pagada").length;
   const anuladas    = rows.filter(r=> (r.Estado||"") === "Anulada").length;
+  const rowsSinAnuladas = rows.filter(r=> (r.Estado||"") !== "Anulada");
+  const total       = rowsSinAnuladas.length;
+  const registradas = rowsSinAnuladas.filter(r=> (r.Estado||"") === "Registrada").length;
+  const revisadas   = rowsSinAnuladas.filter(r=> (r.Estado||"") === "Revisada").length;
+  const pagadas     = rowsSinAnuladas.filter(r=> (r.Estado||"") === "Pagada").length;
   const getTotal    = (r) => Number(r["Total Gastado"] ?? r.Total ?? r.TotalGastado) || 0;
-  const montoTotal       = rows.reduce((a,r) => a + getTotal(r), 0);
-  const montoRegistradas = rows.filter(r=> (r.Estado||"")==="Registrada").reduce((a,r) => a + getTotal(r), 0);
-  const montoRevisadas   = rows.filter(r=> (r.Estado||"")==="Revisada").reduce((a,r) => a + getTotal(r), 0);
+  const montoTotal       = rowsSinAnuladas.reduce((a,r) => a + getTotal(r), 0);
+  const montoRegistradas = rowsSinAnuladas.filter(r=> (r.Estado||"")==="Registrada").reduce((a,r) => a + getTotal(r), 0);
+  const montoRevisadas   = rowsSinAnuladas.filter(r=> (r.Estado||"")==="Revisada").reduce((a,r) => a + getTotal(r), 0);
   const montoAnuladas    = rows.filter(r=> (r.Estado||"")==="Anulada").reduce((a,r) => a + getTotal(r), 0);
-  const montoPagadas     = rows.filter(r=> ["Pagada","Enviada"].includes(r.Estado||"")).reduce((a,r) => a + getTotal(r), 0);
+  const montoPagadas     = rowsSinAnuladas.filter(r=> ["Pagada","Enviada"].includes(r.Estado||"")).reduce((a,r) => a + getTotal(r), 0);
   const $=id=>document.getElementById(id);
   if($("kpiTotal"))            $("kpiTotal").textContent            = total;
   if($("kpiRegistradas"))      $("kpiRegistradas").textContent      = registradas;
