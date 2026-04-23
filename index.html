@@ -352,7 +352,7 @@
         <span style="font-size:0.78rem;color:var(--muted,#888);">Para ver otras fechas utilizar el filtro de Rango de Fecha</span>
       </div>
 
-      <div class="grid cols-4">
+      <div style="display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:10px; margin-bottom:10px;">
         <div class="card kpi">
           <span class="label">Total Facturas</span>
           <span id="kpiTotal" class="value">0</span>
@@ -375,7 +375,7 @@
         </div>
       </div>
 
-      <div class="grid cols-4" style="margin-top:10px;">
+      <div style="display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:10px;">
         <div class="card kpi">
           <span class="label">Total Gastado</span>
           <span id="kpiTotalGastado" class="value">L 0.00</span>
@@ -389,7 +389,11 @@
           <span id="kpiMontoRevisadas" class="value">L 0.00</span>
         </div>
         <div class="card kpi">
-          <span class="label">L Pagadas + Enviadas</span>
+          <span class="label">L Anuladas</span>
+          <span id="kpiMontoAnuladas" class="value">L 0.00</span>
+        </div>
+        <div class="card kpi">
+          <span class="label">L Pagadas (Pag + Env)</span>
           <span id="kpiMontoPagadas" class="value">L 0.00</span>
         </div>
       </div>
@@ -1194,6 +1198,7 @@ function updateKpis(){
   const montoTotal       = rows.reduce((a,r) => a + getTotal(r), 0);
   const montoRegistradas = rows.filter(r=> (r.Estado||"")==="Registrada").reduce((a,r) => a + getTotal(r), 0);
   const montoRevisadas   = rows.filter(r=> (r.Estado||"")==="Revisada").reduce((a,r) => a + getTotal(r), 0);
+  const montoAnuladas    = rows.filter(r=> (r.Estado||"")==="Anulada").reduce((a,r) => a + getTotal(r), 0);
   const montoPagadas     = rows.filter(r=> ["Pagada","Enviada"].includes(r.Estado||"")).reduce((a,r) => a + getTotal(r), 0);
   const $=id=>document.getElementById(id);
   if($("kpiTotal"))            $("kpiTotal").textContent            = total;
@@ -1204,6 +1209,7 @@ function updateKpis(){
   if($("kpiTotalGastado"))     $("kpiTotalGastado").textContent     = fmt(montoTotal);
   if($("kpiMontoRegistradas")) $("kpiMontoRegistradas").textContent = fmt(montoRegistradas);
   if($("kpiMontoRevisadas"))   $("kpiMontoRevisadas").textContent   = fmt(montoRevisadas);
+  if($("kpiMontoAnuladas"))    $("kpiMontoAnuladas").textContent    = fmt(montoAnuladas);
   if($("kpiMontoPagadas"))     $("kpiMontoPagadas").textContent     = fmt(montoPagadas);
   updateButtons();
   try{ updateKpisRevRange(); } catch (e){}
