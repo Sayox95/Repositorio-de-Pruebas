@@ -1185,30 +1185,26 @@ function updateButtons(){
 function updateKpis(){
   const rows = table? table.getData("active") : [];
   const fmt  = (v) => "L " + (Number(v)||0).toLocaleString("es-HN",{minimumFractionDigits:2,maximumFractionDigits:2});
-  const total      = rows.length;
-  const registradas= rows.filter(r=> (r.Estado||"") === "Registrada").length;
-  const revisadas  = rows.filter(r=> (r.Estado||"") === "Revisada").length;
-  const pagadas    = rows.filter(r=> (r.Estado||"") === "Pagada").length;
-  const anuladas   = rows.filter(r=> (r.Estado||"") === "Anulada").length;
-
-  // Montos
-  const getTotal = (r) => Number(r["Total Gastado"] ?? r.Total ?? r.TotalGastado) || 0;
-  const montoTotal      = rows.reduce((a,r) => a + getTotal(r), 0);
-  const montoRegistradas= rows.filter(r=> (r.Estado||"")==="Registrada").reduce((a,r) => a + getTotal(r), 0);
-  const montoRevisadas  = rows.filter(r=> (r.Estado||"")==="Revisada").reduce((a,r) => a + getTotal(r), 0);
-  const montoPagadas    = rows.filter(r=> ["Pagada","Enviada"].includes(r.Estado||"")).reduce((a,r) => a + getTotal(r), 0);
-
+  const total       = rows.length;
+  const registradas = rows.filter(r=> (r.Estado||"") === "Registrada").length;
+  const revisadas   = rows.filter(r=> (r.Estado||"") === "Revisada").length;
+  const pagadas     = rows.filter(r=> (r.Estado||"") === "Pagada").length;
+  const anuladas    = rows.filter(r=> (r.Estado||"") === "Anulada").length;
+  const getTotal    = (r) => Number(r["Total Gastado"] ?? r.Total ?? r.TotalGastado) || 0;
+  const montoTotal       = rows.reduce((a,r) => a + getTotal(r), 0);
+  const montoRegistradas = rows.filter(r=> (r.Estado||"")==="Registrada").reduce((a,r) => a + getTotal(r), 0);
+  const montoRevisadas   = rows.filter(r=> (r.Estado||"")==="Revisada").reduce((a,r) => a + getTotal(r), 0);
+  const montoPagadas     = rows.filter(r=> ["Pagada","Enviada"].includes(r.Estado||"")).reduce((a,r) => a + getTotal(r), 0);
   const $=id=>document.getElementById(id);
-  if($("kpiTotal"))            $("kpiTotal").textContent           = total;
-  if($("kpiRegistradas"))      $("kpiRegistradas").textContent     = registradas;
-  if($("kpiRevisadas"))        $("kpiRevisadas").textContent       = revisadas;
-  if($("kpiPagadas"))          $("kpiPagadas").textContent         = pagadas;
-  if($("kpiAnuladas"))         $("kpiAnuladas").textContent        = anuladas;
-  if($("kpiTotalGastado"))     $("kpiTotalGastado").textContent    = fmt(montoTotal);
-  if($("kpiMontoRegistradas")) $("kpiMontoRegistradas").textContent= fmt(montoRegistradas);
-  if($("kpiMontoRevisadas"))   $("kpiMontoRevisadas").textContent  = fmt(montoRevisadas);
-  if($("kpiMontoPagadas"))     $("kpiMontoPagadas").textContent    = fmt(montoPagadas);
-
+  if($("kpiTotal"))            $("kpiTotal").textContent            = total;
+  if($("kpiRegistradas"))      $("kpiRegistradas").textContent      = registradas;
+  if($("kpiRevisadas"))        $("kpiRevisadas").textContent        = revisadas;
+  if($("kpiPagadas"))          $("kpiPagadas").textContent          = pagadas;
+  if($("kpiAnuladas"))         $("kpiAnuladas").textContent         = anuladas;
+  if($("kpiTotalGastado"))     $("kpiTotalGastado").textContent     = fmt(montoTotal);
+  if($("kpiMontoRegistradas")) $("kpiMontoRegistradas").textContent = fmt(montoRegistradas);
+  if($("kpiMontoRevisadas"))   $("kpiMontoRevisadas").textContent   = fmt(montoRevisadas);
+  if($("kpiMontoPagadas"))     $("kpiMontoPagadas").textContent     = fmt(montoPagadas);
   updateButtons();
   try{ updateKpisRevRange(); } catch (e){}
 }
