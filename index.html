@@ -2808,9 +2808,8 @@ function togglePagoGrouping(){
   pagoGroupMode = "colaborador";
   pagoGrouped = true;
 
-  // Activamos la agrupación por Identidad y luego el header por defecto
+  // Activamos la agrupación por Identidad
   table.setGroupBy(["Identidad"]);
-  table.setGroupHeader(window.pagoGroupHeaderDefault || null);
 
   const bCol = document.getElementById("btnPagoAgrupar");
   if(bCol) bCol.innerHTML = '<i class="lucide-layers-2"></i> Desagrupar';
@@ -3458,17 +3457,22 @@ async function fetchOtrosCargos(ids){
     catch (e){ return (v || 0).toFixed(2); }
   }
 
-  async function applyPagoGroupingById(){
+  let __idpagoGroupApplied = false;
+
+  async function applyPagoGroupingById(forceRegroup){
     const table = getPagoTable();
     if(!table) return;
-     // <-- asegura la columna antes de agrupar
 
     if(pagoGroupById){
       const rows = table.getData("active") || [];
       const ids = Array.from(new Set(rows.map(r => String(r.ID_PAGO || "").trim()).filter(Boolean)));
       await fetchOtrosCargos(ids);
 
-      table.setGroupBy(["ID_PAGO"]);
+      // Solo llamar setGroupBy si no está ya aplicado
+      if(!__idpagoGroupApplied || forceRegroup){
+        table.setGroupBy(["ID_PAGO"]);
+        __idpagoGroupApplied = true;
+      }
       hideGroupToast();
       table.setGroupHeader(function(value, count, data){
         const id = (value && String(value).trim()) || "(sin ID_PAGO)";
@@ -3485,7 +3489,7 @@ async function fetchOtrosCargos(ids){
       const btn = document.getElementById("btnPagoAgruparId");
       if(btn) btn.innerHTML = '<i class="lucide-layers-2"></i> Desagrupar ID_PAGO';
     }else{
-      // Desagrupamos (no se necesita header si no hay grupos)
+      __idpagoGroupApplied = false;
       table.setGroupBy(false);
       hideGroupToast();
       const btn = document.getElementById("btnPagoAgruparId");
@@ -3508,6 +3512,7 @@ async function fetchOtrosCargos(ids){
     // Entramos a modo ID_PAGO → apagamos colaborador si estaba activo
     pagoGroupMode = "idpago";
     pagoGroupById = true;
+    __idpagoGroupApplied = false; // forzar reagrupación al activar
 
     try{
       if(typeof window.pagoGrouped !== "undefined"){
@@ -3553,7 +3558,6 @@ async function fetchOtrosCargos(ids){
       handleGroupCheckboxClicks();
       // Reaplicar agrupación tras filtros/updates si está activo
       if(!t.__idpago_hooked){
-        t.on("dataProcessed", function(){ if(pagoGroupById) applyPagoGroupingById(); });
         t.on("dataFiltered",  function(){ if(pagoGroupById) applyPagoGroupingById(); });
         t.__idpago_hooked = true;
       }
