@@ -2639,24 +2639,40 @@ function buildPagoTable(){
               <span class="kpi-mini">L ${totalTxt}</span>`;  };
   window.pagoGroupHeaderDefault = defaultPagoGroupHeader;
 
+  // groupHeader dinámico según modo agrupación — se define aquí para evitar setGroupHeader dinámico
+  function _pagoGroupHeaderFn(value, count, data){
+    const isIdPago = pagoGroupMode === "idpago";
+    if(isIdPago){
+      const id = (value && String(value).trim()) || "(sin ID_PAGO)";
+      const subtotal = (data || []).reduce((acc, r) => acc + (Number(r.Total) || 0), 0);
+      const otros = Number((typeof otrosCargosById !== "undefined" ? otrosCargosById[id] : 0) || 0);
+      const total = subtotal + otros;
+      const safeKey = id.replace(/"/g,'&quot;');
+      return `<label class="group-toggle">
+                <input type="checkbox" class="group-select-idpago" data-idpago="${safeKey}">
+                <span>${id} (${count}) · L ${fmtMoneyHN(subtotal)} + otros cargos L ${fmtMoneyHN(otros)} · Total = L ${fmtMoneyHN(total)}</span>
+              </label>`;
+    } else {
+      const nombre = (data && data[0] && (data[0].Nombre||data[0].Identidad)) || value;
+      const proceso = (data && data[0] && data[0].Proceso) ? String(data[0].Proceso) : "";
+      const suma = (data||[]).reduce((acc,r)=> acc + (Number(r.Total)||0), 0);
+      const totalTxt = new Intl.NumberFormat("es-HN",{minimumFractionDigits:2, maximumFractionDigits:2}).format(suma);
+      const key = String(value ?? "").replace(/"/g,"&quot;");
+      const labelTxt = `${nombre} (${count})${proceso ? " - " + proceso : ""}`;
+      return `<label class="group-toggle">
+                <input type="checkbox" class="group-select-pago" data-group-key="${key}">
+                <span>${labelTxt}</span>
+              </label>
+              <span class="kpi-mini">L ${totalTxt}</span>`;
+    }
+  }
+
   pagoTable = new Tabulator("#tablaPago", { index: "fila", 
     height: (typeof Config!=="undefined" && Config.tablaHeight) ? Config.tablaHeight : "900px",
     data: [], layout: "fitColumns", selectable: true, placeholder: "Sin datos",
     reactiveData:false,
     groupStartOpen:false,
-    groupHeader:function(value, count, data, group){
-      const nombre = (data && data[0] && (data[0].Nombre||data[0].Identidad)) || value;
-      
-      const proceso = (data && data[0] && data[0].Proceso) ? String(data[0].Proceso) : "";const suma = (data||[]).reduce((acc,r)=> acc + (Number(r.Total)||0), 0);
-      const totalTxt = new Intl.NumberFormat("es-HN",{minimumFractionDigits:2, maximumFractionDigits:2}).format(suma);
-      const key = String(value ?? "").replace(/"/g,"&quot;");
-      
-      const labelTxt = `${nombre} (${count})${proceso ? " - " + proceso : ""}`;return `<label class="group-toggle">
-                <input type="checkbox" class="group-select-pago" data-group-key="${key}">
-                <span>${labelTxt}</span>
-              </label>
-              <span class="kpi-mini">L ${totalTxt}</span>`;
-    },
+    groupHeader: _pagoGroupHeaderFn,
     
     columns: [
       { formatter:"rowSelection", titleFormatter:"rowSelection", hozAlign:"center", headerSort:false, width:40 },
@@ -3471,28 +3487,16 @@ async function fetchOtrosCargos(ids){
       const ids = Array.from(new Set(rows.map(r => String(r.ID_PAGO || "").trim()).filter(Boolean)));
       await fetchOtrosCargos(ids);
 
-      // Solo reagrupar si aún no está aplicado o se fuerza
+      // Solo llamar setGroupBy si aún no está aplicado o se fuerza — evita reset de scroll
       if(!__pagoGroupByIdApplied || forceRegroup){
         table.setGroupBy(["ID_PAGO"]);
         __pagoGroupByIdApplied = true;
+        // Restaurar scroll después de reagrupar
+        setTimeout(()=>{ if(holder) holder.scrollTop = savedScroll; }, 80);
       }
       hideGroupToast();
-      table.setGroupHeader(function(value, count, data){
-        const id = (value && String(value).trim()) || "(sin ID_PAGO)";
-        const subtotal = (data || []).reduce((acc, r) => acc + (Number(r.Total) || 0), 0);
-        const otros = Number(otrosCargosById[id] || 0);
-        const total = subtotal + otros;
-        const label = `${id} (${count}) · L ${fmtMoneyHN(subtotal)} + otros cargos L ${fmtMoneyHN(otros)} · Total = L ${fmtMoneyHN(total)}`;
-        const safeKey = id.replace(/"/g,'&quot;');
-        return `<label class="group-toggle">
-                  <input type="checkbox" class="group-select-idpago" data-idpago="${safeKey}">
-                  <span>${label}</span>
-                </label>`;
-      });
       const btn = document.getElementById("btnPagoAgruparId");
       if(btn) btn.innerHTML = '<i class="lucide-layers-2"></i> Desagrupar ID_PAGO';
-      // Restaurar scroll solo si ya estaba aplicada la agrupación
-      if(savedScroll > 0) setTimeout(()=>{ if(holder) holder.scrollTop = savedScroll; }, 50);
     }else{
       __pagoGroupByIdApplied = false;
       // Desagrupamos (no se necesita header si no hay grupos)
