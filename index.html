@@ -2642,7 +2642,6 @@ function buildPagoTable(){
   pagoTable = new Tabulator("#tablaPago", { index: "fila", 
     height: (typeof Config!=="undefined" && Config.tablaHeight) ? Config.tablaHeight : "900px",
     data: [], layout: "fitColumns", selectable: true, placeholder: "Sin datos",
-    reactiveData:false,
     groupStartOpen:false,
     groupHeader:function(value, count, data, group){
       const nombre = (data && data[0] && (data[0].Nombre||data[0].Identidad)) || value;
@@ -2808,11 +2807,8 @@ function togglePagoGrouping(){
   pagoGrouped = true;
 
   // Activamos la agrupación por Identidad y luego el header por defecto
-  const _holder3 = document.querySelector("#tablaPago .tabulator-tableholder");
-  const _scroll3 = _holder3 ? _holder3.scrollTop : 0;
   table.setGroupBy(["Identidad"]);
   table.setGroupHeader(window.pagoGroupHeaderDefault || null);
-  if(_holder3 && _scroll3 > 0) setTimeout(function(){ _holder3.scrollTop = _scroll3; }, 50);
 
   const bCol = document.getElementById("btnPagoAgrupar");
   if(bCol) bCol.innerHTML = '<i class="lucide-layers-2"></i> Desagrupar';
@@ -3463,18 +3459,7 @@ async function fetchOtrosCargos(ids){
   async function applyPagoGroupingById(){
     const table = getPagoTable();
     if(!table) return;
-
-    // Preservar posición de scroll antes de cualquier operación que cause re-render
-    const holder = document.querySelector("#tablaPago .tabulator-tableholder");
-    const savedScroll = holder ? holder.scrollTop : 0;
-    // Bloquear el scroll reset durante el re-render
-    let scrollLocked = false;
-    if(holder && savedScroll > 0){
-      scrollLocked = true;
-      const lockFn = function(){ holder.scrollTop = savedScroll; };
-      holder.addEventListener("scroll", lockFn, { once: true, passive: false });
-      setTimeout(function(){ holder.removeEventListener("scroll", lockFn); scrollLocked = false; }, 500);
-    }
+     // <-- asegura la columna antes de agrupar
 
     if(pagoGroupById){
       const rows = table.getData("active") || [];
