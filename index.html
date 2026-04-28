@@ -2642,6 +2642,7 @@ function buildPagoTable(){
   pagoTable = new Tabulator("#tablaPago", { index: "fila", 
     height: (typeof Config!=="undefined" && Config.tablaHeight) ? Config.tablaHeight : "900px",
     data: [], layout: "fitColumns", selectable: true, placeholder: "Sin datos",
+    reactiveData:false,
     groupStartOpen:false,
     groupHeader:function(value, count, data, group){
       const nombre = (data && data[0] && (data[0].Nombre||data[0].Identidad)) || value;
