@@ -982,6 +982,7 @@ function buildTable(){
     selectable:true,
     pagination:false,
     reactiveData:false,
+    renderVertical:"basic",
     groupStartOpen:false,
     groupHeader:function(value, count, data, group){
       // value = Identidad
@@ -2642,6 +2643,9 @@ function buildPagoTable(){
   pagoTable = new Tabulator("#tablaPago", { index: "fila", 
     height: (typeof Config!=="undefined" && Config.tablaHeight) ? Config.tablaHeight : "900px",
     data: [], layout: "fitColumns", selectable: true, placeholder: "Sin datos",
+    pagination:false,
+    reactiveData:false,
+    renderVertical:"basic",
     groupStartOpen:false,
     groupHeader:function(value, count, data, group){
       const nombre = (data && data[0] && (data[0].Nombre||data[0].Identidad)) || value;
@@ -3549,13 +3553,10 @@ async function fetchOtrosCargos(ids){
     if(t && btn){
       btn.addEventListener("click", togglePagoGroupingById);
       handleGroupCheckboxClicks();
-      // NOTA: se eliminaron los listeners dataProcessed/dataFiltered que re-ejecutaban
-      // setGroupBy/setGroupHeader en cada evento de datos. Esas llamadas reconstruían
-      // el DOM de grupos desde cero y reseteaban el scrollTop del tableholder.
-      // La agrupación por ID_PAGO se activa una sola vez al hacer clic en el botón
-      // (togglePagoGroupingById → applyPagoGroupingById), y Tabulator mantiene
-      // la agrupación activa aunque se reemplacen los datos con replaceData().
+      // Reaplicar agrupación tras filtros/updates si está activo
       if(!t.__idpago_hooked){
+        t.on("dataProcessed", function(){ if(pagoGroupById) applyPagoGroupingById(); });
+        t.on("dataFiltered",  function(){ if(pagoGroupById) applyPagoGroupingById(); });
         t.__idpago_hooked = true;
       }
       return true;
