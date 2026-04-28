@@ -3557,6 +3557,8 @@ async function fetchOtrosCargos(ids){
       handleGroupCheckboxClicks();
       // Reaplicar agrupación tras filtros/updates si está activo
       if(!t.__idpago_hooked){
+        t.on("dataProcessed", function(){ if(pagoGroupById) applyPagoGroupingById(); });
+        t.on("dataProcessed", function(){ if(pagoGroupById) applyPagoGroupingById(); });
         t.on("dataFiltered",  function(){ if(pagoGroupById) applyPagoGroupingById(); });
         t.__idpago_hooked = true;
       }
