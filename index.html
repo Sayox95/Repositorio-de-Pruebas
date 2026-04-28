@@ -2781,6 +2781,22 @@ function clearPagoFilters(){
   applyPagoFilters();
 }
 
+/** Preserva la posición del scroll del tableholder de Pago
+ *  mientras Tabulator reconstruye grupos (setGroupBy / setGroupHeader). */
+function preservePagoScroll(fn){
+  const root   = document.getElementById("tablaPago");
+  const holder = root ? root.querySelector(".tabulator-tableholder") : null;
+  const top    = holder ? holder.scrollTop  : 0;
+  const left   = holder ? holder.scrollLeft : 0;
+  fn();
+  if(holder){
+    requestAnimationFrame(function(){
+      holder.scrollTop  = top;
+      holder.scrollLeft = left;
+    });
+  }
+}
+
 function togglePagoGrouping(){
   if(!pagoTable) return;
   const table = pagoTable;
@@ -2790,8 +2806,8 @@ function togglePagoGrouping(){
     pagoGroupMode = "none";
     pagoGrouped = false;
 
-    // Quitamos agrupación
-    table.setGroupBy(false);
+    // Quitamos agrupación preservando scroll
+    preservePagoScroll(function(){ table.setGroupBy(false); });
 
     const bCol = document.getElementById("btnPagoAgrupar");
     if(bCol) bCol.innerHTML = '<i class="lucide-layers-2"></i> Agrupar por colaborador';
@@ -2806,9 +2822,11 @@ function togglePagoGrouping(){
   pagoGroupMode = "colaborador";
   pagoGrouped = true;
 
-  // Activamos la agrupación por Identidad y luego el header por defecto
-  table.setGroupBy(["Identidad"]);
-  table.setGroupHeader(window.pagoGroupHeaderDefault || null);
+  // Activamos la agrupación preservando scroll
+  preservePagoScroll(function(){
+    table.setGroupBy(["Identidad"]);
+    table.setGroupHeader(window.pagoGroupHeaderDefault || null);
+  });
 
   const bCol = document.getElementById("btnPagoAgrupar");
   if(bCol) bCol.innerHTML = '<i class="lucide-layers-2"></i> Desagrupar';
@@ -3466,25 +3484,27 @@ async function fetchOtrosCargos(ids){
       const ids = Array.from(new Set(rows.map(r => String(r.ID_PAGO || "").trim()).filter(Boolean)));
       await fetchOtrosCargos(ids);
 
-      table.setGroupBy(["ID_PAGO"]);
-      hideGroupToast();
-      table.setGroupHeader(function(value, count, data){
-        const id = (value && String(value).trim()) || "(sin ID_PAGO)";
-        const subtotal = (data || []).reduce((acc, r) => acc + (Number(r.Total) || 0), 0);
-        const otros = Number(otrosCargosById[id] || 0);
-        const total = subtotal + otros;
-        const label = `${id} (${count}) · L ${fmtMoneyHN(subtotal)} + otros cargos L ${fmtMoneyHN(otros)} · Total = L ${fmtMoneyHN(total)}`;
-        const safeKey = id.replace(/"/g,'&quot;');
-        return `<label class="group-toggle">
-                  <input type="checkbox" class="group-select-idpago" data-idpago="${safeKey}">
-                  <span>${label}</span>
-                </label>`;
+      preservePagoScroll(function(){
+        table.setGroupBy(["ID_PAGO"]);
+        hideGroupToast();
+        table.setGroupHeader(function(value, count, data){
+          const id = (value && String(value).trim()) || "(sin ID_PAGO)";
+          const subtotal = (data || []).reduce((acc, r) => acc + (Number(r.Total) || 0), 0);
+          const otros = Number(otrosCargosById[id] || 0);
+          const total = subtotal + otros;
+          const label = `${id} (${count}) · L ${fmtMoneyHN(subtotal)} + otros cargos L ${fmtMoneyHN(otros)} · Total = L ${fmtMoneyHN(total)}`;
+          const safeKey = id.replace(/"/g,'&quot;');
+          return `<label class="group-toggle">
+                    <input type="checkbox" class="group-select-idpago" data-idpago="${safeKey}">
+                    <span>${label}</span>
+                  </label>`;
+        });
       });
       const btn = document.getElementById("btnPagoAgruparId");
       if(btn) btn.innerHTML = '<i class="lucide-layers-2"></i> Desagrupar ID_PAGO';
     }else{
-      // Desagrupamos (no se necesita header si no hay grupos)
-      table.setGroupBy(false);
+      // Desagrupamos preservando scroll
+      preservePagoScroll(function(){ table.setGroupBy(false); });
       hideGroupToast();
       const btn = document.getElementById("btnPagoAgruparId");
       if(btn) btn.innerHTML = '<i class="lucide-layers-2"></i> Agrupar por ID_PAGO';
