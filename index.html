@@ -3459,7 +3459,10 @@ async function fetchOtrosCargos(ids){
   async function applyPagoGroupingById(){
     const table = getPagoTable();
     if(!table) return;
-     // <-- asegura la columna antes de agrupar
+
+    // Guardar posición scroll antes de reagrupar
+    const holder = document.querySelector("#tablaPago .tabulator-tableholder");
+    const savedScroll = holder ? holder.scrollTop : 0;
 
     if(pagoGroupById){
       const rows = table.getData("active") || [];
@@ -3482,6 +3485,8 @@ async function fetchOtrosCargos(ids){
       });
       const btn = document.getElementById("btnPagoAgruparId");
       if(btn) btn.innerHTML = '<i class="lucide-layers-2"></i> Desagrupar ID_PAGO';
+      // Restaurar posición scroll
+      setTimeout(()=>{ if(holder) holder.scrollTop = savedScroll; }, 50);
     }else{
       // Desagrupamos (no se necesita header si no hay grupos)
       table.setGroupBy(false);
@@ -3551,7 +3556,6 @@ async function fetchOtrosCargos(ids){
       handleGroupCheckboxClicks();
       // Reaplicar agrupación tras filtros/updates si está activo
       if(!t.__idpago_hooked){
-        t.on("dataProcessed", function(){ if(pagoGroupById) applyPagoGroupingById(); });
         t.on("dataFiltered",  function(){ if(pagoGroupById) applyPagoGroupingById(); });
         t.__idpago_hooked = true;
       }
