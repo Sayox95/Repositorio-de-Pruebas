@@ -982,6 +982,7 @@ function buildTable(){
     selectable:true,
     pagination:false,
     reactiveData:false,
+    renderVerticalBuffer: 600,
     groupStartOpen:false,
     groupHeader:function(value, count, data, group){
       // value = Identidad
@@ -1051,23 +1052,6 @@ function buildTable(){
     rowSelectionChanged:()=>{ updateButtons(); },
   });
   table.on("tableBuilt", ()=>{
-    // Preservar scroll al expandir/colapsar grupos
-    (function(){
-      const root = document.getElementById("tablaRevision");
-      var _savedScroll = null;
-      root.addEventListener("click", function(ev){
-        if(ev.target.closest(".tabulator-group")){
-          const holder = root.querySelector(".tabulator-tableholder");
-          _savedScroll = holder ? holder.scrollTop : null;
-        }
-      }, true);
-      table.on("groupVisibilityChanged", function(){
-        if(_savedScroll === null) return;
-        const holder = root.querySelector(".tabulator-tableholder");
-        if(holder){ var s = _savedScroll; _savedScroll = null; requestAnimationFrame(function(){ holder.scrollTop = s; }); }
-      });
-    })();
-
     // Fallback: delegado por si el cellClick no se dispara en algunos navegadores
     const root = document.getElementById("tablaRevision");
     root.addEventListener("click", (ev)=>{
@@ -2659,6 +2643,7 @@ function buildPagoTable(){
   pagoTable = new Tabulator("#tablaPago", { index: "fila", 
     height: (typeof Config!=="undefined" && Config.tablaHeight) ? Config.tablaHeight : "900px",
     data: [], layout: "fitColumns", selectable: true, placeholder: "Sin datos",
+    renderVerticalBuffer: 600,
     groupStartOpen:false,
     groupHeader:function(value, count, data, group){
       const nombre = (data && data[0] && (data[0].Nombre||data[0].Identidad)) || value;
@@ -2724,22 +2709,6 @@ cellClick: (e, cell)=>{
       pagoPendingData = null;
       updatePagoKpis();
     }
-    // Preservar scroll al expandir/colapsar grupos
-    (function(){
-      const root = document.getElementById("tablaPago");
-      var _savedScroll = null;
-      root.addEventListener("click", function(ev){
-        if(ev.target.closest(".tabulator-group")){
-          const holder = root.querySelector(".tabulator-tableholder");
-          _savedScroll = holder ? holder.scrollTop : null;
-        }
-      }, true);
-      pagoTable.on("groupVisibilityChanged", function(){
-        if(_savedScroll === null) return;
-        const holder = root.querySelector(".tabulator-tableholder");
-        if(holder){ var s = _savedScroll; _savedScroll = null; requestAnimationFrame(function(){ holder.scrollTop = s; }); }
-      });
-    })();
   });
 }
 
