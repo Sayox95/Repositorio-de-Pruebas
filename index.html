@@ -80,11 +80,7 @@
     /* Main */
     .main{
       padding:22px 24px;
-      overflow:hidden;
-      height:100vh;
-      box-sizing:border-box;
-      display:flex;
-      flex-direction:column;
+      overflow:auto;
     }
     .toolbar{
       display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:16px;
@@ -133,9 +129,7 @@
     }
     .input:focus, select:focus{ outline:2px solid var(--ring); outline-offset:2px}
     .choices.is-open .choices__inner{ border-color: var(--ring); box-shadow: 0 0 0 2px var(--ring); }
-    .table-wrap{ margin-top:8px; flex:1; min-height:0; display:flex; flex-direction:column; }
-    .table-wrap .tabulator{ flex:1; min-height:0; }
-    section { display:flex; flex-direction:column; flex:1; min-height:0; overflow:hidden; }
+    .table-wrap{ margin-top:8px }
     .tabulator{ border-radius:14px; border:1px solid #e5e7eb }
     .muted{ color:var(--muted) }
 
@@ -334,7 +328,7 @@
     </aside>
 
     <main class="main">
-  <section id="secInicio" style="display:flex;">
+  <section id="secInicio" style="display:block;">
     <div style="display:flex;align-items:center;justify-content:center;height:60vh;flex-direction:column;gap:12px;">
       <div style="font-size:42px;opacity:.85;">¡Bienvenido!</div>
       <div style="opacity:.7;">Selecciona una sección en el menú para comenzar.</div>
@@ -611,8 +605,39 @@ const Config = {
     proxyBase: "https://repositorio-de-pruebas.pages.dev/api",
       placas: "/api/placas",
 },
-  tablaHeight: "100%",
+  tablaHeight: "600px", // valor inicial, se recalcula dinámicamente
 };
+
+// Calcula la altura óptima de la tabla en función del espacio disponible en la ventana
+function calcTablaHeight(){
+  // viewport height menos el padding del main (22px top + 22px bottom) menos un margen de seguridad
+  const mainPad = 44;
+  const safetyMargin = 16;
+
+  // Intenta medir el espacio real disponible sobre el table-wrap activo
+  const activeWrap = document.querySelector("section[style*='display:block'] .table-wrap, section[style*='display:flex'] .table-wrap");
+  if(activeWrap){
+    const rect = activeWrap.getBoundingClientRect();
+    const available = window.innerHeight - rect.top - safetyMargin;
+    return Math.max(300, Math.floor(available)) + "px";
+  }
+  // Fallback: viewport menos estimado de header (~280px en revision, ~240px en pago)
+  return Math.max(300, window.innerHeight - mainPad - 280 - safetyMargin) + "px";
+}
+
+function applyTablaHeight(){
+  const h = calcTablaHeight();
+  if(window.table && typeof window.table.setHeight === "function"){
+    try{ window.table.setHeight(h); } catch(e){}
+  }
+  if(window.pagoTable && typeof window.pagoTable.setHeight === "function"){
+    try{ window.pagoTable.setHeight(h); } catch(e){}
+  }
+  Config.tablaHeight = h;
+}
+
+window.addEventListener("resize", applyTablaHeight);
+
 
 /** =========================
  *  Utilidades de UI
@@ -1057,6 +1082,8 @@ function buildTable(){
     rowSelectionChanged:()=>{ updateButtons(); },
   });
   table.on("tableBuilt", ()=>{
+    tableBuilt = true;
+    requestAnimationFrame(function(){ requestAnimationFrame(applyTablaHeight); });
     // Fallback: delegado por si el cellClick no se dispara en algunos navegadores
     const root = document.getElementById("tablaRevision");
     root.addEventListener("click", (ev)=>{
@@ -1588,7 +1615,7 @@ function toggleGrouping(){
 function showOnly(sectionId){
   document.querySelectorAll('main > section').forEach(s => s.style.display='none');
   const tgt = document.getElementById(sectionId);
-  if(tgt) tgt.style.display = 'flex';
+  if(tgt) tgt.style.display = 'block';
   document.querySelectorAll('.sidebar .nav-btn').forEach(a=>a.classList.remove('active'));
   const map = {secRevision:'#revision', secPago:'#pago', secAnticipos:'#anticipos', secPlacas:'#placas', secInicio:'#inicio'};
   const sel = map[sectionId]; if(sel){
@@ -1600,6 +1627,8 @@ async function navigateTo(sectionId, loader){
   try{
     showOnly(sectionId);
     if(typeof loader === 'function'){ await loader(); }
+    // Recalcular altura de tabla tras mostrar la sección y cargar datos
+    requestAnimationFrame(function(){ requestAnimationFrame(applyTablaHeight); });
   }finally{
     }
 }
@@ -2646,7 +2675,7 @@ function buildPagoTable(){
   window.pagoGroupHeaderDefault = defaultPagoGroupHeader;
 
   pagoTable = new Tabulator("#tablaPago", { index: "fila", 
-    height: (typeof Config!=="undefined" && Config.tablaHeight) ? Config.tablaHeight : "100%",
+    height: (typeof Config!=="undefined" && Config.tablaHeight) ? Config.tablaHeight : "900px",
     data: [], layout: "fitColumns", selectable: true, placeholder: "Sin datos",
     groupStartOpen:false,
     groupHeader:function(value, count, data, group){
@@ -2708,6 +2737,7 @@ cellClick: (e, cell)=>{
 
   pagoTable.on("tableBuilt", function(){
     pagoTableReady = true;
+    requestAnimationFrame(function(){ requestAnimationFrame(applyTablaHeight); });
     if(pagoPendingData){
       try{ pagoTable.replaceData(pagoPendingData); } catch (e){}
       pagoPendingData = null;
