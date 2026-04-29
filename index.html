@@ -1599,6 +1599,10 @@ async function navigateTo(sectionId, loader){
   try{
     showOnly(sectionId);
     if(typeof loader === 'function'){ await loader(); }
+    // Recalcular altura tras mostrar la sección (el table-wrap ya tiene posición real)
+    requestAnimationFrame(function(){
+      if(typeof applyHeights === "function") applyHeights();
+    });
   }finally{
     }
 }
@@ -4154,6 +4158,64 @@ async function marcarSeleccionComoEnviadas(){
     }catch(e){ /* silent */ }
   });
 })();
+</script>
+
+<script>
+// ===== Altura adaptiva de tabla (se adapta al zoom del navegador) =====
+(function(){
+  var BOTTOM_MARGIN = 12; // px de margen en la parte inferior
+
+  function getTableHeight(wrapEl){
+    var rect = wrapEl.getBoundingClientRect();
+    var available = window.innerHeight - rect.top - BOTTOM_MARGIN;
+    return Math.max(200, Math.floor(available)) + "px";
+  }
+
+  function applyHeights(){
+    // Revisión
+    var revWrap = document.querySelector("#secRevision .table-wrap");
+    if(revWrap && window.table && typeof window.table.setHeight === "function"){
+      try{ window.table.setHeight(getTableHeight(revWrap)); }catch(e){}
+    }
+    // Pago
+    var pagoWrap = document.querySelector("#secPago .table-wrap");
+    if(pagoWrap && window.pagoTable && typeof window.pagoTable.setHeight === "function"){
+      try{ window.pagoTable.setHeight(getTableHeight(pagoWrap)); }catch(e){}
+    }
+  }
+
+  // Aplicar en resize y en cambio de zoom (devicePixelRatio cambia con el zoom)
+  window.applyHeights = applyHeights;
+  var lastDPR = window.devicePixelRatio;
+  window.addEventListener("resize", function(){
+    applyHeights();
+    lastDPR = window.devicePixelRatio;
+  });
+
+  // Polling liviano para detectar cambio de zoom sin resize event
+  setInterval(function(){
+    if(window.devicePixelRatio !== lastDPR){
+      lastDPR = window.devicePixelRatio;
+      applyHeights();
+    }
+  }, 300);
+
+  // Aplicar cuando las tablas terminen de construirse
+  function waitAndApply(attempts){
+    var revReady = window.table && typeof window.table.setHeight === "function";
+    var pagoReady = window.pagoTable && typeof window.pagoTable.setHeight === "function";
+    if(revReady || pagoReady){
+      applyHeights();
+    }
+    if((!revReady || !pagoReady) && (attempts||0) < 60){
+      setTimeout(function(){ waitAndApply((attempts||0)+1); }, 500);
+    }
+  }
+  document.addEventListener("DOMContentLoaded", function(){
+    setTimeout(function(){ waitAndApply(); }, 800);
+  });
+})();
+// ===== Fin altura adaptiva =====
 </script>
 </body>
 </html>
