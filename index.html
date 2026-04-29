@@ -1563,39 +1563,15 @@ function setLastUpdatedNow(){
 }
 
 let isGrouped = false;
-
-// Calcula el pageSize seguro basado en la altura real del tableholder
-// Se llama DESPUÉS de adjustWrap para que el wrap ya tenga la altura correcta
-function calcSafePageSize(tableInstance){
-  try{
-    var holder = tableInstance.element && tableInstance.element.querySelector(".tabulator-tableholder");
-    // Si el tableholder aún no tiene altura, usar el wrap directamente
-    var h = (holder && holder.clientHeight > 0) ? holder.clientHeight : 0;
-    if(!h){
-      var wrap = tableInstance.element && tableInstance.element.closest(".table-wrap");
-      h = wrap ? wrap.clientHeight : 600;
-    }
-    var groupRowH = 46; // altura de un group header colapsado en px
-    var fits = Math.floor(h / groupRowH);
-    // Guardamos margen de 2 grupos para que nunca haya scroll virtual
-    return Math.max(5, fits - 2);
-  } catch(e){ return 20; }
-}
-
 function toggleGrouping(){
   if(!table) return;
   isGrouped = !isGrouped;
   if(isGrouped){
-    // Primero asegurar que el table-wrap tiene la altura correcta
-    if(typeof window.adjustTableHeights === "function") window.adjustTableHeights();
-    requestAnimationFrame(function(){
-      var ps = calcSafePageSize(table);
-      table.setPageSize(ps);
-      table.setPage(1);
-      table.setGroupBy(["Identidad"]);
-      var btn = document.getElementById("btnAgrupar");
-      if(btn) btn.innerHTML = '<i class="lucide-layers-2"></i> Desagrupar';
-    });
+    table.setPageSize(30);
+    table.setPage(1);
+    table.setGroupBy(["Identidad"]);
+    const btn = document.getElementById("btnAgrupar");
+    if(btn) btn.innerHTML = '<i class="lucide-layers-2"></i> Desagrupar';
   }else{
     table.setGroupBy(false);
     table.setPageSize(99999);
@@ -2852,20 +2828,16 @@ function togglePagoGrouping(){
   // Vamos a entrar a modo "colaborador"
   pagoGroupMode = "colaborador";
   pagoGrouped = true;
+  table.setPageSize(30);
+  table.setPage(1);
+  table.setGroupBy(["Identidad"]);
+  table.setGroupHeader(window.pagoGroupHeaderDefault || null);
 
-  if(typeof window.adjustTableHeights === "function") window.adjustTableHeights();
-  requestAnimationFrame(function(){
-    var ps = calcSafePageSize(table);
-    table.setPageSize(ps);
-    table.setPage(1);
-    table.setGroupBy(["Identidad"]);
-    table.setGroupHeader(window.pagoGroupHeaderDefault || null);
+  const bCol = document.getElementById("btnPagoAgrupar");
+  if(bCol) bCol.innerHTML = '<i class="lucide-layers-2"></i> Desagrupar';
 
-    const bCol = document.getElementById("btnPagoAgrupar");
-    if(bCol) bCol.innerHTML = '<i class="lucide-layers-2"></i> Desagrupar';
-    const bId = document.getElementById("btnPagoAgruparId");
-    if(bId) bId.innerHTML = '<i class="lucide-layers-2"></i> Agrupar por ID_PAGO';
-  });
+  const bId = document.getElementById("btnPagoAgruparId");
+  if(bId) bId.innerHTML = '<i class="lucide-layers-2"></i> Agrupar por ID_PAGO';
 }
 
 // ——— API: extender getFacturas(opts) y pagarFacturas ———
@@ -3517,9 +3489,7 @@ async function fetchOtrosCargos(ids){
       const ids = Array.from(new Set(rows.map(r => String(r.ID_PAGO || "").trim()).filter(Boolean)));
       await fetchOtrosCargos(ids);
 
-      if(typeof window.adjustTableHeights === "function") window.adjustTableHeights();
-      await new Promise(function(r){ requestAnimationFrame(r); });
-      table.setPageSize(calcSafePageSize(table));
+      table.setPageSize(30);
       table.setPage(1);
       table.setGroupBy(["ID_PAGO"]);
       hideGroupToast();
@@ -4220,15 +4190,6 @@ async function marcarSeleccionComoEnviadas(){
     if(window.devicePixelRatio !== lastDPR){
       lastDPR = window.devicePixelRatio;
       adjustAll();
-      // Recalcular pageSize si hay agrupación activa
-      requestAnimationFrame(function(){
-        if(window.isGrouped && window.table){
-          try{ window.table.setPageSize(calcSafePageSize(window.table)); window.table.setPage(1); }catch(e){}
-        }
-        if(window.pagoGroupMode && window.pagoGroupMode !== "none" && window.pagoTable){
-          try{ window.pagoTable.setPageSize(calcSafePageSize(window.pagoTable)); window.pagoTable.setPage(1); }catch(e){}
-        }
-      });
     }
   }, 250);
 
