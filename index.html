@@ -980,7 +980,9 @@ function buildTable(){
     layout:"fitColumns",
     placeholder:"Sin datos",
     selectable:true,
-    pagination:false,
+    pagination:"local",
+    paginationSize: 99999,
+    paginationSizeSelector: false,
     reactiveData:false,
     groupStartOpen:false,
     groupHeader:function(value, count, data, group){
@@ -1051,31 +1053,6 @@ function buildTable(){
     rowSelectionChanged:()=>{ updateButtons(); },
   });
   table.on("tableBuilt", ()=>{
-    // Patch: evitar que _virtualRenderFill fuerce scrollTop durante scroll normal con grupos activos
-    // El "big scroll path" en scrollRows calcula posición con rows.length que excluye group headers,
-    // causando un salto incorrecto. Lo parcheamos para preservar el scrollTop del usuario.
-    (function(){
-      var renderer = table.rowManager && table.rowManager.renderer;
-      if(!renderer || typeof renderer.scrollRows !== "function") return;
-      var origScrollRows = renderer.scrollRows.bind(renderer);
-      renderer.scrollRows = function(top, dir){
-        var holder = renderer.elementVertical;
-        var margin = renderer.vDomWindowBuffer * 2;
-        var topDiff = top - renderer.vDomScrollPosTop;
-        var bottomDiff = top - renderer.vDomScrollPosBottom;
-        var isBigScroll = (-topDiff > margin || bottomDiff > margin);
-        if(isBigScroll){
-          // Guardamos el scrollTop real del usuario antes del fill
-          var realTop = holder ? holder.scrollTop : top;
-          origScrollRows(top, dir);
-          // Restauramos inmediatamente después para evitar el jump
-          if(holder) holder.scrollTop = realTop;
-        } else {
-          origScrollRows(top, dir);
-        }
-      };
-    })();
-
     // Fallback: delegado por si el cellClick no se dispara en algunos navegadores
     const root = document.getElementById("tablaRevision");
     root.addEventListener("click", (ev)=>{
@@ -1590,12 +1567,15 @@ function toggleGrouping(){
   if(!table) return;
   isGrouped = !isGrouped;
   if(isGrouped){
+    table.setPageSize(50);
+    table.setPage(1);
     table.setGroupBy(["Identidad"]);
     const btn = document.getElementById("btnAgrupar");
     if(btn) btn.innerHTML = '<i class="lucide-layers-2"></i> Desagrupar';
   }else{
     table.setGroupBy(false);
-      hideGroupToast();
+    table.setPageSize(99999);
+    hideGroupToast();
     const btn = document.getElementById("btnAgrupar");
     if(btn) btn.innerHTML = '<i class="lucide-layers-2"></i> Agrupar por colaborador';
   }
@@ -2667,6 +2647,9 @@ function buildPagoTable(){
   pagoTable = new Tabulator("#tablaPago", { index: "fila", 
     height: (typeof Config!=="undefined" && Config.tablaHeight) ? Config.tablaHeight : "900px",
     data: [], layout: "fitColumns", selectable: true, placeholder: "Sin datos",
+    pagination:"local",
+    paginationSize: 99999,
+    paginationSizeSelector: false,
     groupStartOpen:false,
     groupHeader:function(value, count, data, group){
       const nombre = (data && data[0] && (data[0].Nombre||data[0].Identidad)) || value;
@@ -2732,26 +2715,6 @@ cellClick: (e, cell)=>{
       pagoPendingData = null;
       updatePagoKpis();
     }
-    // Patch: evitar que _virtualRenderFill fuerce scrollTop durante scroll normal con grupos activos
-    (function(){
-      var renderer = pagoTable.rowManager && pagoTable.rowManager.renderer;
-      if(!renderer || typeof renderer.scrollRows !== "function") return;
-      var origScrollRows = renderer.scrollRows.bind(renderer);
-      renderer.scrollRows = function(top, dir){
-        var holder = renderer.elementVertical;
-        var margin = renderer.vDomWindowBuffer * 2;
-        var topDiff = top - renderer.vDomScrollPosTop;
-        var bottomDiff = top - renderer.vDomScrollPosBottom;
-        var isBigScroll = (-topDiff > margin || bottomDiff > margin);
-        if(isBigScroll){
-          var realTop = holder ? holder.scrollTop : top;
-          origScrollRows(top, dir);
-          if(holder) holder.scrollTop = realTop;
-        } else {
-          origScrollRows(top, dir);
-        }
-      };
-    })();
   });
 }
 
@@ -2826,6 +2789,22 @@ function clearPagoFilters(){
   applyPagoFilters();
 }
 
+/** Preserva la posición del scroll del tableholder de Pago
+ *  mientras Tabulator reconstruye grupos (setGroupBy / setGroupHeader). */
+function preservePagoScroll(fn){
+  const root   = document.getElementById("tablaPago");
+  const holder = root ? root.querySelector(".tabulator-tableholder") : null;
+  const top    = holder ? holder.scrollTop  : 0;
+  const left   = holder ? holder.scrollLeft : 0;
+  fn();
+  if(holder){
+    requestAnimationFrame(function(){
+      holder.scrollTop  = top;
+      holder.scrollLeft = left;
+    });
+  }
+}
+
 function togglePagoGrouping(){
   if(!pagoTable) return;
   const table = pagoTable;
@@ -2834,24 +2813,20 @@ function togglePagoGrouping(){
   if(pagoGroupMode === "colaborador"){
     pagoGroupMode = "none";
     pagoGrouped = false;
-
-    // Quitamos agrupación
     table.setGroupBy(false);
-
+    table.setPageSize(99999);
     const bCol = document.getElementById("btnPagoAgrupar");
     if(bCol) bCol.innerHTML = '<i class="lucide-layers-2"></i> Agrupar por colaborador';
-
     const bId = document.getElementById("btnPagoAgruparId");
     if(bId) bId.innerHTML = '<i class="lucide-layers-2"></i> Agrupar por ID_PAGO';
-
     return;
   }
 
   // Vamos a entrar a modo "colaborador"
   pagoGroupMode = "colaborador";
   pagoGrouped = true;
-
-  // Activamos la agrupación por Identidad y luego el header por defecto
+  table.setPageSize(50);
+  table.setPage(1);
   table.setGroupBy(["Identidad"]);
   table.setGroupHeader(window.pagoGroupHeaderDefault || null);
 
@@ -3511,6 +3486,8 @@ async function fetchOtrosCargos(ids){
       const ids = Array.from(new Set(rows.map(r => String(r.ID_PAGO || "").trim()).filter(Boolean)));
       await fetchOtrosCargos(ids);
 
+      table.setPageSize(50);
+      table.setPage(1);
       table.setGroupBy(["ID_PAGO"]);
       hideGroupToast();
       table.setGroupHeader(function(value, count, data){
@@ -3528,8 +3505,8 @@ async function fetchOtrosCargos(ids){
       const btn = document.getElementById("btnPagoAgruparId");
       if(btn) btn.innerHTML = '<i class="lucide-layers-2"></i> Desagrupar ID_PAGO';
     }else{
-      // Desagrupamos (no se necesita header si no hay grupos)
       table.setGroupBy(false);
+      table.setPageSize(99999);
       hideGroupToast();
       const btn = document.getElementById("btnPagoAgruparId");
       if(btn) btn.innerHTML = '<i class="lucide-layers-2"></i> Agrupar por ID_PAGO';
