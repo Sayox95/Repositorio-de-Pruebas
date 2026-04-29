@@ -982,7 +982,6 @@ function buildTable(){
     selectable:true,
     pagination:false,
     reactiveData:false,
-    renderVertical:"basic",
     groupStartOpen:false,
     groupHeader:function(value, count, data, group){
       // value = Identidad
@@ -2643,7 +2642,6 @@ function buildPagoTable(){
   pagoTable = new Tabulator("#tablaPago", { index: "fila", 
     height: (typeof Config!=="undefined" && Config.tablaHeight) ? Config.tablaHeight : "900px",
     data: [], layout: "fitColumns", selectable: true, placeholder: "Sin datos",
-    renderVertical:"basic",
     groupStartOpen:false,
     groupHeader:function(value, count, data, group){
       const nombre = (data && data[0] && (data[0].Nombre||data[0].Identidad)) || value;
