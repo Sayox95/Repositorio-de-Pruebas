@@ -2399,60 +2399,58 @@ window.addEventListener("DOMContentLoaded", bootstrap);
 </div>
 
 <script>
-// ===== DIAGNÓSTICO SCROLL =====
-// Abre la consola del navegador (F12) y reproduce el problema.
-// Los logs mostrarán exactamente qué está reseteando el scroll.
+// ===== DIAGNÓSTICO SCROLL v3 =====
 (function(){
+  var _userScrolling = false;
+  var _userScrollTimer = null;
+
   function installScrollDiag(tableId){
     var root = document.getElementById(tableId);
     if(!root) return;
     var holder = root.querySelector(".tabulator-tableholder");
     if(!holder) return;
 
-    // 1. Monitorear cambios en scrollTop
-    var lastScroll = holder.scrollTop;
-    var descriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "scrollTop") ||
-                     Object.getOwnPropertyDescriptor(Element.prototype, "scrollTop");
+    // Detectar scroll del usuario
+    holder.addEventListener("scroll", function(){
+      _userScrolling = true;
+      clearTimeout(_userScrollTimer);
+      _userScrollTimer = setTimeout(function(){ _userScrolling = false; }, 300);
+    }, {passive: true});
 
+    // Interceptar asignaciones programáticas a scrollTop
+    var descriptor = Object.getOwnPropertyDescriptor(Element.prototype, "scrollTop");
     if(descriptor && descriptor.set){
       var origSet = descriptor.set;
+      var origGet = descriptor.get;
       Object.defineProperty(holder, "scrollTop", {
-        get: function(){ return descriptor.get.call(this); },
+        get: function(){ return origGet.call(this); },
         set: function(val){
-          if(val === 0 && lastScroll > 50){
-            console.warn("[SCROLL RESET] " + tableId + ": scrollTop fue forzado a 0 desde " + lastScroll + "px");
+          var current = origGet.call(this);
+          // Solo nos interesa si el usuario está scrolleando Y hay un cambio significativo
+          if(_userScrolling && Math.abs(val - current) > 30){
+            console.warn("[SCROLL JUMP] " + tableId + ": scrollTop cambiado programáticamente de " + Math.round(current) + " → " + Math.round(val) + " mientras el usuario scrolleaba");
             console.trace();
           }
-          lastScroll = val;
           origSet.call(this, val);
         },
         configurable: true
       });
     }
-
-    // 2. Monitorear el scroll event normal
-    holder.addEventListener("scroll", function(){
-      lastScroll = holder.scrollTop;
-    }, {passive: true});
-
-    console.log("[DIAG] Instalado en " + tableId);
+    console.log("[DIAG v3] Instalado en " + tableId);
   }
 
   function tryInstall(tableId, tries){
     var root = document.getElementById(tableId);
     var holder = root && root.querySelector(".tabulator-tableholder");
-    if(holder){
-      installScrollDiag(tableId);
-    } else if((tries||0) < 30){
-      setTimeout(function(){ tryInstall(tableId, (tries||0)+1); }, 500);
-    }
+    if(holder){ installScrollDiag(tableId); }
+    else if((tries||0) < 40){ setTimeout(function(){ tryInstall(tableId, (tries||0)+1); }, 500); }
   }
 
   document.addEventListener("DOMContentLoaded", function(){
-    setTimeout(function(){ tryInstall("tablaRevision"); tryInstall("tablaPago"); }, 1000);
+    setTimeout(function(){ tryInstall("tablaRevision"); tryInstall("tablaPago"); }, 1500);
   });
 })();
-// ===== FIN DIAGNÓSTICO =====
+// ===== FIN DIAGNÓSTICO v3 =====
 </script>
 
 <script>
