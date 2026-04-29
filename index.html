@@ -1567,7 +1567,7 @@ function toggleGrouping(){
   if(!table) return;
   isGrouped = !isGrouped;
   if(isGrouped){
-    table.setPageSize(45);
+    table.setPageSize(30);
     table.setPage(1);
     table.setGroupBy(["Identidad"]);
     const btn = document.getElementById("btnAgrupar");
@@ -2828,7 +2828,7 @@ function togglePagoGrouping(){
   // Vamos a entrar a modo "colaborador"
   pagoGroupMode = "colaborador";
   pagoGrouped = true;
-  table.setPageSize(50);
+  table.setPageSize(30);
   table.setPage(1);
   table.setGroupBy(["Identidad"]);
   table.setGroupHeader(window.pagoGroupHeaderDefault || null);
@@ -3489,7 +3489,7 @@ async function fetchOtrosCargos(ids){
       const ids = Array.from(new Set(rows.map(r => String(r.ID_PAGO || "").trim()).filter(Boolean)));
       await fetchOtrosCargos(ids);
 
-      table.setPageSize(50);
+      table.setPageSize(30);
       table.setPage(1);
       table.setGroupBy(["ID_PAGO"]);
       hideGroupToast();
