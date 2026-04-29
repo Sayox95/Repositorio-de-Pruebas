@@ -80,7 +80,7 @@
     /* Main */
     .main{
       padding:22px 24px;
-      overflow:auto;
+      overflow:hidden;
     }
     .toolbar{
       display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:16px;
@@ -129,7 +129,7 @@
     }
     .input:focus, select:focus{ outline:2px solid var(--ring); outline-offset:2px}
     .choices.is-open .choices__inner{ border-color: var(--ring); box-shadow: 0 0 0 2px var(--ring); }
-    .table-wrap{ margin-top:8px }
+    .table-wrap{ margin-top:8px; height:500px; } /* altura inicial, JS la corrige */
     .tabulator{ border-radius:14px; border:1px solid #e5e7eb }
     .muted{ color:var(--muted) }
 
@@ -975,7 +975,7 @@ function buildTable(){
   if(table){ return; }
   table = new Tabulator("#tablaRevision", { index: "fila",
 
-    height: Config.tablaHeight,
+    height: "100%",
     data: State.filtered,
     layout:"fitColumns",
     placeholder:"Sin datos",
@@ -1563,26 +1563,11 @@ function setLastUpdatedNow(){
 }
 
 let isGrouped = false;
-
-// Calcula cuántos grupos caben en pantalla sin activar el virtual renderer big-scroll
-// Usa la altura real del tableholder para ser preciso a cualquier zoom
-function calcGroupPageSize(tableInstance){
-  try{
-    var el = tableInstance && tableInstance.element;
-    var holder = el && el.querySelector(".tabulator-tableholder");
-    var holderH = holder ? holder.clientHeight : 600;
-    var groupRowH = 44; // altura aproximada de un group header en px
-    var visible = Math.floor(holderH / groupRowH);
-    // Página = lo que cabe en pantalla - 1 para margen de seguridad, mínimo 5
-    return Math.max(5, visible - 1);
-  } catch(e){ return 15; }
-}
-
 function toggleGrouping(){
   if(!table) return;
   isGrouped = !isGrouped;
   if(isGrouped){
-    table.setPageSize(calcGroupPageSize(table));
+    table.setPageSize(50);
     table.setPage(1);
     table.setGroupBy(["Identidad"]);
     const btn = document.getElementById("btnAgrupar");
@@ -1614,6 +1599,9 @@ async function navigateTo(sectionId, loader){
   try{
     showOnly(sectionId);
     if(typeof loader === 'function'){ await loader(); }
+    requestAnimationFrame(function(){
+      if(typeof window.adjustTableHeights === "function") window.adjustTableHeights();
+    });
   }finally{
     }
 }
@@ -2660,7 +2648,7 @@ function buildPagoTable(){
   window.pagoGroupHeaderDefault = defaultPagoGroupHeader;
 
   pagoTable = new Tabulator("#tablaPago", { index: "fila", 
-    height: (typeof Config!=="undefined" && Config.tablaHeight) ? Config.tablaHeight : "900px",
+    height: "100%",
     data: [], layout: "fitColumns", selectable: true, placeholder: "Sin datos",
     pagination:"local",
     paginationSize: 99999,
@@ -2840,7 +2828,7 @@ function togglePagoGrouping(){
   // Vamos a entrar a modo "colaborador"
   pagoGroupMode = "colaborador";
   pagoGrouped = true;
-  table.setPageSize(calcGroupPageSize(table));
+  table.setPageSize(50);
   table.setPage(1);
   table.setGroupBy(["Identidad"]);
   table.setGroupHeader(window.pagoGroupHeaderDefault || null);
@@ -3501,7 +3489,7 @@ async function fetchOtrosCargos(ids){
       const ids = Array.from(new Set(rows.map(r => String(r.ID_PAGO || "").trim()).filter(Boolean)));
       await fetchOtrosCargos(ids);
 
-      table.setPageSize(calcGroupPageSize(table));
+      table.setPageSize(50);
       table.setPage(1);
       table.setGroupBy(["ID_PAGO"]);
       hideGroupToast();
@@ -4169,6 +4157,60 @@ async function marcarSeleccionComoEnviadas(){
     }catch(e){ /* silent */ }
   });
 })();
+</script>
+
+<script>
+// ===== Altura adaptiva — funciona a cualquier zoom =====
+(function(){
+  var MARGIN = 16; // px bajo la tabla
+
+  function adjustWrap(wrap){
+    if(!wrap) return;
+    // offsetTop acumulado desde el top del document
+    var el = wrap, top = 0;
+    while(el){ top += el.offsetTop; el = el.offsetParent; }
+    // Restamos el scroll de main por si acaso
+    var main = document.querySelector(".main");
+    var scrollOffset = main ? main.scrollTop : 0;
+    var available = window.innerHeight - (top - scrollOffset) - MARGIN;
+    wrap.style.height = Math.max(200, available) + "px";
+  }
+
+  function adjustAll(){
+    adjustWrap(document.querySelector("#secRevision .table-wrap"));
+    adjustWrap(document.querySelector("#secPago .table-wrap"));
+  }
+
+  // En resize y cambio de zoom
+  window.addEventListener("resize", adjustAll);
+
+  // Detectar zoom via devicePixelRatio (Ctrl+/Ctrl-)
+  var lastDPR = window.devicePixelRatio;
+  setInterval(function(){
+    if(window.devicePixelRatio !== lastDPR){
+      lastDPR = window.devicePixelRatio;
+      adjustAll();
+    }
+  }, 250);
+
+  // Exponer para que navigateTo lo llame
+  window.adjustTableHeights = adjustAll;
+
+  // Aplicar al cargar, esperando que el DOM esté pintado
+  document.addEventListener("DOMContentLoaded", function(){
+    // Primer intento rápido
+    requestAnimationFrame(function(){
+      requestAnimationFrame(adjustAll);
+    });
+    // Reintentos mientras las secciones cargan datos
+    var tries = 0;
+    var iv = setInterval(function(){
+      adjustAll();
+      if(++tries >= 10) clearInterval(iv);
+    }, 600);
+  });
+})();
+// ===== Fin altura adaptiva =====
 </script>
 </body>
 </html>
