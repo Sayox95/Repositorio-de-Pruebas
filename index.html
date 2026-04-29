@@ -80,7 +80,7 @@
     /* Main */
     .main{
       padding:22px 24px;
-      overflow:hidden;
+      overflow:auto;
     }
     .toolbar{
       display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:16px;
@@ -605,7 +605,7 @@ const Config = {
     proxyBase: "https://repositorio-de-pruebas.pages.dev/api",
       placas: "/api/placas",
 },
-  tablaHeight: "calc(100vh - 410px)",
+  tablaHeight: "900px",
 };
 
 /** =========================
@@ -980,7 +980,9 @@ function buildTable(){
     layout:"fitColumns",
     placeholder:"Sin datos",
     selectable:true,
-    pagination:false,
+    pagination:"local",
+    paginationSize: 99999,
+    paginationSizeSelector: false,
     reactiveData:false,
     groupStartOpen:false,
     groupHeader:function(value, count, data, group){
@@ -1565,12 +1567,15 @@ function toggleGrouping(){
   if(!table) return;
   isGrouped = !isGrouped;
   if(isGrouped){
+    table.setPageSize(50);
+    table.setPage(1);
     table.setGroupBy(["Identidad"]);
     const btn = document.getElementById("btnAgrupar");
     if(btn) btn.innerHTML = '<i class="lucide-layers-2"></i> Desagrupar';
   }else{
     table.setGroupBy(false);
-      hideGroupToast();
+    table.setPageSize(99999);
+    hideGroupToast();
     const btn = document.getElementById("btnAgrupar");
     if(btn) btn.innerHTML = '<i class="lucide-layers-2"></i> Agrupar por colaborador';
   }
@@ -2640,8 +2645,11 @@ function buildPagoTable(){
   window.pagoGroupHeaderDefault = defaultPagoGroupHeader;
 
   pagoTable = new Tabulator("#tablaPago", { index: "fila", 
-    height: (typeof Config!=="undefined" && Config.tablaHeight) ? Config.tablaHeight : "calc(100vh - 410px)",
+    height: (typeof Config!=="undefined" && Config.tablaHeight) ? Config.tablaHeight : "900px",
     data: [], layout: "fitColumns", selectable: true, placeholder: "Sin datos",
+    pagination:"local",
+    paginationSize: 99999,
+    paginationSizeSelector: false,
     groupStartOpen:false,
     groupHeader:function(value, count, data, group){
       const nombre = (data && data[0] && (data[0].Nombre||data[0].Identidad)) || value;
@@ -2805,28 +2813,22 @@ function togglePagoGrouping(){
   if(pagoGroupMode === "colaborador"){
     pagoGroupMode = "none";
     pagoGrouped = false;
-
-    // Quitamos agrupación preservando scroll
-    preservePagoScroll(function(){ table.setGroupBy(false); });
-
+    table.setGroupBy(false);
+    table.setPageSize(99999);
     const bCol = document.getElementById("btnPagoAgrupar");
     if(bCol) bCol.innerHTML = '<i class="lucide-layers-2"></i> Agrupar por colaborador';
-
     const bId = document.getElementById("btnPagoAgruparId");
     if(bId) bId.innerHTML = '<i class="lucide-layers-2"></i> Agrupar por ID_PAGO';
-
     return;
   }
 
   // Vamos a entrar a modo "colaborador"
   pagoGroupMode = "colaborador";
   pagoGrouped = true;
-
-  // Activamos la agrupación preservando scroll
-  preservePagoScroll(function(){
-    table.setGroupBy(["Identidad"]);
-    table.setGroupHeader(window.pagoGroupHeaderDefault || null);
-  });
+  table.setPageSize(50);
+  table.setPage(1);
+  table.setGroupBy(["Identidad"]);
+  table.setGroupHeader(window.pagoGroupHeaderDefault || null);
 
   const bCol = document.getElementById("btnPagoAgrupar");
   if(bCol) bCol.innerHTML = '<i class="lucide-layers-2"></i> Desagrupar';
@@ -3484,27 +3486,27 @@ async function fetchOtrosCargos(ids){
       const ids = Array.from(new Set(rows.map(r => String(r.ID_PAGO || "").trim()).filter(Boolean)));
       await fetchOtrosCargos(ids);
 
-      preservePagoScroll(function(){
-        table.setGroupBy(["ID_PAGO"]);
-        hideGroupToast();
-        table.setGroupHeader(function(value, count, data){
-          const id = (value && String(value).trim()) || "(sin ID_PAGO)";
-          const subtotal = (data || []).reduce((acc, r) => acc + (Number(r.Total) || 0), 0);
-          const otros = Number(otrosCargosById[id] || 0);
-          const total = subtotal + otros;
-          const label = `${id} (${count}) · L ${fmtMoneyHN(subtotal)} + otros cargos L ${fmtMoneyHN(otros)} · Total = L ${fmtMoneyHN(total)}`;
-          const safeKey = id.replace(/"/g,'&quot;');
-          return `<label class="group-toggle">
-                    <input type="checkbox" class="group-select-idpago" data-idpago="${safeKey}">
-                    <span>${label}</span>
-                  </label>`;
-        });
+      table.setPageSize(50);
+      table.setPage(1);
+      table.setGroupBy(["ID_PAGO"]);
+      hideGroupToast();
+      table.setGroupHeader(function(value, count, data){
+        const id = (value && String(value).trim()) || "(sin ID_PAGO)";
+        const subtotal = (data || []).reduce((acc, r) => acc + (Number(r.Total) || 0), 0);
+        const otros = Number(otrosCargosById[id] || 0);
+        const total = subtotal + otros;
+        const label = `${id} (${count}) · L ${fmtMoneyHN(subtotal)} + otros cargos L ${fmtMoneyHN(otros)} · Total = L ${fmtMoneyHN(total)}`;
+        const safeKey = id.replace(/"/g,'&quot;');
+        return `<label class="group-toggle">
+                  <input type="checkbox" class="group-select-idpago" data-idpago="${safeKey}">
+                  <span>${label}</span>
+                </label>`;
       });
       const btn = document.getElementById("btnPagoAgruparId");
       if(btn) btn.innerHTML = '<i class="lucide-layers-2"></i> Desagrupar ID_PAGO';
     }else{
-      // Desagrupamos preservando scroll
-      preservePagoScroll(function(){ table.setGroupBy(false); });
+      table.setGroupBy(false);
+      table.setPageSize(99999);
       hideGroupToast();
       const btn = document.getElementById("btnPagoAgruparId");
       if(btn) btn.innerHTML = '<i class="lucide-layers-2"></i> Agrupar por ID_PAGO';
