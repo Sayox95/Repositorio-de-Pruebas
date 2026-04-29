@@ -80,7 +80,7 @@
     /* Main */
     .main{
       padding:22px 24px;
-      overflow:auto;
+      overflow:hidden;
     }
     .toolbar{
       display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:16px;
@@ -605,39 +605,8 @@ const Config = {
     proxyBase: "https://repositorio-de-pruebas.pages.dev/api",
       placas: "/api/placas",
 },
-  tablaHeight: "600px", // valor inicial, se recalcula dinámicamente
+  tablaHeight: "calc(100vh - 410px)",
 };
-
-// Calcula la altura óptima de la tabla en función del espacio disponible en la ventana
-function calcTablaHeight(){
-  // viewport height menos el padding del main (22px top + 22px bottom) menos un margen de seguridad
-  const mainPad = 44;
-  const safetyMargin = 16;
-
-  // Intenta medir el espacio real disponible sobre el table-wrap activo
-  const activeWrap = document.querySelector("section[style*='display:block'] .table-wrap, section[style*='display:flex'] .table-wrap");
-  if(activeWrap){
-    const rect = activeWrap.getBoundingClientRect();
-    const available = window.innerHeight - rect.top - safetyMargin;
-    return Math.max(300, Math.floor(available)) + "px";
-  }
-  // Fallback: viewport menos estimado de header (~280px en revision, ~240px en pago)
-  return Math.max(300, window.innerHeight - mainPad - 280 - safetyMargin) + "px";
-}
-
-function applyTablaHeight(){
-  const h = calcTablaHeight();
-  if(window.table && typeof window.table.setHeight === "function"){
-    try{ window.table.setHeight(h); } catch(e){}
-  }
-  if(window.pagoTable && typeof window.pagoTable.setHeight === "function"){
-    try{ window.pagoTable.setHeight(h); } catch(e){}
-  }
-  Config.tablaHeight = h;
-}
-
-window.addEventListener("resize", applyTablaHeight);
-
 
 /** =========================
  *  Utilidades de UI
@@ -1082,8 +1051,6 @@ function buildTable(){
     rowSelectionChanged:()=>{ updateButtons(); },
   });
   table.on("tableBuilt", ()=>{
-    tableBuilt = true;
-    requestAnimationFrame(function(){ requestAnimationFrame(applyTablaHeight); });
     // Fallback: delegado por si el cellClick no se dispara en algunos navegadores
     const root = document.getElementById("tablaRevision");
     root.addEventListener("click", (ev)=>{
@@ -1627,8 +1594,6 @@ async function navigateTo(sectionId, loader){
   try{
     showOnly(sectionId);
     if(typeof loader === 'function'){ await loader(); }
-    // Recalcular altura de tabla tras mostrar la sección y cargar datos
-    requestAnimationFrame(function(){ requestAnimationFrame(applyTablaHeight); });
   }finally{
     }
 }
@@ -2675,7 +2640,7 @@ function buildPagoTable(){
   window.pagoGroupHeaderDefault = defaultPagoGroupHeader;
 
   pagoTable = new Tabulator("#tablaPago", { index: "fila", 
-    height: (typeof Config!=="undefined" && Config.tablaHeight) ? Config.tablaHeight : "900px",
+    height: (typeof Config!=="undefined" && Config.tablaHeight) ? Config.tablaHeight : "calc(100vh - 410px)",
     data: [], layout: "fitColumns", selectable: true, placeholder: "Sin datos",
     groupStartOpen:false,
     groupHeader:function(value, count, data, group){
@@ -2737,7 +2702,6 @@ cellClick: (e, cell)=>{
 
   pagoTable.on("tableBuilt", function(){
     pagoTableReady = true;
-    requestAnimationFrame(function(){ requestAnimationFrame(applyTablaHeight); });
     if(pagoPendingData){
       try{ pagoTable.replaceData(pagoPendingData); } catch (e){}
       pagoPendingData = null;
