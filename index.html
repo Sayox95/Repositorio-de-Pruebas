@@ -80,7 +80,11 @@
     /* Main */
     .main{
       padding:22px 24px;
-      overflow:auto;
+      overflow:hidden;
+      height:100vh;
+      box-sizing:border-box;
+      display:flex;
+      flex-direction:column;
     }
     .toolbar{
       display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:16px;
@@ -129,7 +133,9 @@
     }
     .input:focus, select:focus{ outline:2px solid var(--ring); outline-offset:2px}
     .choices.is-open .choices__inner{ border-color: var(--ring); box-shadow: 0 0 0 2px var(--ring); }
-    .table-wrap{ margin-top:8px }
+    .table-wrap{ margin-top:8px; flex:1; min-height:0; display:flex; flex-direction:column; }
+    .table-wrap .tabulator{ flex:1; min-height:0; }
+    section { display:flex; flex-direction:column; flex:1; min-height:0; overflow:hidden; }
     .tabulator{ border-radius:14px; border:1px solid #e5e7eb }
     .muted{ color:var(--muted) }
 
@@ -328,7 +334,7 @@
     </aside>
 
     <main class="main">
-  <section id="secInicio" style="display:block;">
+  <section id="secInicio" style="display:flex;">
     <div style="display:flex;align-items:center;justify-content:center;height:60vh;flex-direction:column;gap:12px;">
       <div style="font-size:42px;opacity:.85;">¡Bienvenido!</div>
       <div style="opacity:.7;">Selecciona una sección en el menú para comenzar.</div>
@@ -605,7 +611,7 @@ const Config = {
     proxyBase: "https://repositorio-de-pruebas.pages.dev/api",
       placas: "/api/placas",
 },
-  tablaHeight: "900px",
+  tablaHeight: "100%",
 };
 
 /** =========================
@@ -980,9 +986,7 @@ function buildTable(){
     layout:"fitColumns",
     placeholder:"Sin datos",
     selectable:true,
-    pagination:"local",
-    paginationSize: 99999,
-    paginationSizeSelector: false,
+    pagination:false,
     reactiveData:false,
     groupStartOpen:false,
     groupHeader:function(value, count, data, group){
@@ -1567,15 +1571,12 @@ function toggleGrouping(){
   if(!table) return;
   isGrouped = !isGrouped;
   if(isGrouped){
-    table.setPageSize(50);
-    table.setPage(1);
     table.setGroupBy(["Identidad"]);
     const btn = document.getElementById("btnAgrupar");
     if(btn) btn.innerHTML = '<i class="lucide-layers-2"></i> Desagrupar';
   }else{
     table.setGroupBy(false);
-    table.setPageSize(99999);
-    hideGroupToast();
+      hideGroupToast();
     const btn = document.getElementById("btnAgrupar");
     if(btn) btn.innerHTML = '<i class="lucide-layers-2"></i> Agrupar por colaborador';
   }
@@ -1587,7 +1588,7 @@ function toggleGrouping(){
 function showOnly(sectionId){
   document.querySelectorAll('main > section').forEach(s => s.style.display='none');
   const tgt = document.getElementById(sectionId);
-  if(tgt) tgt.style.display = 'block';
+  if(tgt) tgt.style.display = 'flex';
   document.querySelectorAll('.sidebar .nav-btn').forEach(a=>a.classList.remove('active'));
   const map = {secRevision:'#revision', secPago:'#pago', secAnticipos:'#anticipos', secPlacas:'#placas', secInicio:'#inicio'};
   const sel = map[sectionId]; if(sel){
@@ -2645,11 +2646,8 @@ function buildPagoTable(){
   window.pagoGroupHeaderDefault = defaultPagoGroupHeader;
 
   pagoTable = new Tabulator("#tablaPago", { index: "fila", 
-    height: (typeof Config!=="undefined" && Config.tablaHeight) ? Config.tablaHeight : "900px",
+    height: (typeof Config!=="undefined" && Config.tablaHeight) ? Config.tablaHeight : "100%",
     data: [], layout: "fitColumns", selectable: true, placeholder: "Sin datos",
-    pagination:"local",
-    paginationSize: 99999,
-    paginationSizeSelector: false,
     groupStartOpen:false,
     groupHeader:function(value, count, data, group){
       const nombre = (data && data[0] && (data[0].Nombre||data[0].Identidad)) || value;
@@ -2813,22 +2811,28 @@ function togglePagoGrouping(){
   if(pagoGroupMode === "colaborador"){
     pagoGroupMode = "none";
     pagoGrouped = false;
-    table.setGroupBy(false);
-    table.setPageSize(99999);
+
+    // Quitamos agrupación preservando scroll
+    preservePagoScroll(function(){ table.setGroupBy(false); });
+
     const bCol = document.getElementById("btnPagoAgrupar");
     if(bCol) bCol.innerHTML = '<i class="lucide-layers-2"></i> Agrupar por colaborador';
+
     const bId = document.getElementById("btnPagoAgruparId");
     if(bId) bId.innerHTML = '<i class="lucide-layers-2"></i> Agrupar por ID_PAGO';
+
     return;
   }
 
   // Vamos a entrar a modo "colaborador"
   pagoGroupMode = "colaborador";
   pagoGrouped = true;
-  table.setPageSize(50);
-  table.setPage(1);
-  table.setGroupBy(["Identidad"]);
-  table.setGroupHeader(window.pagoGroupHeaderDefault || null);
+
+  // Activamos la agrupación preservando scroll
+  preservePagoScroll(function(){
+    table.setGroupBy(["Identidad"]);
+    table.setGroupHeader(window.pagoGroupHeaderDefault || null);
+  });
 
   const bCol = document.getElementById("btnPagoAgrupar");
   if(bCol) bCol.innerHTML = '<i class="lucide-layers-2"></i> Desagrupar';
@@ -3486,27 +3490,27 @@ async function fetchOtrosCargos(ids){
       const ids = Array.from(new Set(rows.map(r => String(r.ID_PAGO || "").trim()).filter(Boolean)));
       await fetchOtrosCargos(ids);
 
-      table.setPageSize(50);
-      table.setPage(1);
-      table.setGroupBy(["ID_PAGO"]);
-      hideGroupToast();
-      table.setGroupHeader(function(value, count, data){
-        const id = (value && String(value).trim()) || "(sin ID_PAGO)";
-        const subtotal = (data || []).reduce((acc, r) => acc + (Number(r.Total) || 0), 0);
-        const otros = Number(otrosCargosById[id] || 0);
-        const total = subtotal + otros;
-        const label = `${id} (${count}) · L ${fmtMoneyHN(subtotal)} + otros cargos L ${fmtMoneyHN(otros)} · Total = L ${fmtMoneyHN(total)}`;
-        const safeKey = id.replace(/"/g,'&quot;');
-        return `<label class="group-toggle">
-                  <input type="checkbox" class="group-select-idpago" data-idpago="${safeKey}">
-                  <span>${label}</span>
-                </label>`;
+      preservePagoScroll(function(){
+        table.setGroupBy(["ID_PAGO"]);
+        hideGroupToast();
+        table.setGroupHeader(function(value, count, data){
+          const id = (value && String(value).trim()) || "(sin ID_PAGO)";
+          const subtotal = (data || []).reduce((acc, r) => acc + (Number(r.Total) || 0), 0);
+          const otros = Number(otrosCargosById[id] || 0);
+          const total = subtotal + otros;
+          const label = `${id} (${count}) · L ${fmtMoneyHN(subtotal)} + otros cargos L ${fmtMoneyHN(otros)} · Total = L ${fmtMoneyHN(total)}`;
+          const safeKey = id.replace(/"/g,'&quot;');
+          return `<label class="group-toggle">
+                    <input type="checkbox" class="group-select-idpago" data-idpago="${safeKey}">
+                    <span>${label}</span>
+                  </label>`;
+        });
       });
       const btn = document.getElementById("btnPagoAgruparId");
       if(btn) btn.innerHTML = '<i class="lucide-layers-2"></i> Desagrupar ID_PAGO';
     }else{
-      table.setGroupBy(false);
-      table.setPageSize(99999);
+      // Desagrupamos preservando scroll
+      preservePagoScroll(function(){ table.setGroupBy(false); });
       hideGroupToast();
       const btn = document.getElementById("btnPagoAgruparId");
       if(btn) btn.innerHTML = '<i class="lucide-layers-2"></i> Agrupar por ID_PAGO';
