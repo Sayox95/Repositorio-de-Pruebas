@@ -370,7 +370,7 @@
           <span id="kpiPagadas" class="value">0</span>
         </div>
         <div class="card kpi">
-          <span class="label">Anuladas</span>
+          <span class="label">Anuladas/Excluidas</span>
           <span id="kpiAnuladas" class="value" style="color:#C0392B;">0</span>
         </div>
       </div>
@@ -393,7 +393,7 @@
           <span id="kpiMontoPagadas" class="value">L 0.00</span>
         </div>
         <div class="card kpi">
-          <span class="label">L Anuladas</span>
+          <span class="label">L Anuladas/Excluidas</span>
           <span id="kpiMontoAnuladas" class="value" style="color:#C0392B;">L 0.00</span>
         </div>
       </div>
@@ -906,12 +906,13 @@ const State = {
 function getEstadoOptions(){
   const vals = Array.from(new Set(State.raw.map(r=>r.Estado).filter(Boolean)));
   // Orden sugerido
-  const def = ["Registrada","Revisada","Anulada","Pagada","Enviada"];
+  const def = ["Registrada","Revisada","Anulada","Excluida","Pagada","Enviada"];
   const full = def.concat(vals.filter(v=>!def.includes(v)));
   return full;
 }
 function estadoColor(v){
-  if(v==="Anulada") return "var(--danger)";
+  if(v==="Anulada")   return "var(--danger)";
+  if(v==="Excluida")  return "var(--danger)";
   if(v==="Revisada") return "#2563eb";
   if(v==="Pagada") return "#0FA47E";
   if(v==="Enviada") return "#1D4ED8";
@@ -1191,8 +1192,8 @@ function updateButtons(){
 function updateKpis(){
   const rows = table? table.getData("active") : [];
   const fmt  = (v) => "L " + (Number(v)||0).toLocaleString("es-HN",{minimumFractionDigits:2,maximumFractionDigits:2});
-  const anuladas    = rows.filter(r=> (r.Estado||"") === "Anulada").length;
-  const rowsSinAnuladas = rows.filter(r=> (r.Estado||"") !== "Anulada");
+  const anuladas    = rows.filter(r=> ["Anulada","Excluida"].includes(r.Estado||"")).length;
+  const rowsSinAnuladas = rows.filter(r=> !["Anulada","Excluida"].includes(r.Estado||""));
   const total       = rowsSinAnuladas.length;
   const registradas = rowsSinAnuladas.filter(r=> (r.Estado||"") === "Registrada").length;
   const revisadas   = rowsSinAnuladas.filter(r=> (r.Estado||"") === "Revisada").length;
@@ -1201,7 +1202,7 @@ function updateKpis(){
   const montoTotal       = rowsSinAnuladas.reduce((a,r) => a + getTotal(r), 0);
   const montoRegistradas = rowsSinAnuladas.filter(r=> (r.Estado||"")==="Registrada").reduce((a,r) => a + getTotal(r), 0);
   const montoRevisadas   = rowsSinAnuladas.filter(r=> (r.Estado||"")==="Revisada").reduce((a,r) => a + getTotal(r), 0);
-  const montoAnuladas    = rows.filter(r=> (r.Estado||"")==="Anulada").reduce((a,r) => a + getTotal(r), 0);
+  const montoAnuladas    = rows.filter(r=> ["Anulada","Excluida"].includes(r.Estado||"")).reduce((a,r) => a + getTotal(r), 0);
   const montoPagadas     = rowsSinAnuladas.filter(r=> ["Pagada","Enviada"].includes(r.Estado||"")).reduce((a,r) => a + getTotal(r), 0);
   const $=id=>document.getElementById(id);
   if($("kpiTotal"))            $("kpiTotal").textContent            = total;
