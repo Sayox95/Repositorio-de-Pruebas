@@ -625,7 +625,7 @@
       <div style="position:relative; height:220px;"><canvas id="chartProm"></canvas></div>
     </div>
     <div class="card" style="padding:1rem;">
-      <p style="font-size:13px; font-weight:600; color:var(--text-primary); margin:0 0 2px;">Recorrido vs Consumo mensual</p>
+      <p style="font-size:13px; font-weight:600; color:var(--text-primary); margin:0;">Recorrido vs Consumo mensual</p>
       <div style="position:relative; height:290px;"><canvas id="chartRecorrido"></canvas></div>
     </div>
   </div>
@@ -4380,6 +4380,7 @@ async function cargarMetricas(){
 }
 
 function renderMetricas(rows){
+  window._mdLastRows = rows; // guardar para el modal
   const fmt  = v=>"L "+(Number(v)||0).toLocaleString("es-HN",{minimumFractionDigits:2,maximumFractionDigits:2});
   const fmtN = v=>(Number(v)||0).toLocaleString("es-HN",{minimumFractionDigits:2,maximumFractionDigits:2});
   const fmtL = v=>(Number(v)||0).toLocaleString("es-HN",{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -4434,6 +4435,15 @@ function renderMetricas(rows){
     fill:true, tension:0.4, pointRadius:5, pointBackgroundColor:'#E85D04',
     datalabels: dlLine(fmtL2, '#E85D04', promM.length)
   }], { scales: scalesL, layout:{ padding:{ top:24, left:10, right:10 } } });
+
+  // Click en gráficos principales → abrir modal
+  ['chartGastoMes','chartLitrosMes','chartProm'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el){
+      el.style.cursor='pointer';
+      el.onclick=()=>openMetricasModal(window._mdLastRows||[], {}, 'Detalle por Placa y Proceso');
+    }
+  });
 
   // ── Gráfico combinado: Recorrido (km) vs Consumo (litros) ──────────────────
   // Por placa: ordenar facturas por fecha, calcular diff de Km Actual entre consecutivas
@@ -4549,6 +4559,8 @@ function renderMetricas(rows){
       },
       plugins: [ChartDataLabels]
     });
+    recCanvas.style.cursor='pointer';
+    recCanvas.onclick=()=>openMetricasModal(window._mdLastRows||[], {}, 'Detalle por Placa y Proceso');
   }
 
   // Agrupar por Identidad (más confiable que Nombre)
@@ -4579,6 +4591,219 @@ function renderMetricas(rows){
     {plugins:{legend:{display:true,position:'right',labels:{font:{size:10},boxWidth:12}}}}
   );
 }
+
+
+// ══════════ MODAL DETALLE MÉTRICAS ══════════
+let _mdRowsGlobal = [];
+let _mdChartRend  = null;
+
+function openMetricasModal(rows, kmPlaca, titulo){
+  _mdRowsGlobal = rows;
+  document.getElementById('mdTitulo').textContent = titulo || 'Detalle por Placa';
+  document.getElementById('mdSubtitulo').textContent = rows.length + ' facturas en el periodo filtrado';
+
+  const procSet = new Set(rows.map(r => r.Proceso || 'Sin proceso').filter(Boolean));
+  const procSel = document.getElementById('mdFiltProceso');
+  procSel.innerHTML = '<option value="">Todos los procesos</option>' +
+    [...procSet].sort().map(p => `<option value="${p}">${p}</option>`).join('');
+
+  document.getElementById('mdFiltPlaca').innerHTML = '<option value="">Todas las placas</option>';
+  document.getElementById('modalMetricas').style.display = 'grid';
+  aplicarFiltroModal();
+}
+
+function closeMetricasModal(){
+  document.getElementById('modalMetricas').style.display = 'none';
+}
+
+document.getElementById('modalMetricas').addEventListener('click', function(e){
+  if(e.target === this) closeMetricasModal();
+});
+
+function aplicarFiltroModal(){
+  const proc = document.getElementById('mdFiltProceso').value;
+  const rowsProc = proc ? _mdRowsGlobal.filter(r=>(r.Proceso||'Sin proceso')===proc) : _mdRowsGlobal;
+
+  const placaSel = document.getElementById('mdFiltPlaca');
+  const placaActual = placaSel.value;
+  const placaSet = new Set(rowsProc.map(r=>r.Placa||r['Placa Veh\u00EDculo']||r.placa||'').filter(Boolean));
+  placaSel.innerHTML = '<option value="">Todas las placas</option>' +
+    [...placaSet].sort().map(p=>`<option value="${p}">${p}</option>`).join('');
+  if([...placaSet].includes(placaActual)) placaSel.value = placaActual;
+
+  const rowsFin = placaSel.value
+    ? rowsProc.filter(r=>(r.Placa||r['Placa Veh\u00EDculo']||r.placa||'')===placaSel.value)
+    : rowsProc;
+  renderModalDetalle(rowsFin);
+}
+
+function renderModalDetalle(rows){
+  const getT  = r=>Number(r['Total Gastado']??r.Total??r.TotalGastado)||0;
+  const getL  = r=>Number(r['Litros Consumidos']??r.LitrosConsumidos)||0;
+  const getKm = r=>Number(r['Km Actual'])||0;
+  const fmtL  = v=>'L '+(Number(v)||0).toLocaleString('es-HN',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const fmtN  = v=>(Number(v)||0).toLocaleString('es-HN',{minimumFractionDigits:2,maximumFractionDigits:2});
+
+  const byPlaca = {};
+  rows.forEach(r=>{
+    const placa=r.Placa||r['Placa Veh\u00EDculo']||r.placa||'Sin placa';
+    if(!byPlaca[placa]) byPlaca[placa]={proceso:r.Proceso||'Sin proceso',gasto:0,litros:0,count:0,facturas:[]};
+    byPlaca[placa].gasto+=getT(r); byPlaca[placa].litros+=getL(r); byPlaca[placa].count+=1;
+    byPlaca[placa].facturas.push(r);
+  });
+
+  Object.entries(byPlaca).forEach(([,data])=>{
+    const facs=data.facturas.slice().sort((a,b)=>{
+      const fa=(a.Fecha||'').toString(),fb=(b.Fecha||'').toString();
+      if(fa!==fb) return fa<fb?-1:1;
+      return getKm(a)-getKm(b);
+    });
+    let km=0;
+    for(let i=1;i<facs.length;i++){
+      const diff=getKm(facs[i])-getKm(facs[i-1]);
+      if(diff>0&&diff<=1000) km+=diff;
+    }
+    data.km=km; data.rend=data.litros>0?data.km/data.litros:0;
+  });
+
+  const placas=Object.entries(byPlaca).sort((a,b)=>b[1].gasto-a[1].gasto);
+  const totGasto=placas.reduce((s,[,d])=>s+d.gasto,0);
+  const totLitros=placas.reduce((s,[,d])=>s+d.litros,0);
+  const totKm=placas.reduce((s,[,d])=>s+d.km,0);
+  const rendProm=totLitros>0?totKm/totLitros:0;
+
+  document.getElementById('mdKpiPlacas').textContent=placas.length;
+  document.getElementById('mdKpiGasto').textContent=fmtL(totGasto);
+  document.getElementById('mdKpiLitros').textContent=fmtN(totLitros)+' L';
+  document.getElementById('mdKpiKm').textContent=totKm.toLocaleString('es-HN',{maximumFractionDigits:0})+' km';
+  document.getElementById('mdKpiRend').textContent=rendProm.toFixed(2)+' km/L';
+
+  const semaforo=rend=>rend>=6?'\u{1F7E2}':rend>=3?'\u{1F7E1}':rend>0?'\u{1F534}':'\u2014';
+  const sColor=rend=>rend>=6?'#065f46':rend>=3?'#92400e':rend>0?'#991b1b':'#6b7280';
+  const sBg=rend=>rend>=6?'#d1fae5':rend>=3?'#fef3c7':rend>0?'#fee2e2':'#f3f4f6';
+
+  document.getElementById('mdTablaBody').innerHTML=placas.map(([placa,d],i)=>`
+    <tr style="border-bottom:1px solid var(--border,#e5e7eb);background:${i%2===0?'transparent':'var(--bg-secondary,#f8fafc)'}">
+      <td style="padding:5px 8px;font-weight:600;font-family:monospace;color:var(--text-primary)">${placa}</td>
+      <td style="padding:5px 8px;color:var(--text-secondary);font-size:11px">${d.proceso}</td>
+      <td style="padding:5px 8px;text-align:right">${d.count}</td>
+      <td style="padding:5px 8px;text-align:right">${fmtL(d.gasto)}</td>
+      <td style="padding:5px 8px;text-align:right">${fmtN(d.litros)} L</td>
+      <td style="padding:5px 8px;text-align:right">${d.km>0?d.km.toLocaleString('es-HN',{maximumFractionDigits:0})+' km':'\u2014'}</td>
+      <td style="padding:5px 8px;text-align:right">${fmtL(d.count>0?d.gasto/d.count:0)}</td>
+      <td style="padding:5px 8px;text-align:center">
+        <span style="display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;background:${sBg(d.rend)};color:${sColor(d.rend)}">
+          ${semaforo(d.rend)} ${d.rend>0?d.rend.toFixed(2):'\u2014'}
+        </span>
+      </td>
+    </tr>`).join('');
+
+  const top15=placas.filter(([,d])=>d.rend>0).sort((a,b)=>b[1].rend-a[1].rend).slice(0,15);
+  const barColors=top15.map(([,d])=>d.rend>=6?'#059669':d.rend>=3?'#D97706':'#DC2626');
+
+  if(_mdChartRend){_mdChartRend.destroy();_mdChartRend=null;}
+  const ctx=document.getElementById('chartRendPlaca');
+  if(ctx&&top15.length>0){
+    _mdChartRend=new Chart(ctx,{
+      type:'bar',
+      data:{
+        labels:top15.map(([p])=>p),
+        datasets:[{label:'km/L',data:top15.map(([,d])=>parseFloat(d.rend.toFixed(2))),
+          backgroundColor:barColors,borderRadius:4,borderSkipped:false}]
+      },
+      options:{
+        indexAxis:'y',responsive:true,maintainAspectRatio:false,
+        plugins:{
+          legend:{display:false},
+          datalabels:{display:true,anchor:'end',align:'right',clamp:true,
+            color:(ctx2)=>barColors[ctx2.dataIndex],font:{size:11,weight:'bold'},
+            formatter:v=>v.toFixed(2)+' km/L'}
+        },
+        scales:{
+          x:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:10},callback:v=>v+' km/L'},
+            afterDataLimits(scale){scale.max=scale.max*1.15;}},
+          y:{grid:{display:false},ticks:{font:{size:10,family:'monospace'}}}
+        },
+        layout:{padding:{right:70,top:4,bottom:4}}
+      },
+      plugins:[ChartDataLabels]
+    });
+  }
+}
+
 </script>
+
+<!-- ══════════ MODAL DETALLE MÉTRICAS ══════════ -->
+<div id="modalMetricas" class="overlay" style="display:none; z-index:9999;">
+  <div style="background:var(--bg-primary,#fff); border-radius:12px; width:92vw; max-width:1100px; max-height:90vh; display:flex; flex-direction:column; box-shadow:0 20px 60px rgba(0,0,0,0.25); overflow:hidden;">
+    <!-- Header -->
+    <div style="display:flex; align-items:center; justify-content:space-between; padding:1rem 1.25rem; border-bottom:1px solid var(--border,#e5e7eb); flex-shrink:0;">
+      <div>
+        <h3 id="mdTitulo" style="margin:0; font-size:1.1rem; font-weight:700; color:var(--text-primary);">Detalle por Placa</h3>
+        <p id="mdSubtitulo" style="margin:2px 0 0; font-size:12px; color:var(--muted,#888);">Métricas del periodo filtrado</p>
+      </div>
+      <button onclick="closeMetricasModal()" style="background:none;border:none;cursor:pointer;padding:6px;border-radius:6px;color:var(--muted);">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <!-- Filtros -->
+    <div style="display:flex; gap:10px; padding:0.75rem 1.25rem; border-bottom:1px solid var(--border,#e5e7eb); flex-wrap:wrap; align-items:center; flex-shrink:0; background:var(--bg-secondary,#f8fafc);">
+      <div style="display:flex; align-items:center; gap:6px;">
+        <label style="font-size:12px; font-weight:600; color:var(--text-secondary);">Proceso:</label>
+        <select id="mdFiltProceso" class="input" style="font-size:12px; min-width:160px;" onchange="aplicarFiltroModal()">
+          <option value="">Todos los procesos</option>
+        </select>
+      </div>
+      <div style="display:flex; align-items:center; gap:6px;">
+        <label style="font-size:12px; font-weight:600; color:var(--text-secondary);">Placa:</label>
+        <select id="mdFiltPlaca" class="input" style="font-size:12px; min-width:140px;" onchange="aplicarFiltroModal()">
+          <option value="">Todas las placas</option>
+        </select>
+      </div>
+      <div style="margin-left:auto; display:flex; gap:8px; align-items:center;">
+        <span style="font-size:11px; color:var(--muted);">
+          🟢 ≥6 km/L &nbsp; 🟡 3–6 km/L &nbsp; 🔴 &lt;3 km/L
+        </span>
+      </div>
+    </div>
+    <!-- KPIs resumen -->
+    <div id="mdKpis" style="display:grid; grid-template-columns:repeat(5,1fr); gap:10px; padding:0.75rem 1.25rem; flex-shrink:0; border-bottom:1px solid var(--border,#e5e7eb);">
+      <div class="card kpi" style="padding:0.6rem; margin:0;"><span class="label" style="font-size:11px;">Placas</span><span id="mdKpiPlacas" class="value" style="font-size:1.2rem;">—</span></div>
+      <div class="card kpi" style="padding:0.6rem; margin:0;"><span class="label" style="font-size:11px;">Total Gasto</span><span id="mdKpiGasto" class="value" style="font-size:1.2rem;">—</span></div>
+      <div class="card kpi" style="padding:0.6rem; margin:0;"><span class="label" style="font-size:11px;">Total Litros</span><span id="mdKpiLitros" class="value" style="font-size:1.2rem;">—</span></div>
+      <div class="card kpi" style="padding:0.6rem; margin:0;"><span class="label" style="font-size:11px;">Total Recorrido</span><span id="mdKpiKm" class="value" style="font-size:1.2rem;">—</span></div>
+      <div class="card kpi" style="padding:0.6rem; margin:0;"><span class="label" style="font-size:11px;">Rend. Promedio</span><span id="mdKpiRend" class="value" style="font-size:1.2rem;">—</span></div>
+    </div>
+    <!-- Contenido: tabla + gráfico -->
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:0; flex:1; overflow:hidden; min-height:0;">
+      <!-- Tabla -->
+      <div style="overflow-y:auto; padding:0.75rem 1rem; border-right:1px solid var(--border,#e5e7eb);">
+        <p style="font-size:12px; font-weight:600; color:var(--text-secondary); margin:0 0 8px;">Detalle por placa</p>
+        <table id="mdTabla" style="width:100%; border-collapse:collapse; font-size:11.5px;">
+          <thead>
+            <tr style="background:var(--bg-secondary,#f8fafc); position:sticky; top:0;">
+              <th style="text-align:left; padding:6px 8px; border-bottom:2px solid var(--border); font-weight:600; color:var(--text-secondary);">Placa</th>
+              <th style="text-align:left; padding:6px 8px; border-bottom:2px solid var(--border); font-weight:600; color:var(--text-secondary);">Proceso</th>
+              <th style="text-align:right; padding:6px 8px; border-bottom:2px solid var(--border); font-weight:600; color:var(--text-secondary);">Facturas</th>
+              <th style="text-align:right; padding:6px 8px; border-bottom:2px solid var(--border); font-weight:600; color:var(--text-secondary);">Gasto (L)</th>
+              <th style="text-align:right; padding:6px 8px; border-bottom:2px solid var(--border); font-weight:600; color:var(--text-secondary);">Litros</th>
+              <th style="text-align:right; padding:6px 8px; border-bottom:2px solid var(--border); font-weight:600; color:var(--text-secondary);">Recorrido</th>
+              <th style="text-align:right; padding:6px 8px; border-bottom:2px solid var(--border); font-weight:600; color:var(--text-secondary);">Prom/Fact</th>
+              <th style="text-align:center; padding:6px 8px; border-bottom:2px solid var(--border); font-weight:600; color:var(--text-secondary);">km/L</th>
+            </tr>
+          </thead>
+          <tbody id="mdTablaBody"></tbody>
+        </table>
+      </div>
+      <!-- Gráfico rendimiento -->
+      <div style="padding:0.75rem 1rem; display:flex; flex-direction:column; overflow:hidden;">
+        <p style="font-size:12px; font-weight:600; color:var(--text-secondary); margin:0 0 8px;">Rendimiento (km/L) por placa — Top 15</p>
+        <div style="flex:1; position:relative; min-height:0;">
+          <canvas id="chartRendPlaca"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 </body>
 </html>
