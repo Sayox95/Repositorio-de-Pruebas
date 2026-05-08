@@ -4213,5 +4213,65 @@ async function marcarSeleccionComoEnviadas(){
 })();
 // ===== Fin altura adaptiva =====
 </script>
+<section id="secMetricas" style="display:none; padding:1.5rem; overflow-y:auto; height:100%;">
+
+  <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1.5rem; flex-wrap:wrap; gap:12px;">
+    <div>
+      <h2 style="margin:0; font-size:1.4rem; font-weight:700; color:var(--text-primary);">Métricas de Combustible</h2>
+      <p style="margin:4px 0 0; font-size:13px; color:var(--text-secondary);">Facturas en estado Revisada, Pagada y Enviada</p>
+    </div>
+    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+      <label style="font-size:12px; color:var(--text-secondary);">Desde</label>
+      <input type="date" id="mDesde" class="input" style="width:145px; font-size:13px;">
+      <label style="font-size:12px; color:var(--text-secondary);">Hasta</label>
+      <input type="date" id="mHasta" class="input" style="width:145px; font-size:13px;">
+      <button id="btnMetricasCargar" class="btn btn-primary" onclick="cargarMetricas()">
+        <i class="lucide-refresh-cw"></i> Actualizar
+      </button>
+    </div>
+  </div>
+
+  <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:1.5rem;">
+    <div class="card kpi"><span class="label">Total Facturas</span><span id="mKpiTotal" class="value">—</span></div>
+    <div class="card kpi"><span class="label">Total Desembolsado</span><span id="mKpiMonto" class="value">—</span></div>
+    <div class="card kpi"><span class="label">Total Litros</span><span id="mKpiLitros" class="value">—</span></div>
+    <div class="card kpi"><span class="label">Promedio por Factura</span><span id="mKpiProm" class="value">—</span></div>
+  </div>
+
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+    <div class="card" style="padding:1rem;">
+      <p style="font-size:13px; font-weight:600; color:var(--text-primary); margin:0 0 12px;">Desembolso mensual (L)</p>
+      <div style="position:relative; height:220px;"><canvas id="chartGastoMes"></canvas></div>
+    </div>
+    <div class="card" style="padding:1rem;">
+      <p style="font-size:13px; font-weight:600; color:var(--text-primary); margin:0 0 12px;">Consumo mensual (litros)</p>
+      <div style="position:relative; height:220px;"><canvas id="chartLitrosMes"></canvas></div>
+    </div>
+  </div>
+
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+    <div class="card" style="padding:1rem;">
+      <p style="font-size:13px; font-weight:600; color:var(--text-primary); margin:0 0 12px;">Evolución del gasto en el tiempo (L)</p>
+      <div style="position:relative; height:220px;"><canvas id="chartEvolucion"></canvas></div>
+    </div>
+    <div class="card" style="padding:1rem;">
+      <p style="font-size:13px; font-weight:600; color:var(--text-primary); margin:0 0 12px;">Promedio de gasto por factura (L)</p>
+      <div style="position:relative; height:220px;"><canvas id="chartProm"></canvas></div>
+    </div>
+  </div>
+
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+    <div class="card" style="padding:1rem;">
+      <p style="font-size:13px; font-weight:600; color:var(--text-primary); margin:0 0 12px;">Top 10 colaboradores por gasto (L)</p>
+      <div style="position:relative; height:300px;"><canvas id="chartColaboradores"></canvas></div>
+    </div>
+    <div class="card" style="padding:1rem;">
+      <p style="font-size:13px; font-weight:600; color:var(--text-primary); margin:0 0 12px;">Distribución por proceso (L)</p>
+      <div style="position:relative; height:300px;"><canvas id="chartProcesos"></canvas></div>
+    </div>
+  </div>
+
+</section>
+
 </body>
 </html>
