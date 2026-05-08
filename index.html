@@ -4410,26 +4410,33 @@ function renderMetricas(rows){
   const mesLabel= meses.map(m=>{ const[y,mo]=m.split('-'); return `${mn[parseInt(mo)-1]} ${y}`; });
   const COLORS  = ['#065A82','#1C7293','#0D9488','#E85D04','#C0392B','#8B5CF6','#F59E0B','#10B981','#3B82F6','#EF4444'];
 
-  const datalabels_bar = { plugins:{ datalabels:false }, scales:{
-    x:{ grid:{ display:false }, ticks:{ font:{ size:11 } } },
-    y:{ grid:{ color:'rgba(0,0,0,0.05)' }, ticks:{ font:{ size:11 }, callback: v => 'L '+v.toLocaleString('es-HN') } }
-  }};
-  const datalabels_line = { plugins:{ datalabels:false }, scales:{
-    x:{ grid:{ display:false }, ticks:{ font:{ size:11 } } },
-    y:{ grid:{ color:'rgba(0,0,0,0.05)' }, ticks:{ font:{ size:11 }, callback: v => 'L '+v.toLocaleString('es-HN') } }
-  }};
+  const fmtL2 = v => 'L '+(Number(v)||0).toLocaleString('es-HN',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const fmtLit = v => (Number(v)||0).toLocaleString('es-HN',{minimumFractionDigits:2,maximumFractionDigits:2})+' L';
+  const scalesL = { x:{grid:{display:false},ticks:{font:{size:11}}}, y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:11},callback:v=>fmtL2(v)}} };
+  const scalesLit = { x:{grid:{display:false},ticks:{font:{size:11}}}, y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:11},callback:v=>fmtLit(v)}} };
+  const dlBase = (fmt, color) => ({display:true, anchor:'end', align:'end', clamp:true, color, font:{size:9,weight:'bold'}, formatter:fmt});
 
-  mkChart('chartGastoMes','bar',mesLabel,[{label:'Desembolso (L)',data:gastoM,backgroundColor:'#1C7293',borderRadius:4,borderSkipped:false,
-    datalabels:{display:true,anchor:'end',align:'top',color:'#1C7293',font:{size:10,weight:'bold'},
-      formatter:v=>'L '+(Number(v)||0).toLocaleString('es-HN',{minimumFractionDigits:2,maximumFractionDigits:2})}}],datalabels_bar);
-  mkChart('chartLitrosMes','bar',mesLabel,[{label:'Litros',data:litrosM,backgroundColor:'#0D9488',borderRadius:4,borderSkipped:false,
-    datalabels:{display:true,anchor:'end',align:'top',color:'#0D9488',font:{size:10,weight:'bold'},
-      formatter:v=>(Number(v)||0).toLocaleString('es-HN',{minimumFractionDigits:2,maximumFractionDigits:2})+' L'}}],
-    {plugins:{datalabels:false},scales:{x:{grid:{display:false},ticks:{font:{size:11}}},y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:11},callback:v=>v.toLocaleString('es-HN')+' L'}}}});
-  mkChart('chartEvolucion','line',mesLabel,[{label:'Gasto (L)',data:gastoM,borderColor:'#065A82',backgroundColor:'rgba(6,90,130,0.1)',fill:true,tension:0.4,pointRadius:5,pointBackgroundColor:'#065A82',
-    datalabels:{display:true,anchor:'top',align:'top',color:'#065A82',font:{size:9},formatter:v=>'L '+(Number(v)||0).toLocaleString('es-HN',{minimumFractionDigits:2,maximumFractionDigits:2})}}],datalabels_line);
-  mkChart('chartProm','line',mesLabel,[{label:'Promedio L/factura',data:promM,borderColor:'#E85D04',backgroundColor:'rgba(232,93,4,0.1)',fill:true,tension:0.4,pointRadius:5,pointBackgroundColor:'#E85D04',
-    datalabels:{display:true,anchor:'top',align:'top',color:'#E85D04',font:{size:9},formatter:v=>'L '+(Number(v)||0).toLocaleString('es-HN',{minimumFractionDigits:2,maximumFractionDigits:2})}}],datalabels_line);
+  mkChart('chartGastoMes','bar',mesLabel,[{
+    label:'Desembolso (L)', data:gastoM, backgroundColor:'#1C7293', borderRadius:4, borderSkipped:false,
+    datalabels: dlBase(fmtL2, '#1C7293')
+  }], { scales: scalesL, layout:{ padding:{ top:20 } } });
+
+  mkChart('chartLitrosMes','bar',mesLabel,[{
+    label:'Litros', data:litrosM, backgroundColor:'#0D9488', borderRadius:4, borderSkipped:false,
+    datalabels: dlBase(fmtLit, '#0D9488')
+  }], { scales: scalesLit, layout:{ padding:{ top:20 } } });
+
+  mkChart('chartEvolucion','line',mesLabel,[{
+    label:'Gasto (L)', data:gastoM, borderColor:'#065A82', backgroundColor:'rgba(6,90,130,0.1)',
+    fill:true, tension:0.4, pointRadius:5, pointBackgroundColor:'#065A82',
+    datalabels: dlBase(fmtL2, '#065A82')
+  }], { scales: scalesL, layout:{ padding:{ top:20 } } });
+
+  mkChart('chartProm','line',mesLabel,[{
+    label:'Promedio L/factura', data:promM, borderColor:'#E85D04', backgroundColor:'rgba(232,93,4,0.1)',
+    fill:true, tension:0.4, pointRadius:5, pointBackgroundColor:'#E85D04',
+    datalabels: dlBase(fmtL2, '#E85D04')
+  }], { scales: scalesL, layout:{ padding:{ top:20 } } });
 
   // Agrupar por Identidad (más confiable que Nombre)
   const byIdent={};
