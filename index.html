@@ -4470,7 +4470,7 @@ function renderMetricas(rows){
       const kmActual   = getKm(facturas[i]);
       const kmAnterior = getKm(facturas[i - 1]);
       const diff = kmActual - kmAnterior;
-      if (diff <= 0) continue; // ignorar resets de odometro o datos inconsistentes
+      if (diff <= 0 || diff > 1000) continue; // ignorar resets, datos inconsistentes y errores de captura (>1000 km)
       const mes = (facturas[i].Fecha || '').toString().slice(0, 7);
       // Solo acumular si el mes destino esta dentro del filtro visible
       if (mes && recorridoMes.hasOwnProperty(mes)) {
