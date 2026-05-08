@@ -4594,18 +4594,52 @@ function renderMetricas(rows){
 
 
 // ══════════ MODAL DETALLE MÉTRICAS ══════════
-let _mdRowsGlobal = [];
-let _mdChartRend  = null;
+let _mdRowsGlobal  = [];
+let _mdKmPorPlaca  = {}; // km/rend pre-calculado con periodo completo, no se filtra por mes
+let _mdChartRend   = null;
 
 function openMetricasModal(rows, kmPlaca, titulo){
   _mdRowsGlobal = rows;
   document.getElementById('mdTitulo').textContent = titulo || 'Detalle por Placa';
   document.getElementById('mdSubtitulo').textContent = rows.length + ' facturas en el periodo filtrado';
 
+  // Pre-calcular km y rendimiento por placa con TODAS las rows del periodo (no se filtra por mes)
+  const getKmFn = r=>Number(r['Km Actual'])||0;
+  const getLFn  = r=>Number(r['Litros Consumidos']??r.LitrosConsumidos)||0;
+  const byPlacaKm = {};
+  rows.forEach(r=>{
+    const p=r.Placa||r['Placa Vehículo']||r.placa||'Sin placa';
+    if(!byPlacaKm[p]) byPlacaKm[p]={facturas:[], litros:0};
+    byPlacaKm[p].facturas.push(r);
+    byPlacaKm[p].litros += getLFn(r);
+  });
+  _mdKmPorPlaca = {};
+  Object.entries(byPlacaKm).forEach(([placa, data])=>{
+    const facs = data.facturas.slice().sort((a,b)=>{
+      const fa=(a.Fecha||'').toString(), fb=(b.Fecha||'').toString();
+      if(fa!==fb) return fa<fb?-1:1;
+      return getKmFn(a)-getKmFn(b);
+    });
+    let km=0;
+    for(let i=1;i<facs.length;i++){
+      const diff=getKmFn(facs[i])-getKmFn(facs[i-1]);
+      if(diff>0&&diff<=1000) km+=diff;
+    }
+    _mdKmPorPlaca[placa] = { km, litros: data.litros, rend: data.litros>0 ? km/data.litros : 0 };
+  });
+
+  // Poblar filtro Proceso
   const procSet = new Set(rows.map(r => r.Proceso || 'Sin proceso').filter(Boolean));
   const procSel = document.getElementById('mdFiltProceso');
   procSel.innerHTML = '<option value="">Todos los procesos</option>' +
     [...procSet].sort().map(p => `<option value="${p}">${p}</option>`).join('');
+
+  // Poblar filtro Mes (meses disponibles del periodo externo)
+  const mn = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  const mesSet = new Set(rows.map(r=>(r.Fecha||'').toString().slice(0,7)).filter(Boolean));
+  const mesSel = document.getElementById('mdFiltMes');
+  mesSel.innerHTML = '<option value="">Todo el periodo</option>' +
+    [...mesSet].sort().map(m=>{ const [y,mo]=m.split('-'); return `<option value="${m}">${mn[parseInt(mo)-1]} ${y}</option>`; }).join('');
 
   document.getElementById('mdFiltPlaca').innerHTML = '<option value="">Todas las placas</option>';
   document.getElementById('modalMetricas').style.display = 'grid';
@@ -4622,22 +4656,28 @@ document.getElementById('modalMetricas').addEventListener('click', function(e){
 
 function aplicarFiltroModal(){
   const proc = document.getElementById('mdFiltProceso').value;
-  const rowsProc = proc ? _mdRowsGlobal.filter(r=>(r.Proceso||'Sin proceso')===proc) : _mdRowsGlobal;
+  const mes  = document.getElementById('mdFiltMes').value;
 
+  // Filtrar por proceso y mes (solo afecta gasto/litros/facturas, NO el recorrido)
+  let rowsFilt = _mdRowsGlobal;
+  if(proc) rowsFilt = rowsFilt.filter(r=>(r.Proceso||'Sin proceso')===proc);
+  if(mes)  rowsFilt = rowsFilt.filter(r=>(r.Fecha||'').toString().slice(0,7)===mes);
+
+  // Actualizar filtro Placa según proceso+mes seleccionado
   const placaSel = document.getElementById('mdFiltPlaca');
   const placaActual = placaSel.value;
-  const placaSet = new Set(rowsProc.map(r=>r.Placa||r['Placa Veh\u00EDculo']||r.placa||'').filter(Boolean));
+  const placaSet = new Set(rowsFilt.map(r=>r.Placa||r['Placa Vehículo']||r.placa||'').filter(Boolean));
   placaSel.innerHTML = '<option value="">Todas las placas</option>' +
     [...placaSet].sort().map(p=>`<option value="${p}">${p}</option>`).join('');
   if([...placaSet].includes(placaActual)) placaSel.value = placaActual;
 
   const rowsFin = placaSel.value
-    ? rowsProc.filter(r=>(r.Placa||r['Placa Veh\u00EDculo']||r.placa||'')===placaSel.value)
-    : rowsProc;
-  renderModalDetalle(rowsFin);
+    ? rowsFilt.filter(r=>(r.Placa||r['Placa Vehículo']||r.placa||'')===placaSel.value)
+    : rowsFilt;
+  renderModalDetalle(rowsFin, mes);
 }
 
-function renderModalDetalle(rows){
+function renderModalDetalle(rows, filtroMes){
   const getT  = r=>Number(r['Total Gastado']??r.Total??r.TotalGastado)||0;
   const getL  = r=>Number(r['Litros Consumidos']??r.LitrosConsumidos)||0;
   const getKm = r=>Number(r['Km Actual'])||0;
@@ -4652,19 +4692,14 @@ function renderModalDetalle(rows){
     byPlaca[placa].facturas.push(r);
   });
 
-  Object.entries(byPlaca).forEach(([,data])=>{
-    const facs=data.facturas.slice().sort((a,b)=>{
-      const fa=(a.Fecha||'').toString(),fb=(b.Fecha||'').toString();
-      if(fa!==fb) return fa<fb?-1:1;
-      return getKm(a)-getKm(b);
-    });
-    let km=0;
-    for(let i=1;i<facs.length;i++){
-      const diff=getKm(facs[i])-getKm(facs[i-1]);
-      if(diff>0&&diff<=1000) km+=diff;
-    }
-    data.km=km; data.rend=data.litros>0?data.km/data.litros:0;
+  // Asignar km y rendimiento desde el cálculo pre-computado del periodo completo
+  // (no se recalcula al filtrar por mes — la cadena del odómetro es del periodo completo)
+  Object.entries(byPlaca).forEach(([placa, data])=>{
+    const precomp = _mdKmPorPlaca[placa] || { km:0, rend:0 };
+    data.km   = precomp.km;
+    data.rend = precomp.rend;
   });
+  const mesActivo = filtroMes || null;
 
   const placas=Object.entries(byPlaca).sort((a,b)=>b[1].gasto-a[1].gasto);
   const totGasto=placas.reduce((s,[,d])=>s+d.gasto,0);
@@ -4672,6 +4707,12 @@ function renderModalDetalle(rows){
   const totKm=placas.reduce((s,[,d])=>s+d.km,0);
   const rendProm=totLitros>0?totKm/totLitros:0;
 
+  // Actualizar subtítulo si hay filtro de mes
+  const mn2=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  const subLabel = mesActivo
+    ? (()=>{ const[y,mo]=mesActivo.split('-'); return `${mn2[parseInt(mo)-1]} ${y} · recorrido del periodo completo`; })()
+    : 'Métricas del periodo filtrado';
+  document.getElementById('mdSubtitulo').textContent = subLabel;
   document.getElementById('mdKpiPlacas').textContent=placas.length;
   document.getElementById('mdKpiGasto').textContent=fmtL(totGasto);
   document.getElementById('mdKpiLitros').textContent=fmtN(totLitros)+' L';
@@ -4760,6 +4801,12 @@ function renderModalDetalle(rows){
           <option value="">Todas las placas</option>
         </select>
       </div>
+      <div style="display:flex; align-items:center; gap:6px;">
+        <label style="font-size:12px; font-weight:600; color:var(--text-secondary);">Mes:</label>
+        <select id="mdFiltMes" class="input" style="font-size:12px; min-width:140px;" onchange="aplicarFiltroModal()">
+          <option value="">Todo el periodo</option>
+        </select>
+      </div>
       <div style="margin-left:auto; display:flex; gap:8px; align-items:center;">
         <span style="font-size:11px; color:var(--muted);">
           🟢 ≥6 km/L &nbsp; 🟡 3–6 km/L &nbsp; 🔴 &lt;3 km/L
@@ -4787,7 +4834,7 @@ function renderModalDetalle(rows){
               <th style="text-align:right; padding:6px 8px; border-bottom:2px solid var(--border); font-weight:600; color:var(--text-secondary);">Facturas</th>
               <th style="text-align:right; padding:6px 8px; border-bottom:2px solid var(--border); font-weight:600; color:var(--text-secondary);">Gasto (L)</th>
               <th style="text-align:right; padding:6px 8px; border-bottom:2px solid var(--border); font-weight:600; color:var(--text-secondary);">Litros</th>
-              <th style="text-align:right; padding:6px 8px; border-bottom:2px solid var(--border); font-weight:600; color:var(--text-secondary);">Recorrido</th>
+              <th style="text-align:right; padding:6px 8px; border-bottom:2px solid var(--border); font-weight:600; color:var(--text-secondary);" title="Recorrido total del periodo completo, independiente del filtro de mes">Recorrido ⓘ</th>
               <th style="text-align:right; padding:6px 8px; border-bottom:2px solid var(--border); font-weight:600; color:var(--text-secondary);">Prom/Fact</th>
               <th style="text-align:center; padding:6px 8px; border-bottom:2px solid var(--border); font-weight:600; color:var(--text-secondary);">km/L</th>
             </tr>
