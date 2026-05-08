@@ -4508,9 +4508,21 @@ function renderMetricas(rows){
             borderSkipped: false,
             yAxisID: 'yKm',
             datalabels: {
-              display: true, anchor: 'end', align: 'start', clamp: true,
-              color: '#fff', font: { size: 11, weight: 'bold' },
-              formatter: fmtKm
+              display: true, clamp: true,
+              font: { size: 11, weight: 'bold' },
+              formatter: fmtKm,
+              anchor: (ctx) => {
+                const max = Math.max(...ctx.dataset.data.filter(v=>v>0));
+                return (ctx.dataset.data[ctx.dataIndex] / max) < 0.08 ? 'end' : 'end';
+              },
+              align: (ctx) => {
+                const max = Math.max(...ctx.dataset.data.filter(v=>v>0));
+                return (ctx.dataset.data[ctx.dataIndex] / max) < 0.08 ? 'top' : 'start';
+              },
+              color: (ctx) => {
+                const max = Math.max(...ctx.dataset.data.filter(v=>v>0));
+                return (ctx.dataset.data[ctx.dataIndex] / max) < 0.08 ? '#6366F1' : '#fff';
+              }
             }
           },
           {
@@ -4526,8 +4538,17 @@ function renderMetricas(rows){
               display: true, anchor: 'end', clamp: true,
               color: '#fff', font: { size: 11, weight: 'bold' },
               formatter: fmtLit,
-              align: (ctx) => ctx.dataIndex === 0 ? 'right' : ctx.dataIndex === litrosM.length-1 ? 'left' : 'top',
-              offset: 4,
+              align: (ctx) => {
+                const n = litrosM.length;
+                if(ctx.dataIndex === 0) return 'right';
+                if(ctx.dataIndex === n-1) return 'left';
+                return 'top';
+              },
+              offset: (ctx) => {
+                // Si la barra de ese mes es muy pequeña, subir más la etiqueta para no chocar
+                const maxKm = Math.max(...recorridoData.filter(v=>v>0));
+                return (recorridoData[ctx.dataIndex] / maxKm) < 0.08 ? 20 : 4;
+              },
               backgroundColor: '#0D9488',
               borderRadius: 4,
               padding: { top: 3, bottom: 3, left: 5, right: 5 }
@@ -4664,8 +4685,10 @@ function closeMetricasModal(){
   document.getElementById('modalMetricas').style.display = 'none';
 }
 
-document.getElementById('modalMetricas').addEventListener('click', function(e){
-  if(e.target === this) closeMetricasModal();
+// Cerrar modal al hacer click fuera — usando delegación segura desde document
+document.addEventListener('click', function(e){
+  const modal = document.getElementById('modalMetricas');
+  if(modal && e.target === modal) closeMetricasModal();
 });
 
 function aplicarFiltroModal(){
