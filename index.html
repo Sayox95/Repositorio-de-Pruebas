@@ -17,7 +17,6 @@
   <!-- Icons -->
   <link rel="stylesheet" href="https://unpkg.com/lucide-static@0.453.0/font/lucide.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js"></script>
   <style>
 #btnLogout{color:#fff !important;}
 
@@ -588,9 +587,6 @@
       <p style="margin:4px 0 0; font-size:13px; color:var(--text-secondary);">Facturas en estado Revisada, Pagada y Enviada</p>
     </div>
     <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-      <select id="mSector" class="input" style="width:180px; font-size:13px; display:none;">
-        <option value="">Todos los sectores</option>
-      </select>
       <label style="font-size:12px; color:var(--text-secondary);">Desde</label>
       <input type="date" id="mDesde" class="input" style="width:145px; font-size:13px;">
       <label style="font-size:12px; color:var(--text-secondary);">Hasta</label>
@@ -4284,9 +4280,6 @@ async function marcarSeleccionComoEnviadas(){
 // ===== MÉTRICAS =====
 let _metricasCharts = {};
 
-// Registrar plugin datalabels solo para métricas
-if(typeof ChartDataLabels !== 'undefined') Chart.register(ChartDataLabels);
-
 function destroyChart(id){
   if(_metricasCharts[id]){ _metricasCharts[id].destroy(); delete _metricasCharts[id]; }
 }
@@ -4298,12 +4291,10 @@ function mkChart(id, type, labels, datasets, opts){
   _metricasCharts[id] = new Chart(ctx, {
     type,
     data: { labels, datasets },
-    plugins: typeof ChartDataLabels !== 'undefined' ? [ChartDataLabels] : [],
     options: Object.assign({
       responsive:true,
       maintainAspectRatio:false,
-      plugins:{ legend:{ display: datasets.length > 1, labels:{ font:{ size:11 } } },
-                datalabels:{ display:false } },
+      plugins:{ legend:{ display: datasets.length > 1, labels:{ font:{ size:11 } } } },
       scales: (type==='bar'||type==='line') ? {
         x:{ grid:{ display:false }, ticks:{ font:{ size:11 } } },
         y:{ grid:{ color:'rgba(0,0,0,0.05)' }, ticks:{ font:{ size:11 } } }
@@ -4318,28 +4309,6 @@ async function initMetricas(){
     const yyyy = hoy.getFullYear();
     document.getElementById('mDesde').value = `${yyyy}-01-01`;
     document.getElementById('mHasta').value = `${yyyy}-12-31`;
-  }
-  // Mostrar filtro de sector solo para admin (sin sectores asignados)
-  const selSector = document.getElementById('mSector');
-  if(selSector){
-    if(!window.userSectores || window.userSectores.length === 0){
-      selSector.style.display = 'block';
-      // Cargar sectores si aun no tiene opciones
-      if(selSector.options.length <= 1){
-        try{
-          const res = await fetch('/api/leer?sectoresLista=true', { cache:'no-store' });
-          const data = await res.json().catch(()=>({}));
-          const secs = Array.isArray(data.sectores) ? data.sectores : [];
-          secs.sort().forEach(s => {
-            const opt = document.createElement('option');
-            opt.value = s; opt.textContent = s;
-            selSector.appendChild(opt);
-          });
-        }catch(e){}
-      }
-    } else {
-      selSector.style.display = 'none';
-    }
   }
   await cargarMetricas();
 }
@@ -4357,13 +4326,8 @@ async function cargarMetricas(){
     url.searchParams.set("fechaDesde", desde);
     url.searchParams.set("fechaHasta", hasta);
     url.searchParams.set("estados","Revisada,Pagada,Enviada");
-    // Si el usuario tiene sectores asignados, usar los suyos; si es admin usar el filtro del select
-    if(window.userSectores && window.userSectores.length > 0){
+    if(window.userSectores && window.userSectores.length > 0)
       url.searchParams.set("sectores", window.userSectores.join(","));
-    } else {
-      const mSector = document.getElementById('mSector');
-      if(mSector && mSector.value) url.searchParams.set("sectores", mSector.value);
-    }
     const res  = await fetch(url.toString(), { cache:"no-store" });
     const raw  = await res.json().catch(()=>[]);
     const rows = (Array.isArray(raw)?raw:[]).map(r=>typeof normalizeRow==='function'?normalizeRow(r):r).filter(Boolean);
@@ -4374,8 +4338,7 @@ async function cargarMetricas(){
 
 function renderMetricas(rows){
   const fmt  = v=>"L "+(Number(v)||0).toLocaleString("es-HN",{minimumFractionDigits:2,maximumFractionDigits:2});
-  const fmtN = v=>(Number(v)||0).toLocaleString("es-HN",{minimumFractionDigits:2,maximumFractionDigits:2});
-  const fmtL = v=>(Number(v)||0).toLocaleString("es-HN",{minimumFractionDigits:2,maximumFractionDigits:2});
+  const fmtN = v=>(Number(v)||0).toLocaleString("es-HN");
   const getT = r=>Number(r["Total Gastado"]??r.Total??r.TotalGastado)||0;
   const getL = r=>Number(r["Litros Consumidos"]??r.LitrosConsumidos)||0;
 
@@ -4396,47 +4359,25 @@ function renderMetricas(rows){
     byMes[f].gasto+=getT(r); byMes[f].litros+=getL(r); byMes[f].count+=1;
   });
   const meses   = Object.keys(byMes).sort();
-  const gastoM  = meses.map(m=>parseFloat(byMes[m].gasto.toFixed(2)));
-  const litrosM = meses.map(m=>parseFloat(byMes[m].litros.toFixed(2)));
-  const promM   = meses.map(m=>parseFloat((byMes[m].gasto/byMes[m].count).toFixed(2)));
+  const gastoM  = meses.map(m=>Math.round(byMes[m].gasto));
+  const litrosM = meses.map(m=>Math.round(byMes[m].litros));
+  const promM   = meses.map(m=>Math.round(byMes[m].gasto/byMes[m].count));
   const mn      = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
   const mesLabel= meses.map(m=>{ const[y,mo]=m.split('-'); return `${mn[parseInt(mo)-1]} ${y}`; });
   const COLORS  = ['#065A82','#1C7293','#0D9488','#E85D04','#C0392B','#8B5CF6','#F59E0B','#10B981','#3B82F6','#EF4444'];
 
-  const datalabels_bar = { plugins:{ datalabels:false }, scales:{
-    x:{ grid:{ display:false }, ticks:{ font:{ size:11 } } },
-    y:{ grid:{ color:'rgba(0,0,0,0.05)' }, ticks:{ font:{ size:11 }, callback: v => 'L '+v.toLocaleString('es-HN') } }
-  }};
-  const datalabels_line = { plugins:{ datalabels:false }, scales:{
-    x:{ grid:{ display:false }, ticks:{ font:{ size:11 } } },
-    y:{ grid:{ color:'rgba(0,0,0,0.05)' }, ticks:{ font:{ size:11 }, callback: v => 'L '+v.toLocaleString('es-HN') } }
-  }};
+  mkChart('chartGastoMes','bar',mesLabel,[{label:'Desembolso (L)',data:gastoM,backgroundColor:'#1C7293',borderRadius:4,borderSkipped:false}]);
+  mkChart('chartLitrosMes','bar',mesLabel,[{label:'Litros',data:litrosM,backgroundColor:'#0D9488',borderRadius:4,borderSkipped:false}]);
+  mkChart('chartEvolucion','line',mesLabel,[{label:'Gasto (L)',data:gastoM,borderColor:'#065A82',backgroundColor:'rgba(6,90,130,0.1)',fill:true,tension:0.4,pointRadius:4,pointBackgroundColor:'#065A82'}]);
+  mkChart('chartProm','line',mesLabel,[{label:'Promedio L/factura',data:promM,borderColor:'#E85D04',backgroundColor:'rgba(232,93,4,0.1)',fill:true,tension:0.4,pointRadius:4,pointBackgroundColor:'#E85D04'}]);
 
-  mkChart('chartGastoMes','bar',mesLabel,[{label:'Desembolso (L)',data:gastoM,backgroundColor:'#1C7293',borderRadius:4,borderSkipped:false,
-    datalabels:{display:true,anchor:'end',align:'top',color:'#1C7293',font:{size:10,weight:'bold'},
-      formatter:v=>'L '+(Number(v)||0).toLocaleString('es-HN',{minimumFractionDigits:2,maximumFractionDigits:2})}}],datalabels_bar);
-  mkChart('chartLitrosMes','bar',mesLabel,[{label:'Litros',data:litrosM,backgroundColor:'#0D9488',borderRadius:4,borderSkipped:false,
-    datalabels:{display:true,anchor:'end',align:'top',color:'#0D9488',font:{size:10,weight:'bold'},
-      formatter:v=>(Number(v)||0).toLocaleString('es-HN',{minimumFractionDigits:2,maximumFractionDigits:2})+' L'}}],
-    {plugins:{datalabels:false},scales:{x:{grid:{display:false},ticks:{font:{size:11}}},y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:11},callback:v=>v.toLocaleString('es-HN')+' L'}}}});
-  mkChart('chartEvolucion','line',mesLabel,[{label:'Gasto (L)',data:gastoM,borderColor:'#065A82',backgroundColor:'rgba(6,90,130,0.1)',fill:true,tension:0.4,pointRadius:5,pointBackgroundColor:'#065A82',
-    datalabels:{display:true,anchor:'top',align:'top',color:'#065A82',font:{size:9},formatter:v=>'L '+(Number(v)||0).toLocaleString('es-HN',{minimumFractionDigits:2,maximumFractionDigits:2})}}],datalabels_line);
-  mkChart('chartProm','line',mesLabel,[{label:'Promedio L/factura',data:promM,borderColor:'#E85D04',backgroundColor:'rgba(232,93,4,0.1)',fill:true,tension:0.4,pointRadius:5,pointBackgroundColor:'#E85D04',
-    datalabels:{display:true,anchor:'top',align:'top',color:'#E85D04',font:{size:9},formatter:v=>'L '+(Number(v)||0).toLocaleString('es-HN',{minimumFractionDigits:2,maximumFractionDigits:2})}}],datalabels_line);
-
-  // Agrupar por Identidad (más confiable que Nombre)
-  const byIdent={};
-  rows.forEach(r=>{
-    const id=r.Identidad||'Sin identidad';
-    if(!byIdent[id]) byIdent[id]={ gasto:0, nombre: r.Nombre||r.Identidad||'Sin nombre' };
-    byIdent[id].gasto+=getT(r);
-  });
-  const topColab=Object.entries(byIdent).sort((a,b)=>b[1].gasto-a[1].gasto).slice(0,10);
+  const byColab={};
+  rows.forEach(r=>{ const n=r.Nombre||r.Identidad||'Sin nombre'; byColab[n]=(byColab[n]||0)+getT(r); });
+  const topColab=Object.entries(byColab).sort((a,b)=>b[1]-a[1]).slice(0,10);
   mkChart('chartColaboradores','bar',
-    topColab.map(([,v])=>v.nombre.length>22?v.nombre.slice(0,22)+'…':v.nombre),
-    [{label:'Gasto (L)',data:topColab.map(([,v])=>parseFloat(v.gasto.toFixed(2))),backgroundColor:COLORS,borderRadius:4,borderSkipped:false,
-      datalabels:{display:true,anchor:'end',align:'right',color:'#065A82',font:{size:10,weight:'bold'},formatter:v=>'L '+(Number(v)||0).toLocaleString('es-HN',{minimumFractionDigits:2,maximumFractionDigits:2})}}],
-    {indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:11},callback:v=>'L '+v.toLocaleString('es-HN')}},y:{grid:{display:false},ticks:{font:{size:11}}}}}
+    topColab.map(([n])=>n.length>22?n.slice(0,22)+'…':n),
+    [{label:'Gasto (L)',data:topColab.map(([,v])=>Math.round(v)),backgroundColor:COLORS,borderRadius:4,borderSkipped:false}],
+    {indexAxis:'y',plugins:{legend:{display:false}}}
   );
 
   const byProc={};
@@ -4444,11 +4385,7 @@ function renderMetricas(rows){
   const procs=Object.entries(byProc).sort((a,b)=>b[1]-a[1]);
   mkChart('chartProcesos','doughnut',
     procs.map(([n])=>n),
-    [{data:procs.map(([,v])=>parseFloat(v.toFixed(2))),backgroundColor:COLORS,borderWidth:2,borderColor:'#fff',
-      datalabels:{display:true,color:'#fff',font:{size:10,weight:'bold'},formatter:(v,ctx)=>{
-        const total=ctx.dataset.data.reduce((a,b)=>a+b,0);
-        return ((v/total)*100).toFixed(1)+'%';
-      }}}],
+    [{data:procs.map(([,v])=>Math.round(v)),backgroundColor:COLORS,borderWidth:2,borderColor:'#fff'}],
     {plugins:{legend:{display:true,position:'right',labels:{font:{size:10},boxWidth:12}}}}
   );
 }
