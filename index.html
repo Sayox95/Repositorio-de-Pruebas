@@ -621,12 +621,13 @@
 
   <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
     <div class="card" style="padding:1rem;">
-      <p style="font-size:13px; font-weight:600; color:var(--text-primary); margin:0 0 12px;">Evolución del gasto en el tiempo (L)</p>
-      <div style="position:relative; height:220px;"><canvas id="chartEvolucion"></canvas></div>
-    </div>
-    <div class="card" style="padding:1rem;">
       <p style="font-size:13px; font-weight:600; color:var(--text-primary); margin:0 0 12px;">Promedio de gasto por factura (L)</p>
       <div style="position:relative; height:220px;"><canvas id="chartProm"></canvas></div>
+    </div>
+    <div class="card" style="padding:1rem;">
+      <p style="font-size:13px; font-weight:600; color:var(--text-primary); margin:0 0 4px;">Recorrido vs Consumo mensual</p>
+      <p style="font-size:11px; color:var(--muted); margin:0 0 10px;">Barras = Km recorridos &nbsp;|&nbsp; Línea = Litros consumidos</p>
+      <div style="position:relative; height:220px;"><canvas id="chartRecorrido"></canvas></div>
     </div>
   </div>
 
@@ -4429,17 +4430,118 @@ function renderMetricas(rows){
     datalabels: dlBase(fmtLit, '#0D9488')
   }], { scales: scalesLit, layout:{ padding:{ top:24 } } });
 
-  mkChart('chartEvolucion','line',mesLabel,[{
-    label:'Gasto (L)', data:gastoM, borderColor:'#065A82', backgroundColor:'rgba(6,90,130,0.1)',
-    fill:true, tension:0.4, pointRadius:5, pointBackgroundColor:'#065A82',
-    datalabels: dlLine(fmtL2, '#065A82', gastoM.length)
-  }], { scales: scalesL, layout:{ padding:{ top:24, left:10, right:10 } } });
-
   mkChart('chartProm','line',mesLabel,[{
     label:'Promedio L/factura', data:promM, borderColor:'#E85D04', backgroundColor:'rgba(232,93,4,0.1)',
     fill:true, tension:0.4, pointRadius:5, pointBackgroundColor:'#E85D04',
     datalabels: dlLine(fmtL2, '#E85D04', promM.length)
   }], { scales: scalesL, layout:{ padding:{ top:24, left:10, right:10 } } });
+
+  // ── Gráfico combinado: Recorrido (km) vs Consumo (litros) ──────────────────
+  // Por placa: ordenar facturas por fecha, calcular diff de Km Actual entre consecutivas
+  // Si solo hay 1 factura en el mes para esa placa → 0 km ese mes
+  const getKm = r => Number(r['Km Actual']) || 0;
+
+  // Agrupar todas las facturas por placa (sin filtrar por mes — necesitamos la cadena completa)
+  const byPlaca = {};
+  rows.forEach(r => {
+    const placa = r.Placa || r['Placa Veh\u00EDculo'] || r.placa || '';
+    if (!placa) return;
+    if (!byPlaca[placa]) byPlaca[placa] = [];
+    byPlaca[placa].push(r);
+  });
+
+  // Inicializar acumulador por mes del filtro activo
+  const recorridoMes = {};
+  meses.forEach(m => { recorridoMes[m] = 0; });
+
+  Object.values(byPlaca).forEach(facturas => {
+    // Ordenar TODA la historia de la placa por fecha ASC, Km Actual ASC como desempate
+    facturas.sort((a, b) => {
+      const fa = (a.Fecha || '').toString();
+      const fb = (b.Fecha || '').toString();
+      if (fa !== fb) return fa < fb ? -1 : 1;
+      return getKm(a) - getKm(b);
+    });
+
+    // Recorrer la cadena completa: el diff se asigna al mes de la factura [i]
+    // La cadena NO se rompe entre meses — si la ultima de enero y la primera de febrero
+    // son consecutivas, el diff cruza el limite de mes correctamente.
+    for (let i = 1; i < facturas.length; i++) {
+      const kmActual   = getKm(facturas[i]);
+      const kmAnterior = getKm(facturas[i - 1]);
+      const diff = kmActual - kmAnterior;
+      if (diff <= 0) continue; // ignorar resets de odometro o datos inconsistentes
+      const mes = (facturas[i].Fecha || '').toString().slice(0, 7);
+      // Solo acumular si el mes destino esta dentro del filtro visible
+      if (mes && recorridoMes.hasOwnProperty(mes)) {
+        recorridoMes[mes] += diff;
+      }
+    }
+  });
+
+  const recorridoData = meses.map(m => parseFloat((recorridoMes[m] || 0).toFixed(2)));
+  const fmtKm = v => (Number(v) || 0).toLocaleString('es-HN', {minimumFractionDigits:0, maximumFractionDigits:0}) + ' km';
+
+  // Gráfico combinado con eje Y dual
+  const recCanvas = document.getElementById('chartRecorrido');
+  if (recCanvas) {
+    if (recCanvas._chartInst) { recCanvas._chartInst.destroy(); }
+    recCanvas._chartInst = new Chart(recCanvas, {
+      data: {
+        labels: mesLabel,
+        datasets: [
+          {
+            type: 'bar',
+            label: 'Recorrido (km)',
+            data: recorridoData,
+            backgroundColor: '#6366F1',
+            borderRadius: 4,
+            borderSkipped: false,
+            yAxisID: 'yKm',
+            datalabels: {
+              display: true, anchor: 'end', align: 'end', clamp: true,
+              color: '#6366F1', font: { size: 11, weight: 'bold' },
+              formatter: fmtKm
+            }
+          },
+          {
+            type: 'line',
+            label: 'Consumo (litros)',
+            data: litrosM,
+            borderColor: '#0D9488',
+            backgroundColor: 'rgba(13,148,136,0.12)',
+            fill: true, tension: 0.4, pointRadius: 5,
+            pointBackgroundColor: '#0D9488',
+            yAxisID: 'yLit',
+            datalabels: dlLine(fmtLit, '#0D9488', litrosM.length)
+          }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: true, position: 'top', labels: { font: { size: 11 }, boxWidth: 12 } },
+          datalabels: {}
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { font: { size: 11 } } },
+          yKm: {
+            type: 'linear', position: 'left',
+            grid: { color: 'rgba(0,0,0,0.05)' },
+            ticks: { font: { size: 10 }, callback: v => v.toLocaleString('es-HN') + ' km' }
+          },
+          yLit: {
+            type: 'linear', position: 'right',
+            grid: { drawOnChartArea: false },
+            ticks: { font: { size: 10 }, callback: v => v.toLocaleString('es-HN') + ' L' }
+          }
+        },
+        layout: { padding: { top: 28, left: 8, right: 8 } }
+      },
+      plugins: [ChartDataLabels]
+    });
+  }
 
   // Agrupar por Identidad (más confiable que Nombre)
   const byIdent={};
