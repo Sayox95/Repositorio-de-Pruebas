@@ -320,6 +320,7 @@
         <a class="nav-btn" href="#pago"><i class="lucide-wallet"></i><span>Pago</span></a>
         <a class="nav-btn" href="#anticipos"><i class="lucide-coins"></i><span>Anticipos</span></a>
         <a class="nav-btn" href="#placas"><i class="lucide-car"></i><span>Placas</span></a>
+        <a class="nav-btn" href="#metricas"><i class="lucide-bar-chart-2"></i><span>Métricas</span></a>
       </nav>
       <div class="spacer"></div>
       
@@ -1590,7 +1591,7 @@ function showOnly(sectionId){
   const tgt = document.getElementById(sectionId);
   if(tgt) tgt.style.display = 'block';
   document.querySelectorAll('.sidebar .nav-btn').forEach(a=>a.classList.remove('active'));
-  const map = {secRevision:'#revision', secPago:'#pago', secAnticipos:'#anticipos', secPlacas:'#placas', secInicio:'#inicio'};
+  const map = {secRevision:'#revision', secPago:'#pago', secAnticipos:'#anticipos', secPlacas:'#placas', secInicio:'#inicio', secMetricas:'#metricas'};
   const sel = map[sectionId]; if(sel){
     const a = document.querySelector(`.sidebar .nav-btn[href="${sel}"]`);
     if(a) a.classList.add('active');
@@ -1616,6 +1617,7 @@ document.querySelectorAll('.sidebar .nav-btn').forEach(a=>{
     if(href==='#pago')     return navigateTo('secPago', async()=>{ await initPagoMassPay(); });
     if(href==='#anticipos')return navigateTo('secAnticipos');
     if(href==='#placas')   return navigateTo('secPlacas', async()=>{ await cargarPlacas(); });
+    if(href==='#metricas') return navigateTo('secMetricas', async()=>{ await initMetricas(); });
   });
 });
 /** =========================
