@@ -2,7 +2,7 @@
 // Lecturas de facturas → D1 (rápido, con índices reales)
 // Otros cargos        → AppScript (sin cambios)
 
-const APPSCRIPT_URL = "https://script.google.com/macros/s/AKfycbz70oCZkuBJpO09gEhXOXYabFAQ1VL8hiT-8FpN0G9LofBF6VwbfhL1vpcU2SWJCRJHgw/exec";
+const APPSCRIPT_URL = "https://script.google.com/macros/s/AKfycbzr5N-ORnbLhggsg_ssWZ7acPdK5rXlD_RlftaAWI0so368s1oOFo7CpuMwqB-AaJWduA/exec";
 
 const CORS = (origin) => ({
   "Access-Control-Allow-Origin": origin,
@@ -105,6 +105,13 @@ export async function onRequestGet({ request, env }) {
     }
 
     const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+
+    // Endpoint especial: lista de sectores para filtro de métricas
+    if (params.get("sectoresLista") === "true") {
+      const { results: sRes } = await env.DB.prepare("SELECT DISTINCT Sector FROM facturas WHERE Sector IS NOT NULL ORDER BY Sector").all();
+      const sectores = (sRes || []).map(r => r.Sector).filter(Boolean);
+      return new Response(JSON.stringify({ sectores }), { status: 200, headers: CORS(origin) });
+    }
 
     // Sin filtros: no devolver nada para evitar scan completo de la tabla
     if (!conditions.length) {
