@@ -4704,13 +4704,41 @@ function renderModalDetalle(rows, filtroMes){
   const placas=Object.entries(byPlaca).sort((a,b)=>b[1].gasto-a[1].gasto);
   const totGasto=placas.reduce((s,[,d])=>s+d.gasto,0);
   const totLitros=placas.reduce((s,[,d])=>s+d.litros,0);
-  const totKm=placas.reduce((s,[,d])=>s+d.km,0);
-  const rendProm=totLitros>0?totKm/totLitros:0;
 
-  // Actualizar subtítulo si hay filtro de mes
+  // KPI de recorrido: si hay filtro de mes, calcular diffs solo de las rows de ese mes
+  // (recalculo puntual del mes, diferente al acumulado del periodo que usa la tabla)
+  let totKm = 0;
+  if(mesActivo){
+    // Para cada placa visible, calcular diffs solo entre facturas del mes seleccionado
+    // usando TODAS las facturas de la placa como contexto (para el primer diff del mes,
+    // tomamos el km de la ultima factura anterior al mes como punto de partida)
+    Object.entries(byPlaca).forEach(([placa])=>{
+      const todasFacs = (_mdRowsGlobal).filter(r=>(r.Placa||r['Placa Vehículo']||r.placa||'Sin placa')===placa)
+        .sort((a,b)=>{
+          const fa=(a.Fecha||'').toString(),fb=(b.Fecha||'').toString();
+          if(fa!==fb) return fa<fb?-1:1;
+          return getKm(a)-getKm(b);
+        });
+      // Encontrar index de la primera factura del mes
+      const idxPrimero = todasFacs.findIndex(r=>(r.Fecha||'').toString().slice(0,7)===mesActivo);
+      if(idxPrimero <= 0) return; // sin antecedente, no hay recorrido calculable
+      // Sumar diffs de todas las facturas del mes respecto a su previa
+      for(let i=idxPrimero; i<todasFacs.length; i++){
+        const mesFac = (todasFacs[i].Fecha||'').toString().slice(0,7);
+        if(mesFac !== mesActivo) break; // salir cuando pasa el mes
+        const diff = getKm(todasFacs[i]) - getKm(todasFacs[i-1]);
+        if(diff > 0 && diff <= 1000) totKm += diff;
+      }
+    });
+  } else {
+    totKm = placas.reduce((s,[,d])=>s+d.km,0);
+  }
+  const rendProm = totLitros>0 ? totKm/totLitros : 0;
+
+  // Subtítulo
   const mn2=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
   const subLabel = mesActivo
-    ? (()=>{ const[y,mo]=mesActivo.split('-'); return `${mn2[parseInt(mo)-1]} ${y} · recorrido del periodo completo`; })()
+    ? (()=>{ const[y,mo]=mesActivo.split('-'); return `${mn2[parseInt(mo)-1]} ${y} · km/L de la tabla = periodo completo`; })()
     : 'Métricas del periodo filtrado';
   document.getElementById('mdSubtitulo').textContent = subLabel;
   document.getElementById('mdKpiPlacas').textContent=placas.length;
