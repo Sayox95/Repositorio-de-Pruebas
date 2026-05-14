@@ -4545,29 +4545,14 @@ function renderMetricas(rows){
             yAxisID: 'yKm',
             datalabels: {
               display: true, clamp: true,
+              anchor: 'center', align: 'center',
               font: { size: 11, weight: 'bold' },
               formatter: fmtKm,
-              // Barra alta (>15% del max): etiqueta dentro en blanco
-              // Barra pequeña (<15%): etiqueta debajo de la etiqueta de línea, en color
-              anchor: (ctx) => {
-                const vals = ctx.dataset.data;
-                const max = Math.max(...vals.filter(v=>v>0));
-                return vals[ctx.dataIndex] / max < 0.15 ? 'start' : 'end';
-              },
-              align: (ctx) => {
-                const vals = ctx.dataset.data;
-                const max = Math.max(...vals.filter(v=>v>0));
-                return vals[ctx.dataIndex] / max < 0.15 ? 'bottom' : 'start';
-              },
               color: (ctx) => {
                 const vals = ctx.dataset.data;
                 const max = Math.max(...vals.filter(v=>v>0));
+                // Barra muy pequeña: texto en color sobre la barra (no dentro)
                 return vals[ctx.dataIndex] / max < 0.15 ? '#4F46E5' : '#fff';
-              },
-              offset: (ctx) => {
-                const vals = ctx.dataset.data;
-                const max = Math.max(...vals.filter(v=>v>0));
-                return vals[ctx.dataIndex] / max < 0.15 ? 4 : 0;
               }
             }
           },
