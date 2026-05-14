@@ -355,6 +355,26 @@
         <span style="font-size:0.78rem;color:var(--muted,#888);">Para ver otras fechas utilizar el filtro de Rango de Fecha</span>
       </div>
 
+      <!-- Banner alerta facturas no revisadas -->
+      <div id="bannerRegistradas" style="display:none; align-items:center; gap:10px;
+        background:linear-gradient(90deg,#fef3c7,#fffbeb); border:1.5px solid #f59e0b;
+        border-left:4px solid #d97706; border-radius:8px; padding:10px 14px; margin-bottom:10px;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2" style="flex-shrink:0">
+          <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+          <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+        <div style="flex:1; min-width:0;">
+          <span style="font-size:12.5px; font-weight:700; color:#92400e;">Advertencia — Facturas pendientes de revisión incluidas en el filtro activo</span>
+          <span style="display:block; font-size:11.5px; color:#78350f; margin-top:1px;">
+            Existen facturas con estado <strong>Registrada</strong> que aún no han sido revisadas.
+            Los indicadores, montos y métricas pueden reflejar información incoherente.
+            Se recomienda cambiar su estado a <strong>Revisada</strong> o <strong>Pagada</strong> antes de analizar los resultados.
+          </span>
+        </div>
+        <button onclick="document.getElementById('bannerRegistradas').style.display='none'"
+          style="background:none;border:none;cursor:pointer;color:#d97706;padding:2px;flex-shrink:0;font-size:16px;line-height:1;" title="Cerrar">✕</button>
+      </div>
+
       <div style="display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:10px; margin-bottom:10px;">
         <div class="card kpi">
           <span class="label">Total Facturas</span>
@@ -971,10 +991,11 @@ const State = {
 /** Opciones de estado a partir de datos o valores por defecto */
 function getEstadoOptions(){
   const vals = Array.from(new Set(State.raw.map(r=>r.Estado).filter(Boolean)));
-  // Orden sugerido
-  const def = ["Registrada","Revisada","Anulada","Excluida","Pagada","Enviada"];
-  const full = def.concat(vals.filter(v=>!def.includes(v)));
-  return full;
+  // Excluir Anulada y Excluida — se manejan aparte en KPIs, no como filtro
+  const excluir = new Set(["Anulada","Excluida"]);
+  const def = ["Registrada","Revisada","Enviada","Pagada"];
+  const extra = vals.filter(v=>!def.includes(v) && !excluir.has(v));
+  return def.concat(extra);
 }
 function estadoColor(v){
   if(v==="Anulada")   return "var(--danger)";
@@ -1023,7 +1044,16 @@ async function refreshAfterEstado(){
     State.raw = arr;
     try{ sectorMS.setItems(Array.from(new Set(State.raw.map(r=>r.Sector).filter(Boolean)))); } catch (e){ }
     try{ estadoMS.setItems(getEstadoOptions()); } catch (e){ }
-    try{ sectorMS.select(currentSector); estadoMS.select(currentEstado); } catch (e){ }
+    try{ sectorMS.select(currentSector); } catch(e){}
+    try{
+      // Si no hay selección previa, aplicar los estados por defecto
+      if(!currentEstado || currentEstado.length === 0){
+        const defaults = (estadoMS._defaultStates || []).filter(v => getEstadoOptions().includes(v));
+        estadoMS.select(defaults);
+      } else {
+        estadoMS.select(currentEstado);
+      }
+    } catch(e){}
     if(document.getElementById("fNombre")) document.getElementById("fNombre").value = qNombre;
     if(document.getElementById("fPlaca"))  document.getElementById("fPlaca").value = qPlaca;
     document.getElementById("fNumero").value = qNum;
@@ -1261,6 +1291,15 @@ function updateKpis(){
   const anuladas    = rows.filter(r=> ["Anulada","Excluida"].includes(r.Estado||"")).length;
   const rowsSinAnuladas = rows.filter(r=> !["Anulada","Excluida"].includes(r.Estado||""));
   const total       = rowsSinAnuladas.length;
+  // Banner advertencia — visible si hay Registradas en los datos activos del filtro
+  const eValsActivos = estadoMS ? estadoMS.getSelected() : [];
+  const incluyeRegistrada = eValsActivos.length === 0 || eValsActivos.includes("Registrada");
+  const banner = document.getElementById("bannerRegistradas");
+  if(banner){
+    const hayRegistradas = rowsSinAnuladas.some(r=>(r.Estado||"Registrada")==="Registrada");
+    banner.style.display = (incluyeRegistrada && hayRegistradas) ? "flex" : "none";
+  }
+
   const registradas = rowsSinAnuladas.filter(r=> (r.Estado||"") === "Registrada").length;
   const revisadas   = rowsSinAnuladas.filter(r=> (r.Estado||"") === "Revisada").length;
   const pagadas     = rowsSinAnuladas.filter(r=> (r.Estado||"") === "Pagada").length;
@@ -1360,6 +1399,8 @@ function initFilters(){
   // MultiSelect con checkboxes
   sectorMS = createMultiSelect("#msSector", "Sector", applyFilters);
   estadoMS = createMultiSelect("#msEstado", "Estado", applyFilters);
+  // Por defecto mostrar solo facturas procesadas (excluir Registrada)
+  estadoMS._defaultStates = ["Revisada","Enviada","Pagada"];
 
   // Asegurar input de Placa
   const filtersRow = document.querySelector(".filters");
@@ -4545,14 +4586,42 @@ function renderMetricas(rows){
             yAxisID: 'yKm',
             datalabels: {
               display: true, clamp: true,
-              anchor: 'center', align: 'center',
-              font: { size: 11, weight: 'bold' },
+              font: (ctx) => {
+                const vals = ctx.dataset.data;
+                const max = Math.max(...vals.filter(v=>v>0));
+                // Fuente más pequeña si hay muchas barras para no solaparse
+                const n = vals.filter(v=>v>0).length;
+                return { size: n > 8 ? 10 : 11, weight: 'bold' };
+              },
               formatter: fmtKm,
+              // Barra alta (>20% del max): etiqueta centrada dentro, blanca
+              // Barra pequeña: etiqueta encima, color morado oscuro con halo blanco
+              anchor: (ctx) => {
+                const vals = ctx.dataset.data;
+                const max = Math.max(...vals.filter(v=>v>0));
+                return vals[ctx.dataIndex] / max < 0.20 ? 'end' : 'center';
+              },
+              align: (ctx) => {
+                const vals = ctx.dataset.data;
+                const max = Math.max(...vals.filter(v=>v>0));
+                return vals[ctx.dataIndex] / max < 0.20 ? 'top' : 'center';
+              },
               color: (ctx) => {
                 const vals = ctx.dataset.data;
                 const max = Math.max(...vals.filter(v=>v>0));
-                // Barra muy pequeña: texto en color sobre la barra (no dentro)
-                return vals[ctx.dataIndex] / max < 0.15 ? '#4F46E5' : '#fff';
+                return vals[ctx.dataIndex] / max < 0.20 ? '#3730a3' : '#fff';
+              },
+              textStrokeColor: (ctx) => {
+                const vals = ctx.dataset.data;
+                const max = Math.max(...vals.filter(v=>v>0));
+                // Halo blanco para texto oscuro encima de la barra, halo morado oscuro para texto blanco dentro
+                return vals[ctx.dataIndex] / max < 0.20 ? 'rgba(255,255,255,0.9)' : 'rgba(79,70,229,0.4)';
+              },
+              textStrokeWidth: 3,
+              offset: (ctx) => {
+                const vals = ctx.dataset.data;
+                const max = Math.max(...vals.filter(v=>v>0));
+                return vals[ctx.dataIndex] / max < 0.20 ? 2 : 0;
               }
             }
           },
