@@ -1787,9 +1787,45 @@ async function loadProcesosOptions(){
         columns: [
           { title:"ID", field:"IDvehiculo", width:120 },
           { title:"Placa", field:"Placa", width:160, editor:"input", editable:(cell)=>canEditPlaca(cell), cellEdited:onPlacaEdited },
-          { title:"Estado", field:"Estado", width:120, formatter:(c)=>{
-              const v = c.getValue() || "ACTIVO";
-              return `<span class="status-pill ${(v||"").toUpperCase()==="ACTIVO"?"":"disabled"}"><span class="dot" style="background:${v==="Activa"?"#10b981":"#f59e0b"}"></span>${v}</span>`;
+          { title:"Estado", field:"Estado", width:140, formatter:(c)=>{
+              const v = (c.getValue() || "ACTIVO").toUpperCase();
+              const isActivo = v === "ACTIVO";
+              return `<span class="estado-toggle-btn" data-placa="${c.getRow().getData().Placa}" data-estado="${v}"
+                style="display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:20px;cursor:pointer;font-size:12px;font-weight:600;user-select:none;transition:all .2s;
+                background:${isActivo?'#d1fae5':'#fee2e2'};color:${isActivo?'#065f46':'#991b1b'};border:1.5px solid ${isActivo?'#6ee7b7':'#fca5a5'};"
+                title="Clic para cambiar estado">
+                <span style="width:8px;height:8px;border-radius:50%;background:${isActivo?'#10b981':'#ef4444'};display:inline-block;"></span>
+                ${isActivo?'Activo':'Inactivo'}
+                <span style="font-size:10px;opacity:0.7;">⇄</span>
+              </span>`;
+            }, cellClick: async (e, cell)=>{
+              const btn = e.target.closest('.estado-toggle-btn');
+              if(!btn) return;
+              if(!placasEndpointsReady()){ alert('Configura el endpoint de Placas.'); return; }
+              const placa = btn.dataset.placa;
+              const estadoActual = btn.dataset.estado;
+              const nuevoEstado = estadoActual === 'ACTIVO' ? 'Inactiva' : 'Activa';
+              const nuevoEstadoDB = estadoActual === 'ACTIVO' ? 'INACTIVO' : 'ACTIVO';
+              if(!confirm(`¿Cambiar estado de ${placa} a ${nuevoEstado}?`)) return;
+              try{
+                overlay.show('Actualizando estado…');
+                const res = await fetch(Config.api.placas, {
+                  method:'POST',
+                  headers:{'Content-Type':'application/json'},
+                  body: JSON.stringify({ action:'cambiarEstado', placas:[placa], estado: nuevoEstado })
+                });
+                if(!res.ok) throw new Error('HTTP '+res.status);
+                // Actualizar localmente sin recargar toda la tabla
+                const rowData = cell.getRow().getData();
+                rowData.Estado = nuevoEstadoDB;
+                cell.getRow().update({ Estado: nuevoEstadoDB });
+                // Actualizar en Placas.data también
+                const idx = Placas.data.findIndex(r=>r.Placa===placa);
+                if(idx>=0) Placas.data[idx].Estado = nuevoEstadoDB;
+                actualizarKpisPlacas();
+              }catch(err){
+                alert('No fue posible actualizar el estado: '+err.message);
+              }finally{ overlay.hide(); }
             }},
           { title:"Nombre", field:"Nombre" },
           { title:"Sector", field:"Sector", width:140 , editor:"list" , editorParams:function(){ return {values:getUniqueSectors()}; } , cellEdited:onSectorEdited },
@@ -4511,17 +4547,27 @@ function renderMetricas(rows){
               display: true, clamp: true,
               font: { size: 11, weight: 'bold' },
               formatter: fmtKm,
+              // Barra alta (>15% del max): etiqueta dentro en blanco
+              // Barra pequeña (<15%): etiqueta debajo de la etiqueta de línea, en color
               anchor: (ctx) => {
-                const max = Math.max(...ctx.dataset.data.filter(v=>v>0));
-                return (ctx.dataset.data[ctx.dataIndex] / max) < 0.08 ? 'end' : 'end';
+                const vals = ctx.dataset.data;
+                const max = Math.max(...vals.filter(v=>v>0));
+                return vals[ctx.dataIndex] / max < 0.15 ? 'start' : 'end';
               },
               align: (ctx) => {
-                const max = Math.max(...ctx.dataset.data.filter(v=>v>0));
-                return (ctx.dataset.data[ctx.dataIndex] / max) < 0.08 ? 'top' : 'start';
+                const vals = ctx.dataset.data;
+                const max = Math.max(...vals.filter(v=>v>0));
+                return vals[ctx.dataIndex] / max < 0.15 ? 'bottom' : 'start';
               },
               color: (ctx) => {
-                const max = Math.max(...ctx.dataset.data.filter(v=>v>0));
-                return (ctx.dataset.data[ctx.dataIndex] / max) < 0.08 ? '#6366F1' : '#fff';
+                const vals = ctx.dataset.data;
+                const max = Math.max(...vals.filter(v=>v>0));
+                return vals[ctx.dataIndex] / max < 0.15 ? '#4F46E5' : '#fff';
+              },
+              offset: (ctx) => {
+                const vals = ctx.dataset.data;
+                const max = Math.max(...vals.filter(v=>v>0));
+                return vals[ctx.dataIndex] / max < 0.15 ? 4 : 0;
               }
             }
           },
@@ -4535,20 +4581,10 @@ function renderMetricas(rows){
             pointBackgroundColor: '#0D9488',
             yAxisID: 'yLit',
             datalabels: {
-              display: true, anchor: 'end', clamp: true,
+              display: true, anchor: 'end', align: 'top', clamp: false,
               color: '#fff', font: { size: 11, weight: 'bold' },
               formatter: fmtLit,
-              align: (ctx) => {
-                const n = litrosM.length;
-                if(ctx.dataIndex === 0) return 'right';
-                if(ctx.dataIndex === n-1) return 'left';
-                return 'top';
-              },
-              offset: (ctx) => {
-                // Si la barra de ese mes es muy pequeña, subir más la etiqueta para no chocar
-                const maxKm = Math.max(...recorridoData.filter(v=>v>0));
-                return (recorridoData[ctx.dataIndex] / maxKm) < 0.08 ? 20 : 4;
-              },
+              offset: 6,
               backgroundColor: '#0D9488',
               borderRadius: 4,
               padding: { top: 3, bottom: 3, left: 5, right: 5 }
@@ -4576,7 +4612,7 @@ function renderMetricas(rows){
             ticks: { font: { size: 10 }, callback: v => v.toLocaleString('es-HN') + ' L' }
           }
         },
-        layout: { padding: { top: 40, left: 8, right: 40 } }
+        layout: { padding: { top: 55, left: 8, right: 55 } }
       },
       plugins: [ChartDataLabels]
     });
