@@ -1042,14 +1042,20 @@ async function refreshAfterEstado(){
 
     const arr = await API.getFacturas(fetchParams);
     State.raw = arr;
-    try{ sectorMS.setItems(Array.from(new Set(State.raw.map(r=>r.Sector).filter(Boolean)))); } catch (e){ }
-    try{ estadoMS.setItems(getEstadoOptions()); } catch (e){ }
+    try{ sectorMS.setItems(Array.from(new Set(State.raw.map(r=>r.Sector).filter(Boolean)))); } catch(e){}
+    try{
+      const selActualRel = estadoMS ? estadoMS.getSelected() : [];
+      estadoMS.setItems(getEstadoOptions());
+      if(selActualRel && selActualRel.length > 0){
+        estadoMS.select(selActualRel.filter(v=>getEstadoOptions().includes(v)));
+      } else {
+        estadoMS.select(["Revisada","Enviada","Pagada"].filter(v=>getEstadoOptions().includes(v)));
+      }
+    } catch(e){}
     try{ sectorMS.select(currentSector); } catch(e){}
     try{
-      // Si no hay selección previa, aplicar los estados por defecto
       if(!currentEstado || currentEstado.length === 0){
-        const defaults = (estadoMS._defaultStates || []).filter(v => getEstadoOptions().includes(v));
-        estadoMS.select(defaults);
+        estadoMS.select(["Revisada","Enviada","Pagada"].filter(v=>getEstadoOptions().includes(v)));
       } else {
         estadoMS.select(currentEstado);
       }
@@ -2529,9 +2535,21 @@ async function loadData(fechaDesde, fechaHasta, fechaRevDesde, fechaRevHasta){
     }
     // poblar selects dinámicamente
     const sectores = Array.from(new Set(data.map(r=>r.Sector).filter(Boolean))).sort();
-    const estados  = Array.from(new Set(data.map(r=>r.Estado||"Registrada"))).sort();
     if(sectorMS){ sectorMS.setItems(sectores); }
-    if(estadoMS){ estadoMS.setItems(estados); }
+    // Estado: excluir Anulada/Excluida, respetar selección previa o aplicar default
+    if(estadoMS){
+      const excluirEst = new Set(["Anulada","Excluida"]);
+      const estadosDisp = Array.from(new Set(data.map(r=>r.Estado||"Registrada").filter(v=>!excluirEst.has(v)))).sort();
+      const selActual = estadoMS.getSelected();
+      estadoMS.setItems(estadosDisp);
+      if(selActual && selActual.length > 0){
+        estadoMS.select(selActual.filter(v=>estadosDisp.includes(v)));
+      } else {
+        // Primera carga: pre-seleccionar Revisada, Enviada, Pagada
+        const defaults = ["Revisada","Enviada","Pagada"].filter(v=>estadosDisp.includes(v));
+        estadoMS.select(defaults);
+      }
+    }
     buildTable();
     if(tableBuilt){ applyFilters(); } else {
       (function(){
