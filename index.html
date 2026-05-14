@@ -997,10 +997,10 @@ const State = {
 
 /** Opciones de estado a partir de datos o valores por defecto */
 function getEstadoOptions(){
-  const vals = Array.from(new Set(State.raw.map(r=>r.Estado).filter(Boolean)));
-  const def = ["Registrada","Revisada","Anulada","Excluida","Pagada","Enviada"];
-  const full = def.concat(vals.filter(v=>!def.includes(v)));
-  return full;
+  const vals = new Set(State.raw.map(r=>r.Estado).filter(Boolean));
+  // Orden preferido — solo incluir los que realmente existen en los datos cargados
+  const orden = ["Registrada","Revisada","Anulada","Excluida","Pagada","Enviada"];
+  return orden.filter(v=>vals.has(v)).concat([...vals].filter(v=>!orden.includes(v)));
 }
 function estadoColor(v){
   if(v==="Anulada")   return "var(--danger)";
@@ -4648,7 +4648,17 @@ function renderMetricas(rows){
               display: true, anchor: 'end', align: 'top', clamp: false,
               color: '#fff', font: { size: 11, weight: 'bold' },
               formatter: fmtLit,
-              offset: 6,
+              offset: (ctx) => {
+                // Si el punto de la línea está cerca de la barra (valor relativo alto), subir más
+                const litVal = litrosM[ctx.dataIndex] || 0;
+                const kmVal  = recorridoData[ctx.dataIndex] || 0;
+                const maxLit = Math.max(...litrosM.filter(v=>v>0));
+                const maxKm  = Math.max(...recorridoData.filter(v=>v>0));
+                // Normalizar ambos al mismo espacio [0-1] y ver si están cerca
+                const litNorm = litVal / maxLit;
+                const kmNorm  = kmVal  / maxKm;
+                return Math.abs(litNorm - kmNorm) < 0.15 ? 22 : 6;
+              },
               backgroundColor: '#0D9488',
               borderRadius: 4,
               padding: { top: 3, bottom: 3, left: 5, right: 5 }
