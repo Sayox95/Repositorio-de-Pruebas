@@ -4649,16 +4649,20 @@ function renderMetricas(rows){
               color: '#fff', font: { size: 11, weight: 'bold' },
               formatter: fmtLit,
               offset: (ctx) => {
+                // Calcular posición Y relativa de la línea y el tope de la barra en el mismo eje
+                // Usamos los valores crudos escalados al rango de cada eje
                 const litVal = litrosM[ctx.dataIndex] || 0;
                 const kmVal  = recorridoData[ctx.dataIndex] || 0;
                 const maxLit = Math.max(...litrosM.filter(v=>v>0));
                 const maxKm  = Math.max(...recorridoData.filter(v=>v>0));
-                const litNorm = litVal / maxLit;
-                const kmNorm  = kmVal  / maxKm;
-                // Si la barra es muy alta (>80% del max) la etiqueta de línea necesita más espacio
-                if(kmNorm > 0.80) return 30;
-                // Si están cerca en el espacio normalizado, subir
-                return Math.abs(litNorm - kmNorm) < 0.25 ? 22 : 6;
+                // Altura relativa de cada uno en su propio eje [0..1], invertida (1=arriba)
+                const litRel = maxLit > 0 ? litVal / maxLit : 0;
+                const kmRel  = maxKm  > 0 ? kmVal  / maxKm  : 0;
+                // Diferencia: si la línea está por encima o muy cerca de la barra → subir etiqueta
+                const diff = litRel - kmRel;
+                if(diff > 0.05) return 28;   // línea claramente por encima de la barra
+                if(diff > -0.12) return 22;  // línea cerca del tope de la barra
+                return 6;                    // línea bien por debajo, sin conflicto
               },
               backgroundColor: '#0D9488',
               borderRadius: 4,
@@ -4687,7 +4691,7 @@ function renderMetricas(rows){
             ticks: { font: { size: 10 }, callback: v => v.toLocaleString('es-HN') + ' L' }
           }
         },
-        layout: { padding: { top: 50, left: 8, right: 65 } }
+        layout: { padding: { top: 42, left: 8, right: 65 } }
       },
       plugins: [ChartDataLabels]
     });
