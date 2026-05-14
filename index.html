@@ -605,7 +605,7 @@
   <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1.5rem; flex-wrap:wrap; gap:12px;">
     <div>
       <h2 style="margin:0; font-size:1.4rem; font-weight:700; color:var(--text-primary);">Métricas de Combustible</h2>
-      <p style="margin:4px 0 0; font-size:13px; color:var(--text-secondary);">Facturas en estado Revisada, Pagada y Enviada</p>
+      <p id="mSubtitulo" style="margin:4px 0 0; font-size:13px; color:var(--text-secondary);">Facturas en estado Revisada, Pagada y Enviada</p>
     </div>
     <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
       <div id="mSectorWrap" style="display:none; gap:10px; align-items:center;">
@@ -4435,13 +4435,14 @@ async function initMetricas(){
       metricasEstadoMS.setItems(['Revisada','Enviada','Pagada','Registrada']);
       metricasEstadoMS.select(['Revisada','Enviada','Pagada']);
     }
-    // Cargar sectores desde API si aún está vacío
-    if(metricasSectorMS && metricasSectorMS.getSelected !== undefined){
+    // Cargar sectores desde placas (más confiable que endpoint separado)
+    if(metricasSectorMS){
       try{
-        const res = await fetch('/api/leer?sectoresLista=true', { cache:'no-store' });
-        const data = await res.json().catch(()=>({}));
-        const secs = Array.isArray(data.sectores) ? data.sectores : [];
-        metricasSectorMS.setItems(secs.sort());
+        const base = (typeof Config!=='undefined' && Config?.api?.placas) || "/api/placas";
+        const res = await fetch(base, { cache:'no-store' });
+        const data = await res.json().catch(()=>[]);
+        const secs = [...new Set((Array.isArray(data)?data:[]).map(r=>r.Sector).filter(Boolean))].sort();
+        if(secs.length > 0) metricasSectorMS.setItems(secs);
       }catch(e){}
     }
   } else {
@@ -4482,6 +4483,13 @@ async function cargarMetricas(){
 
 function renderMetricas(rows){
   window._mdLastRows = rows; // guardar para el modal
+  // Actualizar subtítulo con estados activos
+  const subEl = document.getElementById('mSubtitulo');
+  if(subEl){
+    const estSel = metricasEstadoMS ? metricasEstadoMS.getSelected() : [];
+    const estLabel = estSel.length > 0 ? estSel.join(', ') : 'Revisada, Pagada y Enviada';
+    subEl.textContent = `Facturas en estado ${estLabel}`;
+  }
   const fmt  = v=>"L "+(Number(v)||0).toLocaleString("es-HN",{minimumFractionDigits:2,maximumFractionDigits:2});
   const fmtN = v=>(Number(v)||0).toLocaleString("es-HN",{minimumFractionDigits:2,maximumFractionDigits:2});
   const fmtL = v=>(Number(v)||0).toLocaleString("es-HN",{minimumFractionDigits:2,maximumFractionDigits:2});
