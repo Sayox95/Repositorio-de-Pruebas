@@ -1804,22 +1804,22 @@ async function loadProcesosOptions(){
               if(!placasEndpointsReady()){ alert('Configura el endpoint de Placas.'); return; }
               const placa = btn.dataset.placa;
               const estadoActual = btn.dataset.estado;
-              const nuevoEstado = estadoActual === 'ACTIVO' ? 'Inactiva' : 'Activa';
               const nuevoEstadoDB = estadoActual === 'ACTIVO' ? 'INACTIVO' : 'ACTIVO';
-              if(!confirm(`¿Cambiar estado de ${placa} a ${nuevoEstado}?`)) return;
+              const nuevoEstadoLabel = nuevoEstadoDB === 'ACTIVO' ? 'Activo' : 'Inactivo';
+              if(!confirm(`¿Cambiar estado de ${placa} a ${nuevoEstadoLabel}?`)) return;
               try{
                 overlay.show('Actualizando estado…');
+                // Usar el mismo valor que los botones masivos para consistencia con el worker
                 const res = await fetch(Config.api.placas, {
                   method:'POST',
                   headers:{'Content-Type':'application/json'},
-                  body: JSON.stringify({ action:'cambiarEstado', placas:[placa], estado: nuevoEstado })
+                  body: JSON.stringify({ action:'cambiarEstado', placas:[placa], estado: nuevoEstadoDB })
                 });
                 if(!res.ok) throw new Error('HTTP '+res.status);
+                const respJson = await res.json().catch(()=>({}));
+                if(respJson.error) throw new Error(respJson.error);
                 // Actualizar localmente sin recargar toda la tabla
-                const rowData = cell.getRow().getData();
-                rowData.Estado = nuevoEstadoDB;
                 cell.getRow().update({ Estado: nuevoEstadoDB });
-                // Actualizar en Placas.data también
                 const idx = Placas.data.findIndex(r=>r.Placa===placa);
                 if(idx>=0) Placas.data[idx].Estado = nuevoEstadoDB;
                 actualizarKpisPlacas();
@@ -1837,8 +1837,8 @@ async function loadProcesosOptions(){
       });
       // Eventos UI
       document.getElementById("btnPlacasActualizar").addEventListener("click", cargarPlacas);
-      document.getElementById("btnPlacasActivar").addEventListener("click", ()=> cambiarEstadoPlacas("Activa"));
-      document.getElementById("btnPlacasInactivar").addEventListener("click", ()=> cambiarEstadoPlacas("Inactiva"));
+      document.getElementById("btnPlacasActivar").addEventListener("click", ()=> cambiarEstadoPlacas("ACTIVO"));
+      document.getElementById("btnPlacasInactivar").addEventListener("click", ()=> cambiarEstadoPlacas("INACTIVO"));
       document.getElementById("btnPlacasNueva").addEventListener("click", async ()=> { toggleFormPlaca(true); fillSectorOptions();
     fillSectorFilterOptions(); await loadProcesosOptions(); });
       document.getElementById("btnPlacaCancelar").addEventListener("click", ()=> toggleFormPlaca(false));
@@ -2066,7 +2066,7 @@ async function cambiarEstadoPlacas(nuevoEstado){
     const res = await fetch(Config.api.placas, {
       method:"POST",
       headers:{ "Content-Type":"application/json" },
-      body: JSON.stringify({ action:"cambiarEstado", placas, estado: nuevoEstado })
+      body: JSON.stringify({ action:"cambiarEstado", placas, estado: nuevoEstado.toUpperCase() })
     });
     if(!res.ok) throw new Error("HTTP "+res.status);
     await cargarPlacas();
@@ -4596,7 +4596,7 @@ function renderMetricas(rows){
         responsive: true, maintainAspectRatio: false,
         interaction: { mode: 'index', intersect: false },
         plugins: {
-          legend: { display: true, position: 'top', labels: { font: { size: 11 }, boxWidth: 12 } },
+          legend: { display: true, position: 'bottom', labels: { font: { size: 11 }, boxWidth: 12, padding: 8 } },
           datalabels: {}
         },
         scales: {
@@ -4612,7 +4612,7 @@ function renderMetricas(rows){
             ticks: { font: { size: 10 }, callback: v => v.toLocaleString('es-HN') + ' L' }
           }
         },
-        layout: { padding: { top: 55, left: 8, right: 55 } }
+        layout: { padding: { top: 30, left: 8, right: 55 } }
       },
       plugins: [ChartDataLabels]
     });
