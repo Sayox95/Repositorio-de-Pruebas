@@ -589,7 +589,7 @@
     </div>
     <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
       <div id="mSectorWrap" style="display:none; gap:10px; align-items:center;">
-        <div style="display:flex; flex-direction:column; gap:3px;">
+        <div id="msSectorMetricasWrap" style="display:none; flex-direction:column; gap:3px;">
           <span style="font-size:11px; font-weight:600; color:var(--text-secondary); padding-left:4px;">Sectores</span>
           <div id="msSectorMetricas" style="width:190px; position:relative;"></div>
         </div>
@@ -619,9 +619,9 @@
     <div style="flex:1; min-width:0;">
       <span style="font-size:12.5px; font-weight:700; color:#92400e;">Advertencia — Facturas pendientes de revisión incluidas en el filtro activo</span>
       <span style="display:block; font-size:11.5px; color:#78350f; margin-top:1px;">
-        Se está mostrando facturas con estado <strong>Registrada</strong> que aún no han sido revisadas.
+        Existen facturas con estado <strong>Registrada</strong> que aún no han sido revisadas.
         Los indicadores, montos y métricas pueden reflejar información incoherente.
-        Se recomienda revisar y cambiar su estado a <strong>Revisada</strong> o <strong>Pagada</strong> antes de analizar los resultados.
+        Se recomienda cambiar su estado a <strong>Revisada</strong> o <strong>Pagada</strong> antes de analizar los resultados.
       </span>
     </div>
     <button onclick="document.getElementById('bannerMetricasRegistradas').style.display='none'"
@@ -4395,18 +4395,23 @@ async function initMetricas(){
   }
   // Mostrar filtros de sector y estado solo para admin
   const wrapMetricas = document.getElementById('mSectorWrap');
-  if(!window.userSectores || window.userSectores.length === 0){
-    if(wrapMetricas) wrapMetricas.style.display = 'flex';
-    // Inicializar multiselects si aún no existen
+  const sectorWrapInner = document.getElementById('msSectorMetricasWrap');
+  const isAdmin = !window.userSectores || window.userSectores.length === 0;
+
+  // Filtro de estado: visible para TODOS los usuarios
+  if(!metricasEstadoMS && document.getElementById('msEstadoMetricas')){
+    metricasEstadoMS = createMultiSelect('#msEstadoMetricas', 'Estado', ()=>{});
+    metricasEstadoMS.setItems(['Revisada','Enviada','Pagada','Registrada']);
+    metricasEstadoMS.select(['Revisada','Enviada','Pagada']);
+  }
+  if(wrapMetricas) wrapMetricas.style.display = 'flex';
+
+  // Filtro de sector: solo para admin
+  if(sectorWrapInner) sectorWrapInner.style.display = isAdmin ? 'flex' : 'none';
+  if(isAdmin){
     if(!metricasSectorMS && document.getElementById('msSectorMetricas')){
       metricasSectorMS = createMultiSelect('#msSectorMetricas', 'Sectores', ()=>{});
     }
-    if(!metricasEstadoMS && document.getElementById('msEstadoMetricas')){
-      metricasEstadoMS = createMultiSelect('#msEstadoMetricas', 'Estado', ()=>{});
-      metricasEstadoMS.setItems(['Revisada','Enviada','Pagada','Registrada']);
-      metricasEstadoMS.select(['Revisada','Enviada','Pagada']);
-    }
-    // Cargar sectores desde placas (más confiable que endpoint separado)
     if(metricasSectorMS){
       try{
         const base = (typeof Config!=='undefined' && Config?.api?.placas) || "/api/placas";
@@ -4416,8 +4421,6 @@ async function initMetricas(){
         if(secs.length > 0) metricasSectorMS.setItems(secs);
       }catch(e){}
     }
-  } else {
-    if(wrapMetricas) wrapMetricas.style.display = 'none';
   }
   await cargarMetricas();
 }
@@ -4649,20 +4652,18 @@ function renderMetricas(rows){
               color: '#fff', font: { size: 11, weight: 'bold' },
               formatter: fmtLit,
               offset: (ctx) => {
-                // Calcular posición Y relativa de la línea y el tope de la barra en el mismo eje
-                // Usamos los valores crudos escalados al rango de cada eje
                 const litVal = litrosM[ctx.dataIndex] || 0;
                 const kmVal  = recorridoData[ctx.dataIndex] || 0;
                 const maxLit = Math.max(...litrosM.filter(v=>v>0));
                 const maxKm  = Math.max(...recorridoData.filter(v=>v>0));
-                // Altura relativa de cada uno en su propio eje [0..1], invertida (1=arriba)
                 const litRel = maxLit > 0 ? litVal / maxLit : 0;
                 const kmRel  = maxKm  > 0 ? kmVal  / maxKm  : 0;
-                // Diferencia: si la línea está por encima o muy cerca de la barra → subir etiqueta
                 const diff = litRel - kmRel;
-                if(diff > 0.05) return 28;   // línea claramente por encima de la barra
-                if(diff > -0.12) return 22;  // línea cerca del tope de la barra
-                return 6;                    // línea bien por debajo, sin conflicto
+                // Barra muy pequeña (<20% del max): línea y barra quedan cerca visualmente
+                if(kmRel < 0.20) return 30;
+                if(diff > 0.05) return 28;
+                if(diff > -0.15) return 20;
+                return 6;
               },
               backgroundColor: '#0D9488',
               borderRadius: 4,
