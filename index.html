@@ -589,8 +589,14 @@
     </div>
     <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
       <div id="mSectorWrap" style="display:none; gap:10px; align-items:center;">
-        <div id="msSectorMetricas" style="width:190px; position:relative;"></div>
-        <div id="msEstadoMetricas" style="width:190px; position:relative;"></div>
+        <div style="display:flex; flex-direction:column; gap:3px;">
+          <span style="font-size:11px; font-weight:600; color:var(--text-secondary); padding-left:4px;">Sectores</span>
+          <div id="msSectorMetricas" style="width:190px; position:relative;"></div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:3px;">
+          <span style="font-size:11px; font-weight:600; color:var(--text-secondary); padding-left:4px;">Estado</span>
+          <div id="msEstadoMetricas" style="width:190px; position:relative;"></div>
+        </div>
       </div>
       <label style="font-size:12px; color:var(--text-secondary);">Desde</label>
       <input type="date" id="mDesde" class="input" style="width:145px; font-size:13px;">
@@ -613,7 +619,7 @@
     <div style="flex:1; min-width:0;">
       <span style="font-size:12.5px; font-weight:700; color:#92400e;">Advertencia — Facturas pendientes de revisión incluidas en el filtro activo</span>
       <span style="display:block; font-size:11.5px; color:#78350f; margin-top:1px;">
-        Existen facturas con estado <strong>Registrada</strong> que aún no han sido revisadas.
+        Se está mostrando facturas con estado <strong>Registrada</strong> que aún no han sido revisadas.
         Los indicadores, montos y métricas pueden reflejar información incoherente.
         Se recomienda cambiar su estado a <strong>Revisada</strong> o <strong>Pagada</strong> antes de analizar los resultados.
       </span>
@@ -992,11 +998,9 @@ const State = {
 /** Opciones de estado a partir de datos o valores por defecto */
 function getEstadoOptions(){
   const vals = Array.from(new Set(State.raw.map(r=>r.Estado).filter(Boolean)));
-  // Excluir Anulada y Excluida — se manejan aparte en KPIs, no como filtro
-  const excluir = new Set(["Anulada","Excluida"]);
-  const def = ["Registrada","Revisada","Enviada","Pagada"];
-  const extra = vals.filter(v=>!def.includes(v) && !excluir.has(v));
-  return def.concat(extra);
+  const def = ["Registrada","Revisada","Anulada","Excluida","Pagada","Enviada"];
+  const full = def.concat(vals.filter(v=>!def.includes(v)));
+  return full;
 }
 function estadoColor(v){
   if(v==="Anulada")   return "var(--danger)";
