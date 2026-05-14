@@ -355,26 +355,6 @@
         <span style="font-size:0.78rem;color:var(--muted,#888);">Para ver otras fechas utilizar el filtro de Rango de Fecha</span>
       </div>
 
-      <!-- Banner alerta facturas no revisadas -->
-      <div id="bannerRegistradas" style="display:none; align-items:center; gap:10px;
-        background:linear-gradient(90deg,#fef3c7,#fffbeb); border:1.5px solid #f59e0b;
-        border-left:4px solid #d97706; border-radius:8px; padding:10px 14px; margin-bottom:10px;">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2" style="flex-shrink:0">
-          <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
-          <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
-        </svg>
-        <div style="flex:1; min-width:0;">
-          <span style="font-size:12.5px; font-weight:700; color:#92400e;">Advertencia — Facturas pendientes de revisión incluidas en el filtro activo</span>
-          <span style="display:block; font-size:11.5px; color:#78350f; margin-top:1px;">
-            Existen facturas con estado <strong>Registrada</strong> que aún no han sido revisadas.
-            Los indicadores, montos y métricas pueden reflejar información incoherente.
-            Se recomienda cambiar su estado a <strong>Revisada</strong> o <strong>Pagada</strong> antes de analizar los resultados.
-          </span>
-        </div>
-        <button onclick="document.getElementById('bannerRegistradas').style.display='none'"
-          style="background:none;border:none;cursor:pointer;color:#d97706;padding:2px;flex-shrink:0;font-size:16px;line-height:1;" title="Cerrar">✕</button>
-      </div>
-
       <div style="display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:10px; margin-bottom:10px;">
         <div class="card kpi">
           <span class="label">Total Facturas</span>
@@ -605,7 +585,7 @@
   <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1.5rem; flex-wrap:wrap; gap:12px;">
     <div>
       <h2 style="margin:0; font-size:1.4rem; font-weight:700; color:var(--text-primary);">Métricas de Combustible</h2>
-      <p style="margin:4px 0 0; font-size:13px; color:var(--text-secondary);">Facturas en estado Revisada, Pagada y Enviada</p>
+      <p id="mSubtitulo" style="margin:4px 0 0; font-size:13px; color:var(--text-secondary);">Facturas en estado Revisada, Pagada y Enviada</p>
     </div>
     <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
       <div id="mSectorWrap" style="display:none; gap:10px; align-items:center;">
@@ -620,6 +600,26 @@
         <i class="lucide-refresh-cw"></i> Actualizar
       </button>
     </div>
+  </div>
+
+  <!-- Banner advertencia métricas con Registrada -->
+  <div id="bannerMetricasRegistradas" style="display:none; align-items:center; gap:10px;
+    background:linear-gradient(90deg,#fef3c7,#fffbeb); border:1.5px solid #f59e0b;
+    border-left:4px solid #d97706; border-radius:8px; padding:10px 14px; margin-bottom:14px;">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2" style="flex-shrink:0">
+      <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+      <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+    </svg>
+    <div style="flex:1; min-width:0;">
+      <span style="font-size:12.5px; font-weight:700; color:#92400e;">Advertencia — Facturas pendientes de revisión incluidas en el filtro activo</span>
+      <span style="display:block; font-size:11.5px; color:#78350f; margin-top:1px;">
+        Existen facturas con estado <strong>Registrada</strong> que aún no han sido revisadas.
+        Los indicadores, montos y métricas pueden reflejar información incoherente.
+        Se recomienda cambiar su estado a <strong>Revisada</strong> o <strong>Pagada</strong> antes de analizar los resultados.
+      </span>
+    </div>
+    <button onclick="document.getElementById('bannerMetricasRegistradas').style.display='none'"
+      style="background:none;border:none;cursor:pointer;color:#d97706;padding:2px;flex-shrink:0;font-size:16px;line-height:1;" title="Cerrar">✕</button>
   </div>
 
   <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:1.5rem;">
@@ -1044,23 +1044,7 @@ async function refreshAfterEstado(){
     const arr = await API.getFacturas(fetchParams);
     State.raw = arr;
     try{ sectorMS.setItems(Array.from(new Set(State.raw.map(r=>r.Sector).filter(Boolean)))); } catch(e){}
-    try{
-      const selActualRel = estadoMS ? estadoMS.getSelected() : [];
-      estadoMS.setItems(getEstadoOptions());
-      if(selActualRel && selActualRel.length > 0){
-        estadoMS.select(selActualRel.filter(v=>getEstadoOptions().includes(v)));
-      } else {
-        estadoMS.select(["Revisada","Enviada","Pagada"].filter(v=>getEstadoOptions().includes(v)));
-      }
-    } catch(e){}
-    try{ sectorMS.select(currentSector); } catch(e){}
-    try{
-      if(!currentEstado || currentEstado.length === 0){
-        estadoMS.select(["Revisada","Enviada","Pagada"].filter(v=>getEstadoOptions().includes(v)));
-      } else {
-        estadoMS.select(currentEstado);
-      }
-    } catch(e){}
+    try{ sectorMS.select(currentSector); estadoMS.select(currentEstado); } catch (e){ }
     if(document.getElementById("fNombre")) document.getElementById("fNombre").value = qNombre;
     if(document.getElementById("fPlaca"))  document.getElementById("fPlaca").value = qPlaca;
     document.getElementById("fNumero").value = qNum;
@@ -1300,12 +1284,7 @@ function updateKpis(){
   const total       = rowsSinAnuladas.length;
   // Banner advertencia — visible si hay Registradas en los datos activos del filtro
   const eValsActivos = estadoMS ? estadoMS.getSelected() : [];
-  const incluyeRegistrada = eValsActivos.length === 0 || eValsActivos.includes("Registrada");
-  const banner = document.getElementById("bannerRegistradas");
-  if(banner){
-    const hayRegistradas = rowsSinAnuladas.some(r=>(r.Estado||"Registrada")==="Registrada");
-    banner.style.display = (incluyeRegistrada && hayRegistradas) ? "flex" : "none";
-  }
+
 
   const registradas = rowsSinAnuladas.filter(r=> (r.Estado||"") === "Registrada").length;
   const revisadas   = rowsSinAnuladas.filter(r=> (r.Estado||"") === "Revisada").length;
@@ -1407,7 +1386,7 @@ function initFilters(){
   sectorMS = createMultiSelect("#msSector", "Sector", applyFilters);
   estadoMS = createMultiSelect("#msEstado", "Estado", applyFilters);
   // Por defecto mostrar solo facturas procesadas (excluir Registrada)
-  estadoMS._defaultStates = ["Revisada","Enviada","Pagada"];
+
 
   // Asegurar input de Placa
   const filtersRow = document.querySelector(".filters");
@@ -2538,19 +2517,7 @@ async function loadData(fechaDesde, fechaHasta, fechaRevDesde, fechaRevHasta){
     const sectores = Array.from(new Set(data.map(r=>r.Sector).filter(Boolean))).sort();
     if(sectorMS){ sectorMS.setItems(sectores); }
     // Estado: excluir Anulada/Excluida, respetar selección previa o aplicar default
-    if(estadoMS){
-      const excluirEst = new Set(["Anulada","Excluida"]);
-      const estadosDisp = Array.from(new Set(data.map(r=>r.Estado||"Registrada").filter(v=>!excluirEst.has(v)))).sort();
-      const selActual = estadoMS.getSelected();
-      estadoMS.setItems(estadosDisp);
-      if(selActual && selActual.length > 0){
-        estadoMS.select(selActual.filter(v=>estadosDisp.includes(v)));
-      } else {
-        // Primera carga: pre-seleccionar Revisada, Enviada, Pagada
-        const defaults = ["Revisada","Enviada","Pagada"].filter(v=>estadosDisp.includes(v));
-        estadoMS.select(defaults);
-      }
-    }
+    if(estadoMS){ estadoMS.setItems(getEstadoOptions()); }
     buildTable();
     if(tableBuilt){ applyFilters(); } else {
       (function(){
@@ -4435,13 +4402,14 @@ async function initMetricas(){
       metricasEstadoMS.setItems(['Revisada','Enviada','Pagada','Registrada']);
       metricasEstadoMS.select(['Revisada','Enviada','Pagada']);
     }
-    // Cargar sectores desde API si aún está vacío
-    if(metricasSectorMS && metricasSectorMS.getSelected !== undefined){
+    // Cargar sectores desde placas (más confiable que endpoint separado)
+    if(metricasSectorMS){
       try{
-        const res = await fetch('/api/leer?sectoresLista=true', { cache:'no-store' });
-        const data = await res.json().catch(()=>({}));
-        const secs = Array.isArray(data.sectores) ? data.sectores : [];
-        metricasSectorMS.setItems(secs.sort());
+        const base = (typeof Config!=='undefined' && Config?.api?.placas) || "/api/placas";
+        const res = await fetch(base, { cache:'no-store' });
+        const data = await res.json().catch(()=>[]);
+        const secs = [...new Set((Array.isArray(data)?data:[]).map(r=>r.Sector).filter(Boolean))].sort();
+        if(secs.length > 0) metricasSectorMS.setItems(secs);
       }catch(e){}
     }
   } else {
@@ -4482,6 +4450,20 @@ async function cargarMetricas(){
 
 function renderMetricas(rows){
   window._mdLastRows = rows; // guardar para el modal
+  // Actualizar subtítulo con estados activos
+  const subEl = document.getElementById('mSubtitulo');
+  const estSel = metricasEstadoMS ? metricasEstadoMS.getSelected() : [];
+  if(subEl){
+    const estLabel = estSel.length > 0 ? estSel.join(', ') : 'Revisada, Pagada y Enviada';
+    subEl.textContent = `Facturas en estado ${estLabel}`;
+  }
+  // Banner advertencia si se incluyó Registrada explícitamente
+  const bannerM = document.getElementById('bannerMetricasRegistradas');
+  if(bannerM){
+    const incluyeReg = estSel.includes('Registrada');
+    const hayReg = incluyeReg && rows.some(r=>(r.Estado||'')==='Registrada');
+    bannerM.style.display = hayReg ? 'flex' : 'none';
+  }
   const fmt  = v=>"L "+(Number(v)||0).toLocaleString("es-HN",{minimumFractionDigits:2,maximumFractionDigits:2});
   const fmtN = v=>(Number(v)||0).toLocaleString("es-HN",{minimumFractionDigits:2,maximumFractionDigits:2});
   const fmtL = v=>(Number(v)||0).toLocaleString("es-HN",{minimumFractionDigits:2,maximumFractionDigits:2});
