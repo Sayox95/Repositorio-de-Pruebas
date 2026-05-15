@@ -75,6 +75,28 @@
       transition: background .15s ease;
     }
     .nav-btn:hover{background:var(--sidebar-hover)}
+    .user-card{
+      display:flex; align-items:center; gap:10px;
+      padding:10px 12px; margin:0 8px 8px;
+      background:rgba(255,255,255,0.07); border-radius:10px;
+      border:1px solid rgba(255,255,255,0.1);
+    }
+    .user-avatar{
+      width:36px; height:36px; border-radius:50%;
+      background:linear-gradient(135deg,#3B82F6,#06B6D4);
+      display:flex; align-items:center; justify-content:center;
+      font-size:13px; font-weight:700; color:#fff;
+      flex-shrink:0; letter-spacing:0.5px;
+    }
+    .user-info{ overflow:hidden; }
+    .user-name{
+      font-size:12.5px; font-weight:600; color:#fff;
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    }
+    .user-role{
+      font-size:10.5px; color:rgba(255,255,255,0.55);
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    }
     .nav-btn.active{background:#ffffff10; border:1px solid #ffffff1f}
     .spacer{flex:1}
     .copyright{font-size:12px; color:#93a3b8; opacity:.7}
@@ -325,9 +347,18 @@
         <a class="nav-btn" href="#metricas"><i class="lucide-bar-chart-2"></i><span>Métricas</span></a>
       </nav>
       <div class="spacer"></div>
-      
-      <button id="btnLogout" class="btn btn-ghost" style="margin:10px 0;" style="margin:10px 0; color:#fff;"><i class="lucide-log-out"></i> Cerrar sesión</button>
-<div class="copyright">© UTCD 2025</div>
+
+      <!-- Usuario logueado -->
+      <div id="userCard" class="user-card" style="display:none;">
+        <div class="user-avatar" id="userAvatar">??</div>
+        <div class="user-info">
+          <div class="user-name" id="userName">—</div>
+          <div class="user-role" id="userRole">—</div>
+        </div>
+      </div>
+
+      <button id="btnLogout" class="btn btn-ghost" style="margin:4px 8px 6px; color:#fff; width:calc(100% - 16px);"><i class="lucide-log-out"></i> Cerrar sesión</button>
+      <div class="copyright">© UTCD 2025</div>
     </aside>
 
     <main class="main">
@@ -2614,6 +2645,28 @@ function showApp(me){
   // Asignar sectores ANTES de cualquier loadData
   window.userSectores = (me && Array.isArray(me.sectores) && me.sectores.length) ? me.sectores : [];
   if(me && me.rol) applyRolRestrictions(me.rol, me.sectores);
+
+  // ── Mostrar usuario en sidebar ──
+  if(me){
+    const nombre   = (me.nombre || me.usuario || me.user || "Usuario").trim();
+    const rol      = me.rol || "usuario";
+    const sectores = Array.isArray(me.sectores) && me.sectores.length ? me.sectores.join(", ") : null;
+    // Iniciales: hasta 2 letras de las primeras palabras
+    const partes   = nombre.split(" ").filter(Boolean);
+    const iniciales = (partes[0]?.[0] || "") + (partes[1]?.[0] || partes[0]?.[1] || "");
+    // Etiqueta de rol
+    const rolLabel = rol === "admin"
+      ? "Administrador"
+      : sectores ? `Sector: ${sectores}` : rol.charAt(0).toUpperCase() + rol.slice(1);
+
+    const card = document.getElementById("userCard");
+    if(card){
+      document.getElementById("userAvatar").textContent = iniciales.toUpperCase();
+      document.getElementById("userName").textContent   = nombre;
+      document.getElementById("userRole").textContent   = rolLabel;
+      card.style.display = "flex";
+    }
+  }
 }
 
 // Login button + Enter key
