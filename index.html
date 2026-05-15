@@ -75,6 +75,32 @@
       transition: background .15s ease;
     }
     .nav-btn:hover{background:var(--sidebar-hover)}
+    #tablaPivot th{
+      background:var(--bg-secondary,#f8fafc); color:var(--text-secondary);
+      font-weight:600; font-size:11px; padding:6px 8px;
+      border-bottom:2px solid var(--border,#e5e7eb);
+      white-space:nowrap; position:sticky; top:0; z-index:2;
+    }
+    #tablaPivot th.mes-header{
+      text-align:center; border-left:2px solid var(--border,#e5e7eb);
+    }
+    #tablaPivot th.sub-header{ text-align:right; font-weight:500; }
+    #tablaPivot td{ padding:5px 8px; border-bottom:1px solid var(--border,#e5e7eb); }
+    #tablaPivot tr.pivot-sector td{
+      background:#EFF6FF; font-weight:700; color:#1e3a5f;
+      cursor:pointer; user-select:none;
+    }
+    #tablaPivot tr.pivot-sector:hover td{ background:#DBEAFE; }
+    #tablaPivot tr.pivot-proceso td{ color:var(--text-primary); }
+    #tablaPivot tr.pivot-proceso:hover td{ background:var(--bg-secondary,#f8fafc); }
+    #tablaPivot tr.pivot-total td{
+      background:var(--bg-secondary,#f8fafc); font-weight:700;
+      border-top:2px solid var(--border,#e5e7eb);
+    }
+    #tablaPivot td.num{ text-align:right; font-variant-numeric:tabular-nums; }
+    #tablaPivot td.mes-sep{ border-left:2px solid var(--border,#e5e7eb); }
+    .pivot-toggle{ margin-right:6px; font-size:10px; transition:transform .15s; display:inline-block; }
+    .pivot-collapsed .pivot-toggle{ transform:rotate(-90deg); }
     .user-card{
       display:flex; align-items:center; gap:10px;
       padding:10px 12px; margin:0 8px 8px;
@@ -650,9 +676,9 @@
     <div style="flex:1; min-width:0;">
       <span style="font-size:12.5px; font-weight:700; color:#92400e;">Advertencia — Facturas pendientes de revisión incluidas en el filtro activo</span>
       <span style="display:block; font-size:11.5px; color:#78350f; margin-top:1px;">
-        Se está mostrando facturas con estado <strong>Registrada</strong> que aún no han sido revisadas.
+        Existen facturas con estado <strong>Registrada</strong> que aún no han sido revisadas.
         Los indicadores, montos y métricas pueden reflejar información incoherente.
-        Se recomienda revisar y cambiar su estado a <strong>Revisada</strong> o <strong>Pagada</strong> antes de analizar los resultados.
+        Se recomienda cambiar su estado a <strong>Revisada</strong> o <strong>Pagada</strong> antes de analizar los resultados.
       </span>
     </div>
     <button onclick="document.getElementById('bannerMetricasRegistradas').style.display='none'"
@@ -693,9 +719,21 @@
       <p style="font-size:13px; font-weight:600; color:var(--text-primary); margin:0 0 12px;">Top 10 colaboradores por gasto (L)</p>
       <div style="position:relative; height:300px;"><canvas id="chartColaboradores"></canvas></div>
     </div>
-    <div class="card" style="padding:1rem;">
-      <p style="font-size:13px; font-weight:600; color:var(--text-primary); margin:0 0 12px;">Distribución por proceso (L)</p>
-      <div style="position:relative; height:300px;"><canvas id="chartProcesos"></canvas></div>
+    <div class="card" style="padding:1rem; overflow:hidden;">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
+        <p style="font-size:13px; font-weight:600; color:var(--text-primary); margin:0;">Resumen por Sector / Proceso</p>
+        <div style="display:flex; gap:6px;">
+          <button id="btnPivotExpandAll" onclick="pivotToggleAll(true)" style="font-size:11px; padding:3px 10px; border:1px solid var(--border); border-radius:6px; background:none; cursor:pointer; color:var(--text-secondary);">Expandir todo</button>
+          <button id="btnPivotCollapseAll" onclick="pivotToggleAll(false)" style="font-size:11px; padding:3px 10px; border:1px solid var(--border); border-radius:6px; background:none; cursor:pointer; color:var(--text-secondary);">Colapsar todo</button>
+        </div>
+      </div>
+      <div style="overflow-x:auto; max-height:320px; overflow-y:auto;">
+        <table id="tablaPivot" style="width:100%; border-collapse:collapse; font-size:11.5px; min-width:600px;">
+          <thead id="pivotHead"></thead>
+          <tbody id="pivotBody"></tbody>
+          <tfoot id="pivotFoot"></tfoot>
+        </table>
+      </div>
     </div>
   </div>
 
@@ -4775,18 +4813,192 @@ function renderMetricas(rows){
     {indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:11},callback:v=>'L '+v.toLocaleString('es-HN')}},y:{grid:{display:false},ticks:{font:{size:11}}}}}
   );
 
-  const byProc={};
-  rows.forEach(r=>{ const p=r.Proceso||'Sin proceso'; byProc[p]=(byProc[p]||0)+getT(r); });
-  const procs=Object.entries(byProc).sort((a,b)=>b[1]-a[1]);
-  mkChart('chartProcesos','doughnut',
-    procs.map(([n])=>n),
-    [{data:procs.map(([,v])=>parseFloat(v.toFixed(2))),backgroundColor:COLORS,borderWidth:2,borderColor:'#fff',
-      datalabels:{display:true,color:'#fff',font:{size:10,weight:'bold'},formatter:(v,ctx)=>{
-        const total=ctx.dataset.data.reduce((a,b)=>a+b,0);
-        return ((v/total)*100).toFixed(1)+'%';
-      }}}],
-    {plugins:{legend:{display:true,position:'right',labels:{font:{size:10},boxWidth:12}}}}
-  );
+  buildPivot(rows, meses, mesLabel);
+}
+
+function buildPivot(rows, meses, mesLabel){
+  const getT  = r=>Number(r['Total Gastado']??r.Total??r.TotalGastado)||0;
+  const getL  = r=>Number(r['Litros Consumidos']??r.LitrosConsumidos)||0;
+  const getKm = r=>Number(r['Km Actual'])||0;
+  const fmtL  = v=>'L '+(v||0).toLocaleString('es-HN',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const fmtN  = (v,d=0)=>(v||0).toLocaleString('es-HN',{minimumFractionDigits:d,maximumFractionDigits:d});
+  const fmtR  = v=>v>0?v.toFixed(2)+' km/L':'—';
+
+  // Agrupar: sector → proceso → mes → {km,lit,gasto}
+  const tree = {};
+  rows.forEach(r=>{
+    const sec = r.Sector||'Sin sector';
+    const pro = r.Proceso||'Sin proceso';
+    const mes = (r.Fecha||'').toString().slice(0,7);
+    if(!tree[sec]) tree[sec]={};
+    if(!tree[sec][pro]) tree[sec][pro]={};
+    if(!tree[sec][pro][mes]) tree[sec][pro][mes]={km:0,lit:0,gasto:0,facs:[]};
+    tree[sec][pro][mes].gasto += getT(r);
+    tree[sec][pro][mes].lit   += getL(r);
+    tree[sec][pro][mes].facs.push(r);
+  });
+
+  // Calcular km recorridos por placa (lógica acumulable) dentro del scope de cada proceso/mes
+  // Usamos _mdKmPorPlaca ya calculado si está disponible
+  const kmByPlacaMes = _mdKmPorPlaca || {};
+
+  // Función para obtener km de un conjunto de rows por mes
+  function getKmRows(rowList, mesFiltro){
+    const byP={};
+    rowList.forEach(r=>{
+      const placa=r.Placa||r['Placa Vehículo']||r.placa||'?';
+      if(!byP[placa]) byP[placa]=[];
+      byP[placa].push(r);
+    });
+    let total=0;
+    Object.values(byP).forEach(facs=>{
+      const sorted=facs.slice().sort((a,b)=>{
+        const fa=(a.Fecha||'').toString(),fb=(b.Fecha||'').toString();
+        return fa<fb?-1:fa>fb?1:getKm(a)-getKm(b);
+      });
+      for(let i=1;i<sorted.length;i++){
+        if(mesFiltro&&(sorted[i].Fecha||'').toString().slice(0,7)!==mesFiltro) continue;
+        const d=getKm(sorted[i])-getKm(sorted[i-1]);
+        if(d>0&&d<=1000) total+=d;
+      }
+    });
+    return total;
+  }
+
+  // Construir header
+  const head = document.getElementById('pivotHead');
+  const body = document.getElementById('pivotBody');
+  const foot = document.getElementById('pivotFoot');
+  if(!head||!body||!foot) return;
+
+  // Header row 1: meses
+  let h1='<tr><th rowspan="2" style="text-align:left;min-width:180px;">Sector / Proceso</th>';
+  meses.forEach((m,i)=>{
+    h1+=`<th colspan="4" class="mes-header">${mesLabel[i]}</th>`;
+  });
+  h1+='<th colspan="4" class="mes-header" style="background:#e0f2fe;">Total Periodo</th></tr>';
+
+  // Header row 2: sub-cols
+  let h2='<tr>';
+  const subCols=['Km','Litros','Gasto (L)','km/L'];
+  const allMeses=[...meses,'TOTAL'];
+  allMeses.forEach((m,mi)=>{
+    subCols.forEach((s,si)=>{
+      const isMesSep = si===0;
+      const bg = mi===meses.length ? 'background:#e0f2fe;' : '';
+      h2+=`<th class="sub-header${isMesSep?' mes-sep':''}" style="${bg}">${s}</th>`;
+    });
+  });
+  h2+='</tr>';
+  head.innerHTML = h1+h2;
+
+  // Body
+  let bodyHtml='';
+  const secTotals={};  // sector → mes → {km,lit,gasto}
+  const grandTotal={}; // mes → {km,lit,gasto}
+  meses.forEach(m=>{ grandTotal[m]={km:0,lit:0,gasto:0}; });
+  grandTotal['TOTAL']={km:0,lit:0,gasto:0};
+
+  Object.entries(tree).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([sec,proMap])=>{
+    secTotals[sec]={};
+    meses.forEach(m=>{ secTotals[sec][m]={km:0,lit:0,gasto:0}; });
+    secTotals[sec]['TOTAL']={km:0,lit:0,gasto:0};
+
+    // Calcular totales de sector
+    Object.entries(proMap).forEach(([pro,mesMap])=>{
+      meses.forEach(m=>{
+        const d=mesMap[m]||{km:0,lit:0,gasto:0,facs:[]};
+        const kmRec=d.facs.length>0?getKmRows(d.facs,m):0;
+        secTotals[sec][m].km    += kmRec;
+        secTotals[sec][m].lit   += d.lit;
+        secTotals[sec][m].gasto += d.gasto;
+        grandTotal[m].km    += kmRec;
+        grandTotal[m].lit   += d.lit;
+        grandTotal[m].gasto += d.gasto;
+      });
+    });
+    meses.forEach(m=>{
+      secTotals[sec]['TOTAL'].km    += secTotals[sec][m].km;
+      secTotals[sec]['TOTAL'].lit   += secTotals[sec][m].lit;
+      secTotals[sec]['TOTAL'].gasto += secTotals[sec][m].gasto;
+      grandTotal['TOTAL'].km    += grandTotal[m].km;
+      grandTotal['TOTAL'].lit   += grandTotal[m].lit;
+      grandTotal['TOTAL'].gasto += grandTotal[m].gasto;
+    });
+
+    // Fila sector
+    const secId = 'sec_'+sec.replace(/\W/g,'_');
+    bodyHtml+=`<tr class="pivot-sector" onclick="pivotToggle('${secId}')">`;
+    bodyHtml+=`<td><span class="pivot-toggle">▼</span>${sec}</td>`;
+    allMeses.forEach((m,mi)=>{
+      const d=secTotals[sec][m]||{km:0,lit:0,gasto:0};
+      const rend=d.lit>0?d.km/d.lit:0;
+      const isSep=mi===0||mi===meses.length;
+      const bg=mi===meses.length?'background:#e0f2fe;':'';
+      bodyHtml+=`<td class="num${isSep?' mes-sep':''}" style="${bg}">${fmtN(d.km)}</td>`;
+      bodyHtml+=`<td class="num" style="${bg}">${fmtN(d.lit,2)}</td>`;
+      bodyHtml+=`<td class="num" style="${bg}">${fmtL(d.gasto)}</td>`;
+      bodyHtml+=`<td class="num" style="${bg}">${fmtR(rend)}</td>`;
+    });
+    bodyHtml+='</tr>';
+
+    // Filas proceso
+    Object.entries(proMap).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([pro,mesMap])=>{
+      bodyHtml+=`<tr class="pivot-proceso ${secId}">`;
+      bodyHtml+=`<td style="padding-left:22px;">${pro}</td>`;
+      let totPro={km:0,lit:0,gasto:0};
+      allMeses.forEach((m,mi)=>{
+        const d=mesMap[m]||{km:0,lit:0,gasto:0,facs:[]};
+        const kmRec=m!=='TOTAL'&&d.facs.length>0?getKmRows(d.facs,m):0;
+        const lit=m!=='TOTAL'?d.lit:0;
+        const gasto=m!=='TOTAL'?d.gasto:0;
+        if(m!=='TOTAL'){totPro.km+=kmRec;totPro.lit+=lit;totPro.gasto+=gasto;}
+        const dispKm=m==='TOTAL'?totPro.km:kmRec;
+        const dispLit=m==='TOTAL'?totPro.lit:lit;
+        const dispGasto=m==='TOTAL'?totPro.gasto:gasto;
+        const rend=dispLit>0?dispKm/dispLit:0;
+        const isSep=mi===0||mi===meses.length;
+        const bg=mi===meses.length?'background:#e0f2fe;':'';
+        bodyHtml+=`<td class="num${isSep?' mes-sep':''}" style="${bg}">${dispKm>0?fmtN(dispKm):'—'}</td>`;
+        bodyHtml+=`<td class="num" style="${bg}">${dispLit>0?fmtN(dispLit,2):'—'}</td>`;
+        bodyHtml+=`<td class="num" style="${bg}">${dispGasto>0?fmtL(dispGasto):'—'}</td>`;
+        bodyHtml+=`<td class="num" style="${bg}">${fmtR(rend)}</td>`;
+      });
+      bodyHtml+='</tr>';
+    });
+  });
+  body.innerHTML=bodyHtml;
+
+  // Footer total general
+  let footHtml='<tr class="pivot-total"><td>Total general</td>';
+  allMeses.forEach((m,mi)=>{
+    const d=grandTotal[m]||{km:0,lit:0,gasto:0};
+    const rend=d.lit>0?d.km/d.lit:0;
+    const isSep=mi===0||mi===meses.length;
+    const bg=mi===meses.length?'background:#bae6fd;':'';
+    footHtml+=`<td class="num${isSep?' mes-sep':''}" style="${bg}">${fmtN(d.km)}</td>`;
+    footHtml+=`<td class="num" style="${bg}">${fmtN(d.lit,2)}</td>`;
+    footHtml+=`<td class="num" style="${bg}">${fmtL(d.gasto)}</td>`;
+    footHtml+=`<td class="num" style="${bg}">${fmtR(rend)}</td>`;
+  });
+  footHtml+='</tr>';
+  foot.innerHTML=footHtml;
+
+  // Por defecto todos colapsados
+  pivotToggleAll(false);
+}
+
+function pivotToggle(secId){
+  const rows=document.querySelectorAll('.'+secId);
+  const secRow=document.querySelector(`tr.pivot-sector[onclick*="${secId}"]`);
+  const hidden=rows.length>0&&rows[0].style.display==='none';
+  rows.forEach(r=>r.style.display=hidden?'':'none');
+  if(secRow) secRow.classList.toggle('pivot-collapsed',!hidden);
+}
+
+function pivotToggleAll(expand){
+  document.querySelectorAll('tr.pivot-proceso').forEach(r=>r.style.display=expand?'':'none');
+  document.querySelectorAll('tr.pivot-sector').forEach(r=>r.classList.toggle('pivot-collapsed',!expand));
 }
 
 
