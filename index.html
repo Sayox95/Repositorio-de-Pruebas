@@ -619,9 +619,9 @@
     <div style="flex:1; min-width:0;">
       <span style="font-size:12.5px; font-weight:700; color:#92400e;">Advertencia — Facturas pendientes de revisión incluidas en el filtro activo</span>
       <span style="display:block; font-size:11.5px; color:#78350f; margin-top:1px;">
-        Se está mostrando facturas con estado <strong>Registrada</strong> que aún no han sido revisadas.
+        Existen facturas con estado <strong>Registrada</strong> que aún no han sido revisadas.
         Los indicadores, montos y métricas pueden reflejar información incoherente.
-        Se recomienda revisar y cambiar su estado a <strong>Revisada</strong> o <strong>Pagada</strong> antes de analizar los resultados.
+        Se recomienda cambiar su estado a <strong>Revisada</strong> o <strong>Pagada</strong> antes de analizar los resultados.
       </span>
     </div>
     <button onclick="document.getElementById('bannerMetricasRegistradas').style.display='none'"
@@ -998,16 +998,19 @@ const State = {
 /** Opciones de estado a partir de datos o valores por defecto */
 function getEstadoOptions(){
   const vals = new Set(State.raw.map(r=>r.Estado).filter(Boolean));
-  // Orden preferido — solo incluir los que realmente existen en los datos cargados
+  // Orden preferido — los estados del menú de cambio siempre incluyen todos los válidos
+  // aunque no haya facturas con ese estado actualmente cargadas
   const orden = ["Registrada","Revisada","Anulada","Excluida","Pagada","Enviada"];
-  return orden.filter(v=>vals.has(v)).concat([...vals].filter(v=>!orden.includes(v)));
+  // Agregar cualquier estado extra que venga del backend y no esté en la lista
+  const extra = [...vals].filter(v=>!orden.includes(v));
+  return orden.concat(extra);
 }
 function estadoColor(v){
-  if(v==="Anulada")   return "var(--danger)";
-  if(v==="Excluida")  return "var(--danger)";
-  if(v==="Revisada") return "#2563eb";
-  if(v==="Pagada") return "#0FA47E";
-  if(v==="Enviada") return "#1D4ED8";
+  if(v==="Anulada")   return "#DC2626";
+  if(v==="Excluida")  return "#EA580C";
+  if(v==="Revisada")  return "#2563eb";
+  if(v==="Pagada")    return "#0FA47E";
+  if(v==="Enviada")   return "#1D4ED8";
   return "#111827";
 }
 
@@ -1217,7 +1220,11 @@ function openEstadoMenu(cell){
   // No permitir edición si está Pagada
   if (current === "Pagada") { return; }
 
-  const options = getEstadoOptions();
+  // Siempre mostrar todos los estados válidos en el menú de cambio,
+  // independientemente del rol o de los datos cargados
+  const estadosFijos = ["Registrada","Revisada","Anulada","Excluida","Pagada","Enviada"];
+  const extra = getEstadoOptions().filter(v=>!estadosFijos.includes(v));
+  const options = estadosFijos.concat(extra);
   menu.innerHTML = "";
 
   options.forEach(opt => {
