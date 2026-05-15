@@ -689,9 +689,9 @@
     <div style="flex:1; min-width:0;">
       <span style="font-size:12.5px; font-weight:700; color:#92400e;">Advertencia — Facturas pendientes de revisión incluidas en el filtro activo</span>
       <span style="display:block; font-size:11.5px; color:#78350f; margin-top:1px;">
-        Existen facturas con estado <strong>Registrada</strong> que aún no han sido revisadas.
+        Se está mostrando facturas con estado <strong>Registrada</strong> que aún no han sido revisadas.
         Los indicadores, montos y métricas pueden reflejar información incoherente.
-        Se recomienda cambiar su estado a <strong>Revisada</strong> o <strong>Pagada</strong> antes de analizar los resultados.
+        Se recomienda revisar y cambiar su estado a <strong>Revisada</strong> o <strong>Pagada</strong> antes de analizar los resultados.
       </span>
     </div>
     <button onclick="document.getElementById('bannerMetricasRegistradas').style.display='none'"
@@ -4837,9 +4837,9 @@ function buildPivot(rows, meses, mesLabel){
   const getT  = r=>Number(r['Total Gastado']??r.Total??r.TotalGastado)||0;
   const getL  = r=>Number(r['Litros Consumidos']??r.LitrosConsumidos)||0;
   const getKm = r=>Number(r['Km Actual'])||0;
-  const fmtL  = v=>'L '+(v||0).toLocaleString('es-HN',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const fmtL  = v=>(v||0).toLocaleString('es-HN',{minimumFractionDigits:2,maximumFractionDigits:2});
   const fmtN  = (v,d=0)=>(v||0).toLocaleString('es-HN',{minimumFractionDigits:d,maximumFractionDigits:d});
-  const fmtR  = v=>v>0?v.toFixed(2)+' km/L':'—';
+  const fmtR  = v=>v>0?v.toFixed(2):'—';
 
   // Agrupar: sector → proceso → mes → {km,lit,gasto}
   const tree = {};
