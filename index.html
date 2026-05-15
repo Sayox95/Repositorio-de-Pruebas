@@ -5002,7 +5002,9 @@ function buildPivot(rows, meses, mesLabel){
   foot.innerHTML=footHtml;
 
   // Por defecto todos colapsados
-  pivotToggleAll(false);
+  // Admin: colapsado por defecto. Usuarios de sector: expandido
+  const esAdmin = !window.userSectores || window.userSectores.length === 0;
+  pivotToggleAll(!esAdmin);
 }
 
 function pivotToggle(secId){
