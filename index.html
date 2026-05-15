@@ -101,6 +101,19 @@
     #tablaPivot td.mes-sep{ border-left:2px solid var(--border,#e5e7eb); }
     .pivot-toggle{ margin-right:6px; font-size:10px; transition:transform .15s; display:inline-block; }
     .pivot-collapsed .pivot-toggle{ transform:rotate(-90deg); }
+    #modalPivot{ position:fixed; inset:0; background:rgba(0,0,0,0.45); display:none; align-items:center; justify-content:center; z-index:9998; padding:16px; }
+    #modalPivot .pivot-modal-box{ background:var(--bg-primary,#fff); border-radius:12px; width:96vw; max-width:1400px; max-height:92vh; display:flex; flex-direction:column; box-shadow:0 24px 64px rgba(0,0,0,0.22); overflow:hidden; }
+    #tablaPivotModal th{ background:var(--bg-secondary,#f8fafc); color:var(--text-secondary); font-weight:600; font-size:12px; padding:7px 10px; border-bottom:2px solid var(--border,#e5e7eb); white-space:nowrap; position:sticky; top:0; z-index:2; }
+    #tablaPivotModal th.mes-header{ text-align:center; border-left:2px solid var(--border,#e5e7eb); }
+    #tablaPivotModal th.sub-header{ text-align:right; font-weight:500; }
+    #tablaPivotModal td{ padding:6px 10px; border-bottom:1px solid var(--border,#e5e7eb); font-size:12px; }
+    #tablaPivotModal tr.pivot-sector td{ background:#EFF6FF; font-weight:700; color:#1e3a5f; cursor:pointer; user-select:none; }
+    #tablaPivotModal tr.pivot-sector:hover td{ background:#DBEAFE; }
+    #tablaPivotModal tr.pivot-proceso td{ color:var(--text-primary); }
+    #tablaPivotModal tr.pivot-proceso:hover td{ background:var(--bg-secondary,#f8fafc); }
+    #tablaPivotModal tr.pivot-total td{ background:var(--bg-secondary,#f8fafc); font-weight:700; border-top:2px solid var(--border,#e5e7eb); }
+    #tablaPivotModal td.num{ text-align:right; font-variant-numeric:tabular-nums; }
+    #tablaPivotModal td.mes-sep{ border-left:2px solid var(--border,#e5e7eb); }
     .user-card{
       display:flex; align-items:center; gap:10px;
       padding:10px 12px; margin:0 8px 8px;
@@ -725,6 +738,10 @@
         <div style="display:flex; gap:6px;">
           <button id="btnPivotExpandAll" onclick="pivotToggleAll(true)" style="font-size:11px; padding:3px 10px; border:1px solid var(--border); border-radius:6px; background:none; cursor:pointer; color:var(--text-secondary);">Expandir todo</button>
           <button id="btnPivotCollapseAll" onclick="pivotToggleAll(false)" style="font-size:11px; padding:3px 10px; border:1px solid var(--border); border-radius:6px; background:none; cursor:pointer; color:var(--text-secondary);">Colapsar todo</button>
+          <button onclick="openPivotModal()" style="font-size:11px; padding:3px 10px; border:1px solid #3B82F6; border-radius:6px; background:#EFF6FF; cursor:pointer; color:#1D4ED8; display:flex; align-items:center; gap:4px;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+            Ampliar
+          </button>
         </div>
       </div>
       <div style="overflow-x:auto; max-height:320px; overflow-y:auto;">
@@ -4996,6 +5013,62 @@ function pivotToggle(secId){
   if(secRow) secRow.classList.toggle('pivot-collapsed',!hidden);
 }
 
+function openPivotModal(){
+  const modal = document.getElementById('modalPivot');
+  if(!modal) return;
+  // Copiar contenido del pivot ya calculado al modal
+  const srcHead = document.getElementById('pivotHead');
+  const srcBody = document.getElementById('pivotBody');
+  const srcFoot = document.getElementById('pivotFoot');
+  const dstHead = document.getElementById('pivotModalHead');
+  const dstBody = document.getElementById('pivotModalBody');
+  const dstFoot = document.getElementById('pivotModalFoot');
+  if(srcHead && dstHead) dstHead.innerHTML = srcHead.innerHTML;
+  if(srcBody && dstBody){
+    dstBody.innerHTML = srcBody.innerHTML;
+    // Reasignar onclick a las filas de sector en el modal
+    dstBody.querySelectorAll('tr.pivot-sector').forEach(tr=>{
+      const origOnclick = tr.getAttribute('onclick')||'';
+      const secId = origOnclick.match(/pivotToggle\('([^']+)'\)/)?.[1];
+      if(secId){
+        tr.setAttribute('onclick', `pivotModalToggle('${secId}')`);
+      }
+    });
+  }
+  if(srcFoot && dstFoot) dstFoot.innerHTML = srcFoot.innerHTML;
+  // Subtítulo
+  const subEl = document.getElementById('mSubtitulo');
+  const modalSub = document.getElementById('pivotModalSubtitulo');
+  if(subEl && modalSub) modalSub.textContent = subEl.textContent;
+  modal.style.display = 'flex';
+  // Por defecto expandir todo en el modal
+  pivotModalToggleAll(true);
+}
+
+function closePivotModal(){
+  const modal = document.getElementById('modalPivot');
+  if(modal) modal.style.display = 'none';
+}
+
+// Cerrar al click fuera
+document.addEventListener('click', function(e){
+  const modal = document.getElementById('modalPivot');
+  if(modal && e.target === modal) closePivotModal();
+});
+
+function pivotModalToggle(secId){
+  const rows = document.querySelectorAll('#pivotModalBody .'+secId);
+  const secRow = document.querySelector(`#pivotModalBody tr.pivot-sector[onclick*="${secId}"]`);
+  const hidden = rows.length>0 && rows[0].style.display==='none';
+  rows.forEach(r=>r.style.display=hidden?'':'none');
+  if(secRow) secRow.classList.toggle('pivot-collapsed',!hidden);
+}
+
+function pivotModalToggleAll(expand){
+  document.querySelectorAll('#pivotModalBody tr.pivot-proceso').forEach(r=>r.style.display=expand?'':'none');
+  document.querySelectorAll('#pivotModalBody tr.pivot-sector').forEach(r=>r.classList.toggle('pivot-collapsed',!expand));
+}
+
 function pivotToggleAll(expand){
   document.querySelectorAll('tr.pivot-proceso').forEach(r=>r.style.display=expand?'':'none');
   document.querySelectorAll('tr.pivot-sector').forEach(r=>r.classList.toggle('pivot-collapsed',!expand));
@@ -5208,6 +5281,34 @@ function renderModalDetalle(rows, filtroMes){
 }
 
 </script>
+
+<!-- ══════════ MODAL PIVOT TABLE ══════════ -->
+<div id="modalPivot">
+  <div class="pivot-modal-box">
+    <!-- Header -->
+    <div style="display:flex; align-items:center; justify-content:space-between; padding:1rem 1.25rem; border-bottom:1px solid var(--border,#e5e7eb); flex-shrink:0;">
+      <div>
+        <h3 style="margin:0; font-size:1.1rem; font-weight:700; color:var(--text-primary);">Resumen por Sector / Proceso</h3>
+        <p id="pivotModalSubtitulo" style="margin:2px 0 0; font-size:12px; color:var(--muted,#888);">Métricas del periodo filtrado</p>
+      </div>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <button onclick="pivotModalToggleAll(true)" style="font-size:11px; padding:4px 12px; border:1px solid var(--border); border-radius:6px; background:none; cursor:pointer; color:var(--text-secondary);">Expandir todo</button>
+        <button onclick="pivotModalToggleAll(false)" style="font-size:11px; padding:4px 12px; border:1px solid var(--border); border-radius:6px; background:none; cursor:pointer; color:var(--text-secondary);">Colapsar todo</button>
+        <button onclick="closePivotModal()" style="background:none;border:none;cursor:pointer;padding:6px;border-radius:6px;color:var(--muted);">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+    </div>
+    <!-- Tabla -->
+    <div style="flex:1; overflow:auto; padding:0.75rem 1rem;">
+      <table id="tablaPivotModal" style="width:100%; border-collapse:collapse; min-width:700px;">
+        <thead id="pivotModalHead"></thead>
+        <tbody id="pivotModalBody"></tbody>
+        <tfoot id="pivotModalFoot"></tfoot>
+      </table>
+    </div>
+  </div>
+</div>
 
 <!-- ══════════ MODAL DETALLE MÉTRICAS ══════════ -->
 <div id="modalMetricas" class="overlay" style="display:none; z-index:9999;">
