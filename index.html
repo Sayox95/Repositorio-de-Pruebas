@@ -1786,16 +1786,50 @@ function showOnly(sectionId){
     if(a) a.classList.add('active');
   }
 }
-async function navigateTo(sectionId, loader){
+// Mapa inverso: sectionId → path URL
+const _secToPath = {
+  secInicio:   '/',
+  secRevision: '/revision',
+  secPago:     '/pago',
+  secAnticipos:'/anticipos',
+  secPlacas:   '/placas',
+  secMetricas: '/metricas'
+};
+// Mapa directo: path → { sectionId, loader }
+const _pathToSec = {
+  '/revision':  { id:'secRevision',  load: async()=>{ await hardRefresh(); } },
+  '/pago':      { id:'secPago',      load: async()=>{ await initPagoMassPay(); } },
+  '/anticipos': { id:'secAnticipos', load: null },
+  '/placas':    { id:'secPlacas',    load: async()=>{ await cargarPlacas(); } },
+  '/metricas':  { id:'secMetricas',  load: async()=>{ await initMetricas(); } },
+  '/':          { id:'secInicio',    load: null }
+};
+
+async function navigateTo(sectionId, loader, pushHistory=true){
   try{
     showOnly(sectionId);
     if(typeof loader === 'function'){ await loader(); }
+    // Actualizar URL sin recargar la página
+    if(pushHistory){
+      const path = _secToPath[sectionId] || '/';
+      history.pushState({ sectionId }, '', path);
+    }
     requestAnimationFrame(function(){
       if(typeof window.adjustTableHeights === "function") window.adjustTableHeights();
     });
-  }finally{
-    }
+  }finally{}
 }
+
+// Manejar botón atrás/adelante del browser
+window.addEventListener('popstate', async function(e){
+  const state = e.state;
+  if(state && state.sectionId){
+    const sec = _pathToSec[_secToPath[state.sectionId]];
+    if(sec) await navigateTo(state.sectionId, sec.load, false);
+  } else {
+    await navigateTo('secInicio', null, false);
+  }
+});
 let __revisionLoadedOnce = false;
 document.querySelectorAll('.sidebar .nav-btn').forEach(a=>{
   a.addEventListener('click', (ev)=>{
@@ -2700,6 +2734,16 @@ function showApp(me){
   // Asignar sectores ANTES de cualquier loadData
   window.userSectores = (me && Array.isArray(me.sectores) && me.sectores.length) ? me.sectores : [];
   if(me && me.rol) applyRolRestrictions(me.rol, me.sectores);
+
+  // ── Restaurar sección desde URL al cargar ──
+  const initPath = window.location.pathname.toLowerCase();
+  const initSec  = _pathToSec[initPath] || _pathToSec['/'];
+  // Reemplazar el estado inicial en history para que popstate funcione al navegar atrás
+  history.replaceState({ sectionId: initSec.id }, '', initPath === '/' ? '/' : initPath);
+  if(initSec.id !== 'secInicio'){
+    // Navegar a la sección del URL sin hacer pushState adicional
+    setTimeout(()=>navigateTo(initSec.id, initSec.load, false), 100);
+  }
 
   // ── Mostrar usuario en sidebar ──
   if(me){
