@@ -2584,7 +2584,8 @@ async function bootstrap(){
   $("#btnActualizar").addEventListener("click", hardRefresh);
   $("#btnAgrupar").addEventListener("click", toggleGrouping);
   $("#btnDescargar").addEventListener("click", descargarZip);  $("#btnExportXLSX").addEventListener("click", exportXLSX);
-  navigateTo("secInicio");}
+  // No navegar aquí — showApp() se encarga de restaurar la sección correcta desde el URL
+}
 
 /** Devuelve { fechaDesde, fechaHasta } con el primer y último día del mes actual en formato YYYY-MM-DD */
 function updateRangoLabel(fechaDesde, fechaHasta, revDesde, revHasta){
@@ -2740,15 +2741,8 @@ function showApp(me){
   const initSec  = _pathToSec[initPath] || _pathToSec['/'];
   // Fijar estado inicial en history
   history.replaceState({ sectionId: initSec.id }, '', initPath || '/');
-  if(initSec.id !== 'secInicio'){
-    // Esperar a que el DOM y restricciones de rol estén listos antes de navegar
-    requestAnimationFrame(()=>{
-      setTimeout(()=>navigateTo(initSec.id, initSec.load, false), 50);
-    });
-  } else {
-    // Siempre mostrar inicio con URL limpio
-    navigateTo('secInicio', null, false);
-  }
+  // Navegar a la sección del URL (o inicio si es '/')
+  navigateTo(initSec.id, initSec.load, false);
 
   // ── Mostrar usuario en sidebar ──
   if(me){
