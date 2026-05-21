@@ -5137,11 +5137,34 @@ function openChartModal(key){
     const opts = srcCfg.options || {};
 
     // Clonar opciones de escala manteniendo callbacks
-    // Clonar datasets y forzar clamp:true en todos los datalabels para que no salgan del canvas
-    const modalDatasets = srcCfg.data.datasets.map(ds => {
+    // Clonar scales y agregar afterDataLimits para dar 15% de espacio extra arriba
+    const modalScales = {};
+    Object.entries(opts.scales || {}).forEach(([k, v]) => {
+      modalScales[k] = {
+        ...v,
+        afterDataLimits: (scale) => { scale.max = scale.max * 1.15; }
+      };
+    });
+
+    // Datasets originales — mantener funciones intactas
+    // Solo ajustar offset en datasets de línea para separar etiquetas superpuestas
+    const modalDatasets = srcCfg.data.datasets.map((ds, i) => {
       if(!ds.datalabels) return ds;
-      const dl = typeof ds.datalabels === 'object' ? {...ds.datalabels} : ds.datalabels;
-      dl.clamp = true;
+      const dl = {...ds.datalabels};
+      // Para el segundo dataset (línea de consumo) aumentar el offset para separarlo de la barra
+      if(i > 0 && ds.type === 'line'){
+        const origOffset = dl.offset;
+        dl.offset = (ctx) => {
+          const kmVals = srcCfg.data.datasets[0]?.data || [];
+          const litVals = srcCfg.data.datasets[i]?.data || [];
+          const maxKm = Math.max(...kmVals.filter(v=>v>0));
+          const maxLit = Math.max(...litVals.filter(v=>v>0));
+          const kmNorm = maxKm > 0 ? (kmVals[ctx.dataIndex]||0) / maxKm : 0;
+          const litNorm = maxLit > 0 ? (litVals[ctx.dataIndex]||0) / maxLit : 0;
+          if(kmNorm > 0.80) return 18;
+          return Math.abs(litNorm - kmNorm) < 0.25 ? 22 : 6;
+        };
+      }
       return {...ds, datalabels: dl};
     });
 
@@ -5149,8 +5172,8 @@ function openChartModal(key){
       responsive: true,
       maintainAspectRatio: false,
       interaction: opts.interaction || {},
-      scales: opts.scales || {},
-      layout: { padding: { top: 20 } },
+      scales: modalScales,
+      layout: { padding: { top: 10 } },
       plugins: {
         legend: { display: true, position: 'bottom', labels: { font:{ size:13 }, boxWidth:14 } },
         datalabels: {}
