@@ -5142,9 +5142,14 @@ function openChartModal(key){
       maintainAspectRatio: false,
       interaction: opts.interaction || {},
       scales: opts.scales || {},
-      layout: { padding: { top: 55, left: 10, right: 70, bottom: 10 } },
+      layout: { padding: { top: 70, left: 10, right: 80, bottom: 10 } },
       plugins: {
-        legend: { display: true, position: 'top', labels: { font:{ size:13 }, boxWidth:14 } },
+        legend: {
+          display: true,
+          position: 'top',
+          align: 'center',
+          labels: { font:{ size:13 }, boxWidth:14, padding: 20 }
+        },
         datalabels: {} // cada dataset tiene su propia config de datalabels
       }
     };
@@ -5279,12 +5284,6 @@ function openMetricasModal(rows, kmPlaca, titulo){
     _mdKmPorPlaca[placa]={ kmTotal, kmMes, litrosTotal, litrosMes, rend: litrosTotal>0?kmTotal/litrosTotal:0 };
   });
 
-  // Poblar filtro Proceso
-  const procSet = new Set(rows.map(r => r.Proceso || 'Sin proceso').filter(Boolean));
-  const procSel = document.getElementById('mdFiltProceso');
-  procSel.innerHTML = '<option value="">Todos los procesos</option>' +
-    [...procSet].sort().map(p => `<option value="${p}">${p}</option>`).join('');
-
   // Poblar filtro Mes (meses disponibles del periodo externo)
   const mn = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
   const mesSet = new Set(rows.map(r=>(r.Fecha||'').toString().slice(0,7)).filter(Boolean));
@@ -5308,13 +5307,11 @@ document.addEventListener('click', function(e){
 });
 
 function aplicarFiltroModal(){
-  const proc = document.getElementById('mdFiltProceso').value;
   const mes  = document.getElementById('mdFiltMes').value;
 
-  // Filtrar por proceso y mes (solo afecta gasto/litros/facturas, NO el recorrido)
+  // Filtrar por mes (proceso ahora es filtro global en métricas)
   let rowsFilt = _mdRowsGlobal;
-  if(proc) rowsFilt = rowsFilt.filter(r=>(r.Proceso||'Sin proceso')===proc);
-  if(mes)  rowsFilt = rowsFilt.filter(r=>(r.Fecha||'').toString().slice(0,7)===mes);
+  if(mes) rowsFilt = rowsFilt.filter(r=>(r.Fecha||'').toString().slice(0,7)===mes);
 
   // Actualizar filtro Placa según proceso+mes seleccionado
   const placaSel = document.getElementById('mdFiltPlaca');
