@@ -2279,7 +2279,7 @@ document.addEventListener("change", (ev)=>{
 
   const rows = target.getRows ? target.getRows() : [];
   if(chk.checked){
-    rows.forEach(r => { try{ r.select && r.select(); } catch (e){ } });
+    rowsFiltrados.forEach(r => { try{ r.select && r.select(); } catch (e){ } });
   }else{
     rows.forEach(r => { try{ r.deselect && r.deselect(); } catch (e){ } });
   }
@@ -4652,14 +4652,19 @@ async function cargarMetricas(){
 }
 
 function renderMetricas(rows){
-  window._mdLastRows = rows; // guardar para el modal
-  // Poblar filtro de proceso con los procesos de los datos actuales
+  // Poblar filtro de proceso con los procesos disponibles (antes de filtrar)
   if(metricasProcesoMS){
     const procSet = [...new Set(rows.map(r=>r.Proceso).filter(Boolean))].sort();
     const selActual = metricasProcesoMS.getSelected();
     metricasProcesoMS.setItems(procSet);
     if(selActual && selActual.length > 0) metricasProcesoMS.select(selActual.filter(v=>procSet.includes(v)));
   }
+  // Filtrar por proceso en memoria — afecta modal de detalle y tabla pivot
+  const procesosFiltro = metricasProcesoMS ? metricasProcesoMS.getSelected() : [];
+  const rowsFiltrados = procesosFiltro.length > 0
+    ? rows.filter(r => procesosFiltro.includes(r.Proceso||''))
+    : rows;
+  window._mdLastRows = rowsFiltrados; // modal de detalle usa rows filtradas por proceso
   // Actualizar subtítulo con estados activos
   const subEl = document.getElementById('mSubtitulo');
   const estSel = metricasEstadoMS ? metricasEstadoMS.getSelected() : [];
@@ -4671,7 +4676,7 @@ function renderMetricas(rows){
   const bannerM = document.getElementById('bannerMetricasRegistradas');
   if(bannerM){
     const incluyeReg = estSel.includes('Registrada');
-    const hayReg = incluyeReg && rows.some(r=>(r.Estado||'')==='Registrada');
+    const hayReg = incluyeReg && rowsFiltrados.some(r=>(r.Estado||'')==='Registrada');
     bannerM.style.display = hayReg ? 'flex' : 'none';
   }
   const fmt  = v=>"L "+(Number(v)||0).toLocaleString("es-HN",{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -4680,12 +4685,12 @@ function renderMetricas(rows){
   const getT = r=>Number(r["Total Gastado"]??r.Total??r.TotalGastado)||0;
   const getL = r=>Number(r["Litros Consumidos"]??r.LitrosConsumidos)||0;
 
-  const totalF = rows.length;
-  const totalM = rows.reduce((a,r)=>a+getT(r),0);
-  const totalL = rows.reduce((a,r)=>a+getL(r),0);
+  const totalF = rowsFiltrados.length;
+  const totalM = rowsFiltrados.reduce((a,r)=>a+getT(r),0);
+  const totalL = rowsFiltrados.reduce((a,r)=>a+getL(r),0);
   const promF  = totalF ? totalM/totalF : 0;
 
-  const totalPlacas = new Set(rows.map(r=>r.Placa||r['Placa Vehículo']||r.placa||'').filter(Boolean)).size;
+  const totalPlacas = new Set(rowsFiltrados.map(r=>r.Placa||r['Placa Vehículo']||r.placa||'').filter(Boolean)).size;
   document.getElementById('mKpiTotal').textContent   = fmtN(totalF);
   document.getElementById('mKpiMonto').textContent   = fmt(totalM);
   document.getElementById('mKpiLitros').textContent  = fmtN(totalL)+" L";
@@ -4694,7 +4699,7 @@ function renderMetricas(rows){
   if(kpiPl) kpiPl.textContent = totalPlacas;
 
   const byMes = {};
-  rows.forEach(r=>{
+  rowsFiltrados.forEach(r=>{
     const f=(r.Fecha||"").slice(0,7); if(!f) return;
     if(!byMes[f]) byMes[f]={gasto:0,litros:0,count:0};
     byMes[f].gasto+=getT(r); byMes[f].litros+=getL(r); byMes[f].count+=1;
@@ -4748,7 +4753,7 @@ function renderMetricas(rows){
 
   // Agrupar todas las facturas por placa (sin filtrar por mes — necesitamos la cadena completa)
   const byPlaca = {};
-  rows.forEach(r => {
+  rowsFiltrados.forEach(r => {
     const placa = r.Placa || r['Placa Veh\u00EDculo'] || r.placa || '';
     if (!placa) return;
     if (!byPlaca[placa]) byPlaca[placa] = [];
@@ -4908,7 +4913,7 @@ function renderMetricas(rows){
 
   // Agrupar por Identidad (más confiable que Nombre)
   const byIdent={};
-  rows.forEach(r=>{
+  rowsFiltrados.forEach(r=>{
     const id=r.Identidad||'Sin identidad';
     if(!byIdent[id]) byIdent[id]={ gasto:0, nombre: r.Nombre||r.Identidad||'Sin nombre' };
     byIdent[id].gasto+=getT(r);
@@ -4921,7 +4926,7 @@ function renderMetricas(rows){
     {indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:11},callback:v=>'L '+v.toLocaleString('es-HN')}},y:{grid:{display:false},ticks:{font:{size:11}}}}}
   );
 
-  buildPivot(rows, meses, mesLabel);
+  buildPivot(rowsFiltrados, meses, mesLabel);
 }
 
 function buildPivot(rows, meses, mesLabel){
