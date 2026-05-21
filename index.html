@@ -5137,20 +5137,29 @@ function openChartModal(key){
     const opts = srcCfg.options || {};
 
     // Clonar opciones de escala manteniendo callbacks
+    // Clonar datasets y forzar clamp:true en todos los datalabels para que no salgan del canvas
+    const modalDatasets = srcCfg.data.datasets.map(ds => {
+      if(!ds.datalabels) return ds;
+      const dl = typeof ds.datalabels === 'object' ? {...ds.datalabels} : ds.datalabels;
+      dl.clamp = true;
+      return {...ds, datalabels: dl};
+    });
+
     const modalOpts = {
       responsive: true,
       maintainAspectRatio: false,
       interaction: opts.interaction || {},
       scales: opts.scales || {},
+      layout: { padding: { top: 20 } },
       plugins: {
-        legend: { display: true, position: 'top', labels: { font:{ size:13 }, boxWidth:14 } },
+        legend: { display: true, position: 'bottom', labels: { font:{ size:13 }, boxWidth:14 } },
         datalabels: {}
       }
     };
 
     _chartModalInst = new Chart(dstCanvas, {
       type: srcCfg.type,
-      data: { labels: srcCfg.data.labels, datasets: srcCfg.data.datasets },
+      data: { labels: srcCfg.data.labels, datasets: modalDatasets },
       options: modalOpts,
       plugins: [ChartDataLabels]
     });
