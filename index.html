@@ -4652,14 +4652,19 @@ async function cargarMetricas(){
 }
 
 function renderMetricas(rows){
-  window._mdLastRows = rows; // guardar para el modal
-  // Poblar filtro de proceso con los procesos de los datos actuales
+  // Poblar filtro de proceso con los procesos disponibles (antes de filtrar)
   if(metricasProcesoMS){
     const procSet = [...new Set(rows.map(r=>r.Proceso).filter(Boolean))].sort();
     const selActual = metricasProcesoMS.getSelected();
     metricasProcesoMS.setItems(procSet);
     if(selActual && selActual.length > 0) metricasProcesoMS.select(selActual.filter(v=>procSet.includes(v)));
   }
+  // Filtrar por proceso en memoria — afecta modal de detalle y tabla pivot
+  const procesosFiltro = metricasProcesoMS ? metricasProcesoMS.getSelected() : [];
+  const rowsFiltrados = procesosFiltro.length > 0
+    ? rows.filter(r => procesosFiltro.includes(r.Proceso||''))
+    : rows;
+  window._mdLastRows = rowsFiltrados; // modal de detalle usa rows filtradas por proceso
   // Actualizar subtítulo con estados activos
   const subEl = document.getElementById('mSubtitulo');
   const estSel = metricasEstadoMS ? metricasEstadoMS.getSelected() : [];
@@ -4680,6 +4685,8 @@ function renderMetricas(rows){
   const getT = r=>Number(r["Total Gastado"]??r.Total??r.TotalGastado)||0;
   const getL = r=>Number(r["Litros Consumidos"]??r.LitrosConsumidos)||0;
 
+  // Reasignar rows al filtrado por proceso para KPIs y gráficos
+  const rows = rowsFiltrados;
   const totalF = rows.length;
   const totalM = rows.reduce((a,r)=>a+getT(r),0);
   const totalL = rows.reduce((a,r)=>a+getL(r),0);
@@ -4921,7 +4928,7 @@ function renderMetricas(rows){
     {indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:11},callback:v=>'L '+v.toLocaleString('es-HN')}},y:{grid:{display:false},ticks:{font:{size:11}}}}}
   );
 
-  buildPivot(rows, meses, mesLabel);
+  buildPivot(rowsFiltrados, meses, mesLabel);
 }
 
 function buildPivot(rows, meses, mesLabel){
