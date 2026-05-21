@@ -661,11 +661,15 @@
       <div id="mSectorWrap" style="display:none; gap:10px; align-items:flex-end;">
         <div id="msSectorMetricasWrap" style="display:none; flex-direction:column; gap:3px;">
           <span style="font-size:11px; font-weight:600; color:var(--text-secondary); padding-left:4px;">Sectores</span>
-          <div id="msSectorMetricas" style="width:190px; position:relative;"></div>
+          <div id="msSectorMetricas" style="width:180px; position:relative;"></div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:3px;">
+          <span style="font-size:11px; font-weight:600; color:var(--text-secondary); padding-left:4px;">Proceso</span>
+          <div id="msProcesoMetricas" style="width:180px; position:relative;"></div>
         </div>
         <div style="display:flex; flex-direction:column; gap:3px;">
           <span style="font-size:11px; font-weight:600; color:var(--text-secondary); padding-left:4px;">Estado</span>
-          <div id="msEstadoMetricas" style="width:190px; position:relative;"></div>
+          <div id="msEstadoMetricas" style="width:180px; position:relative;"></div>
         </div>
       </div>
       <label style="font-size:12px; color:var(--text-secondary);">Desde</label>
@@ -707,23 +711,47 @@
 
   <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
     <div class="card" style="padding:1rem;">
-      <p style="font-size:13px; font-weight:600; color:var(--text-primary); margin:0 0 12px;">Desembolso mensual (L)</p>
-      <div style="position:relative; height:220px;"><canvas id="chartGastoMes"></canvas></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <p style="font-size:13px;font-weight:600;color:var(--text-primary);margin:0;">Desembolso mensual (L)</p>
+        <button onclick="openChartModal('gastoMes')" style="font-size:11px;padding:3px 10px;border:1px solid #3B82F6;border-radius:6px;background:#EFF6FF;cursor:pointer;color:#1D4ED8;display:flex;align-items:center;gap:4px;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+          Ampliar
+        </button>
+      </div>
+      <div style="position:relative;height:220px;"><canvas id="chartGastoMes"></canvas></div>
     </div>
     <div class="card" style="padding:1rem;">
-      <p style="font-size:13px; font-weight:600; color:var(--text-primary); margin:0 0 12px;">Consumo mensual (litros)</p>
-      <div style="position:relative; height:220px;"><canvas id="chartLitrosMes"></canvas></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <p style="font-size:13px;font-weight:600;color:var(--text-primary);margin:0;">Consumo mensual (litros)</p>
+        <button onclick="openChartModal('litrosMes')" style="font-size:11px;padding:3px 10px;border:1px solid #3B82F6;border-radius:6px;background:#EFF6FF;cursor:pointer;color:#1D4ED8;display:flex;align-items:center;gap:4px;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+          Ampliar
+        </button>
+      </div>
+      <div style="position:relative;height:220px;"><canvas id="chartLitrosMes"></canvas></div>
     </div>
   </div>
 
   <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
     <div class="card" style="padding:1rem;">
-      <p style="font-size:13px; font-weight:600; color:var(--text-primary); margin:0 0 12px;">Promedio de gasto por factura (L)</p>
-      <div style="position:relative; height:220px;"><canvas id="chartProm"></canvas></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <p style="font-size:13px;font-weight:600;color:var(--text-primary);margin:0;">Promedio de gasto por factura (L)</p>
+        <button onclick="openChartModal('promMes')" style="font-size:11px;padding:3px 10px;border:1px solid #3B82F6;border-radius:6px;background:#EFF6FF;cursor:pointer;color:#1D4ED8;display:flex;align-items:center;gap:4px;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+          Ampliar
+        </button>
+      </div>
+      <div style="position:relative;height:220px;"><canvas id="chartProm"></canvas></div>
     </div>
     <div class="card" style="padding:1rem;">
-      <p style="font-size:13px; font-weight:600; color:var(--text-primary); margin:0;">Recorrido vs Consumo mensual</p>
-      <div style="position:relative; height:290px;"><canvas id="chartRecorrido"></canvas></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <p style="font-size:13px;font-weight:600;color:var(--text-primary);margin:0;">Recorrido vs Consumo mensual</p>
+        <button onclick="openChartModal('recorrido')" style="font-size:11px;padding:3px 10px;border:1px solid #3B82F6;border-radius:6px;background:#EFF6FF;cursor:pointer;color:#1D4ED8;display:flex;align-items:center;gap:4px;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+          Ampliar
+        </button>
+      </div>
+      <div style="position:relative;height:290px;"><canvas id="chartRecorrido"></canvas></div>
     </div>
   </div>
 
@@ -1432,7 +1460,7 @@ function updateKpisRevRange(){
  *  Filtros
  *  ========================= */
 
-let sectorMS, estadoMS, metricasSectorMS, metricasEstadoMS;
+let sectorMS, estadoMS, metricasSectorMS, metricasEstadoMS, metricasProcesoMS;
 
 function initFilters(){
   // Flatpickr range — Fecha de Factura (dispara fetch al backend)
@@ -4536,12 +4564,14 @@ function mkChart(id, type, labels, datasets, opts){
     delete opts.plugins;
   }
   const finalOpts = Object.assign(baseOpts, opts||{});
-  _metricasCharts[id] = new Chart(ctx, {
+  const inst = new Chart(ctx, {
     type,
     data: { labels, datasets },
     plugins: [ChartDataLabels],
     options: finalOpts
   });
+  _metricasCharts[id] = inst;
+  ctx._chartInst = inst; // referencia directa para modal
 }
 
 async function initMetricas(){
@@ -4561,6 +4591,10 @@ async function initMetricas(){
     metricasEstadoMS = createMultiSelect('#msEstadoMetricas', 'Estado', ()=>{});
     metricasEstadoMS.setItems(['Revisada','Enviada','Pagada','Registrada']);
     metricasEstadoMS.select(['Revisada','Enviada','Pagada']);
+  }
+  // Filtro de proceso: visible para todos
+  if(!metricasProcesoMS && document.getElementById('msProcesoMetricas')){
+    metricasProcesoMS = createMultiSelect('#msProcesoMetricas', 'Proceso', ()=>{});
   }
   if(wrapMetricas) wrapMetricas.style.display = 'flex';
 
@@ -4605,6 +4639,9 @@ async function cargarMetricas(){
     // Estados: leer del multiselect de estado o usar defaults
     const estadosSel = metricasEstadoMS ? metricasEstadoMS.getSelected() : [];
     url.searchParams.set("estados", estadosSel.length > 0 ? estadosSel.join(",") : "Revisada,Pagada,Enviada");
+    // Filtro de proceso
+    const procesosSel = metricasProcesoMS ? metricasProcesoMS.getSelected() : [];
+    if(procesosSel.length > 0) url.searchParams.set("procesos", procesosSel.join(","));
     const res  = await fetch(url.toString(), { cache:"no-store" });
     const raw  = await res.json().catch(()=>[]);
     const rows = (Array.isArray(raw)?raw:[]).map(r=>typeof normalizeRow==='function'?normalizeRow(r):r).filter(Boolean);
@@ -4615,6 +4652,13 @@ async function cargarMetricas(){
 
 function renderMetricas(rows){
   window._mdLastRows = rows; // guardar para el modal
+  // Poblar filtro de proceso con los procesos de los datos actuales
+  if(metricasProcesoMS){
+    const procSet = [...new Set(rows.map(r=>r.Proceso).filter(Boolean))].sort();
+    const selActual = metricasProcesoMS.getSelected();
+    metricasProcesoMS.setItems(procSet);
+    if(selActual && selActual.length > 0) metricasProcesoMS.select(selActual.filter(v=>procSet.includes(v)));
+  }
   // Actualizar subtítulo con estados activos
   const subEl = document.getElementById('mSubtitulo');
   const estSel = metricasEstadoMS ? metricasEstadoMS.getSelected() : [];
@@ -4668,10 +4712,37 @@ function renderMetricas(rows){
     align: (ctx) => ctx.dataIndex === 0 ? 'right' : ctx.dataIndex === total-1 ? 'left' : 'top'
   });
 
-  mkChart('chartGastoMes','bar',mesLabel,[{
-    label:'Desembolso (L)', data:gastoM, backgroundColor:'#1C7293', borderRadius:4, borderSkipped:false,
-    datalabels: dlBase(fmtL2, '#1C7293')
-  }], { scales: scalesL, layout:{ padding:{ top:24 } } });
+  // Placas únicas por mes para barra apilada
+  const placasM = meses.map(m => {
+    const rowsMes = rows.filter(r=>(r.Fecha||'').toString().slice(0,7)===m);
+    return new Set(rowsMes.map(r=>r.Placa||r['Placa Vehículo']||r.placa||'').filter(Boolean)).size;
+  });
+  const scalesGasto = {
+    x:{grid:{display:false},ticks:{font:{size:11}},stacked:true},
+    y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:11},callback:v=>fmtL2(v)},stacked:true}
+  };
+  mkChart('chartGastoMes','bar',mesLabel,[
+    {
+      label:'Desembolso (L)', data:gastoM, backgroundColor:'#1C7293', borderRadius:0, borderSkipped:false,
+      yAxisID:'y', datalabels: dlBase(fmtL2, '#1C7293')
+    },
+    {
+      label:'Placas activas', data:placasM, backgroundColor:'rgba(99,102,241,0.75)', borderRadius:4, borderSkipped:false,
+      yAxisID:'y2', type:'bar',
+      datalabels:{
+        display:true, anchor:'end', align:'end', clamp:true,
+        color:'#4F46E5', font:{size:10,weight:'bold'},
+        formatter: v => v+' pl.'
+      }
+    }
+  ], {
+    scales:{
+      x:{grid:{display:false},ticks:{font:{size:11}}},
+      y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:11},callback:v=>fmtL2(v)},position:'left'},
+      y2:{display:false, position:'right'}
+    },
+    layout:{ padding:{ top:28 } }
+  });
 
   mkChart('chartLitrosMes','bar',mesLabel,[{
     label:'Litros', data:litrosM, backgroundColor:'#0D9488', borderRadius:4, borderSkipped:false,
@@ -5281,10 +5352,10 @@ function renderModalDetalle(rows, filtroMes){
       <td style="padding:5px 8px;font-weight:600;font-family:monospace;color:var(--text-primary)">${placa}</td>
       <td style="padding:5px 8px;color:var(--text-secondary);font-size:11px">${d.proceso}</td>
       <td style="padding:5px 8px;text-align:right">${d.count}</td>
-      <td style="padding:5px 8px;text-align:right">${fmtL(d.gasto)}</td>
-      <td style="padding:5px 8px;text-align:right">${fmtN(d.litros)} L</td>
-      <td style="padding:5px 8px;text-align:right">${d.km>0?d.km.toLocaleString('es-HN',{maximumFractionDigits:0})+' km':'\u2014'}</td>
-      <td style="padding:5px 8px;text-align:right">${fmtL(d.count>0?d.gasto/d.count:0)}</td>
+      <td style="padding:5px 8px;text-align:right">${(Number(d.gasto)||0).toLocaleString('es-HN',{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
+      <td style="padding:5px 8px;text-align:right">${(Number(d.litros)||0).toLocaleString('es-HN',{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
+      <td style="padding:5px 8px;text-align:right">${d.km>0?d.km.toLocaleString('es-HN',{maximumFractionDigits:0}):'\u2014'}</td>
+      <td style="padding:5px 8px;text-align:right">${(Number(d.count>0?d.gasto/d.count:0)||0).toLocaleString('es-HN',{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
       <td style="padding:5px 8px;text-align:center">
         <span style="display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;background:${sBg(d.rend)};color:${sColor(d.rend)}">
           ${semaforo(d.rend)} ${d.rend>0?d.rend.toFixed(2):'\u2014'}
@@ -5327,6 +5398,21 @@ function renderModalDetalle(rows, filtroMes){
 
 </script>
 
+
+<!-- ══════════ MODAL GRÁFICO AMPLIADO ══════════ -->
+<div id="modalChart" style="position:fixed;inset:0;background:rgba(0,0,0,0.45);display:none;align-items:center;justify-content:center;z-index:9997;padding:16px;">
+  <div style="background:var(--bg-primary,#fff);border-radius:12px;width:94vw;max-width:1300px;height:85vh;display:flex;flex-direction:column;box-shadow:0 24px 64px rgba(0,0,0,0.22);overflow:hidden;">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:1rem 1.25rem;border-bottom:1px solid var(--border,#e5e7eb);flex-shrink:0;">
+      <h3 id="modalChartTitulo" style="margin:0;font-size:1.1rem;font-weight:700;color:var(--text-primary);">Gráfico</h3>
+      <button onclick="closeChartModal()" style="background:none;border:none;cursor:pointer;padding:6px;border-radius:6px;color:var(--muted);">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div style="flex:1;padding:1.25rem;position:relative;min-height:0;">
+      <canvas id="chartModalCanvas"></canvas>
+    </div>
+  </div>
+</div>
 <!-- ══════════ MODAL PIVOT TABLE ══════════ -->
 <div id="modalPivot">
   <div class="pivot-modal-box">
@@ -5370,12 +5456,6 @@ function renderModalDetalle(rows, filtroMes){
     </div>
     <!-- Filtros -->
     <div style="display:flex; gap:10px; padding:0.75rem 1.25rem; border-bottom:1px solid var(--border,#e5e7eb); flex-wrap:wrap; align-items:center; flex-shrink:0; background:var(--bg-secondary,#f8fafc);">
-      <div style="display:flex; align-items:center; gap:6px;">
-        <label style="font-size:12px; font-weight:600; color:var(--text-secondary);">Proceso:</label>
-        <select id="mdFiltProceso" class="input" style="font-size:12px; min-width:160px;" onchange="aplicarFiltroModal()">
-          <option value="">Todos los procesos</option>
-        </select>
-      </div>
       <div style="display:flex; align-items:center; gap:6px;">
         <label style="font-size:12px; font-weight:600; color:var(--text-secondary);">Placa:</label>
         <select id="mdFiltPlaca" class="input" style="font-size:12px; min-width:140px;" onchange="aplicarFiltroModal()">
