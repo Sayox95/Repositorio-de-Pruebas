@@ -702,11 +702,12 @@
       style="background:none;border:none;cursor:pointer;color:#d97706;padding:2px;flex-shrink:0;font-size:16px;line-height:1;" title="Cerrar">✕</button>
   </div>
 
-  <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:1.5rem;">
-    <div class="card kpi"><span class="label">Total Facturas</span><span id="mKpiTotal" class="value">—</span></div>
-    <div class="card kpi"><span class="label">Total Desembolsado</span><span id="mKpiMonto" class="value">—</span></div>
-    <div class="card kpi"><span class="label">Total Litros</span><span id="mKpiLitros" class="value">—</span></div>
-    <div class="card kpi"><span class="label">Promedio por Factura</span><span id="mKpiProm" class="value">—</span></div>
+  <div style="display:grid; grid-template-columns:repeat(5,1fr); gap:10px; margin-bottom:1.5rem;">
+    <div class="card kpi" style="padding:0.75rem;"><span class="label" style="font-size:11px;">Total Facturas</span><span id="mKpiTotal" class="value" style="font-size:1.4rem;">—</span></div>
+    <div class="card kpi" style="padding:0.75rem;"><span class="label" style="font-size:11px;">Total Desembolsado</span><span id="mKpiMonto" class="value" style="font-size:1.4rem;">—</span></div>
+    <div class="card kpi" style="padding:0.75rem;"><span class="label" style="font-size:11px;">Total Litros</span><span id="mKpiLitros" class="value" style="font-size:1.4rem;">—</span></div>
+    <div class="card kpi" style="padding:0.75rem;"><span class="label" style="font-size:11px;">Promedio por Factura</span><span id="mKpiProm" class="value" style="font-size:1.4rem;">—</span></div>
+    <div class="card kpi" style="padding:0.75rem;"><span class="label" style="font-size:11px;">Placas Activas</span><span id="mKpiPlacas" class="value" style="font-size:1.4rem;">—</span></div>
   </div>
 
   <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
@@ -4684,10 +4685,13 @@ function renderMetricas(rows){
   const totalL = rows.reduce((a,r)=>a+getL(r),0);
   const promF  = totalF ? totalM/totalF : 0;
 
-  document.getElementById('mKpiTotal').textContent  = fmtN(totalF);
-  document.getElementById('mKpiMonto').textContent  = fmt(totalM);
-  document.getElementById('mKpiLitros').textContent = fmtN(totalL)+" L";
-  document.getElementById('mKpiProm').textContent   = fmt(promF);
+  const totalPlacas = new Set(rows.map(r=>r.Placa||r['Placa Vehículo']||r.placa||'').filter(Boolean)).size;
+  document.getElementById('mKpiTotal').textContent   = fmtN(totalF);
+  document.getElementById('mKpiMonto').textContent   = fmt(totalM);
+  document.getElementById('mKpiLitros').textContent  = fmtN(totalL)+" L";
+  document.getElementById('mKpiProm').textContent    = fmt(promF);
+  const kpiPl = document.getElementById('mKpiPlacas');
+  if(kpiPl) kpiPl.textContent = totalPlacas;
 
   const byMes = {};
   rows.forEach(r=>{
@@ -4712,37 +4716,10 @@ function renderMetricas(rows){
     align: (ctx) => ctx.dataIndex === 0 ? 'right' : ctx.dataIndex === total-1 ? 'left' : 'top'
   });
 
-  // Placas únicas por mes para barra apilada
-  const placasM = meses.map(m => {
-    const rowsMes = rows.filter(r=>(r.Fecha||'').toString().slice(0,7)===m);
-    return new Set(rowsMes.map(r=>r.Placa||r['Placa Vehículo']||r.placa||'').filter(Boolean)).size;
-  });
-  const scalesGasto = {
-    x:{grid:{display:false},ticks:{font:{size:11}},stacked:true},
-    y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:11},callback:v=>fmtL2(v)},stacked:true}
-  };
-  mkChart('chartGastoMes','bar',mesLabel,[
-    {
-      label:'Desembolso (L)', data:gastoM, backgroundColor:'#1C7293', borderRadius:0, borderSkipped:false,
-      yAxisID:'y', datalabels: dlBase(fmtL2, '#1C7293')
-    },
-    {
-      label:'Placas activas', data:placasM, backgroundColor:'rgba(99,102,241,0.75)', borderRadius:4, borderSkipped:false,
-      yAxisID:'y2', type:'bar',
-      datalabels:{
-        display:true, anchor:'end', align:'end', clamp:true,
-        color:'#4F46E5', font:{size:10,weight:'bold'},
-        formatter: v => v+' pl.'
-      }
-    }
-  ], {
-    scales:{
-      x:{grid:{display:false},ticks:{font:{size:11}}},
-      y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:11},callback:v=>fmtL2(v)},position:'left'},
-      y2:{display:false, position:'right'}
-    },
-    layout:{ padding:{ top:28 } }
-  });
+  mkChart('chartGastoMes','bar',mesLabel,[{
+    label:'Desembolso (L)', data:gastoM, backgroundColor:'#1C7293', borderRadius:4, borderSkipped:false,
+    datalabels: dlBase(fmtL2, '#1C7293')
+  }], { scales: scalesL, layout:{ padding:{ top:24 } } });
 
   mkChart('chartLitrosMes','bar',mesLabel,[{
     label:'Litros', data:litrosM, backgroundColor:'#0D9488', borderRadius:4, borderSkipped:false,
@@ -5128,6 +5105,58 @@ function pivotToggle(secId){
   rows.forEach(r=>r.style.display=hidden?'':'none');
   if(secRow) secRow.classList.toggle('pivot-collapsed',!hidden);
 }
+
+
+// ══════════ MODAL GRÁFICO AMPLIADO ══════════
+let _chartModalInst = null;
+const _chartModalTitles = {
+  gastoMes:  'Desembolso mensual (L)',
+  litrosMes: 'Consumo mensual (litros)',
+  promMes:   'Promedio de gasto por factura (L)',
+  recorrido: 'Recorrido vs Consumo mensual'
+};
+const _chartSourceIds = {
+  gastoMes:  'chartGastoMes',
+  litrosMes: 'chartLitrosMes',
+  promMes:   'chartProm',
+  recorrido: 'chartRecorrido'
+};
+
+function openChartModal(key){
+  const srcId = _chartSourceIds[key];
+  const srcCanvas = document.getElementById(srcId);
+  if(!srcCanvas || !srcCanvas._chartInst){ console.warn('No chart found for', key); return; }
+  const srcChart = srcCanvas._chartInst;
+  document.getElementById('modalChartTitulo').textContent = _chartModalTitles[key] || key;
+  document.getElementById('modalChart').style.display = 'flex';
+  if(_chartModalInst){ _chartModalInst.destroy(); _chartModalInst = null; }
+  const dstCanvas = document.getElementById('chartModalCanvas');
+  try{
+    const srcData = JSON.parse(JSON.stringify(srcChart.config.data));
+    const srcOpts = JSON.parse(JSON.stringify(srcChart.config.options||{}));
+    srcOpts.responsive = true;
+    srcOpts.maintainAspectRatio = false;
+    if(!srcOpts.plugins) srcOpts.plugins = {};
+    srcOpts.plugins.legend = { display:true, position:'top', labels:{ font:{size:13}, boxWidth:14 } };
+    if(srcOpts.plugins.datalabels) srcOpts.plugins.datalabels.font = { size:13, weight:'bold' };
+    _chartModalInst = new Chart(dstCanvas, {
+      type: srcChart.config.type,
+      data: srcData,
+      options: srcOpts,
+      plugins: [ChartDataLabels]
+    });
+  }catch(e){ console.error('Chart modal error:', e); }
+}
+
+function closeChartModal(){
+  document.getElementById('modalChart').style.display = 'none';
+  if(_chartModalInst){ _chartModalInst.destroy(); _chartModalInst = null; }
+}
+
+document.addEventListener('click', function(e){
+  const m = document.getElementById('modalChart');
+  if(m && e.target === m) closeChartModal();
+});
 
 function openPivotModal(){
   const modal = document.getElementById('modalPivot');
