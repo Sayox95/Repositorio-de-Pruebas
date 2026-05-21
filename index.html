@@ -5132,17 +5132,27 @@ function openChartModal(key){
   if(_chartModalInst){ _chartModalInst.destroy(); _chartModalInst = null; }
   const dstCanvas = document.getElementById('chartModalCanvas');
   try{
-    const srcData = JSON.parse(JSON.stringify(srcChart.config.data));
-    const srcOpts = JSON.parse(JSON.stringify(srcChart.config.options||{}));
-    srcOpts.responsive = true;
-    srcOpts.maintainAspectRatio = false;
-    if(!srcOpts.plugins) srcOpts.plugins = {};
-    srcOpts.plugins.legend = { display:true, position:'top', labels:{ font:{size:13}, boxWidth:14 } };
-    if(srcOpts.plugins.datalabels) srcOpts.plugins.datalabels.font = { size:13, weight:'bold' };
+    // Usar los datasets originales (con funciones intactas) — NO serializar
+    const srcCfg = srcChart.config;
+    const opts = srcCfg.options || {};
+
+    // Clonar opciones de escala manteniendo callbacks
+    const modalOpts = {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: opts.interaction || {},
+      scales: opts.scales || {},
+      layout: { padding: { top: 55, left: 10, right: 70, bottom: 10 } },
+      plugins: {
+        legend: { display: true, position: 'top', labels: { font:{ size:13 }, boxWidth:14 } },
+        datalabels: {} // cada dataset tiene su propia config de datalabels
+      }
+    };
+
     _chartModalInst = new Chart(dstCanvas, {
-      type: srcChart.config.type,
-      data: srcData,
-      options: srcOpts,
+      type: srcCfg.type,
+      data: { labels: srcCfg.data.labels, datasets: srcCfg.data.datasets },
+      options: modalOpts,
       plugins: [ChartDataLabels]
     });
   }catch(e){ console.error('Chart modal error:', e); }
