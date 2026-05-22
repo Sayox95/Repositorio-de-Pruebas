@@ -5036,9 +5036,8 @@ function buildVariacionChart(tipo){
     plugins:[ChartDataLabels]
   });
 
-  // Registrar para modal ampliar
-  if(window._chartSourceIds) _chartSourceIds['variacion'] = 'chartVariacion';
-  if(window._chartModalTitles) _chartModalTitles['variacion'] = 'Variación Mensual — '+tipo.charAt(0).toUpperCase()+tipo.slice(1);
+  // Actualizar título del modal según métrica activa
+  _chartModalTitles['variacion'] = 'Variación Mensual — '+tipo.charAt(0).toUpperCase()+tipo.slice(1);
 }
 
 function buildPivot(rows, meses, mesLabel){
@@ -5230,13 +5229,15 @@ const _chartModalTitles = {
   gastoMes:  'Desembolso mensual (L)',
   litrosMes: 'Consumo mensual (litros)',
   promMes:   'Promedio de gasto por factura (L)',
-  recorrido: 'Recorrido vs Consumo mensual'
+  recorrido: 'Recorrido vs Consumo mensual',
+  variacion: 'Variación Mensual'
 };
 const _chartSourceIds = {
   gastoMes:  'chartGastoMes',
   litrosMes: 'chartLitrosMes',
   promMes:   'chartProm',
-  recorrido: 'chartRecorrido'
+  recorrido: 'chartRecorrido',
+  variacion: 'chartVariacion'
 };
 
 function openChartModal(key){
