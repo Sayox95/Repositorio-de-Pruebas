@@ -758,8 +758,16 @@
 
   <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
     <div class="card" style="padding:1rem;">
-      <p style="font-size:13px; font-weight:600; color:var(--text-primary); margin:0 0 12px;">Top 10 colaboradores por gasto (L)</p>
-      <div style="position:relative; height:300px;"><canvas id="chartColaboradores"></canvas></div>
+      <!-- Header con título y botones de métrica -->
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
+        <p style="font-size:13px; font-weight:600; color:var(--text-primary); margin:0;">Variación Mensual</p>
+        <div style="display:flex; gap:4px;">
+          <button id="btnVarGasto"     onclick="switchVariacion('gasto')"     class="btn-var active-var" style="font-size:11px;padding:4px 12px;border-radius:20px;border:1.5px solid #1C7293;background:#1C7293;color:#fff;cursor:pointer;font-weight:600;">Gasto</button>
+          <button id="btnVarLitros"    onclick="switchVariacion('litros')"    class="btn-var"            style="font-size:11px;padding:4px 12px;border-radius:20px;border:1.5px solid var(--border);background:none;color:var(--text-secondary);cursor:pointer;font-weight:600;">Litros</button>
+          <button id="btnVarRecorrido" onclick="switchVariacion('recorrido')" class="btn-var"            style="font-size:11px;padding:4px 12px;border-radius:20px;border:1.5px solid var(--border);background:none;color:var(--text-secondary);cursor:pointer;font-weight:600;">Recorrido</button>
+        </div>
+      </div>
+      <div style="position:relative; height:280px;"><canvas id="chartVariacion"></canvas></div>
     </div>
     <div class="card" style="padding:1rem; overflow:hidden;">
       <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
@@ -4721,66 +4729,15 @@ function renderMetricas(rows){
     align: (ctx) => ctx.dataIndex === 0 ? 'right' : ctx.dataIndex === total-1 ? 'left' : 'top'
   });
 
-  // Variación % respecto al mes anterior
-  const varPct = (arr) => arr.map((v,i) => i===0||arr[i-1]===0 ? null : parseFloat(((v-arr[i-1])/arr[i-1]*100).toFixed(1)));
-  const fmtVar = v => v===null ? '' : (v>=0?'+':'')+v+'%';
-  const varGastoData  = varPct(gastoM);
-  const varLitrosData = varPct(litrosM);
-  const varGastoColors  = varGastoData.map(v=>v===null?'transparent':v>=0?'#10B981':'#EF4444');
-  const varLitrosColors = varLitrosData.map(v=>v===null?'transparent':v>=0?'#10B981':'#EF4444');
+  mkChart('chartGastoMes','bar',mesLabel,[{
+    label:'Desembolso (L)', data:gastoM, backgroundColor:'#1C7293', borderRadius:4, borderSkipped:false,
+    datalabels: dlBase(fmtL2, '#1C7293')
+  }], { scales: scalesL, layout:{ padding:{ top:24 } } });
 
-  const scalesGastoVar = {
-    x: { grid:{display:false}, ticks:{font:{size:11}} },
-    yGasto: { type:'linear', position:'left', grid:{color:'rgba(0,0,0,0.05)'}, ticks:{font:{size:10}, callback:v=>fmtL2(v)} },
-    yVar:   { type:'linear', position:'right', grid:{drawOnChartArea:false}, ticks:{font:{size:10}, callback:v=>v+'%'},
-              afterDataLimits(s){ const e=Math.max(Math.abs(s.max),Math.abs(s.min))*0.3; s.max+=e; if(s.min<0)s.min-=e; } }
-  };
-  const scalesLitVar = {
-    x: { grid:{display:false}, ticks:{font:{size:11}} },
-    yLit: { type:'linear', position:'left', grid:{color:'rgba(0,0,0,0.05)'}, ticks:{font:{size:10}, callback:v=>v.toLocaleString('es-HN',{maximumFractionDigits:0})+' L'} },
-    yVar: { type:'linear', position:'right', grid:{drawOnChartArea:false}, ticks:{font:{size:10}, callback:v=>v+'%'},
-            afterDataLimits(s){ const e=Math.max(Math.abs(s.max),Math.abs(s.min))*0.3; s.max+=e; if(s.min<0)s.min-=e; } }
-  };
-
-  mkChart('chartGastoMes','bar',mesLabel,[
-    {
-      type:'bar', label:'Desembolso (L)', data:gastoM, backgroundColor:'#1C7293',
-      borderRadius:4, borderSkipped:false, yAxisID:'yGasto',
-      datalabels: dlBase(fmtL2, '#1C7293')
-    },
-    {
-      type:'line', label:'Var. %', data:varGastoData, yAxisID:'yVar',
-      borderColor:'#6366F1', backgroundColor:'transparent',
-      borderWidth:2, borderDash:[5,3], tension:0.3,
-      pointRadius:4, pointBackgroundColor:varGastoColors,
-      pointBorderColor:'#fff', pointBorderWidth:1.5,
-      datalabels:{
-        display:true, anchor:'end', align:'top', clamp:true,
-        color: ctx => varGastoColors[ctx.dataIndex]==='transparent'?'transparent':varGastoColors[ctx.dataIndex],
-        font:{size:10,weight:'bold'}, formatter:fmtVar
-      }
-    }
-  ], { scales: scalesGastoVar, layout:{ padding:{ top:28, right:8 } } });
-
-  mkChart('chartLitrosMes','bar',mesLabel,[
-    {
-      type:'bar', label:'Litros', data:litrosM, backgroundColor:'#0D9488',
-      borderRadius:4, borderSkipped:false, yAxisID:'yLit',
-      datalabels: dlBase(fmtLit, '#0D9488')
-    },
-    {
-      type:'line', label:'Var. %', data:varLitrosData, yAxisID:'yVar',
-      borderColor:'#6366F1', backgroundColor:'transparent',
-      borderWidth:2, borderDash:[5,3], tension:0.3,
-      pointRadius:4, pointBackgroundColor:varLitrosColors,
-      pointBorderColor:'#fff', pointBorderWidth:1.5,
-      datalabels:{
-        display:true, anchor:'end', align:'top', clamp:true,
-        color: ctx => varLitrosColors[ctx.dataIndex]==='transparent'?'transparent':varLitrosColors[ctx.dataIndex],
-        font:{size:10,weight:'bold'}, formatter:fmtVar
-      }
-    }
-  ], { scales: scalesLitVar, layout:{ padding:{ top:28, right:8 } } });
+  mkChart('chartLitrosMes','bar',mesLabel,[{
+    label:'Litros', data:litrosM, backgroundColor:'#0D9488', borderRadius:4, borderSkipped:false,
+    datalabels: dlBase(fmtLit, '#0D9488')
+  }], { scales: scalesLit, layout:{ padding:{ top:24 } } });
 
   mkChart('chartProm','line',mesLabel,[{
     label:'Promedio L/factura', data:promM, borderColor:'#E85D04', backgroundColor:'rgba(232,93,4,0.1)',
@@ -4963,21 +4920,117 @@ function renderMetricas(rows){
   }
 
   // Agrupar por Identidad (más confiable que Nombre)
-  const byIdent={};
-  rowsFiltrados.forEach(r=>{
-    const id=r.Identidad||'Sin identidad';
-    if(!byIdent[id]) byIdent[id]={ gasto:0, nombre: r.Nombre||r.Identidad||'Sin nombre' };
-    byIdent[id].gasto+=getT(r);
-  });
-  const topColab=Object.entries(byIdent).sort((a,b)=>b[1].gasto-a[1].gasto).slice(0,10);
-  mkChart('chartColaboradores','bar',
-    topColab.map(([,v])=>v.nombre.length>22?v.nombre.slice(0,22)+'…':v.nombre),
-    [{label:'Gasto (L)',data:topColab.map(([,v])=>parseFloat(v.gasto.toFixed(2))),backgroundColor:COLORS,borderRadius:4,borderSkipped:false,
-      datalabels:{display:true,anchor:'end',align:'right',color:'#065A82',font:{size:10,weight:'bold'},formatter:v=>'L '+(Number(v)||0).toLocaleString('es-HN',{minimumFractionDigits:2,maximumFractionDigits:2})}}],
-    {indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:11},callback:v=>'L '+v.toLocaleString('es-HN')}},y:{grid:{display:false},ticks:{font:{size:11}}}}}
-  );
+  // ── Gráfico de Variación Mensual (línea estilo financiero) ──────────────
+  window._varData = {
+    gasto:     { data: gastoM,        label: mesLabel, color:'#1C7293',
+                 fmt: v=>'L '+(v||0).toLocaleString('es-HN',{minimumFractionDigits:2,maximumFractionDigits:2}) },
+    litros:    { data: litrosM,       label: mesLabel, color:'#0D9488',
+                 fmt: v=>(v||0).toLocaleString('es-HN',{minimumFractionDigits:2,maximumFractionDigits:2})+' L' },
+    recorrido: { data: recorridoData, label: mesLabel, color:'#6366F1',
+                 fmt: v=>(v||0).toLocaleString('es-HN',{maximumFractionDigits:0})+' km' }
+  };
+  buildVariacionChart('gasto');
 
   buildPivot(rowsFiltrados, meses, mesLabel);
+}
+
+function switchVariacion(tipo){
+  // Actualizar estilos de botones
+  ['gasto','litros','recorrido'].forEach(t=>{
+    const btn = document.getElementById('btnVar'+t.charAt(0).toUpperCase()+t.slice(1));
+    if(!btn) return;
+    const colors = { gasto:'#1C7293', litros:'#0D9488', recorrido:'#6366F1' };
+    if(t===tipo){
+      btn.style.background = colors[t];
+      btn.style.borderColor = colors[t];
+      btn.style.color = '#fff';
+    } else {
+      btn.style.background = 'none';
+      btn.style.borderColor = 'var(--border,#e5e7eb)';
+      btn.style.color = 'var(--text-secondary)';
+    }
+  });
+  buildVariacionChart(tipo);
+}
+
+function buildVariacionChart(tipo){
+  const d = (window._varData||{})[tipo];
+  if(!d) return;
+  const { data, label, color, fmt } = d;
+
+  // Calcular variación %
+  const varPct = data.map((v,i) => i===0||!data[i-1] ? null : parseFloat(((v-data[i-1])/data[i-1]*100).toFixed(1)));
+  const fmtPct = v => v===null?'':(v>=0?'▲ +':'▼ ')+Math.abs(v)+'%';
+  const ptColor = v => v===null?'transparent':v>=0?'#10B981':'#EF4444';
+  const ptColors = varPct.map(ptColor);
+
+  const canvas = document.getElementById('chartVariacion');
+  if(!canvas) return;
+  if(canvas._chartInst){ canvas._chartInst.destroy(); }
+
+  canvas._chartInst = new Chart(canvas, {
+    type:'line',
+    data:{
+      labels: label,
+      datasets:[{
+        label: tipo.charAt(0).toUpperCase()+tipo.slice(1),
+        data: data,
+        borderColor: color,
+        backgroundColor: color+'18',
+        fill: true,
+        tension: 0.4,
+        pointRadius: 6,
+        pointHoverRadius: 8,
+        pointBackgroundColor: ptColors,
+        pointBorderColor: '#fff',
+        pointBorderWidth: 2,
+        datalabels:{
+          display: true,
+          anchor: 'top',
+          align: 'top',
+          clamp: true,
+          formatter: (v, ctx) => {
+            const val = fmt(v);
+            const pct = fmtPct(varPct[ctx.dataIndex]);
+            return [val, pct];
+          },
+          color: (ctx) => {
+            const v = varPct[ctx.dataIndex];
+            return [color, ptColor(v)];
+          },
+          font: (ctx) => {
+            // Primera línea (valor): bold más grande; segunda (variación): más pequeña
+            return ctx.dataIndex !== undefined ? [
+              { size:10, weight:'bold' },
+              { size:9,  weight:'bold' }
+            ] : { size:10 };
+          },
+          offset: 6
+        }
+      }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{
+        legend:{ display:false },
+        datalabels:{}
+      },
+      scales:{
+        x:{ grid:{display:false}, ticks:{font:{size:11}} },
+        y:{
+          grid:{ color:'rgba(0,0,0,0.05)' },
+          ticks:{ font:{size:10}, callback: v => fmt(v) },
+          afterDataLimits(s){ s.max = s.max * 1.22; }
+        }
+      },
+      layout:{ padding:{ top:48, left:8, right:8 } }
+    },
+    plugins:[ChartDataLabels]
+  });
+
+  // Registrar para modal ampliar
+  if(window._chartSourceIds) _chartSourceIds['variacion'] = 'chartVariacion';
+  if(window._chartModalTitles) _chartModalTitles['variacion'] = 'Variación Mensual — '+tipo.charAt(0).toUpperCase()+tipo.slice(1);
 }
 
 function buildPivot(rows, meses, mesLabel){
