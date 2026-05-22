@@ -761,10 +761,14 @@
       <!-- Header con título y botones de métrica -->
       <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
         <p style="font-size:13px; font-weight:600; color:var(--text-primary); margin:0;">Variación Mensual</p>
-        <div style="display:flex; gap:4px;">
+        <div style="display:flex; gap:4px; align-items:center;">
           <button id="btnVarGasto"     onclick="switchVariacion('gasto')"     class="btn-var active-var" style="font-size:11px;padding:4px 12px;border-radius:20px;border:1.5px solid #1C7293;background:#1C7293;color:#fff;cursor:pointer;font-weight:600;">Gasto</button>
           <button id="btnVarLitros"    onclick="switchVariacion('litros')"    class="btn-var"            style="font-size:11px;padding:4px 12px;border-radius:20px;border:1.5px solid var(--border);background:none;color:var(--text-secondary);cursor:pointer;font-weight:600;">Litros</button>
           <button id="btnVarRecorrido" onclick="switchVariacion('recorrido')" class="btn-var"            style="font-size:11px;padding:4px 12px;border-radius:20px;border:1.5px solid var(--border);background:none;color:var(--text-secondary);cursor:pointer;font-weight:600;">Recorrido</button>
+          <button onclick="openChartModal('variacion')" style="font-size:11px;padding:3px 10px;border:1px solid #3B82F6;border-radius:6px;background:#EFF6FF;cursor:pointer;color:#1D4ED8;display:flex;align-items:center;gap:4px;margin-left:4px;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+            Ampliar
+          </button>
         </div>
       </div>
       <div style="position:relative; height:280px;"><canvas id="chartVariacion"></canvas></div>
@@ -775,6 +779,10 @@
         <div style="display:flex; gap:6px;">
           <button id="btnPivotExpandAll" onclick="pivotToggleAll(true)" style="font-size:11px; padding:3px 10px; border:1px solid var(--border); border-radius:6px; background:none; cursor:pointer; color:var(--text-secondary);">Expandir todo</button>
           <button id="btnPivotCollapseAll" onclick="pivotToggleAll(false)" style="font-size:11px; padding:3px 10px; border:1px solid var(--border); border-radius:6px; background:none; cursor:pointer; color:var(--text-secondary);">Colapsar todo</button>
+          <button onclick="exportPivotXLSX()" style="font-size:11px; padding:3px 10px; border:1px solid #10B981; border-radius:6px; background:#ECFDF5; cursor:pointer; color:#065f46; display:flex; align-items:center; gap:4px; font-weight:600;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Excel
+          </button>
           <button onclick="openPivotModal()" style="font-size:11px; padding:3px 10px; border:1px solid #3B82F6; border-radius:6px; background:#EFF6FF; cursor:pointer; color:#1D4ED8; display:flex; align-items:center; gap:4px;">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
             Ampliar
@@ -5370,6 +5378,52 @@ function pivotToggleAll(expand){
 }
 
 
+
+// ══════════ EXPORTAR EXCEL — MODAL DETALLE POR PLACA ══════════
+function exportModalTablaXLSX(){
+  const tbody = document.getElementById('mdTablaBody');
+  const thead = document.getElementById('mdTabla')?.querySelector('thead');
+  if(!tbody || !thead) return;
+
+  // Leer headers
+  const ths = [...thead.querySelectorAll('th')].map(th=>th.textContent.trim());
+
+  // Leer filas
+  const rowsData = [...tbody.querySelectorAll('tr')].map(tr=>{
+    const cells = [...tr.querySelectorAll('td')].map(td=>td.textContent.trim());
+    const obj = {};
+    ths.forEach((h,i)=>{ obj[h] = cells[i]||''; });
+    return obj;
+  });
+
+  if(!rowsData.length){ alert('No hay datos para exportar.'); return; }
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.json_to_sheet(rowsData, { header: ths });
+  // Ancho de columnas automático
+  ws['!cols'] = ths.map(h=>({ wch: Math.max(h.length, 14) }));
+  XLSX.utils.book_append_sheet(wb, ws, 'Detalle por Placa');
+  XLSX.writeFile(wb, `Detalle_Placas_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+
+// ══════════ EXPORTAR EXCEL — PIVOT SECTOR / PROCESO ══════════
+function exportPivotXLSX(){
+  const table = document.getElementById('tablaPivot');
+  if(!table){ alert('No hay tabla para exportar.'); return; }
+
+  // Mostrar todas las filas temporalmente para exportar completo
+  const hidden = [...table.querySelectorAll('tr.pivot-proceso')].filter(r=>r.style.display==='none');
+  hidden.forEach(r=>r.style.display='');
+
+  // Usar XLSX.utils.table_to_book para preservar el formato de la tabla HTML
+  const wb = XLSX.utils.table_to_book(table, { sheet:'Resumen Sector Proceso', raw:false });
+
+  // Restaurar filas ocultas
+  hidden.forEach(r=>r.style.display='none');
+
+  XLSX.writeFile(wb, `Resumen_Sector_Proceso_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+
 // ══════════ MODAL DETALLE MÉTRICAS ══════════
 let _mdRowsGlobal  = [];
 let _mdKmPorPlaca  = {}; // km/rend pre-calculado con periodo completo, no se filtra por mes
@@ -5621,9 +5675,15 @@ function renderModalDetalle(rows, filtroMes){
         <h3 id="mdTitulo" style="margin:0; font-size:1.1rem; font-weight:700; color:var(--text-primary);">Detalle por Placa</h3>
         <p id="mdSubtitulo" style="margin:2px 0 0; font-size:12px; color:var(--muted,#888);">Métricas del periodo filtrado</p>
       </div>
-      <button onclick="closeMetricasModal()" style="background:none;border:none;cursor:pointer;padding:6px;border-radius:6px;color:var(--muted);">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </button>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button onclick="exportModalTablaXLSX()" style="font-size:11px;padding:4px 12px;border:1px solid #10B981;border-radius:6px;background:#ECFDF5;color:#065f46;cursor:pointer;display:flex;align-items:center;gap:4px;font-weight:600;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Excel
+        </button>
+        <button onclick="closeMetricasModal()" style="background:none;border:none;cursor:pointer;padding:6px;border-radius:6px;color:var(--muted);">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
     </div>
     <!-- Filtros -->
     <div style="display:flex; gap:10px; padding:0.75rem 1.25rem; border-bottom:1px solid var(--border,#e5e7eb); flex-wrap:wrap; align-items:center; flex-shrink:0; background:var(--bg-secondary,#f8fafc);">
@@ -5666,7 +5726,7 @@ function renderModalDetalle(rows, filtroMes){
               <th style="text-align:right; padding:6px 8px; border-bottom:2px solid var(--border); font-weight:600; color:var(--text-secondary);">Facturas</th>
               <th style="text-align:right; padding:6px 8px; border-bottom:2px solid var(--border); font-weight:600; color:var(--text-secondary);">Gasto (L)</th>
               <th style="text-align:right; padding:6px 8px; border-bottom:2px solid var(--border); font-weight:600; color:var(--text-secondary);">Litros</th>
-              <th style="text-align:right; padding:6px 8px; border-bottom:2px solid var(--border); font-weight:600; color:var(--text-secondary);" title="Recorrido total del periodo completo, independiente del filtro de mes">Recorrido ⓘ</th>
+              <th style="text-align:right; padding:6px 8px; border-bottom:2px solid var(--border); font-weight:600; color:var(--text-secondary);" title="Recorrido total del periodo completo, independiente del filtro de mes">Recorrido (Km)</th>
               <th style="text-align:right; padding:6px 8px; border-bottom:2px solid var(--border); font-weight:600; color:var(--text-secondary);">Prom/Fact</th>
               <th style="text-align:center; padding:6px 8px; border-bottom:2px solid var(--border); font-weight:600; color:var(--text-secondary);">km/L</th>
             </tr>
