@@ -4989,13 +4989,13 @@ function buildVariacionChart(tipo){
         tension: 0.4,
         pointRadius: 6,
         pointHoverRadius: 8,
-        pointBackgroundColor: ptColors,
+        pointBackgroundColor: (ctx) => ptColors[ctx.dataIndex] || color,
         pointBorderColor: '#fff',
         pointBorderWidth: 2,
         datalabels:{
           display: true,
-          anchor: 'top',
-          align: 'top',
+          anchor: 'end',
+          align: 'end',
           clamp: true,
           formatter: (v, ctx) => {
             const val = fmt(v);
@@ -5004,16 +5004,22 @@ function buildVariacionChart(tipo){
           },
           color: (ctx) => {
             const v = varPct[ctx.dataIndex];
+            // Primera línea color de la métrica, segunda línea verde/rojo
             return [color, ptColor(v)];
           },
+          backgroundColor: (ctx) => {
+            // Fondo semitransparente para que se lea bien sobre la línea
+            return 'rgba(255,255,255,0.82)';
+          },
+          borderRadius: 4,
+          padding: { top:2, bottom:2, left:4, right:4 },
           font: (ctx) => {
-            // Primera línea (valor): bold más grande; segunda (variación): más pequeña
-            return ctx.dataIndex !== undefined ? [
+            return [
               { size:10, weight:'bold' },
               { size:9,  weight:'bold' }
-            ] : { size:10 };
+            ];
           },
-          offset: 6
+          offset: 12
         }
       }]
     },
