@@ -75,67 +75,6 @@
       transition: background .15s ease;
     }
     .nav-btn:hover{background:var(--sidebar-hover)}
-    #tablaPivot th{
-      background:var(--bg-secondary,#f8fafc); color:var(--text-secondary);
-      font-weight:600; font-size:11px; padding:6px 8px;
-      border-bottom:2px solid var(--border,#e5e7eb);
-      white-space:nowrap; position:sticky; top:0; z-index:2;
-    }
-    #tablaPivot th.mes-header{
-      text-align:center; border-left:2px solid var(--border,#e5e7eb);
-    }
-    #tablaPivot th.sub-header{ text-align:right; font-weight:500; }
-    #tablaPivot td{ padding:5px 8px; border-bottom:1px solid var(--border,#e5e7eb); }
-    #tablaPivot tr.pivot-sector td{
-      background:#EFF6FF; font-weight:700; color:#1e3a5f;
-      cursor:pointer; user-select:none;
-    }
-    #tablaPivot tr.pivot-sector:hover td{ background:#DBEAFE; }
-    #tablaPivot tr.pivot-proceso td{ color:var(--text-primary); }
-    #tablaPivot tr.pivot-proceso:hover td{ background:var(--bg-secondary,#f8fafc); }
-    #tablaPivot tr.pivot-total td{
-      background:var(--bg-secondary,#f8fafc); font-weight:700;
-      border-top:2px solid var(--border,#e5e7eb);
-    }
-    #tablaPivot td.num{ text-align:right; font-variant-numeric:tabular-nums; }
-    #tablaPivot td.mes-sep{ border-left:2px solid var(--border,#e5e7eb); }
-    .pivot-toggle{ margin-right:6px; font-size:10px; transition:transform .15s; display:inline-block; }
-    .pivot-collapsed .pivot-toggle{ transform:rotate(-90deg); }
-    #modalPivot{ position:fixed; inset:0; background:rgba(0,0,0,0.45); display:none; align-items:center; justify-content:center; z-index:9998; padding:16px; }
-    #modalPivot .pivot-modal-box{ background:var(--bg-primary,#fff); border-radius:12px; width:96vw; max-width:1400px; max-height:92vh; display:flex; flex-direction:column; box-shadow:0 24px 64px rgba(0,0,0,0.22); overflow:hidden; }
-    #tablaPivotModal th{ background:var(--bg-secondary,#f8fafc); color:var(--text-secondary); font-weight:600; font-size:12px; padding:7px 10px; border-bottom:2px solid var(--border,#e5e7eb); white-space:nowrap; position:sticky; top:0; z-index:2; }
-    #tablaPivotModal th.mes-header{ text-align:center; border-left:2px solid var(--border,#e5e7eb); }
-    #tablaPivotModal th.sub-header{ text-align:right; font-weight:500; }
-    #tablaPivotModal td{ padding:6px 10px; border-bottom:1px solid var(--border,#e5e7eb); font-size:12px; }
-    #tablaPivotModal tr.pivot-sector td{ background:#EFF6FF; font-weight:700; color:#1e3a5f; cursor:pointer; user-select:none; }
-    #tablaPivotModal tr.pivot-sector:hover td{ background:#DBEAFE; }
-    #tablaPivotModal tr.pivot-proceso td{ color:var(--text-primary); }
-    #tablaPivotModal tr.pivot-proceso:hover td{ background:var(--bg-secondary,#f8fafc); }
-    #tablaPivotModal tr.pivot-total td{ background:var(--bg-secondary,#f8fafc); font-weight:700; border-top:2px solid var(--border,#e5e7eb); }
-    #tablaPivotModal td.num{ text-align:right; font-variant-numeric:tabular-nums; }
-    #tablaPivotModal td.mes-sep{ border-left:2px solid var(--border,#e5e7eb); }
-    .user-card{
-      display:flex; align-items:center; gap:10px;
-      padding:10px 12px; margin:0 8px 8px;
-      background:rgba(255,255,255,0.07); border-radius:10px;
-      border:1px solid rgba(255,255,255,0.1);
-    }
-    .user-avatar{
-      width:36px; height:36px; border-radius:50%;
-      background:linear-gradient(135deg,#3B82F6,#06B6D4);
-      display:flex; align-items:center; justify-content:center;
-      font-size:13px; font-weight:700; color:#fff;
-      flex-shrink:0; letter-spacing:0.5px;
-    }
-    .user-info{ overflow:hidden; }
-    .user-name{
-      font-size:12.5px; font-weight:600; color:#fff;
-      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-    }
-    .user-role{
-      font-size:10.5px; color:rgba(255,255,255,0.55);
-      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-    }
     .nav-btn.active{background:#ffffff10; border:1px solid #ffffff1f}
     .spacer{flex:1}
     .copyright{font-size:12px; color:#93a3b8; opacity:.7}
@@ -386,18 +325,9 @@
         <a class="nav-btn" href="#metricas"><i class="lucide-bar-chart-2"></i><span>Métricas</span></a>
       </nav>
       <div class="spacer"></div>
-
-      <!-- Usuario logueado -->
-      <div id="userCard" class="user-card" style="display:none;">
-        <div class="user-avatar" id="userAvatar">??</div>
-        <div class="user-info">
-          <div class="user-name" id="userName">—</div>
-          <div class="user-role" id="userRole">—</div>
-        </div>
-      </div>
-
-      <button id="btnLogout" class="btn btn-ghost" style="margin:4px 8px 6px; color:#fff; width:calc(100% - 16px);"><i class="lucide-log-out"></i> Cerrar sesión</button>
-      <div class="copyright">© UTCD 2025</div>
+      
+      <button id="btnLogout" class="btn btn-ghost" style="margin:10px 0;" style="margin:10px 0; color:#fff;"><i class="lucide-log-out"></i> Cerrar sesión</button>
+<div class="copyright">© UTCD 2025</div>
     </aside>
 
     <main class="main">
@@ -423,6 +353,26 @@
       <div style="padding:0 0 8px 0; display:flex; flex-direction:column; gap:3px;">
         <span id="rangoActivoLabel" style="font-size:0.95rem;color:var(--text,#cdd6f4);font-weight:600;letter-spacing:0.01em;"></span>
         <span style="font-size:0.78rem;color:var(--muted,#888);">Para ver otras fechas utilizar el filtro de Rango de Fecha</span>
+      </div>
+
+      <!-- Banner alerta facturas no revisadas -->
+      <div id="bannerRegistradas" style="display:none; align-items:center; gap:10px;
+        background:linear-gradient(90deg,#fef3c7,#fffbeb); border:1.5px solid #f59e0b;
+        border-left:4px solid #d97706; border-radius:8px; padding:10px 14px; margin-bottom:10px;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2" style="flex-shrink:0">
+          <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+          <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+        <div style="flex:1; min-width:0;">
+          <span style="font-size:12.5px; font-weight:700; color:#92400e;">Advertencia — Facturas pendientes de revisión incluidas en el filtro activo</span>
+          <span style="display:block; font-size:11.5px; color:#78350f; margin-top:1px;">
+            Existen facturas con estado <strong>Registrada</strong> que aún no han sido revisadas.
+            Los indicadores, montos y métricas pueden reflejar información incoherente.
+            Se recomienda cambiar su estado a <strong>Revisada</strong> o <strong>Pagada</strong> antes de analizar los resultados.
+          </span>
+        </div>
+        <button onclick="document.getElementById('bannerRegistradas').style.display='none'"
+          style="background:none;border:none;cursor:pointer;color:#d97706;padding:2px;flex-shrink:0;font-size:16px;line-height:1;" title="Cerrar">✕</button>
       </div>
 
       <div style="display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:10px; margin-bottom:10px;">
@@ -655,22 +605,12 @@
   <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1.5rem; flex-wrap:wrap; gap:12px;">
     <div>
       <h2 style="margin:0; font-size:1.4rem; font-weight:700; color:var(--text-primary);">Métricas de Combustible</h2>
-      <p id="mSubtitulo" style="margin:4px 0 0; font-size:13px; color:var(--text-secondary);">Facturas en estado Revisada, Pagada y Enviada</p>
+      <p style="margin:4px 0 0; font-size:13px; color:var(--text-secondary);">Facturas en estado Revisada, Pagada y Enviada</p>
     </div>
-    <div style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap;">
-      <div id="mSectorWrap" style="display:none; gap:10px; align-items:flex-end;">
-        <div id="msSectorMetricasWrap" style="display:none; flex-direction:column; gap:3px;">
-          <span style="font-size:11px; font-weight:600; color:var(--text-secondary); padding-left:4px;">Sectores</span>
-          <div id="msSectorMetricas" style="width:180px; position:relative;"></div>
-        </div>
-        <div style="display:flex; flex-direction:column; gap:3px;">
-          <span style="font-size:11px; font-weight:600; color:var(--text-secondary); padding-left:4px;">Proceso</span>
-          <div id="msProcesoMetricas" style="width:180px; position:relative;"></div>
-        </div>
-        <div style="display:flex; flex-direction:column; gap:3px;">
-          <span style="font-size:11px; font-weight:600; color:var(--text-secondary); padding-left:4px;">Estado</span>
-          <div id="msEstadoMetricas" style="width:180px; position:relative;"></div>
-        </div>
+    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+      <div id="mSectorWrap" style="display:none; gap:10px; align-items:center;">
+        <div id="msSectorMetricas" style="width:190px; position:relative;"></div>
+        <div id="msEstadoMetricas" style="width:190px; position:relative;"></div>
       </div>
       <label style="font-size:12px; color:var(--text-secondary);">Desde</label>
       <input type="date" id="mDesde" class="input" style="width:145px; font-size:13px;">
@@ -682,104 +622,52 @@
     </div>
   </div>
 
-  <!-- Banner advertencia métricas con Registrada -->
-  <div id="bannerMetricasRegistradas" style="display:none; align-items:center; gap:10px;
-    background:linear-gradient(90deg,#fef3c7,#fffbeb); border:1.5px solid #f59e0b;
-    border-left:4px solid #d97706; border-radius:8px; padding:10px 14px; margin-bottom:14px;">
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2" style="flex-shrink:0">
-      <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
-      <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
-    </svg>
-    <div style="flex:1; min-width:0;">
-      <span style="font-size:12.5px; font-weight:700; color:#92400e;">Advertencia — Facturas pendientes de revisión incluidas en el filtro activo</span>
-      <span style="display:block; font-size:11.5px; color:#78350f; margin-top:1px;">
-        Existen facturas con estado <strong>Registrada</strong> que aún no han sido revisadas.
-        Los indicadores, montos y métricas pueden reflejar información incoherente.
-        Se recomienda cambiar su estado a <strong>Revisada</strong> o <strong>Pagada</strong> antes de analizar los resultados.
-      </span>
-    </div>
-    <button onclick="document.getElementById('bannerMetricasRegistradas').style.display='none'"
-      style="background:none;border:none;cursor:pointer;color:#d97706;padding:2px;flex-shrink:0;font-size:16px;line-height:1;" title="Cerrar">✕</button>
-  </div>
-
-  <div style="display:grid; grid-template-columns:repeat(5,1fr); gap:10px; margin-bottom:1.5rem;">
-    <div class="card kpi" style="padding:0.75rem;"><span class="label" style="font-size:11px;">Total Facturas</span><span id="mKpiTotal" class="value" style="font-size:1.4rem;">—</span></div>
-    <div class="card kpi" style="padding:0.75rem;"><span class="label" style="font-size:11px;">Total Desembolsado</span><span id="mKpiMonto" class="value" style="font-size:1.4rem;">—</span></div>
-    <div class="card kpi" style="padding:0.75rem;"><span class="label" style="font-size:11px;">Total Litros</span><span id="mKpiLitros" class="value" style="font-size:1.4rem;">—</span></div>
-    <div class="card kpi" style="padding:0.75rem;"><span class="label" style="font-size:11px;">Promedio por Factura</span><span id="mKpiProm" class="value" style="font-size:1.4rem;">—</span></div>
-    <div class="card kpi" style="padding:0.75rem;"><span class="label" style="font-size:11px;">Placas Activas</span><span id="mKpiPlacas" class="value" style="font-size:1.4rem;">—</span></div>
+  <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:1.5rem;">
+    <div class="card kpi"><span class="label">Total Facturas</span><span id="mKpiTotal" class="value">—</span></div>
+    <div class="card kpi"><span class="label">Total Desembolsado</span><span id="mKpiMonto" class="value">—</span></div>
+    <div class="card kpi"><span class="label">Total Litros</span><span id="mKpiLitros" class="value">—</span></div>
+    <div class="card kpi"><span class="label">Promedio por Factura</span><span id="mKpiProm" class="value">—</span></div>
   </div>
 
   <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
     <div class="card" style="padding:1rem;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-        <p style="font-size:13px;font-weight:600;color:var(--text-primary);margin:0;">Desembolso mensual (L)</p>
-        <button onclick="openChartModal('gastoMes')" style="font-size:11px;padding:3px 10px;border:1px solid #3B82F6;border-radius:6px;background:#EFF6FF;cursor:pointer;color:#1D4ED8;display:flex;align-items:center;gap:4px;">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
-          Ampliar
-        </button>
-      </div>
-      <div style="position:relative;height:220px;"><canvas id="chartGastoMes"></canvas></div>
+      <p style="font-size:13px; font-weight:600; color:var(--text-primary); margin:0 0 12px;">Desembolso mensual (L)</p>
+      <div style="position:relative; height:220px;"><canvas id="chartGastoMes"></canvas></div>
     </div>
     <div class="card" style="padding:1rem;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-        <p style="font-size:13px;font-weight:600;color:var(--text-primary);margin:0;">Consumo mensual (litros)</p>
-        <button onclick="openChartModal('litrosMes')" style="font-size:11px;padding:3px 10px;border:1px solid #3B82F6;border-radius:6px;background:#EFF6FF;cursor:pointer;color:#1D4ED8;display:flex;align-items:center;gap:4px;">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
-          Ampliar
-        </button>
-      </div>
-      <div style="position:relative;height:220px;"><canvas id="chartLitrosMes"></canvas></div>
+      <p style="font-size:13px; font-weight:600; color:var(--text-primary); margin:0 0 12px;">Consumo mensual (litros)</p>
+      <div style="position:relative; height:220px;"><canvas id="chartLitrosMes"></canvas></div>
+    </div>
+  </div>
+
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+    <div class="card" style="padding:1rem;">
+      <p style="font-size:13px; font-weight:600; color:var(--text-primary); margin:0 0 12px;">Promedio de gasto por factura (L)</p>
+      <div style="position:relative; height:220px;"><canvas id="chartProm"></canvas></div>
+    </div>
+    <div class="card" style="padding:1rem;">
+      <p style="font-size:13px; font-weight:600; color:var(--text-primary); margin:0;">Recorrido vs Consumo mensual</p>
+      <div style="position:relative; height:290px;"><canvas id="chartRecorrido"></canvas></div>
     </div>
   </div>
 
   <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
     <div class="card" style="padding:1rem;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-        <p style="font-size:13px;font-weight:600;color:var(--text-primary);margin:0;">Promedio de gasto por factura (L)</p>
-        <button onclick="openChartModal('promMes')" style="font-size:11px;padding:3px 10px;border:1px solid #3B82F6;border-radius:6px;background:#EFF6FF;cursor:pointer;color:#1D4ED8;display:flex;align-items:center;gap:4px;">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
-          Ampliar
-        </button>
-      </div>
-      <div style="position:relative;height:220px;"><canvas id="chartProm"></canvas></div>
-    </div>
-    <div class="card" style="padding:1rem;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-        <p style="font-size:13px;font-weight:600;color:var(--text-primary);margin:0;">Recorrido vs Consumo mensual</p>
-        <button onclick="openChartModal('recorrido')" style="font-size:11px;padding:3px 10px;border:1px solid #3B82F6;border-radius:6px;background:#EFF6FF;cursor:pointer;color:#1D4ED8;display:flex;align-items:center;gap:4px;">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
-          Ampliar
-        </button>
-      </div>
-      <div style="position:relative;height:290px;"><canvas id="chartRecorrido"></canvas></div>
-    </div>
-  </div>
-
-  <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
-    <div class="card" style="padding:1rem;">
-      <p style="font-size:13px; font-weight:600; color:var(--text-primary); margin:0 0 12px;">Top 10 colaboradores por gasto (L)</p>
-      <div style="position:relative; height:300px;"><canvas id="chartColaboradores"></canvas></div>
-    </div>
-    <div class="card" style="padding:1rem; overflow:hidden;">
-      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
-        <p style="font-size:13px; font-weight:600; color:var(--text-primary); margin:0;">Resumen por Sector / Proceso</p>
-        <div style="display:flex; gap:6px;">
-          <button id="btnPivotExpandAll" onclick="pivotToggleAll(true)" style="font-size:11px; padding:3px 10px; border:1px solid var(--border); border-radius:6px; background:none; cursor:pointer; color:var(--text-secondary);">Expandir todo</button>
-          <button id="btnPivotCollapseAll" onclick="pivotToggleAll(false)" style="font-size:11px; padding:3px 10px; border:1px solid var(--border); border-radius:6px; background:none; cursor:pointer; color:var(--text-secondary);">Colapsar todo</button>
-          <button onclick="openPivotModal()" style="font-size:11px; padding:3px 10px; border:1px solid #3B82F6; border-radius:6px; background:#EFF6FF; cursor:pointer; color:#1D4ED8; display:flex; align-items:center; gap:4px;">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
-            Ampliar
-          </button>
+        <div>
+          <p style="font-size:13px;font-weight:600;color:var(--text-primary);margin:0;">Variación mensual (%)</p>
+          <p style="font-size:11px;color:var(--muted);margin:2px 0 0;">Gasto respecto al mes anterior · con línea de tendencia</p>
         </div>
+        <button onclick="openChartModal('variacion')" style="font-size:11px;padding:3px 10px;border:1px solid #3B82F6;border-radius:6px;background:#EFF6FF;cursor:pointer;color:#1D4ED8;display:flex;align-items:center;gap:4px;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+          Ampliar
+        </button>
       </div>
-      <div style="overflow-x:auto; max-height:320px; overflow-y:auto;">
-        <table id="tablaPivot" style="width:100%; border-collapse:collapse; font-size:11.5px; min-width:600px;">
-          <thead id="pivotHead"></thead>
-          <tbody id="pivotBody"></tbody>
-          <tfoot id="pivotFoot"></tfoot>
-        </table>
-      </div>
+      <div style="position:relative; height:300px;"><canvas id="chartVariacion"></canvas></div>
+    </div>
+    <div class="card" style="padding:1rem;">
+      <p style="font-size:13px; font-weight:600; color:var(--text-primary); margin:0 0 12px;">Distribución por proceso (L)</p>
+      <div style="position:relative; height:300px;"><canvas id="chartProcesos"></canvas></div>
     </div>
   </div>
 
@@ -1112,20 +1000,19 @@ const State = {
 
 /** Opciones de estado a partir de datos o valores por defecto */
 function getEstadoOptions(){
-  const vals = new Set(State.raw.map(r=>r.Estado).filter(Boolean));
-  // Orden preferido — los estados del menú de cambio siempre incluyen todos los válidos
-  // aunque no haya facturas con ese estado actualmente cargadas
-  const orden = ["Registrada","Revisada","Anulada","Excluida","Pagada","Enviada"];
-  // Agregar cualquier estado extra que venga del backend y no esté en la lista
-  const extra = [...vals].filter(v=>!orden.includes(v));
-  return orden.concat(extra);
+  const vals = Array.from(new Set(State.raw.map(r=>r.Estado).filter(Boolean)));
+  // Excluir Anulada y Excluida — se manejan aparte en KPIs, no como filtro
+  const excluir = new Set(["Anulada","Excluida"]);
+  const def = ["Registrada","Revisada","Enviada","Pagada"];
+  const extra = vals.filter(v=>!def.includes(v) && !excluir.has(v));
+  return def.concat(extra);
 }
 function estadoColor(v){
-  if(v==="Anulada")   return "#DC2626";
-  if(v==="Excluida")  return "#EA580C";
-  if(v==="Revisada")  return "#2563eb";
-  if(v==="Pagada")    return "#0FA47E";
-  if(v==="Enviada")   return "#1D4ED8";
+  if(v==="Anulada")   return "var(--danger)";
+  if(v==="Excluida")  return "var(--danger)";
+  if(v==="Revisada") return "#2563eb";
+  if(v==="Pagada") return "#0FA47E";
+  if(v==="Enviada") return "#1D4ED8";
   return "#111827";
 }
 
@@ -1166,7 +1053,23 @@ async function refreshAfterEstado(){
     const arr = await API.getFacturas(fetchParams);
     State.raw = arr;
     try{ sectorMS.setItems(Array.from(new Set(State.raw.map(r=>r.Sector).filter(Boolean)))); } catch(e){}
-    try{ sectorMS.select(currentSector); estadoMS.select(currentEstado); } catch (e){ }
+    try{
+      const selActualRel = estadoMS ? estadoMS.getSelected() : [];
+      estadoMS.setItems(getEstadoOptions());
+      if(selActualRel && selActualRel.length > 0){
+        estadoMS.select(selActualRel.filter(v=>getEstadoOptions().includes(v)));
+      } else {
+        estadoMS.select(["Revisada","Enviada","Pagada"].filter(v=>getEstadoOptions().includes(v)));
+      }
+    } catch(e){}
+    try{ sectorMS.select(currentSector); } catch(e){}
+    try{
+      if(!currentEstado || currentEstado.length === 0){
+        estadoMS.select(["Revisada","Enviada","Pagada"].filter(v=>getEstadoOptions().includes(v)));
+      } else {
+        estadoMS.select(currentEstado);
+      }
+    } catch(e){}
     if(document.getElementById("fNombre")) document.getElementById("fNombre").value = qNombre;
     if(document.getElementById("fPlaca"))  document.getElementById("fPlaca").value = qPlaca;
     document.getElementById("fNumero").value = qNum;
@@ -1335,11 +1238,7 @@ function openEstadoMenu(cell){
   // No permitir edición si está Pagada
   if (current === "Pagada") { return; }
 
-  // Siempre mostrar todos los estados válidos en el menú de cambio,
-  // independientemente del rol o de los datos cargados
-  const estadosFijos = ["Registrada","Revisada","Anulada","Excluida","Pagada","Enviada"];
-  const extra = getEstadoOptions().filter(v=>!estadosFijos.includes(v));
-  const options = estadosFijos.concat(extra);
+  const options = getEstadoOptions();
   menu.innerHTML = "";
 
   options.forEach(opt => {
@@ -1410,7 +1309,12 @@ function updateKpis(){
   const total       = rowsSinAnuladas.length;
   // Banner advertencia — visible si hay Registradas en los datos activos del filtro
   const eValsActivos = estadoMS ? estadoMS.getSelected() : [];
-
+  const incluyeRegistrada = eValsActivos.length === 0 || eValsActivos.includes("Registrada");
+  const banner = document.getElementById("bannerRegistradas");
+  if(banner){
+    const hayRegistradas = rowsSinAnuladas.some(r=>(r.Estado||"Registrada")==="Registrada");
+    banner.style.display = (incluyeRegistrada && hayRegistradas) ? "flex" : "none";
+  }
 
   const registradas = rowsSinAnuladas.filter(r=> (r.Estado||"") === "Registrada").length;
   const revisadas   = rowsSinAnuladas.filter(r=> (r.Estado||"") === "Revisada").length;
@@ -1461,7 +1365,7 @@ function updateKpisRevRange(){
  *  Filtros
  *  ========================= */
 
-let sectorMS, estadoMS, metricasSectorMS, metricasEstadoMS, metricasProcesoMS;
+let sectorMS, estadoMS, metricasSectorMS, metricasEstadoMS;
 
 function initFilters(){
   // Flatpickr range — Fecha de Factura (dispara fetch al backend)
@@ -1512,7 +1416,7 @@ function initFilters(){
   sectorMS = createMultiSelect("#msSector", "Sector", applyFilters);
   estadoMS = createMultiSelect("#msEstado", "Estado", applyFilters);
   // Por defecto mostrar solo facturas procesadas (excluir Registrada)
-
+  estadoMS._defaultStates = ["Revisada","Enviada","Pagada"];
 
   // Asegurar input de Placa
   const filtersRow = document.querySelector(".filters");
@@ -1815,56 +1719,22 @@ function showOnly(sectionId){
     if(a) a.classList.add('active');
   }
 }
-// Mapa inverso: sectionId → path URL
-const _secToPath = {
-  secInicio:   '/',
-  secRevision: '/revision',
-  secPago:     '/pago',
-  secAnticipos:'/anticipos',
-  secPlacas:   '/placas',
-  secMetricas: '/metricas'
-};
-// Mapa directo: path → { sectionId, loader }
-const _pathToSec = {
-  '/revision':  { id:'secRevision',  load: async()=>{ await hardRefresh(); } },
-  '/pago':      { id:'secPago',      load: async()=>{ await initPagoMassPay(); } },
-  '/anticipos': { id:'secAnticipos', load: null },
-  '/placas':    { id:'secPlacas',    load: async()=>{ await cargarPlacas(); } },
-  '/metricas':  { id:'secMetricas',  load: async()=>{ await initMetricas(); } },
-  '/':          { id:'secInicio',    load: null }
-};
-
-async function navigateTo(sectionId, loader, pushHistory=true){
+async function navigateTo(sectionId, loader){
   try{
     showOnly(sectionId);
     if(typeof loader === 'function'){ await loader(); }
-    // Actualizar URL sin recargar la página
-    if(pushHistory){
-      const path = _secToPath[sectionId] || '/';
-      history.pushState({ sectionId }, '', path);
-    }
     requestAnimationFrame(function(){
       if(typeof window.adjustTableHeights === "function") window.adjustTableHeights();
     });
-  }finally{}
+  }finally{
+    }
 }
-
-// Manejar botón atrás/adelante del browser
-window.addEventListener('popstate', async function(e){
-  const state = e.state;
-  if(state && state.sectionId){
-    const sec = _pathToSec[_secToPath[state.sectionId]];
-    if(sec) await navigateTo(state.sectionId, sec.load, false);
-  } else {
-    await navigateTo('secInicio', null, false);
-  }
-});
 let __revisionLoadedOnce = false;
 document.querySelectorAll('.sidebar .nav-btn').forEach(a=>{
   a.addEventListener('click', (ev)=>{
     ev.preventDefault();
     const href = a.getAttribute('href')||'';
-    if(href==='#inicio') return navigateTo('secInicio', null, true);
+    if(href==='#inicio') return navigateTo('secInicio');
     if(href==='#revision') return navigateTo('secRevision', async()=>{ await hardRefresh();});
     if(href==='#pago')     return navigateTo('secPago', async()=>{ await initPagoMassPay(); });
     if(href==='#anticipos')return navigateTo('secAnticipos');
@@ -2279,7 +2149,7 @@ document.addEventListener("change", (ev)=>{
 
   const rows = target.getRows ? target.getRows() : [];
   if(chk.checked){
-    rowsFiltrados.forEach(r => { try{ r.select && r.select(); } catch (e){ } });
+    rows.forEach(r => { try{ r.select && r.select(); } catch (e){ } });
   }else{
     rows.forEach(r => { try{ r.deselect && r.deselect(); } catch (e){ } });
   }
@@ -2613,8 +2483,7 @@ async function bootstrap(){
   $("#btnActualizar").addEventListener("click", hardRefresh);
   $("#btnAgrupar").addEventListener("click", toggleGrouping);
   $("#btnDescargar").addEventListener("click", descargarZip);  $("#btnExportXLSX").addEventListener("click", exportXLSX);
-  // No navegar aquí — showApp() se encarga de restaurar la sección correcta desde el URL
-}
+  navigateTo("secInicio");}
 
 /** Devuelve { fechaDesde, fechaHasta } con el primer y último día del mes actual en formato YYYY-MM-DD */
 function updateRangoLabel(fechaDesde, fechaHasta, revDesde, revHasta){
@@ -2678,7 +2547,19 @@ async function loadData(fechaDesde, fechaHasta, fechaRevDesde, fechaRevHasta){
     const sectores = Array.from(new Set(data.map(r=>r.Sector).filter(Boolean))).sort();
     if(sectorMS){ sectorMS.setItems(sectores); }
     // Estado: excluir Anulada/Excluida, respetar selección previa o aplicar default
-    if(estadoMS){ estadoMS.setItems(getEstadoOptions()); }
+    if(estadoMS){
+      const excluirEst = new Set(["Anulada","Excluida"]);
+      const estadosDisp = Array.from(new Set(data.map(r=>r.Estado||"Registrada").filter(v=>!excluirEst.has(v)))).sort();
+      const selActual = estadoMS.getSelected();
+      estadoMS.setItems(estadosDisp);
+      if(selActual && selActual.length > 0){
+        estadoMS.select(selActual.filter(v=>estadosDisp.includes(v)));
+      } else {
+        // Primera carga: pre-seleccionar Revisada, Enviada, Pagada
+        const defaults = ["Revisada","Enviada","Pagada"].filter(v=>estadosDisp.includes(v));
+        estadoMS.select(defaults);
+      }
+    }
     buildTable();
     if(tableBuilt){ applyFilters(); } else {
       (function(){
@@ -2764,36 +2645,6 @@ function showApp(me){
   // Asignar sectores ANTES de cualquier loadData
   window.userSectores = (me && Array.isArray(me.sectores) && me.sectores.length) ? me.sectores : [];
   if(me && me.rol) applyRolRestrictions(me.rol, me.sectores);
-
-  // ── Restaurar sección desde URL al cargar ──
-  const initPath = window.location.pathname.toLowerCase().replace(/\/+$/,'') || '/';
-  const initSec  = _pathToSec[initPath] || _pathToSec['/'];
-  // Fijar estado inicial en history
-  history.replaceState({ sectionId: initSec.id }, '', initPath || '/');
-  // Navegar a la sección del URL (o inicio si es '/')
-  navigateTo(initSec.id, initSec.load, false);
-
-  // ── Mostrar usuario en sidebar ──
-  if(me){
-    const nombre   = (me.nombre || me.usuario || me.user || "Usuario").trim();
-    const rol      = me.rol || "usuario";
-    const sectores = Array.isArray(me.sectores) && me.sectores.length ? me.sectores.join(", ") : null;
-    // Iniciales: hasta 2 letras de las primeras palabras
-    const partes   = nombre.split(" ").filter(Boolean);
-    const iniciales = (partes[0]?.[0] || "") + (partes[1]?.[0] || partes[0]?.[1] || "");
-    // Etiqueta de rol
-    const rolLabel = rol === "admin"
-      ? "Administrador"
-      : sectores ? `Sector: ${sectores}` : rol.charAt(0).toUpperCase() + rol.slice(1);
-
-    const card = document.getElementById("userCard");
-    if(card){
-      document.getElementById("userAvatar").textContent = iniciales.toUpperCase();
-      document.getElementById("userName").textContent   = nombre;
-      document.getElementById("userRole").textContent   = rolLabel;
-      card.style.display = "flex";
-    }
-  }
 }
 
 // Login button + Enter key
@@ -4565,14 +4416,12 @@ function mkChart(id, type, labels, datasets, opts){
     delete opts.plugins;
   }
   const finalOpts = Object.assign(baseOpts, opts||{});
-  const inst = new Chart(ctx, {
+  _metricasCharts[id] = new Chart(ctx, {
     type,
     data: { labels, datasets },
     plugins: [ChartDataLabels],
     options: finalOpts
   });
-  _metricasCharts[id] = inst;
-  ctx._chartInst = inst; // referencia directa para modal
 }
 
 async function initMetricas(){
@@ -4584,36 +4433,28 @@ async function initMetricas(){
   }
   // Mostrar filtros de sector y estado solo para admin
   const wrapMetricas = document.getElementById('mSectorWrap');
-  const sectorWrapInner = document.getElementById('msSectorMetricasWrap');
-  const isAdmin = !window.userSectores || window.userSectores.length === 0;
-
-  // Filtro de estado: visible para TODOS los usuarios
-  if(!metricasEstadoMS && document.getElementById('msEstadoMetricas')){
-    metricasEstadoMS = createMultiSelect('#msEstadoMetricas', 'Estado', ()=>{});
-    metricasEstadoMS.setItems(['Revisada','Enviada','Pagada','Registrada']);
-    metricasEstadoMS.select(['Revisada','Enviada','Pagada']);
-  }
-  // Filtro de proceso: visible para todos
-  if(!metricasProcesoMS && document.getElementById('msProcesoMetricas')){
-    metricasProcesoMS = createMultiSelect('#msProcesoMetricas', 'Proceso', ()=>{});
-  }
-  if(wrapMetricas) wrapMetricas.style.display = 'flex';
-
-  // Filtro de sector: solo para admin
-  if(sectorWrapInner) sectorWrapInner.style.display = isAdmin ? 'flex' : 'none';
-  if(isAdmin){
+  if(!window.userSectores || window.userSectores.length === 0){
+    if(wrapMetricas) wrapMetricas.style.display = 'flex';
+    // Inicializar multiselects si aún no existen
     if(!metricasSectorMS && document.getElementById('msSectorMetricas')){
       metricasSectorMS = createMultiSelect('#msSectorMetricas', 'Sectores', ()=>{});
     }
-    if(metricasSectorMS){
+    if(!metricasEstadoMS && document.getElementById('msEstadoMetricas')){
+      metricasEstadoMS = createMultiSelect('#msEstadoMetricas', 'Estado', ()=>{});
+      metricasEstadoMS.setItems(['Revisada','Enviada','Pagada','Registrada']);
+      metricasEstadoMS.select(['Revisada','Enviada','Pagada']);
+    }
+    // Cargar sectores desde API si aún está vacío
+    if(metricasSectorMS && metricasSectorMS.getSelected !== undefined){
       try{
-        const base = (typeof Config!=='undefined' && Config?.api?.placas) || "/api/placas";
-        const res = await fetch(base, { cache:'no-store' });
-        const data = await res.json().catch(()=>[]);
-        const secs = [...new Set((Array.isArray(data)?data:[]).map(r=>r.Sector).filter(Boolean))].sort();
-        if(secs.length > 0) metricasSectorMS.setItems(secs);
+        const res = await fetch('/api/leer?sectoresLista=true', { cache:'no-store' });
+        const data = await res.json().catch(()=>({}));
+        const secs = Array.isArray(data.sectores) ? data.sectores : [];
+        metricasSectorMS.setItems(secs.sort());
       }catch(e){}
     }
+  } else {
+    if(wrapMetricas) wrapMetricas.style.display = 'none';
   }
   await cargarMetricas();
 }
@@ -4640,9 +4481,6 @@ async function cargarMetricas(){
     // Estados: leer del multiselect de estado o usar defaults
     const estadosSel = metricasEstadoMS ? metricasEstadoMS.getSelected() : [];
     url.searchParams.set("estados", estadosSel.length > 0 ? estadosSel.join(",") : "Revisada,Pagada,Enviada");
-    // Filtro de proceso
-    const procesosSel = metricasProcesoMS ? metricasProcesoMS.getSelected() : [];
-    if(procesosSel.length > 0) url.searchParams.set("procesos", procesosSel.join(","));
     const res  = await fetch(url.toString(), { cache:"no-store" });
     const raw  = await res.json().catch(()=>[]);
     const rows = (Array.isArray(raw)?raw:[]).map(r=>typeof normalizeRow==='function'?normalizeRow(r):r).filter(Boolean);
@@ -4652,54 +4490,25 @@ async function cargarMetricas(){
 }
 
 function renderMetricas(rows){
-  // Poblar filtro de proceso con los procesos disponibles (antes de filtrar)
-  if(metricasProcesoMS){
-    const procSet = [...new Set(rows.map(r=>r.Proceso).filter(Boolean))].sort();
-    const selActual = metricasProcesoMS.getSelected();
-    metricasProcesoMS.setItems(procSet);
-    if(selActual && selActual.length > 0) metricasProcesoMS.select(selActual.filter(v=>procSet.includes(v)));
-  }
-  // Filtrar por proceso en memoria — afecta modal de detalle y tabla pivot
-  const procesosFiltro = metricasProcesoMS ? metricasProcesoMS.getSelected() : [];
-  const rowsFiltrados = procesosFiltro.length > 0
-    ? rows.filter(r => procesosFiltro.includes(r.Proceso||''))
-    : rows;
-  window._mdLastRows = rowsFiltrados; // modal de detalle usa rows filtradas por proceso
-  // Actualizar subtítulo con estados activos
-  const subEl = document.getElementById('mSubtitulo');
-  const estSel = metricasEstadoMS ? metricasEstadoMS.getSelected() : [];
-  if(subEl){
-    const estLabel = estSel.length > 0 ? estSel.join(', ') : 'Revisada, Pagada y Enviada';
-    subEl.textContent = `Facturas en estado ${estLabel}`;
-  }
-  // Banner advertencia si se incluyó Registrada explícitamente
-  const bannerM = document.getElementById('bannerMetricasRegistradas');
-  if(bannerM){
-    const incluyeReg = estSel.includes('Registrada');
-    const hayReg = incluyeReg && rowsFiltrados.some(r=>(r.Estado||'')==='Registrada');
-    bannerM.style.display = hayReg ? 'flex' : 'none';
-  }
+  window._mdLastRows = rows; // guardar para el modal
   const fmt  = v=>"L "+(Number(v)||0).toLocaleString("es-HN",{minimumFractionDigits:2,maximumFractionDigits:2});
   const fmtN = v=>(Number(v)||0).toLocaleString("es-HN",{minimumFractionDigits:2,maximumFractionDigits:2});
   const fmtL = v=>(Number(v)||0).toLocaleString("es-HN",{minimumFractionDigits:2,maximumFractionDigits:2});
   const getT = r=>Number(r["Total Gastado"]??r.Total??r.TotalGastado)||0;
   const getL = r=>Number(r["Litros Consumidos"]??r.LitrosConsumidos)||0;
 
-  const totalF = rowsFiltrados.length;
-  const totalM = rowsFiltrados.reduce((a,r)=>a+getT(r),0);
-  const totalL = rowsFiltrados.reduce((a,r)=>a+getL(r),0);
+  const totalF = rows.length;
+  const totalM = rows.reduce((a,r)=>a+getT(r),0);
+  const totalL = rows.reduce((a,r)=>a+getL(r),0);
   const promF  = totalF ? totalM/totalF : 0;
 
-  const totalPlacas = new Set(rowsFiltrados.map(r=>r.Placa||r['Placa Vehículo']||r.placa||'').filter(Boolean)).size;
-  document.getElementById('mKpiTotal').textContent   = fmtN(totalF);
-  document.getElementById('mKpiMonto').textContent   = fmt(totalM);
-  document.getElementById('mKpiLitros').textContent  = fmtN(totalL)+" L";
-  document.getElementById('mKpiProm').textContent    = fmt(promF);
-  const kpiPl = document.getElementById('mKpiPlacas');
-  if(kpiPl) kpiPl.textContent = totalPlacas;
+  document.getElementById('mKpiTotal').textContent  = fmtN(totalF);
+  document.getElementById('mKpiMonto').textContent  = fmt(totalM);
+  document.getElementById('mKpiLitros').textContent = fmtN(totalL)+" L";
+  document.getElementById('mKpiProm').textContent   = fmt(promF);
 
   const byMes = {};
-  rowsFiltrados.forEach(r=>{
+  rows.forEach(r=>{
     const f=(r.Fecha||"").slice(0,7); if(!f) return;
     if(!byMes[f]) byMes[f]={gasto:0,litros:0,count:0};
     byMes[f].gasto+=getT(r); byMes[f].litros+=getL(r); byMes[f].count+=1;
@@ -4753,7 +4562,7 @@ function renderMetricas(rows){
 
   // Agrupar todas las facturas por placa (sin filtrar por mes — necesitamos la cadena completa)
   const byPlaca = {};
-  rowsFiltrados.forEach(r => {
+  rows.forEach(r => {
     const placa = r.Placa || r['Placa Veh\u00EDculo'] || r.placa || '';
     if (!placa) return;
     if (!byPlaca[placa]) byPlaca[placa] = [];
@@ -4862,20 +4671,7 @@ function renderMetricas(rows){
               display: true, anchor: 'end', align: 'top', clamp: false,
               color: '#fff', font: { size: 11, weight: 'bold' },
               formatter: fmtLit,
-              offset: (ctx) => {
-                const litVal = litrosM[ctx.dataIndex] || 0;
-                const kmVal  = recorridoData[ctx.dataIndex] || 0;
-                const maxLit = Math.max(...litrosM.filter(v=>v>0));
-                const maxKm  = Math.max(...recorridoData.filter(v=>v>0));
-                const litRel = maxLit > 0 ? litVal / maxLit : 0;
-                const kmRel  = maxKm  > 0 ? kmVal  / maxKm  : 0;
-                const diff = litRel - kmRel;
-                // Barra muy pequeña (<20% del max): línea y barra quedan cerca visualmente
-                if(kmRel < 0.20) return 30;
-                if(diff > 0.05) return 28;
-                if(diff > -0.15) return 20;
-                return 6;
-              },
+              offset: 6,
               backgroundColor: '#0D9488',
               borderRadius: 4,
               padding: { top: 3, bottom: 3, left: 5, right: 5 }
@@ -4903,7 +4699,7 @@ function renderMetricas(rows){
             ticks: { font: { size: 10 }, callback: v => v.toLocaleString('es-HN') + ' L' }
           }
         },
-        layout: { padding: { top: 42, left: 8, right: 65 } }
+        layout: { padding: { top: 30, left: 8, right: 55 } }
       },
       plugins: [ChartDataLabels]
     });
@@ -4912,357 +4708,92 @@ function renderMetricas(rows){
   }
 
   // Agrupar por Identidad (más confiable que Nombre)
-  const byIdent={};
-  rowsFiltrados.forEach(r=>{
-    const id=r.Identidad||'Sin identidad';
-    if(!byIdent[id]) byIdent[id]={ gasto:0, nombre: r.Nombre||r.Identidad||'Sin nombre' };
-    byIdent[id].gasto+=getT(r);
+  // ── Gráfico de variación mensual de Gasto (%) + línea de tendencia ──────────
+  const varPct = (cur, prev) => prev > 0 ? parseFloat(((cur - prev) / prev * 100).toFixed(1)) : null;
+
+  const varGasto = gastoM.map((v,i) => i===0 ? null : varPct(v, gastoM[i-1]));
+
+  // Línea de tendencia: media móvil simple de 2 períodos sobre la variación de gasto
+  const varTend = varGasto.map((v,i) => {
+    const vals = varGasto.slice(Math.max(1,i-1), i+1).filter(x=>x!==null);
+    return vals.length ? parseFloat((vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(1)) : null;
   });
-  const topColab=Object.entries(byIdent).sort((a,b)=>b[1].gasto-a[1].gasto).slice(0,10);
-  mkChart('chartColaboradores','bar',
-    topColab.map(([,v])=>v.nombre.length>22?v.nombre.slice(0,22)+'…':v.nombre),
-    [{label:'Gasto (L)',data:topColab.map(([,v])=>parseFloat(v.gasto.toFixed(2))),backgroundColor:COLORS,borderRadius:4,borderSkipped:false,
-      datalabels:{display:true,anchor:'end',align:'right',color:'#065A82',font:{size:10,weight:'bold'},formatter:v=>'L '+(Number(v)||0).toLocaleString('es-HN',{minimumFractionDigits:2,maximumFractionDigits:2})}}],
-    {indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:11},callback:v=>'L '+v.toLocaleString('es-HN')}},y:{grid:{display:false},ticks:{font:{size:11}}}}}
+
+  const fmtPct = v => v===null ? '' : (v>=0?'+':'')+v+'%';
+  const gColors = varGasto.map(v => v===null?'transparent':v>=0?'#10B981':'#EF4444');
+  const tColors = varTend.map(v => v===null?'transparent':v>=0?'#10B981':'#EF4444');
+
+  const varCanvas = document.getElementById('chartVariacion');
+  if(varCanvas){
+    if(varCanvas._chartInst){ varCanvas._chartInst.destroy(); }
+    varCanvas._chartInst = new Chart(varCanvas, {
+      data:{
+        labels: mesLabel,
+        datasets:[
+          {
+            type:'bar', label:'Variación Gasto (%)',
+            data: varGasto,
+            backgroundColor: gColors,
+            borderRadius: 4, borderSkipped: false,
+            datalabels:{
+              display: true, anchor:'end', align:'end', clamp:true,
+              color: ctx => gColors[ctx.dataIndex] === 'transparent' ? 'transparent' : gColors[ctx.dataIndex],
+              font:{ size:11, weight:'bold' },
+              formatter: fmtPct
+            }
+          },
+          {
+            type:'line', label:'Tendencia',
+            data: varTend,
+            borderColor:'#6366F1', backgroundColor:'transparent',
+            borderWidth:2.5, borderDash:[6,3],
+            pointRadius: 5,
+            pointBackgroundColor: tColors,
+            pointBorderColor: '#fff', pointBorderWidth: 1.5,
+            tension: 0.4,
+            datalabels:{ display:false }
+          }
+        ]
+      },
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        interaction:{ mode:'index', intersect:false },
+        plugins:{
+          legend:{ display:true, position:'top', labels:{ font:{size:11}, boxWidth:12 } },
+          datalabels:{}
+        },
+        scales:{
+          x:{ grid:{display:false}, ticks:{font:{size:11}} },
+          y:{
+            grid:{ color:'rgba(0,0,0,0.05)' },
+            ticks:{ font:{size:11}, callback: v => v+'%' },
+            afterDataLimits(scale){
+              const ext = Math.max(Math.abs(scale.max), Math.abs(scale.min)) * 0.25;
+              scale.max += ext;
+              if(scale.min < 0) scale.min -= ext;
+            }
+          }
+        },
+        layout:{ padding:{ top:28, right:16 } }
+      },
+      plugins:[ChartDataLabels]
+    });
+    _chartSourceIds['variacion']  = 'chartVariacion';
+    _chartModalTitles['variacion']= 'Variación mensual del Gasto (%)';
+  }
+
+  const byProc={};
+  rows.forEach(r=>{ const p=r.Proceso||'Sin proceso'; byProc[p]=(byProc[p]||0)+getT(r); });
+  const procs=Object.entries(byProc).sort((a,b)=>b[1]-a[1]);
+  mkChart('chartProcesos','doughnut',
+    procs.map(([n])=>n),
+    [{data:procs.map(([,v])=>parseFloat(v.toFixed(2))),backgroundColor:COLORS,borderWidth:2,borderColor:'#fff',
+      datalabels:{display:true,color:'#fff',font:{size:10,weight:'bold'},formatter:(v,ctx)=>{
+        const total=ctx.dataset.data.reduce((a,b)=>a+b,0);
+        return ((v/total)*100).toFixed(1)+'%';
+      }}}],
+    {plugins:{legend:{display:true,position:'right',labels:{font:{size:10},boxWidth:12}}}}
   );
-
-  buildPivot(rowsFiltrados, meses, mesLabel);
-}
-
-function buildPivot(rows, meses, mesLabel){
-  const getT  = r=>Number(r['Total Gastado']??r.Total??r.TotalGastado)||0;
-  const getL  = r=>Number(r['Litros Consumidos']??r.LitrosConsumidos)||0;
-  const getKm = r=>Number(r['Km Actual'])||0;
-  const fmtL  = v=>(v||0).toLocaleString('es-HN',{minimumFractionDigits:2,maximumFractionDigits:2});
-  const fmtN  = (v,d=0)=>(v||0).toLocaleString('es-HN',{minimumFractionDigits:d,maximumFractionDigits:d});
-  const fmtR  = v=>v>0?v.toFixed(2):'—';
-
-  // Agrupar: sector → proceso → mes → {km,lit,gasto}
-  const tree = {};
-  rows.forEach(r=>{
-    const sec = r.Sector||'Sin sector';
-    const pro = r.Proceso||'Sin proceso';
-    const mes = (r.Fecha||'').toString().slice(0,7);
-    if(!tree[sec]) tree[sec]={};
-    if(!tree[sec][pro]) tree[sec][pro]={};
-    if(!tree[sec][pro][mes]) tree[sec][pro][mes]={km:0,lit:0,gasto:0,facs:[]};
-    tree[sec][pro][mes].gasto += getT(r);
-    tree[sec][pro][mes].lit   += getL(r);
-    tree[sec][pro][mes].facs.push(r);
-  });
-
-  // Calcular km recorridos por placa (lógica acumulable) dentro del scope de cada proceso/mes
-  // Usamos _mdKmPorPlaca ya calculado si está disponible
-  const kmByPlacaMes = _mdKmPorPlaca || {};
-
-  // Función para obtener km de un conjunto de rows por mes
-  function getKmRows(rowList, mesFiltro){
-    const byP={};
-    rowList.forEach(r=>{
-      const placa=r.Placa||r['Placa Vehículo']||r.placa||'?';
-      if(!byP[placa]) byP[placa]=[];
-      byP[placa].push(r);
-    });
-    let total=0;
-    Object.values(byP).forEach(facs=>{
-      const sorted=facs.slice().sort((a,b)=>{
-        const fa=(a.Fecha||'').toString(),fb=(b.Fecha||'').toString();
-        return fa<fb?-1:fa>fb?1:getKm(a)-getKm(b);
-      });
-      for(let i=1;i<sorted.length;i++){
-        if(mesFiltro&&(sorted[i].Fecha||'').toString().slice(0,7)!==mesFiltro) continue;
-        const d=getKm(sorted[i])-getKm(sorted[i-1]);
-        if(d>0&&d<=1000) total+=d;
-      }
-    });
-    return total;
-  }
-
-  // Construir header
-  const head = document.getElementById('pivotHead');
-  const body = document.getElementById('pivotBody');
-  const foot = document.getElementById('pivotFoot');
-  if(!head||!body||!foot) return;
-
-  // Header row 1: meses
-  let h1='<tr><th rowspan="2" style="text-align:left;min-width:180px;">Sector / Proceso</th>';
-  meses.forEach((m,i)=>{
-    h1+=`<th colspan="4" class="mes-header">${mesLabel[i]}</th>`;
-  });
-  h1+='<th colspan="4" class="mes-header" style="background:#e0f2fe;">Total Periodo</th></tr>';
-
-  // Header row 2: sub-cols
-  let h2='<tr>';
-  const subCols=['Km','Litros','Gasto (L)','km/L'];
-  const allMeses=[...meses,'TOTAL'];
-  allMeses.forEach((m,mi)=>{
-    subCols.forEach((s,si)=>{
-      const isMesSep = si===0;
-      const bg = mi===meses.length ? 'background:#e0f2fe;' : '';
-      h2+=`<th class="sub-header${isMesSep?' mes-sep':''}" style="${bg}">${s}</th>`;
-    });
-  });
-  h2+='</tr>';
-  head.innerHTML = h1+h2;
-
-  // Body
-  let bodyHtml='';
-  const secTotals={};  // sector → mes → {km,lit,gasto}
-  const grandTotal={}; // mes → {km,lit,gasto}
-  meses.forEach(m=>{ grandTotal[m]={km:0,lit:0,gasto:0}; });
-  grandTotal['TOTAL']={km:0,lit:0,gasto:0};
-
-  Object.entries(tree).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([sec,proMap])=>{
-    secTotals[sec]={};
-    meses.forEach(m=>{ secTotals[sec][m]={km:0,lit:0,gasto:0}; });
-    secTotals[sec]['TOTAL']={km:0,lit:0,gasto:0};
-
-    // Calcular totales de sector
-    Object.entries(proMap).forEach(([pro,mesMap])=>{
-      meses.forEach(m=>{
-        const d=mesMap[m]||{km:0,lit:0,gasto:0,facs:[]};
-        const kmRec=d.facs.length>0?getKmRows(d.facs,m):0;
-        secTotals[sec][m].km    += kmRec;
-        secTotals[sec][m].lit   += d.lit;
-        secTotals[sec][m].gasto += d.gasto;
-        grandTotal[m].km    += kmRec;
-        grandTotal[m].lit   += d.lit;
-        grandTotal[m].gasto += d.gasto;
-      });
-    });
-    meses.forEach(m=>{
-      secTotals[sec]['TOTAL'].km    += secTotals[sec][m].km;
-      secTotals[sec]['TOTAL'].lit   += secTotals[sec][m].lit;
-      secTotals[sec]['TOTAL'].gasto += secTotals[sec][m].gasto;
-      grandTotal['TOTAL'].km    += grandTotal[m].km;
-      grandTotal['TOTAL'].lit   += grandTotal[m].lit;
-      grandTotal['TOTAL'].gasto += grandTotal[m].gasto;
-    });
-
-    // Fila sector
-    const secId = 'sec_'+sec.replace(/\W/g,'_');
-    bodyHtml+=`<tr class="pivot-sector" onclick="pivotToggle('${secId}')">`;
-    bodyHtml+=`<td><span class="pivot-toggle">▼</span>${sec}</td>`;
-    allMeses.forEach((m,mi)=>{
-      const d=secTotals[sec][m]||{km:0,lit:0,gasto:0};
-      const rend=d.lit>0?d.km/d.lit:0;
-      const isSep=mi===0||mi===meses.length;
-      const bg=mi===meses.length?'background:#e0f2fe;':'';
-      bodyHtml+=`<td class="num${isSep?' mes-sep':''}" style="${bg}">${fmtN(d.km)}</td>`;
-      bodyHtml+=`<td class="num" style="${bg}">${fmtN(d.lit,2)}</td>`;
-      bodyHtml+=`<td class="num" style="${bg}">${fmtL(d.gasto)}</td>`;
-      bodyHtml+=`<td class="num" style="${bg}">${fmtR(rend)}</td>`;
-    });
-    bodyHtml+='</tr>';
-
-    // Filas proceso
-    Object.entries(proMap).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([pro,mesMap])=>{
-      bodyHtml+=`<tr class="pivot-proceso ${secId}">`;
-      bodyHtml+=`<td style="padding-left:22px;">${pro}</td>`;
-      let totPro={km:0,lit:0,gasto:0};
-      allMeses.forEach((m,mi)=>{
-        const d=mesMap[m]||{km:0,lit:0,gasto:0,facs:[]};
-        const kmRec=m!=='TOTAL'&&d.facs.length>0?getKmRows(d.facs,m):0;
-        const lit=m!=='TOTAL'?d.lit:0;
-        const gasto=m!=='TOTAL'?d.gasto:0;
-        if(m!=='TOTAL'){totPro.km+=kmRec;totPro.lit+=lit;totPro.gasto+=gasto;}
-        const dispKm=m==='TOTAL'?totPro.km:kmRec;
-        const dispLit=m==='TOTAL'?totPro.lit:lit;
-        const dispGasto=m==='TOTAL'?totPro.gasto:gasto;
-        const rend=dispLit>0?dispKm/dispLit:0;
-        const isSep=mi===0||mi===meses.length;
-        const bg=mi===meses.length?'background:#e0f2fe;':'';
-        bodyHtml+=`<td class="num${isSep?' mes-sep':''}" style="${bg}">${dispKm>0?fmtN(dispKm):'—'}</td>`;
-        bodyHtml+=`<td class="num" style="${bg}">${dispLit>0?fmtN(dispLit,2):'—'}</td>`;
-        bodyHtml+=`<td class="num" style="${bg}">${dispGasto>0?fmtL(dispGasto):'—'}</td>`;
-        bodyHtml+=`<td class="num" style="${bg}">${fmtR(rend)}</td>`;
-      });
-      bodyHtml+='</tr>';
-    });
-  });
-  body.innerHTML=bodyHtml;
-
-  // Footer total general
-  let footHtml='<tr class="pivot-total"><td>Total general</td>';
-  allMeses.forEach((m,mi)=>{
-    const d=grandTotal[m]||{km:0,lit:0,gasto:0};
-    const rend=d.lit>0?d.km/d.lit:0;
-    const isSep=mi===0||mi===meses.length;
-    const bg=mi===meses.length?'background:#bae6fd;':'';
-    footHtml+=`<td class="num${isSep?' mes-sep':''}" style="${bg}">${fmtN(d.km)}</td>`;
-    footHtml+=`<td class="num" style="${bg}">${fmtN(d.lit,2)}</td>`;
-    footHtml+=`<td class="num" style="${bg}">${fmtL(d.gasto)}</td>`;
-    footHtml+=`<td class="num" style="${bg}">${fmtR(rend)}</td>`;
-  });
-  footHtml+='</tr>';
-  foot.innerHTML=footHtml;
-
-  // Por defecto todos colapsados
-  // Admin: colapsado por defecto. Usuarios de sector: expandido
-  const esAdmin = !window.userSectores || window.userSectores.length === 0;
-  pivotToggleAll(!esAdmin);
-}
-
-function pivotToggle(secId){
-  const rows=document.querySelectorAll('.'+secId);
-  const secRow=document.querySelector(`tr.pivot-sector[onclick*="${secId}"]`);
-  const hidden=rows.length>0&&rows[0].style.display==='none';
-  rows.forEach(r=>r.style.display=hidden?'':'none');
-  if(secRow) secRow.classList.toggle('pivot-collapsed',!hidden);
-}
-
-
-// ══════════ MODAL GRÁFICO AMPLIADO ══════════
-let _chartModalInst = null;
-const _chartModalTitles = {
-  gastoMes:  'Desembolso mensual (L)',
-  litrosMes: 'Consumo mensual (litros)',
-  promMes:   'Promedio de gasto por factura (L)',
-  recorrido: 'Recorrido vs Consumo mensual'
-};
-const _chartSourceIds = {
-  gastoMes:  'chartGastoMes',
-  litrosMes: 'chartLitrosMes',
-  promMes:   'chartProm',
-  recorrido: 'chartRecorrido'
-};
-
-function openChartModal(key){
-  const srcId = _chartSourceIds[key];
-  const srcCanvas = document.getElementById(srcId);
-  if(!srcCanvas || !srcCanvas._chartInst){ console.warn('No chart found for', key); return; }
-  const srcChart = srcCanvas._chartInst;
-  document.getElementById('modalChartTitulo').textContent = _chartModalTitles[key] || key;
-  document.getElementById('modalChart').style.display = 'flex';
-  if(_chartModalInst){ _chartModalInst.destroy(); _chartModalInst = null; }
-  const dstCanvas = document.getElementById('chartModalCanvas');
-  try{
-    // Usar los datasets originales (con funciones intactas) — NO serializar
-    const srcCfg = srcChart.config;
-    const opts = srcCfg.options || {};
-
-    // Clonar opciones de escala manteniendo callbacks
-    // Clonar scales y agregar afterDataLimits para dar 15% de espacio extra arriba
-    const modalScales = {};
-    Object.entries(opts.scales || {}).forEach(([k, v]) => {
-      modalScales[k] = {
-        ...v,
-        afterDataLimits: (scale) => { scale.max = scale.max * 1.15; }
-      };
-    });
-
-    // Datasets originales — mantener funciones intactas
-    // Solo ajustar offset en datasets de línea para separar etiquetas superpuestas
-    const modalDatasets = srcCfg.data.datasets.map((ds, i) => {
-      if(!ds.datalabels) return ds;
-      const dl = {...ds.datalabels};
-      // Para el segundo dataset (línea de consumo) aumentar el offset para separarlo de la barra
-      if(i > 0 && ds.type === 'line'){
-        const origOffset = dl.offset;
-        dl.offset = (ctx) => {
-          const kmVals = srcCfg.data.datasets[0]?.data || [];
-          const litVals = srcCfg.data.datasets[i]?.data || [];
-          const maxKm = Math.max(...kmVals.filter(v=>v>0));
-          const maxLit = Math.max(...litVals.filter(v=>v>0));
-          const kmNorm = maxKm > 0 ? (kmVals[ctx.dataIndex]||0) / maxKm : 0;
-          const litNorm = maxLit > 0 ? (litVals[ctx.dataIndex]||0) / maxLit : 0;
-          if(kmNorm > 0.80) return 18;
-          return Math.abs(litNorm - kmNorm) < 0.25 ? 22 : 6;
-        };
-      }
-      return {...ds, datalabels: dl};
-    });
-
-    const modalOpts = {
-      responsive: true,
-      maintainAspectRatio: false,
-      interaction: opts.interaction || {},
-      scales: modalScales,
-      layout: { padding: { top: 10 } },
-      plugins: {
-        legend: { display: true, position: 'bottom', labels: { font:{ size:13 }, boxWidth:14 } },
-        datalabels: {}
-      }
-    };
-
-    _chartModalInst = new Chart(dstCanvas, {
-      type: srcCfg.type,
-      data: { labels: srcCfg.data.labels, datasets: modalDatasets },
-      options: modalOpts,
-      plugins: [ChartDataLabels]
-    });
-  }catch(e){ console.error('Chart modal error:', e); }
-}
-
-function closeChartModal(){
-  document.getElementById('modalChart').style.display = 'none';
-  if(_chartModalInst){ _chartModalInst.destroy(); _chartModalInst = null; }
-}
-
-document.addEventListener('click', function(e){
-  const m = document.getElementById('modalChart');
-  if(m && e.target === m) closeChartModal();
-});
-
-function openPivotModal(){
-  const modal = document.getElementById('modalPivot');
-  if(!modal) return;
-  // Copiar contenido del pivot ya calculado al modal
-  const srcHead = document.getElementById('pivotHead');
-  const srcBody = document.getElementById('pivotBody');
-  const srcFoot = document.getElementById('pivotFoot');
-  const dstHead = document.getElementById('pivotModalHead');
-  const dstBody = document.getElementById('pivotModalBody');
-  const dstFoot = document.getElementById('pivotModalFoot');
-  if(srcHead && dstHead) dstHead.innerHTML = srcHead.innerHTML;
-  if(srcBody && dstBody){
-    dstBody.innerHTML = srcBody.innerHTML;
-    // Reasignar onclick a las filas de sector en el modal
-    dstBody.querySelectorAll('tr.pivot-sector').forEach(tr=>{
-      const origOnclick = tr.getAttribute('onclick')||'';
-      const secId = origOnclick.match(/pivotToggle\('([^']+)'\)/)?.[1];
-      if(secId){
-        tr.setAttribute('onclick', `pivotModalToggle('${secId}')`);
-      }
-    });
-  }
-  if(srcFoot && dstFoot) dstFoot.innerHTML = srcFoot.innerHTML;
-  // Subtítulo
-  const subEl = document.getElementById('mSubtitulo');
-  const modalSub = document.getElementById('pivotModalSubtitulo');
-  if(subEl && modalSub) modalSub.textContent = subEl.textContent;
-  modal.style.display = 'flex';
-  // Por defecto expandir todo en el modal
-  pivotModalToggleAll(true);
-}
-
-function closePivotModal(){
-  const modal = document.getElementById('modalPivot');
-  if(modal) modal.style.display = 'none';
-}
-
-// Cerrar al click fuera
-document.addEventListener('click', function(e){
-  const modal = document.getElementById('modalPivot');
-  if(modal && e.target === modal) closePivotModal();
-});
-
-function pivotModalToggle(secId){
-  const rows = document.querySelectorAll('#pivotModalBody .'+secId);
-  const secRow = document.querySelector(`#pivotModalBody tr.pivot-sector[onclick*="${secId}"]`);
-  const hidden = rows.length>0 && rows[0].style.display==='none';
-  rows.forEach(r=>r.style.display=hidden?'':'none');
-  if(secRow) secRow.classList.toggle('pivot-collapsed',!hidden);
-}
-
-function pivotModalToggleAll(expand){
-  document.querySelectorAll('#pivotModalBody tr.pivot-proceso').forEach(r=>r.style.display=expand?'':'none');
-  document.querySelectorAll('#pivotModalBody tr.pivot-sector').forEach(r=>r.classList.toggle('pivot-collapsed',!expand));
-}
-
-function pivotToggleAll(expand){
-  document.querySelectorAll('tr.pivot-proceso').forEach(r=>r.style.display=expand?'':'none');
-  document.querySelectorAll('tr.pivot-sector').forEach(r=>r.classList.toggle('pivot-collapsed',!expand));
 }
 
 
@@ -5315,6 +4846,12 @@ function openMetricasModal(rows, kmPlaca, titulo){
     _mdKmPorPlaca[placa]={ kmTotal, kmMes, litrosTotal, litrosMes, rend: litrosTotal>0?kmTotal/litrosTotal:0 };
   });
 
+  // Poblar filtro Proceso
+  const procSet = new Set(rows.map(r => r.Proceso || 'Sin proceso').filter(Boolean));
+  const procSel = document.getElementById('mdFiltProceso');
+  procSel.innerHTML = '<option value="">Todos los procesos</option>' +
+    [...procSet].sort().map(p => `<option value="${p}">${p}</option>`).join('');
+
   // Poblar filtro Mes (meses disponibles del periodo externo)
   const mn = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
   const mesSet = new Set(rows.map(r=>(r.Fecha||'').toString().slice(0,7)).filter(Boolean));
@@ -5338,11 +4875,13 @@ document.addEventListener('click', function(e){
 });
 
 function aplicarFiltroModal(){
+  const proc = document.getElementById('mdFiltProceso').value;
   const mes  = document.getElementById('mdFiltMes').value;
 
-  // Filtrar por mes (proceso ahora es filtro global en métricas)
+  // Filtrar por proceso y mes (solo afecta gasto/litros/facturas, NO el recorrido)
   let rowsFilt = _mdRowsGlobal;
-  if(mes) rowsFilt = rowsFilt.filter(r=>(r.Fecha||'').toString().slice(0,7)===mes);
+  if(proc) rowsFilt = rowsFilt.filter(r=>(r.Proceso||'Sin proceso')===proc);
+  if(mes)  rowsFilt = rowsFilt.filter(r=>(r.Fecha||'').toString().slice(0,7)===mes);
 
   // Actualizar filtro Placa según proceso+mes seleccionado
   const placaSel = document.getElementById('mdFiltPlaca');
@@ -5419,10 +4958,10 @@ function renderModalDetalle(rows, filtroMes){
       <td style="padding:5px 8px;font-weight:600;font-family:monospace;color:var(--text-primary)">${placa}</td>
       <td style="padding:5px 8px;color:var(--text-secondary);font-size:11px">${d.proceso}</td>
       <td style="padding:5px 8px;text-align:right">${d.count}</td>
-      <td style="padding:5px 8px;text-align:right">${(Number(d.gasto)||0).toLocaleString('es-HN',{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
-      <td style="padding:5px 8px;text-align:right">${(Number(d.litros)||0).toLocaleString('es-HN',{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
-      <td style="padding:5px 8px;text-align:right">${d.km>0?d.km.toLocaleString('es-HN',{maximumFractionDigits:0}):'\u2014'}</td>
-      <td style="padding:5px 8px;text-align:right">${(Number(d.count>0?d.gasto/d.count:0)||0).toLocaleString('es-HN',{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
+      <td style="padding:5px 8px;text-align:right">${fmtL(d.gasto)}</td>
+      <td style="padding:5px 8px;text-align:right">${fmtN(d.litros)} L</td>
+      <td style="padding:5px 8px;text-align:right">${d.km>0?d.km.toLocaleString('es-HN',{maximumFractionDigits:0})+' km':'\u2014'}</td>
+      <td style="padding:5px 8px;text-align:right">${fmtL(d.count>0?d.gasto/d.count:0)}</td>
       <td style="padding:5px 8px;text-align:center">
         <span style="display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;background:${sBg(d.rend)};color:${sColor(d.rend)}">
           ${semaforo(d.rend)} ${d.rend>0?d.rend.toFixed(2):'\u2014'}
@@ -5465,49 +5004,6 @@ function renderModalDetalle(rows, filtroMes){
 
 </script>
 
-
-<!-- ══════════ MODAL GRÁFICO AMPLIADO ══════════ -->
-<div id="modalChart" style="position:fixed;inset:0;background:rgba(0,0,0,0.45);display:none;align-items:center;justify-content:center;z-index:9997;padding:16px;">
-  <div style="background:var(--bg-primary,#fff);border-radius:12px;width:94vw;max-width:1300px;height:85vh;display:flex;flex-direction:column;box-shadow:0 24px 64px rgba(0,0,0,0.22);overflow:hidden;">
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:1rem 1.25rem;border-bottom:1px solid var(--border,#e5e7eb);flex-shrink:0;">
-      <h3 id="modalChartTitulo" style="margin:0;font-size:1.1rem;font-weight:700;color:var(--text-primary);">Gráfico</h3>
-      <button onclick="closeChartModal()" style="background:none;border:none;cursor:pointer;padding:6px;border-radius:6px;color:var(--muted);">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </button>
-    </div>
-    <div style="flex:1;padding:1.25rem;position:relative;min-height:0;">
-      <canvas id="chartModalCanvas"></canvas>
-    </div>
-  </div>
-</div>
-<!-- ══════════ MODAL PIVOT TABLE ══════════ -->
-<div id="modalPivot">
-  <div class="pivot-modal-box">
-    <!-- Header -->
-    <div style="display:flex; align-items:center; justify-content:space-between; padding:1rem 1.25rem; border-bottom:1px solid var(--border,#e5e7eb); flex-shrink:0;">
-      <div>
-        <h3 style="margin:0; font-size:1.1rem; font-weight:700; color:var(--text-primary);">Resumen por Sector / Proceso</h3>
-        <p id="pivotModalSubtitulo" style="margin:2px 0 0; font-size:12px; color:var(--muted,#888);">Métricas del periodo filtrado</p>
-      </div>
-      <div style="display:flex; gap:8px; align-items:center;">
-        <button onclick="pivotModalToggleAll(true)" style="font-size:11px; padding:4px 12px; border:1px solid var(--border); border-radius:6px; background:none; cursor:pointer; color:var(--text-secondary);">Expandir todo</button>
-        <button onclick="pivotModalToggleAll(false)" style="font-size:11px; padding:4px 12px; border:1px solid var(--border); border-radius:6px; background:none; cursor:pointer; color:var(--text-secondary);">Colapsar todo</button>
-        <button onclick="closePivotModal()" style="background:none;border:none;cursor:pointer;padding:6px;border-radius:6px;color:var(--muted);">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </button>
-      </div>
-    </div>
-    <!-- Tabla -->
-    <div style="flex:1; overflow:auto; padding:0.75rem 1rem;">
-      <table id="tablaPivotModal" style="width:100%; border-collapse:collapse; min-width:700px;">
-        <thead id="pivotModalHead"></thead>
-        <tbody id="pivotModalBody"></tbody>
-        <tfoot id="pivotModalFoot"></tfoot>
-      </table>
-    </div>
-  </div>
-</div>
-
 <!-- ══════════ MODAL DETALLE MÉTRICAS ══════════ -->
 <div id="modalMetricas" class="overlay" style="display:none; z-index:9999;">
   <div style="background:var(--bg-primary,#fff); border-radius:12px; width:92vw; max-width:1100px; max-height:90vh; display:flex; flex-direction:column; box-shadow:0 20px 60px rgba(0,0,0,0.25); overflow:hidden;">
@@ -5523,6 +5019,12 @@ function renderModalDetalle(rows, filtroMes){
     </div>
     <!-- Filtros -->
     <div style="display:flex; gap:10px; padding:0.75rem 1.25rem; border-bottom:1px solid var(--border,#e5e7eb); flex-wrap:wrap; align-items:center; flex-shrink:0; background:var(--bg-secondary,#f8fafc);">
+      <div style="display:flex; align-items:center; gap:6px;">
+        <label style="font-size:12px; font-weight:600; color:var(--text-secondary);">Proceso:</label>
+        <select id="mdFiltProceso" class="input" style="font-size:12px; min-width:160px;" onchange="aplicarFiltroModal()">
+          <option value="">Todos los procesos</option>
+        </select>
+      </div>
       <div style="display:flex; align-items:center; gap:6px;">
         <label style="font-size:12px; font-weight:600; color:var(--text-secondary);">Placa:</label>
         <select id="mdFiltPlaca" class="input" style="font-size:12px; min-width:140px;" onchange="aplicarFiltroModal()">
