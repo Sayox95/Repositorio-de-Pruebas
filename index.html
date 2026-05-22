@@ -5265,13 +5265,30 @@ function openChartModal(key){
     });
 
     // Datasets originales — mantener funciones intactas
-    // Solo ajustar offset en datasets de línea para separar etiquetas superpuestas
+    // Aumentar tamaño de fuente de datalabels para el modal (más espacio disponible)
+    const isVariacion = key === 'variacion';
     const modalDatasets = srcCfg.data.datasets.map((ds, i) => {
       if(!ds.datalabels) return ds;
       const dl = {...ds.datalabels};
-      // Para el segundo dataset (línea de consumo) aumentar el offset para separarlo de la barra
-      if(i > 0 && ds.type === 'line'){
-        const origOffset = dl.offset;
+
+      // Aumentar fuente en el modal
+      if(dl.font){
+        if(Array.isArray(dl.font)){
+          dl.font = dl.font.map(f => ({...f, size: (f.size||10) + (isVariacion ? 4 : 2)}));
+        } else if(typeof dl.font === 'object'){
+          dl.font = {...dl.font, size: (dl.font.size||10) + (isVariacion ? 4 : 2)};
+        } else if(typeof dl.font === 'function'){
+          const origFont = dl.font;
+          dl.font = (ctx) => {
+            const r = origFont(ctx);
+            if(Array.isArray(r)) return r.map(f=>({...f, size:(f.size||10)+(isVariacion?4:2)}));
+            return {...r, size:(r.size||10)+(isVariacion?4:2)};
+          };
+        }
+      }
+
+      // Para el segundo dataset (línea de consumo) aumentar offset
+      if(!isVariacion && i > 0 && ds.type === 'line'){
         dl.offset = (ctx) => {
           const kmVals = srcCfg.data.datasets[0]?.data || [];
           const litVals = srcCfg.data.datasets[i]?.data || [];
@@ -5283,6 +5300,13 @@ function openChartModal(key){
           return Math.abs(litNorm - kmNorm) < 0.25 ? 22 : 6;
         };
       }
+
+      // Para variacion, aumentar también el offset para dar espacio a las etiquetas más grandes
+      if(isVariacion && dl.offset !== undefined){
+        const origOffset = dl.offset;
+        dl.offset = typeof origOffset === 'function' ? origOffset : (origOffset||6) + 4;
+      }
+
       return {...ds, datalabels: dl};
     });
 
