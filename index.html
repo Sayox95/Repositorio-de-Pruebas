@@ -5004,8 +5004,10 @@ function buildVariacionChart(tipo){
           },
           color: (ctx) => {
             const v = varPct[ctx.dataIndex];
-            // Primera línea color de la métrica, segunda línea verde/rojo
-            return [color, ptColor(v)];
+            // Primer mes sin variación: color de la métrica en ambas líneas
+            // Resto: verde si subió, rojo si bajó en ambas líneas
+            const c = v === null ? color : ptColor(v);
+            return [c, c];
           },
           backgroundColor: (ctx) => {
             // Fondo semitransparente para que se lea bien sobre la línea
