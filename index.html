@@ -47,6 +47,13 @@
       grid-template-columns: 260px 1fr;
       grid-template-rows: 100vh;
       gap:0;
+      transition: grid-template-columns 0.25s ease;
+    }
+    .app.sidebar-collapsed{
+      grid-template-columns: 0px 1fr;
+    }
+    .app.sidebar-icons{
+      grid-template-columns: 68px 1fr;
     }
     .sidebar{
       background:var(--sidebar-bg);
@@ -54,6 +61,26 @@
       display:flex;
       flex-direction:column;
       padding:18px 14px;
+      overflow:hidden;
+      transition: width 0.25s ease, padding 0.25s ease;
+      position:relative;
+    }
+    /* Botón toggle sidebar */
+    #sidebarToggle{
+      position:fixed; top:12px; left:12px; z-index:200;
+      background:var(--sidebar-bg); color:#dbeafe;
+      border:none; border-radius:8px; width:36px; height:36px;
+      cursor:pointer; display:flex; align-items:center; justify-content:center;
+      box-shadow:0 2px 8px rgba(0,0,0,0.3);
+      transition: left 0.25s ease;
+    }
+    #sidebarToggle:hover{ background:var(--sidebar-hover); }
+    .app.sidebar-icons #sidebarToggle{ left:16px; }
+    .app.sidebar-collapsed #sidebarToggle{ left:12px; }
+    /* Overlay móvil */
+    #sidebarOverlay{
+      display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5);
+      z-index:149;
     }
     .brand{
       display:flex; flex-direction:column; align-items:center; gap:6px;
@@ -249,11 +276,36 @@
     @keyframes spin{ to{ transform: rotate(360deg) } }
     /* Utilities */
     .hidden{ display:none !important }
+    /* Tablet: sidebar colapsado con íconos */
     @media (max-width:1024px){
-      .app{ grid-template-columns: 82px 1fr}
-      .brand .caption{display:none}
-      .nav-btn span{ display:none }
-      .filters{ display:grid; grid-template-columns: 180px 180px 220px 160px 1fr 220px 220px auto; }
+      .app{ grid-template-columns: 68px 1fr !important; }
+      .brand{ padding:8px 6px; }
+      .brand .logo img{ height:32px; }
+      .brand > div:last-child{ display:none; }
+      .nav-btn span{ display:none; }
+      .nav-btn{ justify-content:center; padding:10px; }
+      .sidebar{ padding:14px 8px; }
+      .user-card{ flex-direction:column; gap:4px; padding:8px 4px; }
+      .user-info{ display:none; }
+    }
+    /* Móvil: sidebar drawer */
+    @media (max-width:768px){
+      .app{ grid-template-columns: 1fr !important; }
+      .sidebar{
+        position:fixed; left:-280px; top:0; bottom:0; width:260px;
+        z-index:150; padding:18px 14px;
+        transition: left 0.25s ease;
+        overflow-y:auto;
+      }
+      .sidebar.open{ left:0; }
+      .sidebar .brand .logo img{ height:40px; }
+      .sidebar .brand > div:last-child{ display:flex; }
+      .sidebar .nav-btn span{ display:inline; }
+      .sidebar .nav-btn{ justify-content:flex-start; padding:10px 12px; }
+      .sidebar .user-card{ flex-direction:row; }
+      .sidebar .user-info{ display:block; }
+      #sidebarOverlay.open{ display:block; }
+      #sidebarToggle{ left:12px !important; background:var(--primary); }
     }
   
   /* Botón "Pagar" en celdas */
@@ -368,6 +420,15 @@
   </div>
 </section>
 <!-- ===== /Login Section ===== -->
+<!-- Sidebar toggle button -->
+<button id="sidebarToggle" onclick="toggleSidebar()" title="Mostrar/ocultar menú" aria-label="Toggle sidebar" style="display:none;">
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+  </svg>
+</button>
+<!-- Overlay para móvil -->
+<div id="sidebarOverlay" onclick="closeSidebarMobile()"></div>
+
 <div id="appShell" style="display:none;">
 
   <div class="app">
@@ -2836,10 +2897,11 @@ function applyRolRestrictions(rol, sectores){
   }
 }
 
-function showLogin(){ const app=document.getElementById("appShell"); if(app) app.style.display="none"; const s=document.getElementById("secLogin"); if(s) s.style.display="flex"; }
+function showLogin(){ const app=document.getElementById("appShell"); if(app) app.style.display="none"; const s=document.getElementById("secLogin"); if(s) s.style.display="flex"; const tb=document.getElementById("sidebarToggle"); if(tb) tb.style.display="none"; }
 function showApp(me){ 
   const s=document.getElementById("secLogin"); if(s) s.style.display="none"; 
   const app=document.getElementById("appShell"); if(app) app.style.display="block";
+  const tb=document.getElementById("sidebarToggle"); if(tb) tb.style.display="flex";
   // Asignar sectores ANTES de cualquier loadData
   window.userSectores = (me && Array.isArray(me.sectores) && me.sectores.length) ? me.sectores : [];
   if(me && me.rol) applyRolRestrictions(me.rol, me.sectores);
@@ -5544,6 +5606,71 @@ function exportPivotXLSX(){
   XLSX.writeFile(wb, `Resumen_Sector_Proceso_${new Date().toISOString().slice(0,10)}.xlsx`);
 }
 
+
+
+// ══════════ SIDEBAR TOGGLE ══════════
+function toggleSidebar(){
+  const isMobile = window.innerWidth <= 768;
+  const isTablet = window.innerWidth <= 1024 && !isMobile;
+  const app = document.querySelector('.app');
+  const sidebar = document.querySelector('.sidebar');
+
+  if(isMobile){
+    sidebar.classList.toggle('open');
+    document.getElementById('sidebarOverlay').classList.toggle('open');
+  } else {
+    // Desktop/tablet: alternar entre normal, íconos y colapsado
+    if(app.classList.contains('sidebar-collapsed')){
+      app.classList.remove('sidebar-collapsed');
+      if(window.innerWidth > 1024) app.classList.remove('sidebar-icons');
+      localStorage.setItem('sidebarState','open');
+    } else if(app.classList.contains('sidebar-icons') || window.innerWidth <= 1024){
+      app.classList.remove('sidebar-icons');
+      app.classList.add('sidebar-collapsed');
+      localStorage.setItem('sidebarState','collapsed');
+    } else {
+      app.classList.add('sidebar-icons');
+      localStorage.setItem('sidebarState','icons');
+    }
+  }
+}
+
+function closeSidebarMobile(){
+  document.querySelector('.sidebar').classList.remove('open');
+  document.getElementById('sidebarOverlay').classList.remove('open');
+}
+
+// Restaurar estado del sidebar al cargar
+(function initSidebarState(){
+  const state = localStorage.getItem('sidebarState');
+  const app = document.querySelector('.app');
+  if(!app) return;
+  if(window.innerWidth > 768){
+    if(state === 'collapsed') app.classList.add('sidebar-collapsed');
+    else if(state === 'icons' || window.innerWidth <= 1024) app.classList.add('sidebar-icons');
+  }
+})();
+
+// Cerrar sidebar móvil al cambiar de sección
+document.addEventListener('click', function(e){
+  if(e.target.classList.contains('nav-btn') || e.target.closest('.nav-btn')){
+    if(window.innerWidth <= 768) closeSidebarMobile();
+  }
+});
+
+// Ajustar al redimensionar
+window.addEventListener('resize', function(){
+  const app = document.querySelector('.app');
+  const sidebar = document.querySelector('.sidebar');
+  if(!app || !sidebar) return;
+  if(window.innerWidth > 768){
+    sidebar.classList.remove('open');
+    document.getElementById('sidebarOverlay').classList.remove('open');
+    if(window.innerWidth <= 1024){
+      app.classList.remove('sidebar-collapsed');
+    }
+  }
+});
 
 // ══════════ GESTIÓN DE USUARIOS ══════════
 const USUARIOS_API = '/api/admin/usuarios';
