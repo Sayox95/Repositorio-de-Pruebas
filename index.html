@@ -5113,11 +5113,14 @@ function buildPivot(rows, meses, mesLabel){
     const pro = r.Proceso||'Sin proceso';
     const mes = (r.Fecha||'').toString().slice(0,7);
     if(!tree[sec]) tree[sec]={};
-    if(!tree[sec][pro]) tree[sec][pro]={};
+    if(!tree[sec][pro]) tree[sec][pro]={ _placas: new Set() };
     if(!tree[sec][pro][mes]) tree[sec][pro][mes]={km:0,lit:0,gasto:0,facs:[]};
     tree[sec][pro][mes].gasto += getT(r);
     tree[sec][pro][mes].lit   += getL(r);
     tree[sec][pro][mes].facs.push(r);
+    // Acumular placa única del proceso (todo el periodo)
+    const placa = r.Placa||r['Placa Veh\u00EDculo']||r.placa||'';
+    if(placa) tree[sec][pro]._placas.add(placa);
   });
 
   // Calcular km recorridos por placa (lógica acumulable) dentro del scope de cada proceso/mes
@@ -5155,14 +5158,15 @@ function buildPivot(rows, meses, mesLabel){
 
   // Header row 1: meses
   let h1='<tr><th rowspan="2" style="text-align:left;min-width:180px;">Sector / Proceso</th>';
+  h1+='<th rowspan="2" style="text-align:center;padding:6px 10px;border-bottom:2px solid var(--border,#e5e7eb);border-left:2px solid var(--border,#e5e7eb);font-size:11px;font-weight:600;color:var(--text-secondary);background:var(--bg-secondary,#f8fafc);position:sticky;top:0;z-index:2;white-space:nowrap;">Placas</th>';
   meses.forEach((m,i)=>{
-    h1+=`<th colspan="4" class="mes-header">${mesLabel[i]}</th>`;
+    h1+=`<th colspan="3" class="mes-header">${mesLabel[i]}</th>`;
   });
-  h1+='<th colspan="4" class="mes-header" style="background:#e0f2fe;">Total Periodo</th></tr>';
+  h1+='<th colspan="3" class="mes-header" style="background:#e0f2fe;">Total Periodo</th></tr>';
 
   // Header row 2: sub-cols
   let h2='<tr>';
-  const subCols=['Km','Litros','Gasto (L)','km/L'];
+  const subCols=['Km','Litros','Gasto (L)'];
   const allMeses=[...meses,'TOTAL'];
   allMeses.forEach((m,mi)=>{
     subCols.forEach((s,si)=>{
@@ -5208,26 +5212,33 @@ function buildPivot(rows, meses, mesLabel){
       grandTotal['TOTAL'].gasto += grandTotal[m].gasto;
     });
 
+    // Placas únicas del sector (union de placas de todos sus procesos)
+    const secPlacasSet = new Set();
+    Object.values(proMap).forEach(proData => {
+      if(proData._placas) proData._placas.forEach(p => secPlacasSet.add(p));
+    });
+
     // Fila sector
     const secId = 'sec_'+sec.replace(/\W/g,'_');
     bodyHtml+=`<tr class="pivot-sector" onclick="pivotToggle('${secId}')">`;
     bodyHtml+=`<td><span class="pivot-toggle">▼</span>${sec}</td>`;
+    bodyHtml+=`<td class="num mes-sep" style="text-align:center;border-left:2px solid var(--border,#e5e7eb);">${secPlacasSet.size}</td>`;
     allMeses.forEach((m,mi)=>{
       const d=secTotals[sec][m]||{km:0,lit:0,gasto:0};
-      const rend=d.lit>0?d.km/d.lit:0;
       const isSep=mi===0||mi===meses.length;
       const bg=mi===meses.length?'background:#e0f2fe;':'';
       bodyHtml+=`<td class="num${isSep?' mes-sep':''}" style="${bg}">${fmtN(d.km)}</td>`;
       bodyHtml+=`<td class="num" style="${bg}">${fmtN(d.lit,2)}</td>`;
       bodyHtml+=`<td class="num" style="${bg}">${fmtL(d.gasto)}</td>`;
-      bodyHtml+=`<td class="num" style="${bg}">${fmtR(rend)}</td>`;
     });
     bodyHtml+='</tr>';
 
     // Filas proceso
     Object.entries(proMap).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([pro,mesMap])=>{
+      const proPlacas = proMap._placas ? proMap._placas.size : 0;
       bodyHtml+=`<tr class="pivot-proceso ${secId}">`;
       bodyHtml+=`<td style="padding-left:22px;">${pro}</td>`;
+      bodyHtml+=`<td class="num mes-sep" style="text-align:center;border-left:2px solid var(--border,#e5e7eb);">${proPlacas||'—'}</td>`;
       let totPro={km:0,lit:0,gasto:0};
       allMeses.forEach((m,mi)=>{
         const d=mesMap[m]||{km:0,lit:0,gasto:0,facs:[]};
@@ -5238,13 +5249,11 @@ function buildPivot(rows, meses, mesLabel){
         const dispKm=m==='TOTAL'?totPro.km:kmRec;
         const dispLit=m==='TOTAL'?totPro.lit:lit;
         const dispGasto=m==='TOTAL'?totPro.gasto:gasto;
-        const rend=dispLit>0?dispKm/dispLit:0;
         const isSep=mi===0||mi===meses.length;
         const bg=mi===meses.length?'background:#e0f2fe;':'';
         bodyHtml+=`<td class="num${isSep?' mes-sep':''}" style="${bg}">${dispKm>0?fmtN(dispKm):'—'}</td>`;
         bodyHtml+=`<td class="num" style="${bg}">${dispLit>0?fmtN(dispLit,2):'—'}</td>`;
         bodyHtml+=`<td class="num" style="${bg}">${dispGasto>0?fmtL(dispGasto):'—'}</td>`;
-        bodyHtml+=`<td class="num" style="${bg}">${fmtR(rend)}</td>`;
       });
       bodyHtml+='</tr>';
     });
@@ -5252,16 +5261,19 @@ function buildPivot(rows, meses, mesLabel){
   body.innerHTML=bodyHtml;
 
   // Footer total general
+  // Total placas únicas globales
+  const globalPlacasSet = new Set();
+  rows.forEach(r=>{ const p=r.Placa||r['Placa Veh\u00EDculo']||r.placa||''; if(p) globalPlacasSet.add(p); });
+
   let footHtml='<tr class="pivot-total"><td>Total general</td>';
+  footHtml+=`<td class="num mes-sep" style="text-align:center;border-left:2px solid var(--border,#e5e7eb);">${globalPlacasSet.size}</td>`;
   allMeses.forEach((m,mi)=>{
     const d=grandTotal[m]||{km:0,lit:0,gasto:0};
-    const rend=d.lit>0?d.km/d.lit:0;
     const isSep=mi===0||mi===meses.length;
     const bg=mi===meses.length?'background:#bae6fd;':'';
     footHtml+=`<td class="num${isSep?' mes-sep':''}" style="${bg}">${fmtN(d.km)}</td>`;
     footHtml+=`<td class="num" style="${bg}">${fmtN(d.lit,2)}</td>`;
     footHtml+=`<td class="num" style="${bg}">${fmtL(d.gasto)}</td>`;
-    footHtml+=`<td class="num" style="${bg}">${fmtR(rend)}</td>`;
   });
   footHtml+='</tr>';
   foot.innerHTML=footHtml;
