@@ -5235,7 +5235,7 @@ function buildPivot(rows, meses, mesLabel){
 
     // Filas proceso
     Object.entries(proMap).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([pro,mesMap])=>{
-      const proPlacas = proMap._placas ? proMap._placas.size : 0;
+      const proPlacas = mesMap._placas ? mesMap._placas.size : 0;
       bodyHtml+=`<tr class="pivot-proceso ${secId}">`;
       bodyHtml+=`<td style="padding-left:22px;">${pro}</td>`;
       bodyHtml+=`<td class="num mes-sep" style="text-align:center;border-left:2px solid var(--border,#e5e7eb);">${proPlacas||'—'}</td>`;
