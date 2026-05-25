@@ -62,9 +62,10 @@
       letter-spacing:.2px;
     }
     .brand .logo{
-      width:46px;height:28px;border-radius:8px;
-      background:linear-gradient(135deg,#11c29a,#0e9e79);
-      display:grid;place-items:center;color:white; font-weight:800;
+      display:flex; align-items:center; justify-content:center;
+    }
+    .brand .logo img{
+      height:38px; width:auto; object-fit:contain;
     }
     .brand .caption{display:flex;flex-direction:column;line-height:1}
     .brand small{opacity:.8; font-weight:600}
@@ -370,10 +371,8 @@
   <div class="app">
     <aside class="sidebar">
       <div class="brand">
-        <div class="logo">UTCD</div>
-        <div class="caption">
-          <span>Aplicativo</span>
-          <small>de Facturas</small>
+        <div class="logo">
+          <img src="https://github.com/Sayox95/Gastos-de-Combustible/blob/main/imagenes/Logo.png?raw=true" alt="UTCD Logo">
         </div>
       </div>
 
@@ -724,9 +723,9 @@
     <div style="flex:1; min-width:0;">
       <span style="font-size:12.5px; font-weight:700; color:#92400e;">Advertencia — Facturas pendientes de revisión incluidas en el filtro activo</span>
       <span style="display:block; font-size:11.5px; color:#78350f; margin-top:1px;">
-        Se esta mostrando facturas con estado <strong>Registrada</strong> que aún no han sido revisadas.
+        Existen facturas con estado <strong>Registrada</strong> que aún no han sido revisadas.
         Los indicadores, montos y métricas pueden reflejar información incoherente.
-        Se recomienda revisar y cambiar su estado a <strong>Revisada</strong> o <strong>Pagada</strong> antes de analizar los resultados.
+        Se recomienda cambiar su estado a <strong>Revisada</strong> o <strong>Pagada</strong> antes de analizar los resultados.
       </span>
     </div>
     <button onclick="document.getElementById('bannerMetricasRegistradas').style.display='none'"
@@ -808,7 +807,7 @@
       <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:8px; margin-bottom:10px; width:100%;">
         <div>
           <p style="font-size:13px; font-weight:600; color:var(--text-primary); margin:0 0 2px;">Resumen por Sector / Proceso</p>
-          <p style="font-size:11px; color:var(--muted); margin:0;">La columna <strong>Placas</strong> muestra unidades únicas. El total por sector puede ser menor que la suma de sus procesos cuando una misma placa se utilizó en mas de un proceso.</p>
+          <p style="font-size:11px; color:var(--muted); margin:0;">La columna <strong>Placas</strong> muestra unidades únicas. El total por sector puede ser menor que la suma de sus procesos cuando una misma placa opera en más de uno.</p>
         </div>
         <div style="display:flex; gap:6px; flex-wrap:wrap; flex-shrink:0; align-items:center;">
           <button id="btnPivotExpandAll" onclick="pivotToggleAll(true)" style="font-size:11px; padding:3px 10px; border:1px solid var(--border); border-radius:6px; background:none; cursor:pointer; color:var(--text-secondary);">Expandir todo</button>
@@ -1999,7 +1998,11 @@ async function loadProcesosOptions(){
   try{
     let rows = [];
     if(placasEndpointsReady()){
-      const res = await fetch(Config.api.placas, {  cache:"no-store" , signal: __ctl.signal });
+      const urlPlacas = new URL(Config.api.placas, location.origin);
+      if(window.userSectores && window.userSectores.length > 0){
+        urlPlacas.searchParams.set("sector", window.userSectores.join(","));
+      }
+      const res = await fetch(urlPlacas.toString(), { cache:"no-store", signal: __ctl.signal });
       if(!res.ok) throw new Error("HTTP "+res.status);
       rows = await res.json();
     }
@@ -2108,7 +2111,11 @@ async function loadProcesosOptions(){
 
 }
 function aplicarFiltrosPlacas(){
-  const sec = (document.getElementById("fPlacasSector")?.value || "").trim();
+  const secSelect = (document.getElementById("fPlacasSector")?.value || "").trim();
+  // Si el usuario tiene sectores asignados, filtrar solo por esos (ignora el select)
+  const sec = window.userSectores && window.userSectores.length > 0
+    ? "" // el filtro ya viene del API, no aplicar filtro local adicional
+    : secSelect;
 const est = (document.getElementById("fPlacasEstado")?.value || "").trim();
   const placaQ = (document.getElementById("fPlacasPlaca")?.value || "").trim().toLowerCase();
   const normalize = (s)=> String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
@@ -2799,6 +2806,16 @@ function applyRolRestrictions(rol, sectores){
     }, 1500);
   }
 
+  // Ocultar selector de sector en placas y pre-seleccionar si tiene sectores asignados
+  if(window.userSectores.length > 0){
+    setTimeout(function(){
+      const fSec = document.getElementById('fPlacasSector');
+      if(fSec){
+        fSec.style.display = 'none'; // ocultar — el filtro viene del rol
+      }
+    }, 500);
+  }
+
   // Mostrar sección Usuarios solo para master
   const navU = document.getElementById('navUsuarios');
   if(navU) navU.style.display = rol === 'master' ? 'flex' : 'none';
@@ -2832,7 +2849,7 @@ function showApp(me){
     '/usuarios': ['master']   // solo master puede acceder
   };
   const rolesPermitidos = seccionesRestringidas[initPath];
-  const rolActual = me?.rol || 'usuario';
+  const rolActual = me?.rol || 'viewer';
   const tieneAcceso = !rolesPermitidos || rolesPermitidos.includes(rolActual);
 
   // Si no tiene acceso, redirigir al inicio limpiando el URL
@@ -2843,7 +2860,7 @@ function showApp(me){
   // ── Mostrar usuario en sidebar ──
   if(me){
     const nombre   = (me.nombre || me.usuario || me.user || "Usuario").trim();
-    const rol      = me.rol || "usuario";
+    const rol      = me.rol || "viewer";
     const sectores = Array.isArray(me.sectores) && me.sectores.length ? me.sectores.join(", ") : null;
     // Iniciales: hasta 2 letras de las primeras palabras
     const partes   = nombre.split(" ").filter(Boolean);
@@ -5600,7 +5617,7 @@ function editarUsuario(u){
   document.getElementById('muUsuario').disabled = true;
   document.getElementById('muNombre').value = u.nombre||'';
   document.getElementById('muPassword').value = '';
-  document.getElementById('muRol').value = u.rol||'usuario';
+  document.getElementById('muRol').value = u.rol||'viewer';
   document.getElementById('muSectores').value = u.sectores||'';
   document.getElementById('muActivo').checked = u.activo===1||u.activo===true;
   document.getElementById('muPasswordWrap').style.display = 'none';
@@ -5915,7 +5932,6 @@ function renderModalDetalle(rows, filtroMes){
         <label style="font-size:12px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px;">Rol *</label>
         <select id="muRol" class="input" style="width:100%;box-sizing:border-box;">
           <option value="admin">Admin</option>
-          <option value="usuario">Usuario</option>
           <option value="viewer">Viewer</option>
         </select>
       </div>
