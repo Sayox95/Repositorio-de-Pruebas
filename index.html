@@ -56,17 +56,17 @@
       padding:18px 14px;
     }
     .brand{
-      display:flex;align-items:center;gap:10px;
+      display:flex; flex-direction:column; align-items:center; gap:6px;
       background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15);
-      color:#d1fae5; padding:8px 10px; border-radius:12px; font-weight:700;
-      letter-spacing:.2px;
+      color:#d1fae5; padding:10px; border-radius:12px; font-weight:700;
+      letter-spacing:.2px; text-align:center;
     }
     .brand .logo{
       display:flex; align-items:center; justify-content:center;
-      background:#fff; border-radius:8px; padding:4px 8px;
+      background:#fff; border-radius:8px; padding:6px 10px; width:100%; box-sizing:border-box;
     }
     .brand .logo img{
-      height:32px; width:auto; object-fit:contain;
+      height:48px; width:auto; object-fit:contain;
     }
     .brand .caption{display:flex;flex-direction:column;line-height:1}
     .brand small{opacity:.8; font-weight:600}
@@ -374,6 +374,9 @@
       <div class="brand">
         <div class="logo">
           <img src="https://github.com/Sayox95/Gastos-de-Combustible/blob/main/imagenes/Logo.png?raw=true" alt="UTCD Logo">
+        </div>
+        <div style="display:flex;flex-direction:column;line-height:1.3;">
+          <span style="font-size:13px;font-weight:700;color:#d1fae5;">Portal de Facturas</span>
         </div>
       </div>
 
