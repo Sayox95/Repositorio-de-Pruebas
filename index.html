@@ -724,9 +724,9 @@
     <div style="flex:1; min-width:0;">
       <span style="font-size:12.5px; font-weight:700; color:#92400e;">Advertencia — Facturas pendientes de revisión incluidas en el filtro activo</span>
       <span style="display:block; font-size:11.5px; color:#78350f; margin-top:1px;">
-        Existen facturas con estado <strong>Registrada</strong> que aún no han sido revisadas.
+        Se está mostrando facturas con estado <strong>Registrada</strong> que aún no han sido revisadas.
         Los indicadores, montos y métricas pueden reflejar información incoherente.
-        Se recomienda cambiar su estado a <strong>Revisada</strong> o <strong>Pagada</strong> antes de analizar los resultados.
+        Se recomienda revisar y cambiar su estado a <strong>Revisada</strong> o <strong>Pagada</strong> antes de analizar los resultados.
       </span>
     </div>
     <button onclick="document.getElementById('bannerMetricasRegistradas').style.display='none'"
@@ -806,7 +806,10 @@
     </div>
     <div class="card" style="padding:1rem; overflow:hidden;">
       <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
-        <p style="font-size:13px; font-weight:600; color:var(--text-primary); margin:0;">Resumen por Sector / Proceso</p>
+        <div>
+          <p style="font-size:13px; font-weight:600; color:var(--text-primary); margin:0;">Resumen por Sector / Proceso</p>
+          <p style="font-size:11px; color:var(--muted); margin:2px 0 0;">La columna <strong>Placas</strong> muestra unidades únicas. El total por sector puede ser menor que la suma de sus procesos cuando una misma placa opera en más de uno.</p>
+        </div>
         <div style="display:flex; gap:6px;">
           <button id="btnPivotExpandAll" onclick="pivotToggleAll(true)" style="font-size:11px; padding:3px 10px; border:1px solid var(--border); border-radius:6px; background:none; cursor:pointer; color:var(--text-secondary);">Expandir todo</button>
           <button id="btnPivotCollapseAll" onclick="pivotToggleAll(false)" style="font-size:11px; padding:3px 10px; border:1px solid var(--border); border-radius:6px; background:none; cursor:pointer; color:var(--text-secondary);">Colapsar todo</button>
