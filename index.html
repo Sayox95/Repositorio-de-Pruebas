@@ -2150,7 +2150,7 @@ async function loadProcesosOptions(){
                 alert('No fue posible actualizar el estado: '+err.message);
               }finally{ overlay.hide(); }
             }},
-          { title:"Nombre", field:"Nombre" },
+          { title:"Conductor", field:"Conductor" },
           { title:"Sector", field:"Sector", width:140 , editor:"list" , editorParams:function(){ return {values:getUniqueSectors()}; } , cellEdited:onSectorEdited },
           { title:"Proceso", field:"Proceso", width:180 },
           { title:"Jefe inmediato", field:"JefeInmediato", width:200 },
