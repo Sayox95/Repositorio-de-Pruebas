@@ -52,9 +52,6 @@
     .app.sidebar-collapsed{
       grid-template-columns: 0px 1fr;
     }
-    .app.sidebar-icons{
-      grid-template-columns: 68px 1fr;
-    }
     .sidebar{
       background:var(--sidebar-bg);
       color:#dbeafe;
@@ -276,19 +273,12 @@
     @keyframes spin{ to{ transform: rotate(360deg) } }
     /* Utilities */
     .hidden{ display:none !important }
-    /* Tablet: sidebar colapsado con íconos */
-    @media (max-width:1024px){
-      .app{ grid-template-columns: 68px 1fr !important; }
-      .brand{ padding:8px 6px; }
-      .brand .logo img{ height:32px; }
-      .brand > div:last-child{ display:none; }
-      .nav-btn span{ display:none; }
-      .nav-btn{ justify-content:center; padding:10px; }
-      .sidebar{ padding:14px 8px; }
-      .user-card{ flex-direction:column; gap:4px; padding:8px 4px; }
-      .user-info{ display:none; }
+    /* Tablet: sidebar completo pero toggle disponible */
+    @media (max-width:1024px) and (min-width:769px){
+      .app{ grid-template-columns: 220px 1fr; }
+      .app.sidebar-collapsed{ grid-template-columns: 0px 1fr; }
     }
-    /* Móvil: sidebar drawer */
+    /* Móvil: sidebar drawer, contenido full width */
     @media (max-width:768px){
       .app{ grid-template-columns: 1fr !important; }
       .sidebar{
@@ -298,14 +288,32 @@
         overflow-y:auto;
       }
       .sidebar.open{ left:0; }
-      .sidebar .brand .logo img{ height:40px; }
-      .sidebar .brand > div:last-child{ display:flex; }
-      .sidebar .nav-btn span{ display:inline; }
-      .sidebar .nav-btn{ justify-content:flex-start; padding:10px 12px; }
-      .sidebar .user-card{ flex-direction:row; }
-      .sidebar .user-info{ display:block; }
       #sidebarOverlay.open{ display:block; }
       #sidebarToggle{ left:12px !important; background:var(--primary); }
+      /* Contenido responsive */
+      section{ padding:1rem !important; }
+      h1{ font-size:1.2rem !important; }
+      h2{ font-size:1rem !important; }
+      .card{ padding:0.75rem !important; }
+      .kpi .value{ font-size:1.4rem !important; }
+      .kpi .label{ font-size:11px !important; }
+      /* KPIs en 2 columnas en móvil */
+      [style*="grid-template-columns:repeat(5"]{
+        grid-template-columns: repeat(2,1fr) !important;
+      }
+      [style*="grid-template-columns:repeat(4"]{
+        grid-template-columns: repeat(2,1fr) !important;
+      }
+      [style*="grid-template-columns:1fr 1fr"]{
+        grid-template-columns: 1fr !important;
+      }
+      /* Filtros en columna */
+      .filters{
+        grid-template-columns: 1fr 1fr !important;
+        gap:8px !important;
+      }
+      /* Tabla scroll horizontal */
+      .tabulator{ font-size:12px !important; }
     }
   
   /* Botón "Pagar" en celdas */
@@ -5611,7 +5619,6 @@ function exportPivotXLSX(){
 // ══════════ SIDEBAR TOGGLE ══════════
 function toggleSidebar(){
   const isMobile = window.innerWidth <= 768;
-  const isTablet = window.innerWidth <= 1024 && !isMobile;
   const app = document.querySelector('.app');
   const sidebar = document.querySelector('.sidebar');
 
@@ -5619,19 +5626,9 @@ function toggleSidebar(){
     sidebar.classList.toggle('open');
     document.getElementById('sidebarOverlay').classList.toggle('open');
   } else {
-    // Desktop/tablet: alternar entre normal, íconos y colapsado
-    if(app.classList.contains('sidebar-collapsed')){
-      app.classList.remove('sidebar-collapsed');
-      if(window.innerWidth > 1024) app.classList.remove('sidebar-icons');
-      localStorage.setItem('sidebarState','open');
-    } else if(app.classList.contains('sidebar-icons') || window.innerWidth <= 1024){
-      app.classList.remove('sidebar-icons');
-      app.classList.add('sidebar-collapsed');
-      localStorage.setItem('sidebarState','collapsed');
-    } else {
-      app.classList.add('sidebar-icons');
-      localStorage.setItem('sidebarState','icons');
-    }
+    // Desktop/tablet: solo 2 estados — abierto o cerrado
+    const collapsed = app.classList.toggle('sidebar-collapsed');
+    localStorage.setItem('sidebarState', collapsed ? 'collapsed' : 'open');
   }
 }
 
@@ -5644,11 +5641,8 @@ function closeSidebarMobile(){
 (function initSidebarState(){
   const state = localStorage.getItem('sidebarState');
   const app = document.querySelector('.app');
-  if(!app) return;
-  if(window.innerWidth > 768){
-    if(state === 'collapsed') app.classList.add('sidebar-collapsed');
-    else if(state === 'icons' || window.innerWidth <= 1024) app.classList.add('sidebar-icons');
-  }
+  if(!app || window.innerWidth <= 768) return;
+  if(state === 'collapsed') app.classList.add('sidebar-collapsed');
 })();
 
 // Cerrar sidebar móvil al cambiar de sección
@@ -5665,10 +5659,8 @@ window.addEventListener('resize', function(){
   if(!app || !sidebar) return;
   if(window.innerWidth > 768){
     sidebar.classList.remove('open');
-    document.getElementById('sidebarOverlay').classList.remove('open');
-    if(window.innerWidth <= 1024){
-      app.classList.remove('sidebar-collapsed');
-    }
+    const ov = document.getElementById('sidebarOverlay');
+    if(ov) ov.classList.remove('open');
   }
 });
 
