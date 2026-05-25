@@ -2091,7 +2091,7 @@ async function loadProcesosOptions(){
       Estado: r.Estado || r.ESTADO || "ACTIVO",
       Placa: r.Placa || r.PLACA || "",
       Sector: r.Sector || r.SECTOR || "",
-      Nombre: r.Nombre || r.CONDUCTOR || "",
+      Conductor: r.Conductor || r.NOMBRE || r.Nombre || "",
       Proceso: r.Proceso || r.PROCESO || "",
       JefeInmediato: r.JefeInmediato || r["Jefe inmediato"] || r["JEFE INMEDIATO"] || "",
       Designacion: r.Designacion || r["DESIGNACIÓN"] || r.DESIGNACION || "",
@@ -2204,7 +2204,7 @@ const est = (document.getElementById("fPlacasEstado")?.value || "").trim();
     if(sec && String(r.Sector||"") !== sec) return false;
     if(est && r.Estado !== est) return false;
     if(placaQ && !String(r.Placa||"").toLowerCase().includes(placaQ)) return false;
-    if(nombreQ && !normalize(r.Nombre).includes(nombreQ)) return false;
+    if(nombreQ && !normalize(r.Conductor).includes(nombreQ)) return false;
     return true;
   });
 }
