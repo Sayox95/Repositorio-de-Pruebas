@@ -2822,10 +2822,20 @@ function showApp(me){
   // ── Restaurar sección desde URL al cargar ──
   const initPath = window.location.pathname.toLowerCase().replace(/\/+$/,'') || '/';
   const initSec  = _pathToSec[initPath] || _pathToSec['/'];
-  // Fijar estado inicial en history
-  history.replaceState({ sectionId: initSec.id }, '', initPath || '/');
-  // Navegar a la sección del URL (o inicio si es '/')
-  navigateTo(initSec.id, initSec.load, false);
+
+  // Verificar si el rol tiene acceso a la sección del URL
+  // Secciones restringidas por rol
+  const seccionesRestringidas = {
+    '/usuarios': ['master']   // solo master puede acceder
+  };
+  const rolesPermitidos = seccionesRestringidas[initPath];
+  const rolActual = me?.rol || 'usuario';
+  const tieneAcceso = !rolesPermitidos || rolesPermitidos.includes(rolActual);
+
+  // Si no tiene acceso, redirigir al inicio limpiando el URL
+  const secDestino = tieneAcceso ? initSec : _pathToSec['/'];
+  history.replaceState({ sectionId: secDestino.id }, '', tieneAcceso ? (initPath || '/') : '/');
+  navigateTo(secDestino.id, secDestino.load, false);
 
   // ── Mostrar usuario en sidebar ──
   if(me){
