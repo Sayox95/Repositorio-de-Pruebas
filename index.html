@@ -57,15 +57,16 @@
     }
     .brand{
       display:flex;align-items:center;gap:10px;
-      background:#0FA47E10; border:1px solid #0FA47E40;
+      background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15);
       color:#d1fae5; padding:8px 10px; border-radius:12px; font-weight:700;
       letter-spacing:.2px;
     }
     .brand .logo{
       display:flex; align-items:center; justify-content:center;
+      background:#fff; border-radius:8px; padding:4px 8px;
     }
     .brand .logo img{
-      height:38px; width:auto; object-fit:contain;
+      height:32px; width:auto; object-fit:contain;
     }
     .brand .caption{display:flex;flex-direction:column;line-height:1}
     .brand small{opacity:.8; font-weight:600}
@@ -1877,7 +1878,7 @@ const _secToPath = {
 // Mapa directo: path → { sectionId, loader }
 const _pathToSec = {
   '/revision':  { id:'secRevision',  load: async()=>{ await hardRefresh(); } },
-  '/pago':      { id:'secPago',      load: async()=>{ await initPagoMassPay(); } },
+  '/pago':      { id:'secPago',      load: async()=>{ await cargarPago(); initPagoMassPay(true); } },
   '/anticipos': { id:'secAnticipos', load: null },
   '/placas':    { id:'secPlacas',    load: async()=>{ await cargarPlacas(); } },
   '/metricas':  { id:'secMetricas',  load: async()=>{ await initMetricas(); } },
