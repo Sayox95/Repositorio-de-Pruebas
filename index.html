@@ -806,10 +806,13 @@
     </div>
     <div class="card" style="padding:1rem; overflow:hidden;">
       <div style="margin-bottom:10px;">
-        <p style="font-size:13px; font-weight:600; color:var(--text-primary); margin:0 0 2px;">Resumen por Sector / Proceso</p>
-        <p style="font-size:11px; color:var(--muted); margin:0 0 8px;">La columna <strong>Placas</strong> muestra unidades únicas. El total por sector puede ser menor que la suma de sus procesos cuando una misma placa se utilizó en más de un proceso</p>
-        <div style="display:flex; gap:6px; flex-wrap:wrap;">
-          <button id="btnPivotExpandAll" onclick="pivotToggleAll(true)" style="font-size:11px; padding:3px 10px; border:1px solid var(--border); border-radius:6px; background:none; cursor:pointer; color:var(--text-secondary);">Expandir todo</button>
+        <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:8px; flex-wrap:wrap;">
+          <div>
+            <p style="font-size:13px; font-weight:600; color:var(--text-primary); margin:0 0 2px;">Resumen por Sector / Proceso</p>
+            <p style="font-size:11px; color:var(--muted); margin:0;">La columna <strong>Placas</strong> muestra unidades únicas. El total por sector puede ser menor que la suma de sus procesos cuando una misma placa se utilizó en mas de un proceso.</p>
+          </div>
+          <div style="display:flex; gap:6px; flex-wrap:wrap; flex-shrink:0;">
+            <button id="btnPivotExpandAll" onclick="pivotToggleAll(true)" style="font-size:11px; padding:3px 10px; border:1px solid var(--border); border-radius:6px; background:none; cursor:pointer; color:var(--text-secondary);">Expandir todo</button>
           <button id="btnPivotCollapseAll" onclick="pivotToggleAll(false)" style="font-size:11px; padding:3px 10px; border:1px solid var(--border); border-radius:6px; background:none; cursor:pointer; color:var(--text-secondary);">Colapsar todo</button>
           <button onclick="exportPivotXLSX()" style="font-size:11px; padding:3px 10px; border:1px solid #10B981; border-radius:6px; background:#ECFDF5; cursor:pointer; color:#065f46; display:flex; align-items:center; gap:4px; font-weight:600;">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -819,6 +822,7 @@
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
             Ampliar
           </button>
+          </div>
         </div>
       </div>
       <div style="overflow-x:auto; max-height:320px; overflow-y:auto;">
