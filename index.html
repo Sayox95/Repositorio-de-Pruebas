@@ -805,12 +805,10 @@
       <div style="position:relative; height:280px;"><canvas id="chartVariacion"></canvas></div>
     </div>
     <div class="card" style="padding:1rem; overflow:hidden;">
-      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
-        <div>
-          <p style="font-size:13px; font-weight:600; color:var(--text-primary); margin:0;">Resumen por Sector / Proceso</p>
-          <p style="font-size:11px; color:var(--muted); margin:2px 0 0;">La columna <strong>Placas</strong> muestra unidades únicas. El total por sector puede ser menor que la suma de sus procesos cuando una misma placa opera en más de uno.</p>
-        </div>
-        <div style="display:flex; gap:6px;">
+      <div style="margin-bottom:10px;">
+        <p style="font-size:13px; font-weight:600; color:var(--text-primary); margin:0 0 2px;">Resumen por Sector / Proceso</p>
+        <p style="font-size:11px; color:var(--muted); margin:0 0 8px;">La columna <strong>Placas</strong> muestra unidades únicas. El total por sector puede ser menor que la suma de sus procesos cuando una misma placa se utilizó en más de un proceso</p>
+        <div style="display:flex; gap:6px; flex-wrap:wrap;">
           <button id="btnPivotExpandAll" onclick="pivotToggleAll(true)" style="font-size:11px; padding:3px 10px; border:1px solid var(--border); border-radius:6px; background:none; cursor:pointer; color:var(--text-secondary);">Expandir todo</button>
           <button id="btnPivotCollapseAll" onclick="pivotToggleAll(false)" style="font-size:11px; padding:3px 10px; border:1px solid var(--border); border-radius:6px; background:none; cursor:pointer; color:var(--text-secondary);">Colapsar todo</button>
           <button onclick="exportPivotXLSX()" style="font-size:11px; padding:3px 10px; border:1px solid #10B981; border-radius:6px; background:#ECFDF5; cursor:pointer; color:#065f46; display:flex; align-items:center; gap:4px; font-weight:600;">
