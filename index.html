@@ -384,6 +384,7 @@
         <a class="nav-btn" href="#anticipos"><i class="lucide-coins"></i><span>Anticipos</span></a>
         <a class="nav-btn" href="#placas"><i class="lucide-car"></i><span>Placas</span></a>
         <a class="nav-btn" href="#metricas"><i class="lucide-bar-chart-2"></i><span>Métricas</span></a>
+        <a class="nav-btn" href="#usuarios" id="navUsuarios" style="display:none;"><i class="lucide-users"></i><span>Usuarios</span></a>
       </nav>
       <div class="spacer"></div>
 
@@ -647,6 +648,36 @@
         </div>
       </div>
       <div id="tablaPlacas" class="tabulator" style="margin-top:8px;"></div>
+    </div>
+  </section>
+
+  <section id="secUsuarios" style="display:none; padding:1.5rem; overflow-y:auto; height:100%;">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1.5rem;">
+      <div>
+        <h2 style="margin:0; font-size:1.3rem; font-weight:700; color:var(--text-primary);">Gestión de Usuarios</h2>
+        <p style="margin:4px 0 0; font-size:13px; color:var(--text-secondary);">Solo accesible para el rol Master</p>
+      </div>
+      <button onclick="abrirModalUsuario()" class="btn btn-primary" style="display:flex;align-items:center;gap:6px;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Nuevo Usuario
+      </button>
+    </div>
+    <div class="card" style="padding:0; overflow:hidden;">
+      <table id="tablaUsuarios" style="width:100%; border-collapse:collapse; font-size:13px;">
+        <thead>
+          <tr style="background:var(--bg-secondary); border-bottom:2px solid var(--border);">
+            <th style="text-align:left; padding:10px 14px; font-weight:600; color:var(--text-secondary);">Usuario</th>
+            <th style="text-align:left; padding:10px 14px; font-weight:600; color:var(--text-secondary);">Nombre</th>
+            <th style="text-align:left; padding:10px 14px; font-weight:600; color:var(--text-secondary);">Rol</th>
+            <th style="text-align:left; padding:10px 14px; font-weight:600; color:var(--text-secondary);">Sectores</th>
+            <th style="text-align:center; padding:10px 14px; font-weight:600; color:var(--text-secondary);">Estado</th>
+            <th style="text-align:center; padding:10px 14px; font-weight:600; color:var(--text-secondary);">Intentos</th>
+            <th style="text-align:left; padding:10px 14px; font-weight:600; color:var(--text-secondary);">Último acceso</th>
+            <th style="text-align:center; padding:10px 14px; font-weight:600; color:var(--text-secondary);">Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="tablaUsuariosBody"></tbody>
+      </table>
     </div>
   </section>
 
@@ -1825,7 +1856,7 @@ function showOnly(sectionId){
   const tgt = document.getElementById(sectionId);
   if(tgt) tgt.style.display = 'block';
   document.querySelectorAll('.sidebar .nav-btn').forEach(a=>a.classList.remove('active'));
-  const map = {secRevision:'#revision', secPago:'#pago', secAnticipos:'#anticipos', secPlacas:'#placas', secInicio:'#inicio', secMetricas:'#metricas'};
+  const map = {secRevision:'#revision', secPago:'#pago', secAnticipos:'#anticipos', secPlacas:'#placas', secInicio:'#inicio', secMetricas:'#metricas', secUsuarios:'#usuarios'};
   const sel = map[sectionId]; if(sel){
     const a = document.querySelector(`.sidebar .nav-btn[href="${sel}"]`);
     if(a) a.classList.add('active');
@@ -1838,7 +1869,8 @@ const _secToPath = {
   secPago:     '/pago',
   secAnticipos:'/anticipos',
   secPlacas:   '/placas',
-  secMetricas: '/metricas'
+  secMetricas: '/metricas',
+  secUsuarios: '/usuarios'
 };
 // Mapa directo: path → { sectionId, loader }
 const _pathToSec = {
@@ -1847,6 +1879,7 @@ const _pathToSec = {
   '/anticipos': { id:'secAnticipos', load: null },
   '/placas':    { id:'secPlacas',    load: async()=>{ await cargarPlacas(); } },
   '/metricas':  { id:'secMetricas',  load: async()=>{ await initMetricas(); } },
+  '/usuarios':  { id:'secUsuarios',  load: async()=>{ await cargarUsuarios(); } },
   '/':          { id:'secInicio',    load: null }
 };
 
@@ -1886,6 +1919,7 @@ document.querySelectorAll('.sidebar .nav-btn').forEach(a=>{
     if(href==='#anticipos')return navigateTo('secAnticipos');
     if(href==='#placas')   return navigateTo('secPlacas', async()=>{ await cargarPlacas(); });
     if(href==='#metricas') return navigateTo('secMetricas', async()=>{ await initMetricas(); });
+    if(href==='#usuarios') return navigateTo('secUsuarios', async()=>{ await cargarUsuarios(); });
   });
 });
 /** =========================
@@ -2762,6 +2796,10 @@ function applyRolRestrictions(rol, sectores){
     }, 1500);
   }
 
+  // Mostrar sección Usuarios solo para master
+  const navU = document.getElementById('navUsuarios');
+  if(navU) navU.style.display = rol === 'master' ? 'flex' : 'none';
+
   if(rol === "viewer"){
     // Solo mostrar sección Revisión en el sidebar
     document.querySelectorAll('.nav-btn[href="#pago"], .nav-btn[href="#placas"], .nav-btn[href="#anticipos"]').forEach(el => el.style.display = "none");
@@ -2798,7 +2836,9 @@ function showApp(me){
     const partes   = nombre.split(" ").filter(Boolean);
     const iniciales = (partes[0]?.[0] || "") + (partes[1]?.[0] || partes[0]?.[1] || "");
     // Etiqueta de rol
-    const rolLabel = rol === "admin"
+    const rolLabel = rol === "master"
+      ? "Master"
+      : rol === "admin"
       ? "Administrador"
       : sectores ? `Sector: ${sectores}` : rol.charAt(0).toUpperCase() + rol.slice(1);
 
@@ -5457,6 +5497,172 @@ function exportPivotXLSX(){
   XLSX.writeFile(wb, `Resumen_Sector_Proceso_${new Date().toISOString().slice(0,10)}.xlsx`);
 }
 
+
+// ══════════ GESTIÓN DE USUARIOS ══════════
+const USUARIOS_API = '/api/admin/usuarios';
+
+async function cargarUsuarios(){
+  try{
+    overlay.show('Cargando usuarios…');
+    const res = await fetch(USUARIOS_API, { cache:'no-store' });
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const data = await res.json();
+    renderTablaUsuarios(Array.isArray(data) ? data : []);
+  }catch(e){
+    alert('Error al cargar usuarios: '+e.message);
+  }finally{ overlay.hide(); }
+}
+
+function renderTablaUsuarios(usuarios){
+  const rolBadge = r => {
+    const cfg = { master:'#6366F1', admin:'#1C7293', usuario:'#0D9488', viewer:'#F59E0B' };
+    const c = cfg[r] || '#6b7280';
+    return `<span style="display:inline-block;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700;background:${c}20;color:${c};">${r}</span>`;
+  };
+
+  const tbody = document.getElementById('tablaUsuariosBody');
+  if(!tbody) return;
+  tbody.innerHTML = usuarios.map((u,i) => {
+    const activo = u.activo === 1 || u.activo === true;
+    const bloq   = Number(u.intentos||0) >= 5;
+    const esMaster = u.rol === 'master';
+    return `<tr style="border-bottom:1px solid var(--border);background:${i%2===0?'transparent':'var(--bg-secondary)'}">
+      <td style="padding:10px 14px;font-weight:600;font-family:monospace;">${u.usuario}</td>
+      <td style="padding:10px 14px;color:var(--text-secondary);">${u.nombre||'—'}</td>
+      <td style="padding:10px 14px;">${rolBadge(u.rol)}</td>
+      <td style="padding:10px 14px;font-size:12px;color:var(--text-secondary);">${u.sectores||'Todos'}</td>
+      <td style="padding:10px 14px;text-align:center;">
+        <span style="display:inline-block;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700;background:${activo?'#d1fae5':'#fee2e2'};color:${activo?'#065f46':'#991b1b'};">
+          ${activo?'Activo':'Inactivo'}
+        </span>
+      </td>
+      <td style="padding:10px 14px;text-align:center;">
+        ${bloq ? `<span style="color:#DC2626;font-weight:700;font-size:12px;">🔒 ${u.intentos}</span>` : `<span style="color:var(--text-secondary);font-size:12px;">${u.intentos||0}</span>`}
+      </td>
+      <td style="padding:10px 14px;font-size:12px;color:var(--text-secondary);">${u.last_login||'—'}</td>
+      <td style="padding:10px 14px;text-align:center;">
+        ${esMaster ? '<span style="font-size:11px;color:var(--muted);">—</span>' : `
+          <div style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap;">
+            <button onclick="editarUsuario(${JSON.stringify(u).replace(/"/g,'&quot;')})" style="font-size:11px;padding:3px 10px;border:1px solid var(--border);border-radius:6px;background:none;cursor:pointer;color:var(--text-secondary);">Editar</button>
+            <button onclick="resetPasswordUsuario('${u.usuario}')" style="font-size:11px;padding:3px 10px;border:1px solid #F59E0B;border-radius:6px;background:#FEF3C7;cursor:pointer;color:#92400e;">Contraseña</button>
+            ${bloq ? `<button onclick="desbloquearUsuario('${u.usuario}')" style="font-size:11px;padding:3px 10px;border:1px solid #10B981;border-radius:6px;background:#ECFDF5;cursor:pointer;color:#065f46;">Desbloquear</button>` : ''}
+            <button onclick="eliminarUsuario('${u.usuario}')" style="font-size:11px;padding:3px 10px;border:1px solid #EF4444;border-radius:6px;background:#FEF2F2;cursor:pointer;color:#991b1b;">Eliminar</button>
+          </div>`}
+      </td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--muted);">No hay usuarios</td></tr>';
+}
+
+function abrirModalUsuario(){
+  document.getElementById('modalUsuarioTitulo').textContent = 'Nuevo Usuario';
+  document.getElementById('muAccion').value = 'crear';
+  document.getElementById('muUsuario').value = '';
+  document.getElementById('muUsuario').disabled = false;
+  document.getElementById('muNombre').value = '';
+  document.getElementById('muPassword').value = '';
+  document.getElementById('muRol').value = 'usuario';
+  document.getElementById('muSectores').value = '';
+  document.getElementById('muActivo').checked = true;
+  document.getElementById('muPasswordWrap').style.display = 'block';
+  document.getElementById('muError').style.display = 'none';
+  document.getElementById('modalUsuario').style.display = 'grid';
+}
+
+function editarUsuario(u){
+  document.getElementById('modalUsuarioTitulo').textContent = 'Editar Usuario';
+  document.getElementById('muAccion').value = 'editar';
+  document.getElementById('muUsuario').value = u.usuario;
+  document.getElementById('muUsuario').disabled = true;
+  document.getElementById('muNombre').value = u.nombre||'';
+  document.getElementById('muPassword').value = '';
+  document.getElementById('muRol').value = u.rol||'usuario';
+  document.getElementById('muSectores').value = u.sectores||'';
+  document.getElementById('muActivo').checked = u.activo===1||u.activo===true;
+  document.getElementById('muPasswordWrap').style.display = 'none';
+  document.getElementById('muError').style.display = 'none';
+  document.getElementById('modalUsuario').style.display = 'grid';
+}
+
+function cerrarModalUsuario(){
+  document.getElementById('modalUsuario').style.display = 'none';
+}
+
+async function guardarUsuario(){
+  const accion   = document.getElementById('muAccion').value;
+  const usuario  = document.getElementById('muUsuario').value.trim().toLowerCase();
+  const nombre   = document.getElementById('muNombre').value.trim();
+  const password = document.getElementById('muPassword').value;
+  const rol      = document.getElementById('muRol').value;
+  const sectores = document.getElementById('muSectores').value.trim();
+  const activo   = document.getElementById('muActivo').checked;
+  const errEl    = document.getElementById('muError');
+
+  if(!usuario){ errEl.textContent='El usuario es requerido.'; errEl.style.display='block'; return; }
+  if(accion==='crear' && password.length < 8){ errEl.textContent='La contraseña debe tener mínimo 8 caracteres.'; errEl.style.display='block'; return; }
+
+  const body = { action: accion, usuario, nombre, rol, sectores, activo };
+  if(accion==='crear') body.password = password;
+
+  try{
+    overlay.show(accion==='crear'?'Creando usuario…':'Guardando cambios…');
+    const res = await fetch(USUARIOS_API, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+    const data = await res.json();
+    if(!res.ok || data.error) throw new Error(data.error||'Error del servidor');
+    cerrarModalUsuario();
+    await cargarUsuarios();
+  }catch(e){
+    errEl.textContent = e.message === 'usuario_ya_existe' ? 'Ese nombre de usuario ya existe.' : e.message;
+    errEl.style.display = 'block';
+  }finally{ overlay.hide(); }
+}
+
+async function resetPasswordUsuario(usuario){
+  const nueva = prompt(`Nueva contraseña para "${usuario}" (mínimo 8 caracteres):`);
+  if(!nueva) return;
+  if(nueva.length < 8){ alert('La contraseña debe tener mínimo 8 caracteres.'); return; }
+  try{
+    overlay.show('Actualizando contraseña…');
+    const res = await fetch(USUARIOS_API, { method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ action:'resetPassword', usuario, password:nueva }) });
+    const data = await res.json();
+    if(!res.ok || data.error) throw new Error(data.error);
+    alert(`Contraseña de "${usuario}" actualizada correctamente.`);
+  }catch(e){ alert('Error: '+e.message); }
+  finally{ overlay.hide(); }
+}
+
+async function desbloquearUsuario(usuario){
+  if(!confirm(`¿Desbloquear al usuario "${usuario}"?`)) return;
+  try{
+    overlay.show('Desbloqueando…');
+    const res = await fetch(USUARIOS_API, { method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ action:'desbloquear', usuario }) });
+    const data = await res.json();
+    if(!res.ok || data.error) throw new Error(data.error);
+    await cargarUsuarios();
+  }catch(e){ alert('Error: '+e.message); }
+  finally{ overlay.hide(); }
+}
+
+async function eliminarUsuario(usuario){
+  if(!confirm(`¿Eliminar permanentemente al usuario "${usuario}"? Esta acción no se puede deshacer.`)) return;
+  try{
+    overlay.show('Eliminando…');
+    const res = await fetch(USUARIOS_API, { method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ action:'eliminar', usuario }) });
+    const data = await res.json();
+    if(!res.ok || data.error) throw new Error(data.error);
+    await cargarUsuarios();
+  }catch(e){ alert('Error: '+e.message); }
+  finally{ overlay.hide(); }
+}
+
+// Cerrar modal al click fuera
+document.addEventListener('click', function(e){
+  const m = document.getElementById('modalUsuario');
+  if(m && e.target === m) cerrarModalUsuario();
+});
+
 // ══════════ MODAL DETALLE MÉTRICAS ══════════
 let _mdRowsGlobal  = [];
 let _mdKmPorPlaca  = {}; // km/rend pre-calculado con periodo completo, no se filtra por mes
@@ -5656,6 +5862,54 @@ function renderModalDetalle(rows, filtroMes){
 
 </script>
 
+
+<!-- ══════════ MODAL USUARIO ══════════ -->
+<div id="modalUsuario" class="overlay" style="display:none; z-index:9999;">
+  <div style="background:var(--bg-primary,#fff); border-radius:12px; width:92vw; max-width:520px; box-shadow:0 20px 60px rgba(0,0,0,0.25); overflow:hidden;">
+    <div style="display:flex; align-items:center; justify-content:space-between; padding:1rem 1.25rem; border-bottom:1px solid var(--border);">
+      <h3 id="modalUsuarioTitulo" style="margin:0; font-size:1.05rem; font-weight:700; color:var(--text-primary);">Nuevo Usuario</h3>
+      <button onclick="cerrarModalUsuario()" style="background:none;border:none;cursor:pointer;padding:6px;color:var(--muted);">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div style="padding:1.25rem; display:flex; flex-direction:column; gap:14px;">
+      <input type="hidden" id="muAccion" value="crear">
+      <div>
+        <label style="font-size:12px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px;">Usuario *</label>
+        <input id="muUsuario" class="input" type="text" placeholder="ej: juan.perez" autocomplete="off" style="width:100%;box-sizing:border-box;">
+      </div>
+      <div>
+        <label style="font-size:12px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px;">Nombre completo</label>
+        <input id="muNombre" class="input" type="text" placeholder="ej: Juan Pérez" autocomplete="off" style="width:100%;box-sizing:border-box;">
+      </div>
+      <div id="muPasswordWrap">
+        <label style="font-size:12px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px;">Contraseña *</label>
+        <input id="muPassword" class="input" type="password" placeholder="Mínimo 8 caracteres" autocomplete="new-password" style="width:100%;box-sizing:border-box;">
+      </div>
+      <div>
+        <label style="font-size:12px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px;">Rol *</label>
+        <select id="muRol" class="input" style="width:100%;box-sizing:border-box;">
+          <option value="admin">Admin</option>
+          <option value="usuario">Usuario</option>
+          <option value="viewer">Viewer</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:12px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px;">Sectores <span style="font-weight:400;">(separados por coma, dejar vacío para todos)</span></label>
+        <input id="muSectores" class="input" type="text" placeholder="ej: TEGUCIGALPA,SAN PEDRO SULA" autocomplete="off" style="width:100%;box-sizing:border-box;">
+      </div>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <input id="muActivo" type="checkbox" checked style="width:16px;height:16px;cursor:pointer;">
+        <label for="muActivo" style="font-size:13px;font-weight:600;color:var(--text-primary);cursor:pointer;">Usuario activo</label>
+      </div>
+      <p id="muError" style="color:var(--danger);font-size:12px;margin:0;display:none;"></p>
+    </div>
+    <div style="display:flex; justify-content:flex-end; gap:10px; padding:1rem 1.25rem; border-top:1px solid var(--border); background:var(--bg-secondary);">
+      <button onclick="cerrarModalUsuario()" class="btn btn-ghost">Cancelar</button>
+      <button onclick="guardarUsuario()" class="btn btn-primary" id="muBtnGuardar">Guardar</button>
+    </div>
+  </div>
+</div>
 
 <!-- ══════════ MODAL GRÁFICO AMPLIADO ══════════ -->
 <div id="modalChart" style="position:fixed;inset:0;background:rgba(0,0,0,0.45);display:none;align-items:center;justify-content:center;z-index:9997;padding:16px;">
