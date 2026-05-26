@@ -1551,10 +1551,10 @@ function updateKpis(){
   const montoAnuladas    = rows.filter(r=> ["Anulada","Excluida"].includes(r.Estado||"")).reduce((a,r) => a + getTotal(r), 0);
   const montoPagadas     = rowsSinAnuladas.filter(r=> ["Pagada","Enviada"].includes(r.Estado||"")).reduce((a,r) => a + getTotal(r), 0);
   const $=id=>document.getElementById(id);
-  if($("kpiTotal"))            $("kpiTotal").textContent            = total;
-  if($("kpiRegistradas"))      $("kpiRegistradas").textContent      = registradas;
-  if($("kpiRevisadas"))        $("kpiRevisadas").textContent        = revisadas;
-  if($("kpiPagadas"))          $("kpiPagadas").textContent          = pagadas;
+  if($("kpiTotal"))            $("kpiTotal").textContent            = total.toLocaleString('es-HN');
+  if($("kpiRegistradas"))      $("kpiRegistradas").textContent      = registradas.toLocaleString('es-HN');
+  if($("kpiRevisadas"))        $("kpiRevisadas").textContent        = revisadas.toLocaleString('es-HN');
+  if($("kpiPagadas"))          $("kpiPagadas").textContent          = pagadas.toLocaleString('es-HN');
   if($("kpiAnuladas"))         $("kpiAnuladas").textContent         = anuladas;
   if($("kpiTotalGastado"))     $("kpiTotalGastado").textContent     = fmt(montoTotal);
   if($("kpiMontoRegistradas")) $("kpiMontoRegistradas").textContent = fmt(montoRegistradas);
@@ -3221,9 +3221,9 @@ function updatePagoKpis(){
   }
   const fmtMoney = (v)=> "L " + (Number(v)||0).toLocaleString("es-HN",{minimumFractionDigits:2,maximumFractionDigits:2});
   const $ = (sel)=>document.querySelector(sel);
-  $("#kpiPagoPendientes").textContent = String(pend);
-  $("#kpiPagoPagadas").textContent    = String(pag);
-  const envEl = $("#kpiPagoEnviadas"); if(envEl) envEl.textContent = String(env);
+  $("#kpiPagoPendientes").textContent = pend.toLocaleString('es-HN');
+  $("#kpiPagoPagadas").textContent    = pag.toLocaleString('es-HN');
+  const envEl = $("#kpiPagoEnviadas"); if(envEl) envEl.textContent = env.toLocaleString('es-HN');
   $("#kpiPagoTotalPend").textContent  = fmtMoney(sp);
   $("#kpiPagoTotalPag").textContent   = fmtMoney(sg);
 }
