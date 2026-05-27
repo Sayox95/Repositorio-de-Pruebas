@@ -2203,7 +2203,15 @@ document.getElementById("fPlacasEstado").value = "";
   document.getElementById("fPlacasPlaca").value = "";
   document.getElementById("fPlacasNombre").value = "";
   aplicarFiltrosPlacas();
-  if(Placas.table) Placas.table.replaceData(Placas.filtered);
+  if(Placas.table){
+    Placas.table.replaceData(Placas.filtered);
+    // Forzar redibujado para evitar tabla en blanco al actualizar
+    setTimeout(()=>{
+      if(Placas.table){
+        Placas.table.redraw(true);
+      }
+    }, 100);
+  }
   actualizarKpisPlacas();
     try{ if(Placas.table){ const cols=Placas.table.getColumns(); const col=(cols||[]).find(c=>c.getField && c.getField()==='Sector'); if(col){ col.updateDefinition({ editor:'list', editorParams:function(){ return {values:getUniqueSectors()}; }, cellEdited:onSectorEdited }); } } } catch (e){ }
 }
