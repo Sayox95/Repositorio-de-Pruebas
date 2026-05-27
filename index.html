@@ -677,8 +677,6 @@
       <h2 class="title" style="margin:0;display:flex;align-items:center;gap:8px;"><i class="lucide-car"></i> Placas</h2>
       <div class="actions" style="display:flex;gap:10px;">
         <button id="btnPlacasActualizar" class="btn"><i class="lucide-rotate-cw"></i> Actualizar</button>
-        <button id="btnPlacasActivar" class="btn btn-ghost"><i class="lucide-check-circle-2"></i> Activar</button>
-        <button id="btnPlacasInactivar" class="btn btn-ghost"><i class="lucide-x-circle"></i> Inactivar</button>
         <button id="btnPlacasNueva" class="btn btn-primary"><i class="lucide-plus"></i> Nueva placa</button>
       </div>
     </div>
@@ -2160,8 +2158,6 @@ async function loadProcesosOptions(){
       });
       // Eventos UI
       document.getElementById("btnPlacasActualizar").addEventListener("click", cargarPlacas);
-      document.getElementById("btnPlacasActivar").addEventListener("click", ()=> cambiarEstadoPlacas("ACTIVO"));
-      document.getElementById("btnPlacasInactivar").addEventListener("click", ()=> cambiarEstadoPlacas("INACTIVO"));
       document.getElementById("btnPlacasNueva").addEventListener("click", async ()=> { toggleFormPlaca(true); fillSectorOptions();
     fillSectorFilterOptions(); await loadProcesosOptions(); });
       document.getElementById("btnPlacaCancelar").addEventListener("click", ()=> toggleFormPlaca(false));
@@ -2508,7 +2504,7 @@ async function hardRefresh(){
 
 async function onSectorEdited(cell){
   try{
-    toastLoading.show("Actualizando sector…");
+    overlay.show("Actualizando sector…");
     const newSector = cell.getValue();
     const rowData   = cell.getRow().getData();
     const placaKey  = rowData.Placa || rowData.PLACA;
@@ -2531,11 +2527,11 @@ async function onSectorEdited(cell){
     const idx = (Placas.data||[]).findIndex(r => (r.Placa||r.PLACA) === placaKey);
     if(idx>=0){ Placas.data[idx].Sector = newSector; if(jefe) Placas.data[idx].JefeInmediato = jefe; }
 
-    toastLoading.hide();
+    overlay.hide();
     quickToast("Sector actualizado");
   }catch(err){
     console.error("No se pudo actualizar sector:", err);
-    toastLoading.hide();
+    overlay.hide();
     alert("No se pudo actualizar el sector: "+err.message);
     cell.restoreOldValue();
   }
