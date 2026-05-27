@@ -690,26 +690,8 @@
       <div class="card kpi"><span class="label">Inactivas</span><span id="kpiPlacasInactivas" class="value">0</span></div>
     </div>
 
-    <div id="placasFormWrap" class="card" style="margin-top:10px; display:none;">
-  <div class="form-grid">
-    <div style="display:flex; flex-direction:column; gap:4px;">
-      <small id="npPlacaLimit" class="muted">Ingresar Placa/VIN</small>
-      <input id="npPlaca" class="input" placeholder="Placa o VIN (requerido)"/>
-      <small id="npPlacaHint" class="muted">Sin Guiones</small>
-      <small id="npPlacaDup" style="display:none;color:#b91c1c;font-weight:600;">Esta placa/VIN ya existe.</small>
-    </div>
-    <input id="npNombre" class="input" placeholder="Nombre (Conductor)"/>
-    <select id="npSector" class="input"><option value="">Sector…</option></select>
-    <select id="npProceso" class="input"><option value="">Proceso…</option></select>
-    <input id="npDesignacion" class="input" placeholder="Designación (Cargo)"/>
-    <select id="npEstado" class="input">
-      <option value="ACTIVO">Activo</option>
-      <option value="INACTIVO">Inactivo</option>
-    </select>
-    <button id="btnPlacaGuardar" class="btn btn-primary"><i class="lucide-save"></i> Guardar</button>
-    <button id="btnPlacaCancelar" class="btn btn-ghost"><i class="lucide-x"></i> Cancelar</button>
-  </div>
-</div>
+    <!-- placasFormWrap vacío — ahora usa modal -->
+    <div id="placasFormWrap" style="display:none;"></div>
         
 <div class="card" style="margin-top:10px;">
       <div class="filters" style="grid-template-columns: 180px 180px 1fr 1fr auto">
@@ -2225,7 +2207,16 @@ document.getElementById("fPlacasEstado").value = "";
   actualizarKpisPlacas();
     try{ if(Placas.table){ const cols=Placas.table.getColumns(); const col=(cols||[]).find(c=>c.getField && c.getField()==='Sector'); if(col){ col.updateDefinition({ editor:'list', editorParams:function(){ return {values:getUniqueSectors()}; }, cellEdited:onSectorEdited }); } } } catch (e){ }
 }
-function toggleFormPlaca(show){ document.getElementById("placasFormWrap").style.display = show? "block":"none"; }
+function toggleFormPlaca(show){
+  const modal = document.getElementById('modalNuevaPlaca');
+  if(modal) modal.style.display = show ? 'grid' : 'none';
+  if(!show){
+    // Limpiar campos al cerrar
+    ['npPlaca','npNombre','npDesignacion'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+    ['npSector','npProceso'].forEach(id=>{ const el=document.getElementById(id); if(el) el.selectedIndex=0; });
+    const dup=document.getElementById('npPlacaDup'); if(dup) dup.style.display='none';
+  }
+}
 async function guardarNuevaPlaca(){
 let placa = document.getElementById("npPlaca").value.trim();
   // Normalizar antes de enviar
@@ -2624,16 +2615,14 @@ function getJefeBySector(sector){
   // Quick toast (auto-desvanecer)
   window.quickToast = function(msg, ms){
     ms = ms || 1800;
+    // Mostrar como overlay centrado igual que overlay.show
     const box = document.createElement("div");
-    box.style.padding = "10px 14px";
-    box.style.background = "rgba(17,24,39,0.95)";
-    box.style.color = "#fff";
-    box.style.borderRadius = "10px";
-    box.style.boxShadow = "0 6px 20px rgba(0,0,0,.25)";
-    box.style.fontSize = "14px";
-    box.style.opacity = "1";
-    box.textContent = msg;
-    cont.appendChild(box);
+    box.style.cssText = "position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:99999;pointer-events:none;";
+    const inner = document.createElement("div");
+    inner.style.cssText = "padding:14px 28px;background:rgba(17,24,39,0.95);color:#fff;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.3);font-size:15px;font-weight:600;";
+    inner.textContent = msg;
+    box.appendChild(inner);
+    document.body.appendChild(box);
     setTimeout(()=>{
       box.style.transition = "opacity .3s ease";
       box.style.opacity = "0";
@@ -6064,6 +6053,52 @@ function renderModalDetalle(rows, filtroMes){
 
 </script>
 
+
+<!-- ══════════ MODAL NUEVA PLACA ══════════ -->
+<div id="modalNuevaPlaca" class="overlay" style="display:none; z-index:9998;">
+  <div style="background:var(--bg-primary,#fff); border-radius:12px; width:92vw; max-width:480px; box-shadow:0 20px 60px rgba(0,0,0,0.25); overflow:hidden;">
+    <div style="display:flex; align-items:center; justify-content:space-between; padding:1rem 1.25rem; border-bottom:1px solid var(--border);">
+      <h3 style="margin:0; font-size:1.05rem; font-weight:700; color:var(--text-primary);">Nueva Placa</h3>
+      <button onclick="toggleFormPlaca(false)" style="background:none;border:none;cursor:pointer;padding:6px;color:var(--muted);">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div style="padding:1.25rem; display:flex; flex-direction:column; gap:14px;">
+      <div>
+        <label style="font-size:12px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px;">Placa / VIN *</label>
+        <input id="npPlaca" class="input" placeholder="Sin guiones" autocomplete="off" style="width:100%;box-sizing:border-box;">
+        <small id="npPlacaDup" style="display:none;color:#b91c1c;font-weight:600;font-size:11px;margin-top:3px;display:none;">Esta placa/VIN ya existe.</small>
+      </div>
+      <div>
+        <label style="font-size:12px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px;">Conductor</label>
+        <input id="npNombre" class="input" placeholder="Nombre del conductor" autocomplete="off" style="width:100%;box-sizing:border-box;">
+      </div>
+      <div>
+        <label style="font-size:12px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px;">Sector</label>
+        <select id="npSector" class="input" style="width:100%;box-sizing:border-box;"><option value="">Seleccionar sector…</option></select>
+      </div>
+      <div>
+        <label style="font-size:12px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px;">Proceso</label>
+        <select id="npProceso" class="input" style="width:100%;box-sizing:border-box;"><option value="">Seleccionar proceso…</option></select>
+      </div>
+      <div>
+        <label style="font-size:12px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px;">Designación</label>
+        <input id="npDesignacion" class="input" placeholder="Cargo o designación" autocomplete="off" style="width:100%;box-sizing:border-box;">
+      </div>
+      <div>
+        <label style="font-size:12px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px;">Estado</label>
+        <select id="npEstado" class="input" style="width:100%;box-sizing:border-box;">
+          <option value="ACTIVO">Activo</option>
+          <option value="INACTIVO">Inactivo</option>
+        </select>
+      </div>
+    </div>
+    <div style="display:flex; justify-content:flex-end; gap:10px; padding:1rem 1.25rem; border-top:1px solid var(--border); background:var(--bg-secondary);">
+      <button id="btnPlacaCancelar" onclick="toggleFormPlaca(false)" class="btn btn-ghost">Cancelar</button>
+      <button id="btnPlacaGuardar" class="btn btn-primary"><i class="lucide-save"></i> Guardar</button>
+    </div>
+  </div>
+</div>
 
 <!-- ══════════ MODAL USUARIO ══════════ -->
 <div id="modalUsuario" class="overlay" style="display:none; z-index:9999;">
