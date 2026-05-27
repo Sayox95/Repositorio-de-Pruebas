@@ -2078,6 +2078,8 @@ async function loadProcesosOptions(){
       Proceso: r.Proceso || r.PROCESO || "",
       JefeInmediato: r.JefeInmediato || r["Jefe inmediato"] || r["JEFE INMEDIATO"] || "",
       Designacion: r.Designacion || r["DESIGNACIÓN"] || r.DESIGNACION || "",
+      Marca: r.Marca || r.MARCA || "",
+      Modelo: r.Modelo || r.MODELO || "",
       FechaAlta: r.FechaAlta || r.Fecha || r.FECHA || ""
     }));
     aplicarFiltrosPlacas();
@@ -2138,6 +2140,8 @@ async function loadProcesosOptions(){
           { title:"Proceso", field:"Proceso", width:180 },
           { title:"Jefe inmediato", field:"JefeInmediato", width:200 },
           { title:"Designación", field:"Designacion", width:200 },
+          { title:"Marca", field:"Marca", width:140 },
+          { title:"Modelo", field:"Modelo", width:120 },
           { title:"Fecha Alta", field:"FechaAlta", width:120, formatter:(c)=>{ const v=c.getValue(); return v? String(v).slice(0,10) : ""; } },
         ]
       });
