@@ -677,6 +677,9 @@
       <h2 class="title" style="margin:0;display:flex;align-items:center;gap:8px;"><i class="lucide-car"></i> Placas</h2>
       <div class="actions" style="display:flex;gap:10px;">
         <button id="btnPlacasActualizar" class="btn"><i class="lucide-rotate-cw"></i> Actualizar</button>
+        <button onclick="exportPlacasXLSX()" class="btn" style="border-color:#10B981;color:#065f46;background:#ECFDF5;display:flex;align-items:center;gap:6px;">
+          <i class="lucide-download"></i> Excel
+        </button>
         <button id="btnPlacasNueva" class="btn btn-primary"><i class="lucide-plus"></i> Nueva placa</button>
       </div>
     </div>
@@ -5570,6 +5573,28 @@ function pivotToggleAll(expand){
 }
 
 
+
+
+// ══════════ EXPORTAR PLACAS A EXCEL ══════════
+function exportPlacasXLSX(){
+  const data = Placas.filtered || Placas.data || [];
+  if(!data.length){ alert('No hay datos para exportar.'); return; }
+
+  const cols = ['Placa','Conductor','Sector','Proceso','JefeInmediato','Designacion','Estado'];
+  const headers = ['Placa','Conductor','Sector','Proceso','Jefe Inmediato','Designación','Estado'];
+
+  const rows = data.map(r => {
+    const obj = {};
+    cols.forEach((c,i) => { obj[headers[i]] = r[c] || ''; });
+    return obj;
+  });
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.json_to_sheet(rows, { header: headers });
+  ws['!cols'] = headers.map(h => ({ wch: Math.max(h.length, 16) }));
+  XLSX.utils.book_append_sheet(wb, ws, 'Placas');
+  XLSX.writeFile(wb, `Placas_UTCD_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
 
 // ══════════ EXPORTAR EXCEL — MODAL DETALLE POR PLACA ══════════
 function exportModalTablaXLSX(){
