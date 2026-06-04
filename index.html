@@ -2244,35 +2244,71 @@ function actualizarJefeModalModificarPorSector(){
   if(jefeInput) jefeInput.value = jefe || "";
 }
 
+function setModalEditarPlacaLoading(loading){
+  const loadingBox = document.getElementById("modalEditarPlacaLoading");
+  const formBox = document.getElementById("modalEditarPlacaForm");
+  const footer = document.getElementById("modalEditarPlacaFooter");
+  if(loadingBox) loadingBox.style.display = loading ? "flex" : "none";
+  if(formBox) formBox.style.display = loading ? "none" : "grid";
+  if(footer) footer.style.display = loading ? "none" : "flex";
+}
+
+function mostrarErrorEditarPlaca(mensaje){
+  const err = document.getElementById("epPlacaErr");
+  const inp = document.getElementById("epPlaca");
+  if(err){
+    err.textContent = mensaje || "La placa/VIN es obligatoria.";
+    err.style.display = "inline";
+  }
+  if(inp){
+    inp.style.borderColor = "#b91c1c";
+    inp.focus();
+  }
+}
+
 async function abrirModalModificarPlaca(){
   const seleccionadas = Array.isArray(Placas.selectedData) ? Placas.selectedData : [];
   if(seleccionadas.length !== 1){
     actualizarBotonModificarPlacas([]);
     return;
   }
-  const r = seleccionadas[0] || {};
-  fillSectorOptions();
-  await loadProcesosOptions().catch(()=>{});
-
-  const setVal = (id, val)=>{ const el = document.getElementById(id); if(el) el.value = val ?? ""; };
-  setVal("epIDvehiculo", r.IDvehiculo || "");
-  setVal("epPlacaOriginal", r.Placa || "");
-  setVal("epPlaca", r.Placa || "");
-  setVal("epNombre", r.Conductor || "");
-  setVal("epSector", r.Sector || "");
-  setVal("epProceso", r.Proceso || "");
-  actualizarJefeModalModificarPorSector();
-  if(!document.getElementById("epJefe")?.value){ setVal("epJefe", r.JefeInmediato || ""); }
-  setVal("epDesignacion", r.Designacion || "");
-  setVal("epMarca", r.Marca || "");
-  setVal("epModelo", r.Modelo || "");
-  setVal("epEstado", (r.Estado || "ACTIVO").toUpperCase());
-
-  try{ wireEditarPlacaLiveValidation(); }catch(e){}
-  try{ document.getElementById("epPlaca")?.dispatchEvent(new Event("blur")); }catch(e){}
 
   const modal = document.getElementById("modalEditarPlaca");
   if(modal) modal.style.display = "grid";
+  setModalEditarPlacaLoading(true);
+
+  try{
+    const r = seleccionadas[0] || {};
+    const setVal = (id, val)=>{ const el = document.getElementById(id); if(el) el.value = val ?? ""; };
+
+    // Limpiar errores mientras carga, para no mostrar mensajes viejos de otra edición.
+    const err = document.getElementById("epPlacaErr");
+    const dup = document.getElementById("epPlacaDup");
+    const placaInput = document.getElementById("epPlaca");
+    if(err) err.style.display = "none";
+    if(dup) dup.style.display = "none";
+    if(placaInput) placaInput.style.borderColor = "";
+
+    fillSectorOptions();
+    await loadProcesosOptions().catch(()=>{});
+
+    setVal("epIDvehiculo", r.IDvehiculo || "");
+    setVal("epPlacaOriginal", r.Placa || "");
+    setVal("epPlaca", r.Placa || "");
+    setVal("epNombre", r.Conductor || "");
+    setVal("epSector", r.Sector || "");
+    setVal("epProceso", r.Proceso || "");
+    actualizarJefeModalModificarPorSector();
+    if(!document.getElementById("epJefe")?.value){ setVal("epJefe", r.JefeInmediato || ""); }
+    setVal("epDesignacion", r.Designacion || "");
+    setVal("epMarca", r.Marca || "");
+    setVal("epModelo", r.Modelo || "");
+    setVal("epEstado", (r.Estado || "ACTIVO").toUpperCase());
+
+    try{ wireEditarPlacaLiveValidation(); }catch(e){}
+  }finally{
+    setModalEditarPlacaLoading(false);
+  }
 }
 
 function cerrarModalModificarPlaca(){
@@ -2335,7 +2371,10 @@ async function guardarModificarPlaca(){
   const estado = getVal("epEstado") || "ACTIVO";
 
   if(!IDvehiculo && !placaOriginal){ alert("No se encontró el identificador de la placa."); return; }
-  if(!placaValidacion.ok){ alert(placaValidacion.mensaje); return; }
+  if(!placaValidacion.ok){
+    mostrarErrorEditarPlaca(placaValidacion.mensaje || "La placa/VIN es obligatoria.");
+    return;
+  }
 
   const placaCmp = limpiarPlacaVinAlfanumerico(placa);
   const duplicada = (Placas.data || []).some(r=>{
@@ -2959,8 +2998,7 @@ function wireEditarPlacaLiveValidation(){
   const dup = document.getElementById("epPlacaDup");
   const err = document.getElementById("epPlacaErr");
   const btn = document.getElementById("btnGuardarModificarPlaca");
-  if(!inp || inp.getAttribute("data-wired") === "1") return;
-  inp.setAttribute("data-wired", "1");
+  if(!inp) return;
   inp.setAttribute("maxlength", "17");
 
   function existeDuplicado(cleanOnly){
@@ -2981,30 +3019,42 @@ function wireEditarPlacaLiveValidation(){
     const dupNow = validacion.clean ? existeDuplicado(validacion.clean) : false;
 
     if(err){
-      err.style.display = (!validacion.ok && validacion.clean) ? "inline" : "none";
+      err.style.display = !validacion.ok ? "inline" : "none";
       err.textContent = validacion.mensaje || "Valor inválido.";
     }
     if(dup){
       dup.style.display = dupNow ? "inline" : "none";
     }
+    if(inp){
+      inp.style.borderColor = (!validacion.ok || dupNow) ? "#b91c1c" : "";
+    }
     if(btn){
-      btn.disabled = !validacion.ok || dupNow;
+      // El botón queda habilitado para que, si intentan guardar vacío,
+      // se muestre el mensaje visible en el campo en lugar de no hacer nada.
+      btn.disabled = false;
       btn.title = !validacion.ok ? validacion.mensaje : (dupNow ? "Ya existe otra fila con esa placa/VIN." : "");
     }
     return validacion.ok && !dupNow;
   }
 
-  inp.addEventListener("input", ()=>{
-    const formatted = formatearPlacaVinVisual(inp.value);
-    if(formatted !== inp.value){
-      inp.value = formatted;
-      try{ inp.setSelectionRange(formatted.length, formatted.length); }catch(e){}
-    }
-    updateLive();
-  });
-  inp.addEventListener("blur", updateLive);
+  window.validarEditarPlacaActual = updateLive;
+
+  if(inp.getAttribute("data-wired") !== "1"){
+    inp.setAttribute("data-wired", "1");
+    inp.addEventListener("input", ()=>{
+      const formatted = formatearPlacaVinVisual(inp.value);
+      if(formatted !== inp.value){
+        inp.value = formatted;
+        try{ inp.setSelectionRange(formatted.length, formatted.length); }catch(e){}
+      }
+      updateLive();
+    });
+    inp.addEventListener("blur", updateLive);
+  }
+
   updateLive();
 }
+
 
     // --- Helper para reemplazo seguro de datos en Tabulator ---
     async function safeReplaceData(table, rows){
@@ -6390,7 +6440,11 @@ function renderModalDetalle(rows, filtroMes){
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
     </div>
-    <div style="padding:1.25rem; display:grid; grid-template-columns:1fr 1fr; gap:14px;">
+    <div id="modalEditarPlacaLoading" style="display:none; align-items:center; justify-content:center; gap:10px; padding:2rem 1.25rem; color:var(--text-secondary); font-weight:600;">
+      <span class="spinner"></span>
+      <span>Cargando información de la placa…</span>
+    </div>
+    <div id="modalEditarPlacaForm" style="padding:1.25rem; display:grid; grid-template-columns:1fr 1fr; gap:14px;">
       <input type="hidden" id="epIDvehiculo">
       <input type="hidden" id="epPlacaOriginal">
       <div>
@@ -6439,7 +6493,7 @@ function renderModalDetalle(rows, filtroMes){
         <input id="epModelo" class="input" autocomplete="off" style="width:100%;box-sizing:border-box;">
       </div>
     </div>
-    <div style="display:flex; justify-content:flex-end; gap:10px; padding:1rem 1.25rem; border-top:1px solid var(--border); background:var(--bg-secondary);">
+    <div id="modalEditarPlacaFooter" style="display:flex; justify-content:flex-end; gap:10px; padding:1rem 1.25rem; border-top:1px solid var(--border); background:var(--bg-secondary);">
       <button onclick="cerrarModalModificarPlaca()" class="btn btn-ghost">Cancelar</button>
       <button id="btnGuardarModificarPlaca" onclick="guardarModificarPlaca()" class="btn btn-primary"><i class="lucide-save"></i> Guardar cambios</button>
     </div>
