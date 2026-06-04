@@ -1991,7 +1991,7 @@ document.querySelectorAll('.sidebar .nav-btn').forEach(a=>{
 /** =========================
  *  Placas (single endpoint)
  *  ========================= */
-const Placas = { table:null, tableReady:false, data:[], filtered:[], _loaded:false, controller:null };
+const Placas = { table:null, tableReady:false, data:[], filtered:[], selectedData:[], _loaded:false, controller:null };
 function placasEndpointsReady(){ return !!Config.api.placas; }
 
 function onPlacasTableBuiltOnce(table, handler){
@@ -2173,14 +2173,11 @@ async function loadProcesosOptions(){
       });
       if(Placas.table && typeof Placas.table.on === "function"){
         try{ Placas.table.on("rowSelectionChanged", actualizarBotonModificarPlacas); }catch(e){}
-        try{ Placas.table.on("dataFiltered", ()=> actualizarBotonModificarPlacas()); }catch(e){}
-        try{ Placas.table.on("dataLoaded", ()=> actualizarBotonModificarPlacas()); }catch(e){}
       }
       onPlacasTableBuiltOnce(Placas.table, function(){
         Placas.tableReady = true;
         actualizarBotonModificarPlacas();
       });
-      setTimeout(actualizarBotonModificarPlacas, 0);
       // Eventos UI
       document.getElementById("btnPlacasActualizar").addEventListener("click", cargarPlacas);
       document.getElementById("btnPlacasModificar")?.addEventListener("click", abrirModalModificarPlaca);
@@ -2218,17 +2215,11 @@ function actualizarBotonModificarPlacas(data){
   const btn = document.getElementById("btnPlacasModificar");
   if(!btn) return;
 
-  let seleccionadas = Array.isArray(data) ? data : [];
-
-  // Tabulator puede tardar un instante en quedar listo. Si todavía no está
-  // inicializado, no mostramos error; solo mantenemos oculto el botón.
-  if(!seleccionadas.length && Placas.table && typeof Placas.table.getSelectedData === "function"){
-    try{
-      seleccionadas = Placas.table.getSelectedData() || [];
-    }catch(e){
-      seleccionadas = [];
-    }
-  }
+  // Importante: no llamar getSelectedData() aquí.
+  // Tabulator dispara advertencia si se consulta selección antes de tableBuilt.
+  // Este método recibe la selección real desde rowSelectionChanged.
+  const seleccionadas = Array.isArray(data) ? data : [];
+  Placas.selectedData = seleccionadas;
 
   const mostrar = seleccionadas.length === 1;
   btn.style.display = mostrar ? "inline-flex" : "none";
@@ -2236,14 +2227,9 @@ function actualizarBotonModificarPlacas(data){
 }
 
 async function abrirModalModificarPlaca(){
-  let seleccionadas = [];
-  try{
-    seleccionadas = Placas.table && Placas.table.getSelectedData ? (Placas.table.getSelectedData() || []) : [];
-  }catch(e){
-    seleccionadas = [];
-  }
+  const seleccionadas = Array.isArray(Placas.selectedData) ? Placas.selectedData : [];
   if(seleccionadas.length !== 1){
-    actualizarBotonModificarPlacas(seleccionadas);
+    actualizarBotonModificarPlacas([]);
     return;
   }
   const r = seleccionadas[0] || {};
