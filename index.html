@@ -1991,7 +1991,7 @@ document.querySelectorAll('.sidebar .nav-btn').forEach(a=>{
 /** =========================
  *  Placas (single endpoint)
  *  ========================= */
-const Placas = { table:null, data:[], filtered:[], _loaded:false, controller:null };
+const Placas = { table:null, tableReady:false, data:[], filtered:[], _loaded:false, controller:null };
 function placasEndpointsReady(){ return !!Config.api.placas; }
 
 function fillSectorOptions(){
@@ -2046,6 +2046,7 @@ async function loadProcesosOptions(){
 
     async function ensurePlacasTable(){
       if (Placas.table) return;
+      Placas.tableReady = false;
       Placas.table = new Tabulator("#tablaPlacas", {
         data: [],
         selectable: true,
@@ -2055,6 +2056,8 @@ async function loadProcesosOptions(){
         columns: [/* columns set más abajo al primer render, se actualizarán luego */]
       });
       await new Promise(res => Placas.table.once("tableBuilt", res));
+      Placas.tableReady = true;
+      actualizarBotonModificarPlacas();
     }
     async function cargarPlacas(){
   overlay.show("Cargando placas…");
@@ -2091,6 +2094,7 @@ async function loadProcesosOptions(){
     else{
 // intenta precargar procesos en paralelo (no bloqueante)
       loadProcesosOptions().catch(()=>{});
+      Placas.tableReady = false;
       Placas.table = new Tabulator("#tablaPlacas", {
         data: Placas.filtered,
         selectable: true,
@@ -2151,6 +2155,10 @@ async function loadProcesosOptions(){
           { title:"Fecha Alta", field:"FechaAlta", width:120, formatter:(c)=>{ const v=c.getValue(); return v? String(v).slice(0,10) : ""; } },
         ]
       });
+      Placas.table.once("tableBuilt", function(){
+        Placas.tableReady = true;
+        actualizarBotonModificarPlacas();
+      });
       // Eventos UI
       document.getElementById("btnPlacasActualizar").addEventListener("click", cargarPlacas);
       document.getElementById("btnPlacasModificar")?.addEventListener("click", abrirModalModificarPlaca);
@@ -2187,14 +2195,22 @@ async function loadProcesosOptions(){
 function actualizarBotonModificarPlacas(){
   const btn = document.getElementById("btnPlacasModificar");
   if(!btn) return;
-  const seleccionadas = Placas.table && Placas.table.getSelectedData ? (Placas.table.getSelectedData() || []) : [];
+
+  // Evita llamar getSelectedData() antes de que Tabulator termine de inicializarse.
+  if(!Placas.table || !Placas.tableReady || typeof Placas.table.getSelectedData !== "function"){
+    btn.style.display = "none";
+    btn.disabled = true;
+    return;
+  }
+
+  const seleccionadas = Placas.table.getSelectedData() || [];
   const mostrar = seleccionadas.length === 1;
   btn.style.display = mostrar ? "inline-flex" : "none";
   btn.disabled = !mostrar;
 }
 
 async function abrirModalModificarPlaca(){
-  const seleccionadas = Placas.table && Placas.table.getSelectedData ? (Placas.table.getSelectedData() || []) : [];
+  const seleccionadas = Placas.table && Placas.tableReady && Placas.table.getSelectedData ? (Placas.table.getSelectedData() || []) : [];
   if(seleccionadas.length !== 1){
     actualizarBotonModificarPlacas();
     return;
