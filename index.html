@@ -2008,16 +2008,18 @@ function waitForPlacasTableBuilt(table){
 }
 
 function fillSectorOptions(){
-  const sel = document.getElementById("npSector");
-  if(!sel) return;
   // construir lista única de sectores desde los datos cargados
   const sectors = Array.from(new Set((Placas.data||[]).map(r => String(r.Sector||"").trim()).filter(Boolean))).sort((a,b)=>a.localeCompare(b));
-  const current = sel.value;
-  sel.innerHTML = '<option value="">Sector…</option>' + sectors.map(s => `<option value="${s}">${s}</option>`).join('');
-  // reponer selección si sigue existiendo
-  if(sectors.includes(current)) sel.value = current;
-  const dl = document.getElementById("listaSectoresPlacas");
-  if(dl){ dl.innerHTML = sectors.map(s => `<option value="${s}"></option>`).join(""); }
+
+  // Reutilizar la misma lista tanto para Nueva Placa como para Modificar Placa
+  ["npSector", "epSector"].forEach(id=>{
+    const sel = document.getElementById(id);
+    if(!sel) return;
+    const current = sel.value;
+    const label = id === "epSector" ? "Seleccionar sector…" : "Sector…";
+    sel.innerHTML = `<option value="">${label}</option>` + sectors.map(s => `<option value="${s}">${s}</option>`).join('');
+    if(sectors.includes(current)) sel.value = current;
+  });
 }
 function fillSectorFilterOptions(){
   const sel = document.getElementById("fPlacasSector");
@@ -2029,8 +2031,11 @@ function fillSectorFilterOptions(){
 }
 
 async function loadProcesosOptions(){
-  const sel = document.getElementById("npProceso");
-  if(!sel) return;
+  const selects = ["npProceso", "epProceso"]
+    .map(id => document.getElementById(id))
+    .filter(Boolean);
+  if(!selects.length) return;
+
   try{
     const res = await fetch(Config.api.procesos, { cache:"no-store" });
     if(!res.ok) throw new Error("HTTP "+res.status);
@@ -2046,13 +2051,18 @@ async function loadProcesosOptions(){
       procesos = data.procesos.filter(x=>typeof x==="string");
     }
     procesos = Array.from(new Set(procesos)).sort((a,b)=>a.localeCompare(b));
-    const current = sel.value;
-    sel.innerHTML = '<option value="">Proceso…</option>' + procesos.map(p => `<option value="${p}">${p}</option>`).join('');
-    if(procesos.includes(current)) sel.value = current;
+
+    selects.forEach(sel => {
+      const current = sel.value;
+      const label = sel.id === "epProceso" ? "Seleccionar proceso…" : "Proceso…";
+      sel.innerHTML = `<option value="">${label}</option>` + procesos.map(p => `<option value="${p}">${p}</option>`).join('');
+      if(procesos.includes(current)) sel.value = current;
+    });
   }catch(e){
-    // si falla, dejamos el select con opción manual libre
-    sel.innerHTML = '<option value="">Proceso…</option>';
-    // Dejar posibilidad de teclear manualmente: convertimos a input fallback si deseas (por ahora no)
+    selects.forEach(sel => {
+      const label = sel.id === "epProceso" ? "Seleccionar proceso…" : "Proceso…";
+      sel.innerHTML = `<option value="">${label}</option>`;
+    });
     console.warn("No se pudo cargar procesos:", e);
   }
 }
@@ -2181,6 +2191,7 @@ async function loadProcesosOptions(){
       // Eventos UI
       document.getElementById("btnPlacasActualizar").addEventListener("click", cargarPlacas);
       document.getElementById("btnPlacasModificar")?.addEventListener("click", abrirModalModificarPlaca);
+      document.getElementById("epSector")?.addEventListener("change", actualizarJefeModalModificarPorSector);
       document.getElementById("btnPlacasNueva").addEventListener("click", async ()=> { toggleFormPlaca(true); fillSectorOptions();
     fillSectorFilterOptions(); await loadProcesosOptions(); });
       document.getElementById("btnPlacaCancelar").addEventListener("click", ()=> toggleFormPlaca(false));
@@ -2226,6 +2237,13 @@ function actualizarBotonModificarPlacas(data){
   btn.disabled = !mostrar;
 }
 
+function actualizarJefeModalModificarPorSector(){
+  const sector = document.getElementById("epSector")?.value || "";
+  const jefe = getJefeBySector(sector);
+  const jefeInput = document.getElementById("epJefe");
+  if(jefeInput) jefeInput.value = jefe || "";
+}
+
 async function abrirModalModificarPlaca(){
   const seleccionadas = Array.isArray(Placas.selectedData) ? Placas.selectedData : [];
   if(seleccionadas.length !== 1){
@@ -2234,6 +2252,7 @@ async function abrirModalModificarPlaca(){
   }
   const r = seleccionadas[0] || {};
   fillSectorOptions();
+  await loadProcesosOptions().catch(()=>{});
 
   const setVal = (id, val)=>{ const el = document.getElementById(id); if(el) el.value = val ?? ""; };
   setVal("epIDvehiculo", r.IDvehiculo || "");
@@ -2242,11 +2261,15 @@ async function abrirModalModificarPlaca(){
   setVal("epNombre", r.Conductor || "");
   setVal("epSector", r.Sector || "");
   setVal("epProceso", r.Proceso || "");
-  setVal("epJefe", r.JefeInmediato || "");
+  actualizarJefeModalModificarPorSector();
+  if(!document.getElementById("epJefe")?.value){ setVal("epJefe", r.JefeInmediato || ""); }
   setVal("epDesignacion", r.Designacion || "");
   setVal("epMarca", r.Marca || "");
   setVal("epModelo", r.Modelo || "");
   setVal("epEstado", (r.Estado || "ACTIVO").toUpperCase());
+
+  try{ wireEditarPlacaLiveValidation(); }catch(e){}
+  try{ document.getElementById("epPlaca")?.dispatchEvent(new Event("blur")); }catch(e){}
 
   const modal = document.getElementById("modalEditarPlaca");
   if(modal) modal.style.display = "grid";
@@ -2257,12 +2280,40 @@ function cerrarModalModificarPlaca(){
   if(modal) modal.style.display = "none";
 }
 
+function limpiarPlacaVinAlfanumerico(valor){
+  return String(valor || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
+function formatearPlacaVinVisual(valor){
+  const clean = limpiarPlacaVinAlfanumerico(valor);
+  if(clean.length >= 8) return clean.slice(0,17);
+  if(clean.length <= 3) return clean;
+  return `${clean.slice(0,3)}_${clean.slice(3,7)}`;
+}
+
+function validarPlacaVinCompleto(valor){
+  const clean = limpiarPlacaVinAlfanumerico(valor);
+  if(!clean) return { ok:false, clean, value:"", tipo:"", mensaje:"La placa/VIN es obligatoria." };
+
+  // Placa normal: 3 letras + 4 números. Ejemplo: AHB_5154, AHB-5154 o AHB5154.
+  if(clean.length <= 7){
+    if(/^[A-Z]{3}[0-9]{4}$/.test(clean)){
+      return { ok:true, clean, value:`${clean.slice(0,3)}_${clean.slice(3,7)}`, tipo:"PLACA", mensaje:"" };
+    }
+    return { ok:false, clean, value:"", tipo:"PLACA", mensaje:"Placa incompleta o inválida. Usa 3 letras y 4 números, ejemplo: AHB_5154." };
+  }
+
+  // Si supera una placa normal, se trata como VIN y debe venir completo.
+  if(clean.length === 17){
+    return { ok:true, clean, value:clean, tipo:"VIN", mensaje:"" };
+  }
+
+  return { ok:false, clean, value:"", tipo:"VIN", mensaje:"VIN incompleto: debe tener 17 caracteres." };
+}
+
 function normalizarPlacaDesdeModal(raw){
-  const clean = String(raw || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
-  if(clean.length > 8) return clean.slice(0,17);
-  const left = clean.slice(0,3);
-  const right = clean.slice(3,7);
-  return right ? `${left}_${right}` : left;
+  const result = validarPlacaVinCompleto(raw);
+  return result.ok ? result.value : "";
 }
 
 async function guardarModificarPlaca(){
@@ -2271,7 +2322,9 @@ async function guardarModificarPlaca(){
   const getVal = (id)=> (document.getElementById(id)?.value || "").trim();
   const IDvehiculo = getVal("epIDvehiculo");
   const placaOriginal = getVal("epPlacaOriginal");
-  const placa = normalizarPlacaDesdeModal(getVal("epPlaca"));
+  const placaInput = getVal("epPlaca");
+  const placaValidacion = validarPlacaVinCompleto(placaInput);
+  const placa = placaValidacion.value;
   const conductor = getVal("epNombre");
   const sector = getVal("epSector");
   const proceso = getVal("epProceso");
@@ -2282,13 +2335,13 @@ async function guardarModificarPlaca(){
   const estado = getVal("epEstado") || "ACTIVO";
 
   if(!IDvehiculo && !placaOriginal){ alert("No se encontró el identificador de la placa."); return; }
-  if(!placa){ alert("La placa/VIN es obligatoria."); return; }
+  if(!placaValidacion.ok){ alert(placaValidacion.mensaje); return; }
 
-  const placaCmp = placa.replace(/_/g, "").toUpperCase();
+  const placaCmp = limpiarPlacaVinAlfanumerico(placa);
   const duplicada = (Placas.data || []).some(r=>{
     const mismaFila = String(r.IDvehiculo || "") === String(IDvehiculo || "") || String(r.Placa || "") === String(placaOriginal || "");
     if(mismaFila) return false;
-    return String(r.Placa || "").replace(/_/g, "").toUpperCase() === placaCmp;
+    return limpiarPlacaVinAlfanumerico(r.Placa || "") === placaCmp;
   });
   if(duplicada){ alert("Ya existe otra fila con esa placa/VIN."); return; }
 
@@ -2898,6 +2951,58 @@ function wirePlacaLiveValidation(){
   }
 
   // Eval inicial
+  updateLive();
+}
+
+function wireEditarPlacaLiveValidation(){
+  const inp = document.getElementById("epPlaca");
+  const dup = document.getElementById("epPlacaDup");
+  const err = document.getElementById("epPlacaErr");
+  const btn = document.getElementById("btnGuardarModificarPlaca");
+  if(!inp || inp.getAttribute("data-wired") === "1") return;
+  inp.setAttribute("data-wired", "1");
+  inp.setAttribute("maxlength", "17");
+
+  function existeDuplicado(cleanOnly){
+    const idActual = String(document.getElementById("epIDvehiculo")?.value || "");
+    const placaOriginal = limpiarPlacaVinAlfanumerico(document.getElementById("epPlacaOriginal")?.value || "");
+    try{
+      return (Placas.data || []).some(r=>{
+        const mismoId = idActual && String(r.IDvehiculo || "") === idActual;
+        const mismaPlacaOriginal = placaOriginal && limpiarPlacaVinAlfanumerico(r.Placa || "") === placaOriginal;
+        if(mismoId || mismaPlacaOriginal) return false;
+        return limpiarPlacaVinAlfanumerico(r.Placa || "") === cleanOnly;
+      });
+    }catch(e){ return false; }
+  }
+
+  function updateLive(){
+    const validacion = validarPlacaVinCompleto(inp.value);
+    const dupNow = validacion.clean ? existeDuplicado(validacion.clean) : false;
+
+    if(err){
+      err.style.display = (!validacion.ok && validacion.clean) ? "inline" : "none";
+      err.textContent = validacion.mensaje || "Valor inválido.";
+    }
+    if(dup){
+      dup.style.display = dupNow ? "inline" : "none";
+    }
+    if(btn){
+      btn.disabled = !validacion.ok || dupNow;
+      btn.title = !validacion.ok ? validacion.mensaje : (dupNow ? "Ya existe otra fila con esa placa/VIN." : "");
+    }
+    return validacion.ok && !dupNow;
+  }
+
+  inp.addEventListener("input", ()=>{
+    const formatted = formatearPlacaVinVisual(inp.value);
+    if(formatted !== inp.value){
+      inp.value = formatted;
+      try{ inp.setSelectionRange(formatted.length, formatted.length); }catch(e){}
+    }
+    updateLive();
+  });
+  inp.addEventListener("blur", updateLive);
   updateLive();
 }
 
@@ -6290,7 +6395,9 @@ function renderModalDetalle(rows, filtroMes){
       <input type="hidden" id="epPlacaOriginal">
       <div>
         <label style="font-size:12px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px;">Placa / VIN *</label>
-        <input id="epPlaca" class="input" autocomplete="off" style="width:100%;box-sizing:border-box;">
+        <input id="epPlaca" class="input" autocomplete="off" maxlength="17" style="width:100%;box-sizing:border-box;">
+        <small id="epPlacaErr" style="display:none;color:#b45309;font-weight:600;font-size:11px;margin-top:3px;">Placa/VIN incompleto.</small>
+        <small id="epPlacaDup" style="display:none;color:#b91c1c;font-weight:600;font-size:11px;margin-top:3px;">Esta placa/VIN ya existe en otra fila.</small>
       </div>
       <div>
         <label style="font-size:12px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px;">Estado</label>
@@ -6305,16 +6412,19 @@ function renderModalDetalle(rows, filtroMes){
       </div>
       <div>
         <label style="font-size:12px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px;">Sector</label>
-        <input id="epSector" class="input" list="listaSectoresPlacas" autocomplete="off" style="width:100%;box-sizing:border-box;">
-        <datalist id="listaSectoresPlacas"></datalist>
+        <select id="epSector" class="input" style="width:100%;box-sizing:border-box;">
+          <option value="">Seleccionar sector…</option>
+        </select>
       </div>
       <div>
         <label style="font-size:12px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px;">Proceso</label>
-        <input id="epProceso" class="input" autocomplete="off" style="width:100%;box-sizing:border-box;">
+        <select id="epProceso" class="input" style="width:100%;box-sizing:border-box;">
+          <option value="">Seleccionar proceso…</option>
+        </select>
       </div>
       <div>
         <label style="font-size:12px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px;">Jefe inmediato</label>
-        <input id="epJefe" class="input" autocomplete="off" style="width:100%;box-sizing:border-box;">
+        <input id="epJefe" class="input" autocomplete="off" readonly title="Se actualiza automáticamente según el sector seleccionado" style="width:100%;box-sizing:border-box;background:#f8fafc;color:#64748b;cursor:not-allowed;">
       </div>
       <div>
         <label style="font-size:12px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px;">Designación</label>
@@ -6331,7 +6441,7 @@ function renderModalDetalle(rows, filtroMes){
     </div>
     <div style="display:flex; justify-content:flex-end; gap:10px; padding:1rem 1.25rem; border-top:1px solid var(--border); background:var(--bg-secondary);">
       <button onclick="cerrarModalModificarPlaca()" class="btn btn-ghost">Cancelar</button>
-      <button onclick="guardarModificarPlaca()" class="btn btn-primary"><i class="lucide-save"></i> Guardar cambios</button>
+      <button id="btnGuardarModificarPlaca" onclick="guardarModificarPlaca()" class="btn btn-primary"><i class="lucide-save"></i> Guardar cambios</button>
     </div>
   </div>
 </div>
