@@ -2,6 +2,33 @@
 // GET  → lista vehículos desde D1
 // POST → crear, cambiarEstado, cambiarSector, actualizarPlaca, actualizarVehiculo
 
+
+function cleanPlateVin(value) {
+  return (value || "").toString().trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
+function normalizePlateVinForStorage(value) {
+  const clean = cleanPlateVin(value);
+  if (!clean) return { ok: false, value: "", clean, message: "Placa/VIN requerido" };
+
+  if (clean.length <= 7) {
+    if (/^[A-Z]{3}[0-9]{4}$/.test(clean)) {
+      return { ok: true, value: `${clean.slice(0, 3)}_${clean.slice(3, 7)}`, clean, type: "PLACA" };
+    }
+    return { ok: false, value: "", clean, message: "Placa incompleta o inválida. Usa 3 letras y 4 números, ejemplo: AHB_5154." };
+  }
+
+  if (clean.length === 17) {
+    return { ok: true, value: clean, clean, type: "VIN" };
+  }
+
+  return { ok: false, value: "", clean, message: "VIN incompleto: debe tener 17 caracteres." };
+}
+
+function normalizedPlateSql(columnName) {
+  return `REPLACE(REPLACE(REPLACE(REPLACE(UPPER(${columnName}), '_', ''), '-', ''), ' ', ''), '.', '')`;
+}
+
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
@@ -72,9 +99,20 @@ export async function onRequestPost({ request, env }) {
     // ── Crear nueva placa ──────────────────────────────────────────────────
     if (action === "crear") {
       const { placa, nombre, sector, proceso, designacion, estado } = body;
-      if (!placa) {
-        return new Response(JSON.stringify({ ok: false, message: "Placa requerida" }), {
+      const placaNorm = normalizePlateVinForStorage(placa);
+      if (!placaNorm.ok) {
+        return new Response(JSON.stringify({ ok: false, message: placaNorm.message }), {
           status: 400, headers: { ...CORS, "Content-Type": "application/json" }
+        });
+      }
+
+      const dupCreate = await env.DB
+        .prepare(`SELECT IDvehiculo FROM vehiculos WHERE ${normalizedPlateSql("Placa")} = ? LIMIT 1`)
+        .bind(placaNorm.clean)
+        .first();
+      if (dupCreate) {
+        return new Response(JSON.stringify({ ok: false, message: "La placa/VIN ya existe en el registro" }), {
+          status: 409, headers: { ...CORS, "Content-Type": "application/json" }
         });
       }
 
@@ -98,7 +136,7 @@ export async function onRequestPost({ request, env }) {
         VALUES (?, ?, ?, ?, ?, ?, ?)
       `).bind(
         nuevoId,
-        placa.toString().trim().toUpperCase(),
+        placaNorm.value,
         (nombre      || "").trim() || null,
         (sector      || "").trim() || null,
         (proceso     || "").trim() || null,
@@ -166,8 +204,26 @@ export async function onRequestPost({ request, env }) {
           status: 400, headers: { ...CORS, "Content-Type": "application/json" }
         });
       }
-      await env.DB.prepare("UPDATE vehiculos SET Placa = ? WHERE Placa = ?")
-        .bind(nuevaPlaca.toString().trim().toUpperCase(), placaActual.toString().trim().toUpperCase())
+
+      const nuevaNorm = normalizePlateVinForStorage(nuevaPlaca);
+      if (!nuevaNorm.ok) {
+        return new Response(JSON.stringify({ ok: false, message: nuevaNorm.message }), {
+          status: 400, headers: { ...CORS, "Content-Type": "application/json" }
+        });
+      }
+      const actualClean = cleanPlateVin(placaActual);
+      const dup = await env.DB
+        .prepare(`SELECT IDvehiculo FROM vehiculos WHERE ${normalizedPlateSql("Placa")} = ? AND ${normalizedPlateSql("Placa")} != ? LIMIT 1`)
+        .bind(nuevaNorm.clean, actualClean)
+        .first();
+      if (dup) {
+        return new Response(JSON.stringify({ ok: false, message: "Ya existe otra fila con esa placa/VIN" }), {
+          status: 409, headers: { ...CORS, "Content-Type": "application/json" }
+        });
+      }
+
+      await env.DB.prepare(`UPDATE vehiculos SET Placa = ? WHERE ${normalizedPlateSql("Placa")} = ?`)
+        .bind(nuevaNorm.value, actualClean)
         .run();
 
       return new Response(JSON.stringify({ ok: true }), {
@@ -197,20 +253,23 @@ export async function onRequestPost({ request, env }) {
           status: 400, headers: { ...CORS, "Content-Type": "application/json" }
         });
       }
-      if (!placa) {
-        return new Response(JSON.stringify({ ok: false, message: "Placa requerida" }), {
+      const placaNorm = normalizePlateVinForStorage(placa);
+      if (!placaNorm.ok) {
+        return new Response(JSON.stringify({ ok: false, message: placaNorm.message }), {
           status: 400, headers: { ...CORS, "Content-Type": "application/json" }
         });
       }
 
-      const nuevaPlaca = placa.toString().trim().toUpperCase();
+      const nuevaPlaca = placaNorm.value;
       const id = (IDvehiculo || "").toString().trim();
       const placaAnterior = (placaOriginal || "").toString().trim().toUpperCase();
+      const placaAnteriorClean = cleanPlateVin(placaAnterior);
 
-      // Evitar duplicar placa en otra fila
+      // Evitar duplicar placa/VIN en otra fila, comparando normalizado:
+      // AHB_5154, AHB-5154 y AHB5154 cuentan como el mismo valor.
       const dupStmt = id
-        ? env.DB.prepare("SELECT IDvehiculo FROM vehiculos WHERE UPPER(Placa) = UPPER(?) AND IDvehiculo != ? LIMIT 1").bind(nuevaPlaca, id)
-        : env.DB.prepare("SELECT IDvehiculo FROM vehiculos WHERE UPPER(Placa) = UPPER(?) AND UPPER(Placa) != UPPER(?) LIMIT 1").bind(nuevaPlaca, placaAnterior);
+        ? env.DB.prepare(`SELECT IDvehiculo FROM vehiculos WHERE ${normalizedPlateSql("Placa")} = ? AND IDvehiculo != ? LIMIT 1`).bind(placaNorm.clean, id)
+        : env.DB.prepare(`SELECT IDvehiculo FROM vehiculos WHERE ${normalizedPlateSql("Placa")} = ? AND ${normalizedPlateSql("Placa")} != ? LIMIT 1`).bind(placaNorm.clean, placaAnteriorClean);
       const dup = await dupStmt.first();
       if (dup) {
         return new Response(JSON.stringify({ ok: false, message: "Ya existe otra fila con esa placa/VIN" }), {
@@ -218,8 +277,8 @@ export async function onRequestPost({ request, env }) {
         });
       }
 
-      const whereSql = id ? "IDvehiculo = ?" : "UPPER(Placa) = UPPER(?)";
-      const whereVal = id || placaAnterior;
+      const whereSql = id ? "IDvehiculo = ?" : `${normalizedPlateSql("Placa")} = ?`;
+      const whereVal = id || placaAnteriorClean;
 
       await env.DB.prepare(`
         UPDATE vehiculos
