@@ -1,6 +1,6 @@
 // functions/api/placas.js
 // GET  → lista vehículos desde D1
-// POST → crear, cambiarEstado, cambiarSector, actualizarPlaca
+// POST → crear, cambiarEstado, cambiarSector, actualizarPlaca, actualizarVehiculo
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -18,6 +18,7 @@ export async function onRequestGet({ request, env }) {
   const params = new URL(request.url).searchParams;
   const estado = (params.get("estado") || "").trim().toUpperCase();
   const q      = (params.get("q")      || "").trim().toUpperCase();
+  const qPlate = q.replace(/[^A-Z0-9]/g, "");
 
   try {
     let query = "SELECT IDvehiculo, Estado, Placa, Sector, Conductor, Proceso, Jefe AS JefeInmediato, Designacion, Marca, Modelo FROM vehiculos WHERE 1=1";
@@ -28,8 +29,13 @@ export async function onRequestGet({ request, env }) {
       bindings.push(estado);
     }
     if (q) {
-      query += " AND (UPPER(Placa) LIKE ? OR UPPER(Conductor) LIKE ? OR UPPER(Sector) LIKE ?)";
-      bindings.push(`%${q}%`, `%${q}%`, `%${q}%`);
+      query += ` AND (
+        UPPER(Placa) LIKE ?
+        OR REPLACE(REPLACE(REPLACE(REPLACE(UPPER(Placa), '_', ''), '-', ''), ' ', ''), '.', '') LIKE ?
+        OR UPPER(Conductor) LIKE ?
+        OR UPPER(Sector) LIKE ?
+      )`;
+      bindings.push(`%${q}%`, `%${qPlate}%`, `%${q}%`, `%${q}%`);
     }
 
     query += " ORDER BY Sector, Placa";
@@ -163,6 +169,82 @@ export async function onRequestPost({ request, env }) {
       await env.DB.prepare("UPDATE vehiculos SET Placa = ? WHERE Placa = ?")
         .bind(nuevaPlaca.toString().trim().toUpperCase(), placaActual.toString().trim().toUpperCase())
         .run();
+
+      return new Response(JSON.stringify({ ok: true }), {
+        status: 200, headers: { ...CORS, "Content-Type": "application/json" }
+      });
+    }
+
+
+    // ── Actualizar vehículo completo desde modal ───────────────────────────
+    if (action === "actualizarVehiculo") {
+      const {
+        IDvehiculo,
+        placaOriginal,
+        placa,
+        conductor,
+        sector,
+        proceso,
+        jefe,
+        designacion,
+        marca,
+        modelo,
+        estado
+      } = body;
+
+      if (!IDvehiculo && !placaOriginal) {
+        return new Response(JSON.stringify({ ok: false, message: "Falta IDvehiculo o placaOriginal" }), {
+          status: 400, headers: { ...CORS, "Content-Type": "application/json" }
+        });
+      }
+      if (!placa) {
+        return new Response(JSON.stringify({ ok: false, message: "Placa requerida" }), {
+          status: 400, headers: { ...CORS, "Content-Type": "application/json" }
+        });
+      }
+
+      const nuevaPlaca = placa.toString().trim().toUpperCase();
+      const id = (IDvehiculo || "").toString().trim();
+      const placaAnterior = (placaOriginal || "").toString().trim().toUpperCase();
+
+      // Evitar duplicar placa en otra fila
+      const dupStmt = id
+        ? env.DB.prepare("SELECT IDvehiculo FROM vehiculos WHERE UPPER(Placa) = UPPER(?) AND IDvehiculo != ? LIMIT 1").bind(nuevaPlaca, id)
+        : env.DB.prepare("SELECT IDvehiculo FROM vehiculos WHERE UPPER(Placa) = UPPER(?) AND UPPER(Placa) != UPPER(?) LIMIT 1").bind(nuevaPlaca, placaAnterior);
+      const dup = await dupStmt.first();
+      if (dup) {
+        return new Response(JSON.stringify({ ok: false, message: "Ya existe otra fila con esa placa/VIN" }), {
+          status: 409, headers: { ...CORS, "Content-Type": "application/json" }
+        });
+      }
+
+      const whereSql = id ? "IDvehiculo = ?" : "UPPER(Placa) = UPPER(?)";
+      const whereVal = id || placaAnterior;
+
+      await env.DB.prepare(`
+        UPDATE vehiculos
+        SET Placa = ?,
+            Conductor = ?,
+            Sector = ?,
+            Proceso = ?,
+            Jefe = ?,
+            Designacion = ?,
+            Marca = ?,
+            Modelo = ?,
+            Estado = ?
+        WHERE ${whereSql}
+      `).bind(
+        nuevaPlaca,
+        (conductor   || "").toString().trim() || null,
+        (sector      || "").toString().trim() || null,
+        (proceso     || "").toString().trim() || null,
+        (jefe        || "").toString().trim() || null,
+        (designacion || "").toString().trim() || null,
+        (marca       || "").toString().trim() || null,
+        (modelo      || "").toString().trim() || null,
+        (estado      || "ACTIVO").toString().trim().toUpperCase(),
+        whereVal
+      ).run();
 
       return new Response(JSON.stringify({ ok: true }), {
         status: 200, headers: { ...CORS, "Content-Type": "application/json" }
