@@ -1994,6 +1994,19 @@ document.querySelectorAll('.sidebar .nav-btn').forEach(a=>{
 const Placas = { table:null, tableReady:false, data:[], filtered:[], _loaded:false, controller:null };
 function placasEndpointsReady(){ return !!Config.api.placas; }
 
+function onPlacasTableBuiltOnce(table, handler){
+  if(!table || typeof table.on !== "function") return;
+  const wrapped = function(){
+    try{ if(typeof table.off === "function") table.off("tableBuilt", wrapped); }catch(e){}
+    handler();
+  };
+  table.on("tableBuilt", wrapped);
+}
+
+function waitForPlacasTableBuilt(table){
+  return new Promise(resolve => onPlacasTableBuiltOnce(table, resolve));
+}
+
 function fillSectorOptions(){
   const sel = document.getElementById("npSector");
   if(!sel) return;
@@ -2055,7 +2068,7 @@ async function loadProcesosOptions(){
         rowSelectionChanged: actualizarBotonModificarPlacas,
         columns: [/* columns set más abajo al primer render, se actualizarán luego */]
       });
-      await new Promise(res => Placas.table.once("tableBuilt", res));
+      await waitForPlacasTableBuilt(Placas.table);
       Placas.tableReady = true;
       actualizarBotonModificarPlacas();
     }
@@ -2155,7 +2168,7 @@ async function loadProcesosOptions(){
           { title:"Fecha Alta", field:"FechaAlta", width:120, formatter:(c)=>{ const v=c.getValue(); return v? String(v).slice(0,10) : ""; } },
         ]
       });
-      Placas.table.once("tableBuilt", function(){
+      onPlacasTableBuiltOnce(Placas.table, function(){
         Placas.tableReady = true;
         actualizarBotonModificarPlacas();
       });
