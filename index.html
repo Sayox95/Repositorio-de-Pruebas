@@ -408,6 +408,24 @@
 
 </style>
 
+
+<style>
+  .placas-tour-overlay{position:fixed;inset:0;z-index:3500;background:rgba(15,23,42,.62);backdrop-filter:blur(2px);}
+  .placas-tour-spotlight{position:fixed;border:3px solid #10b981;border-radius:14px;box-shadow:0 0 0 9999px rgba(15,23,42,.62),0 0 0 7px rgba(16,185,129,.18),0 18px 40px rgba(0,0,0,.22);transition:all .35s ease;pointer-events:none;background:rgba(255,255,255,.06);}
+  .placas-tour-card{position:fixed;max-width:390px;background:#fff;color:#111827;border-radius:18px;padding:18px 18px 16px;box-shadow:0 22px 55px rgba(0,0,0,.30);border:1px solid rgba(226,232,240,.9);transition:all .35s ease;}
+  .placas-tour-card h3{margin:6px 0 8px;font-size:18px;line-height:1.25;}
+  .placas-tour-card p{margin:0;color:#475569;font-size:14px;line-height:1.45;}
+  .placas-tour-badge{display:inline-flex;align-items:center;border-radius:999px;background:#ecfdf5;color:#047857;border:1px solid #a7f3d0;padding:4px 10px;font-size:12px;font-weight:700;}
+  .placas-tour-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px;}
+  .placas-tour-steps{display:flex;gap:6px;margin-top:14px;}
+  .placas-tour-steps span{width:24px;height:5px;border-radius:999px;background:#e2e8f0;display:block;}
+  .placas-tour-steps span.active{background:#10b981;}
+  .placas-tour-cursor{position:fixed;z-index:3502;filter:drop-shadow(0 8px 12px rgba(0,0,0,.25));transition:all .55s cubic-bezier(.2,.8,.2,1);pointer-events:none;}
+  .placas-tour-click{position:absolute;left:22px;top:19px;width:10px;height:10px;border-radius:50%;background:rgba(16,185,129,.9);animation:placasTourClick 1.15s ease-in-out infinite;}
+  .placas-tour-temp-show{display:inline-flex!important;opacity:.95;}
+  @keyframes placasTourClick{0%,100%{transform:scale(.65);opacity:.95;box-shadow:0 0 0 0 rgba(16,185,129,.35)}55%{transform:scale(1.2);opacity:.25;box-shadow:0 0 0 16px rgba(16,185,129,0)}}
+  @media (max-width:720px){.placas-tour-card{left:14px!important;right:14px!important;top:auto!important;bottom:18px!important;max-width:none}.placas-tour-cursor{display:none}}
+</style>
 </head>
 <body>
 
@@ -681,6 +699,7 @@
           <i class="lucide-download"></i> Excel
         </button>
         <button id="btnPlacasModificar" class="btn btn-primary" style="display:none;"><i class="lucide-edit-3"></i> Modificar</button>
+        <button id="btnPlacasGuia" class="btn btn-ghost" title="Ver guía de la nueva función" style="display:inline-flex;align-items:center;gap:6px;"><i class="lucide-help-circle"></i> Guía</button>
         <button id="btnPlacasNueva" class="btn btn-primary"><i class="lucide-plus"></i> Nueva placa</button>
       </div>
     </div>
@@ -713,6 +732,30 @@
       <div id="tablaPlacas" class="tabulator" style="margin-top:8px;"></div>
     </div>
   </section>
+
+  <!-- Tour visual: nueva función para modificar placas -->
+  <div id="placasTourOverlay" class="placas-tour-overlay" style="display:none;" aria-hidden="true">
+    <div id="placasTourSpotlight" class="placas-tour-spotlight"></div>
+    <div id="placasTourCursor" class="placas-tour-cursor" aria-hidden="true">
+      <svg viewBox="0 0 32 32" width="38" height="38" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M7 4l17 16-8 1.2 4.2 7.4-3.5 2-4.2-7.5L7 29V4z" fill="#ffffff" stroke="#0f172a" stroke-width="2" stroke-linejoin="round"/>
+      </svg>
+      <span class="placas-tour-click"></span>
+    </div>
+    <div id="placasTourCard" class="placas-tour-card" role="dialog" aria-modal="true" aria-labelledby="placasTourTitle">
+      <div class="placas-tour-badge">Nueva función</div>
+      <h3 id="placasTourTitle">Modificar placas ahora es más fácil</h3>
+      <p id="placasTourText">Selecciona una placa usando el checkbox de la tabla.</p>
+      <div class="placas-tour-steps">
+        <span id="placasTourStep1" class="active"></span>
+        <span id="placasTourStep2"></span>
+      </div>
+      <div class="placas-tour-actions">
+        <button id="btnPlacasTourSkip" class="btn btn-ghost" type="button">Cerrar</button>
+        <button id="btnPlacasTourNext" class="btn btn-primary" type="button">Siguiente</button>
+      </div>
+    </div>
+  </div>
 
   <section id="secUsuarios" style="display:none; padding:1.5rem; overflow-y:auto; height:100%;">
     <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1.5rem;">
@@ -2211,6 +2254,7 @@ async function loadProcesosOptions(){
     fillSectorOptions();
     fillSectorFilterOptions();
     document.getElementById("placasNotice").style.display = placasEndpointsReady()? "none":"inline-block";
+    try{ if(typeof maybeAutoShowPlacasTour === "function") setTimeout(maybeAutoShowPlacasTour, 500); }catch(e){}
   }catch(e){
     alert("No fue posible cargar las placas.");
     const n = document.getElementById("placasNotice"); if(n){ n.style.display="inline-block"; n.textContent="No fue posible cargar las placas. Intenta nuevamente."; }
@@ -6668,5 +6712,148 @@ function renderModalDetalle(rows, filtroMes){
     </div>
   </div>
 </div>
+
+<script>
+// Tour visual de Placas: explica checkbox + botón Modificar sin tocar backend ni datos.
+(function(){
+  const STORAGE_KEY = "placas_modificar_tour_v1";
+  let step = 1;
+  let restoreModificar = null;
+
+  function byId(id){ return document.getElementById(id); }
+  function secPlacasVisible(){
+    const sec = byId("secPlacas");
+    return !!sec && sec.style.display !== "none" && sec.offsetParent !== null;
+  }
+  function getCheckboxTarget(){
+    return document.querySelector("#tablaPlacas .tabulator-row .tabulator-cell:first-child") ||
+           document.querySelector("#tablaPlacas .tabulator-headers .tabulator-col:first-child") ||
+           byId("tablaPlacas");
+  }
+  function getStepTarget(){
+    if(step === 1) return getCheckboxTarget();
+    const btn = byId("btnPlacasModificar");
+    if(btn){
+      if(!restoreModificar){
+        restoreModificar = { display: btn.style.display, disabled: btn.disabled };
+      }
+      btn.classList.add("placas-tour-temp-show");
+      btn.disabled = true;
+    }
+    return btn || document.querySelector("#secPlacas .actions") || byId("tablaPlacas");
+  }
+  function restoreModificarButton(){
+    const btn = byId("btnPlacasModificar");
+    if(btn){
+      btn.classList.remove("placas-tour-temp-show");
+      if(restoreModificar){
+        btn.style.display = restoreModificar.display || "none";
+        btn.disabled = !!restoreModificar.disabled;
+      }
+    }
+    restoreModificar = null;
+  }
+  function positionTour(){
+    const overlay = byId("placasTourOverlay");
+    const spot = byId("placasTourSpotlight");
+    const card = byId("placasTourCard");
+    const cursor = byId("placasTourCursor");
+    if(!overlay || overlay.style.display === "none" || !spot || !card || !cursor) return;
+
+    const target = getStepTarget();
+    if(!target) return;
+    const r = target.getBoundingClientRect();
+    const pad = 8;
+    const left = Math.max(10, r.left - pad);
+    const top = Math.max(10, r.top - pad);
+    const width = Math.max(52, Math.min(window.innerWidth - 20, r.width + pad*2));
+    const height = Math.max(42, r.height + pad*2);
+
+    spot.style.left = left + "px";
+    spot.style.top = top + "px";
+    spot.style.width = width + "px";
+    spot.style.height = height + "px";
+
+    cursor.style.left = Math.min(window.innerWidth - 60, left + Math.min(width - 18, 42)) + "px";
+    cursor.style.top = Math.min(window.innerHeight - 60, top + Math.min(height - 18, 26)) + "px";
+
+    const cardWidth = 390;
+    let cardLeft = left + width + 18;
+    if(cardLeft + cardWidth > window.innerWidth - 14) cardLeft = Math.max(14, left - cardWidth - 18);
+    let cardTop = Math.max(14, Math.min(window.innerHeight - 230, top));
+    card.style.left = cardLeft + "px";
+    card.style.top = cardTop + "px";
+  }
+  function renderStep(){
+    const title = byId("placasTourTitle");
+    const text = byId("placasTourText");
+    const next = byId("btnPlacasTourNext");
+    const s1 = byId("placasTourStep1");
+    const s2 = byId("placasTourStep2");
+    if(step === 1){
+      restoreModificarButton();
+      if(title) title.textContent = "Selecciona una placa";
+      if(text) text.textContent = "Usa el checkbox de la primera columna para marcar la placa que quieres revisar o editar.";
+      if(next) next.textContent = "Siguiente";
+      s1?.classList.add("active"); s2?.classList.remove("active");
+    }else{
+      if(title) title.textContent = "Luego presiona Modificar";
+      if(text) text.textContent = "El botón Modificar aparece solo cuando hay exactamente una placa seleccionada. Si seleccionas dos o más, se oculta.";
+      if(next) next.textContent = "Entendido";
+      s1?.classList.remove("active"); s2?.classList.add("active");
+    }
+    setTimeout(positionTour, 60);
+  }
+  function showTour(force){
+    const overlay = byId("placasTourOverlay");
+    if(!overlay || !secPlacasVisible()) return;
+    if(!force && localStorage.getItem(STORAGE_KEY) === "seen") return;
+    step = 1;
+    overlay.style.display = "block";
+    overlay.setAttribute("aria-hidden", "false");
+    renderStep();
+  }
+  function closeTour(markSeen){
+    const overlay = byId("placasTourOverlay");
+    if(overlay){
+      overlay.style.display = "none";
+      overlay.setAttribute("aria-hidden", "true");
+    }
+    restoreModificarButton();
+    if(markSeen) localStorage.setItem(STORAGE_KEY, "seen");
+    try{ if(typeof actualizarBotonModificarPlacas === "function") actualizarBotonModificarPlacas(window.Placas?.selectedData || []); }catch(e){}
+  }
+  function maybeAutoShowPlacasTour(){
+    if(!secPlacasVisible()) return;
+    if(localStorage.getItem(STORAGE_KEY) === "seen") return;
+    let tries = 0;
+    const timer = setInterval(function(){
+      tries += 1;
+      if(!secPlacasVisible()){ clearInterval(timer); return; }
+      if(getCheckboxTarget() || tries > 12){
+        clearInterval(timer);
+        showTour(false);
+      }
+    }, 300);
+  }
+
+  document.addEventListener("DOMContentLoaded", function(){
+    byId("btnPlacasGuia")?.addEventListener("click", function(){ showTour(true); });
+    byId("btnPlacasTourSkip")?.addEventListener("click", function(){ closeTour(true); });
+    byId("btnPlacasTourNext")?.addEventListener("click", function(){
+      if(step === 1){ step = 2; renderStep(); }
+      else closeTour(true);
+    });
+    byId("placasTourOverlay")?.addEventListener("click", function(e){
+      if(e.target && e.target.id === "placasTourOverlay") closeTour(true);
+    });
+    window.addEventListener("resize", positionTour);
+    window.addEventListener("hashchange", function(){ setTimeout(maybeAutoShowPlacasTour, 500); });
+    setTimeout(maybeAutoShowPlacasTour, 900);
+  });
+
+  window.maybeAutoShowPlacasTour = maybeAutoShowPlacasTour;
+})();
+</script>
 </body>
 </html>
