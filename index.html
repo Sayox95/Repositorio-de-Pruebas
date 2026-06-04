@@ -2068,6 +2068,9 @@ async function loadProcesosOptions(){
         rowSelectionChanged: actualizarBotonModificarPlacas,
         columns: [/* columns set más abajo al primer render, se actualizarán luego */]
       });
+      if(Placas.table && typeof Placas.table.on === "function"){
+        try{ Placas.table.on("rowSelectionChanged", actualizarBotonModificarPlacas); }catch(e){}
+      }
       await waitForPlacasTableBuilt(Placas.table);
       Placas.tableReady = true;
       actualizarBotonModificarPlacas();
@@ -2168,10 +2171,16 @@ async function loadProcesosOptions(){
           { title:"Fecha Alta", field:"FechaAlta", width:120, formatter:(c)=>{ const v=c.getValue(); return v? String(v).slice(0,10) : ""; } },
         ]
       });
+      if(Placas.table && typeof Placas.table.on === "function"){
+        try{ Placas.table.on("rowSelectionChanged", actualizarBotonModificarPlacas); }catch(e){}
+        try{ Placas.table.on("dataFiltered", ()=> actualizarBotonModificarPlacas()); }catch(e){}
+        try{ Placas.table.on("dataLoaded", ()=> actualizarBotonModificarPlacas()); }catch(e){}
+      }
       onPlacasTableBuiltOnce(Placas.table, function(){
         Placas.tableReady = true;
         actualizarBotonModificarPlacas();
       });
+      setTimeout(actualizarBotonModificarPlacas, 0);
       // Eventos UI
       document.getElementById("btnPlacasActualizar").addEventListener("click", cargarPlacas);
       document.getElementById("btnPlacasModificar")?.addEventListener("click", abrirModalModificarPlaca);
@@ -2205,27 +2214,36 @@ async function loadProcesosOptions(){
 
 }
 
-function actualizarBotonModificarPlacas(){
+function actualizarBotonModificarPlacas(data){
   const btn = document.getElementById("btnPlacasModificar");
   if(!btn) return;
 
-  // Evita llamar getSelectedData() antes de que Tabulator termine de inicializarse.
-  if(!Placas.table || !Placas.tableReady || typeof Placas.table.getSelectedData !== "function"){
-    btn.style.display = "none";
-    btn.disabled = true;
-    return;
+  let seleccionadas = Array.isArray(data) ? data : [];
+
+  // Tabulator puede tardar un instante en quedar listo. Si todavía no está
+  // inicializado, no mostramos error; solo mantenemos oculto el botón.
+  if(!seleccionadas.length && Placas.table && typeof Placas.table.getSelectedData === "function"){
+    try{
+      seleccionadas = Placas.table.getSelectedData() || [];
+    }catch(e){
+      seleccionadas = [];
+    }
   }
 
-  const seleccionadas = Placas.table.getSelectedData() || [];
   const mostrar = seleccionadas.length === 1;
   btn.style.display = mostrar ? "inline-flex" : "none";
   btn.disabled = !mostrar;
 }
 
 async function abrirModalModificarPlaca(){
-  const seleccionadas = Placas.table && Placas.tableReady && Placas.table.getSelectedData ? (Placas.table.getSelectedData() || []) : [];
+  let seleccionadas = [];
+  try{
+    seleccionadas = Placas.table && Placas.table.getSelectedData ? (Placas.table.getSelectedData() || []) : [];
+  }catch(e){
+    seleccionadas = [];
+  }
   if(seleccionadas.length !== 1){
-    actualizarBotonModificarPlacas();
+    actualizarBotonModificarPlacas(seleccionadas);
     return;
   }
   const r = seleccionadas[0] || {};
