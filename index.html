@@ -680,6 +680,7 @@
         <button onclick="exportPlacasXLSX()" class="btn" style="border-color:#10B981;color:#065f46;background:#ECFDF5;display:flex;align-items:center;gap:6px;">
           <i class="lucide-download"></i> Excel
         </button>
+        <button id="btnPlacasModificar" class="btn btn-primary" style="display:none;"><i class="lucide-edit-3"></i> Modificar</button>
         <button id="btnPlacasNueva" class="btn btn-primary"><i class="lucide-plus"></i> Nueva placa</button>
       </div>
     </div>
@@ -702,7 +703,7 @@
         </select>
         
         <select id="fPlacasSector"><option value="">Sector</option></select>
-        <input id="fPlacasPlaca" class="input" placeholder="Placa o VIN…"/>
+        <input id="fPlacasPlaca" class="input" placeholder="Placa o VIN… Ej. AHB-5154 o AHB5154"/>
         <input id="fPlacasNombre" class="input" placeholder="Nombre Colaborador…"/>
         <div style="display:flex; gap:10px; align-items:center;">
           <button id="btnPlacasLimpiar" class="btn btn-ghost"><i class="lucide-broom"></i> Limpiar</button>
@@ -2002,6 +2003,8 @@ function fillSectorOptions(){
   sel.innerHTML = '<option value="">Sector…</option>' + sectors.map(s => `<option value="${s}">${s}</option>`).join('');
   // reponer selección si sigue existiendo
   if(sectors.includes(current)) sel.value = current;
+  const dl = document.getElementById("listaSectoresPlacas");
+  if(dl){ dl.innerHTML = sectors.map(s => `<option value="${s}"></option>`).join(""); }
 }
 function fillSectorFilterOptions(){
   const sel = document.getElementById("fPlacasSector");
@@ -2048,6 +2051,7 @@ async function loadProcesosOptions(){
         selectable: true,
         height: 520,
         layout: "fitColumns",
+        rowSelectionChanged: actualizarBotonModificarPlacas,
         columns: [/* columns set más abajo al primer render, se actualizarán luego */]
       });
       await new Promise(res => Placas.table.once("tableBuilt", res));
@@ -2083,7 +2087,7 @@ async function loadProcesosOptions(){
       FechaAlta: r.FechaAlta || r.Fecha || r.FECHA || ""
     }));
     aplicarFiltrosPlacas();
-    if(Placas.table){ await safeReplaceData(Placas.table, Placas.filtered); }
+    if(Placas.table){ await safeReplaceData(Placas.table, Placas.filtered); actualizarBotonModificarPlacas(); }
     else{
 // intenta precargar procesos en paralelo (no bloqueante)
       loadProcesosOptions().catch(()=>{});
@@ -2092,7 +2096,9 @@ async function loadProcesosOptions(){
         selectable: true,
         height: 520,
         layout: "fitColumns",
+        rowSelectionChanged: actualizarBotonModificarPlacas,
         columns: [
+          { formatter:"rowSelection", titleFormatter:"rowSelection", hozAlign:"center", headerSort:false, width:44, cellClick:function(e, cell){ cell.getRow().toggleSelect(); } },
           { title:"ID", field:"IDvehiculo", width:120 },
           { title:"Placa", field:"Placa", width:160, editor:"input", editable:(cell)=>canEditPlaca(cell), cellEdited:onPlacaEdited },
           { title:"Estado", field:"Estado", width:140, formatter:(c)=>{
@@ -2147,6 +2153,7 @@ async function loadProcesosOptions(){
       });
       // Eventos UI
       document.getElementById("btnPlacasActualizar").addEventListener("click", cargarPlacas);
+      document.getElementById("btnPlacasModificar")?.addEventListener("click", abrirModalModificarPlaca);
       document.getElementById("btnPlacasNueva").addEventListener("click", async ()=> { toggleFormPlaca(true); fillSectorOptions();
     fillSectorFilterOptions(); await loadProcesosOptions(); });
       document.getElementById("btnPlacaCancelar").addEventListener("click", ()=> toggleFormPlaca(false));
@@ -2161,6 +2168,7 @@ async function loadProcesosOptions(){
     try{ if(Placas.table){ const cols=Placas.table.getColumns(); const col=(cols||[]).find(c=>c.getField && c.getField()==='Sector'); if(col){ col.updateDefinition({ editor:'list', editorParams:function(){ return {values:getUniqueSectors()}; }, cellEdited:onSectorEdited }); } } } catch (e){ } });
     }
     actualizarKpisPlacas();
+    actualizarBotonModificarPlacas();
     try{ if(Placas.table){ const cols=Placas.table.getColumns(); const col=(cols||[]).find(c=>c.getField && c.getField()==='Sector'); if(col){ col.updateDefinition({ editor:'list', editorParams:function(){ return {values:getUniqueSectors()}; }, cellEdited:onSectorEdited }); } } } catch (e){ }
     fillSectorOptions();
     fillSectorFilterOptions();
@@ -2175,6 +2183,125 @@ async function loadProcesosOptions(){
   try{ wirePlacaLiveValidation(); } catch (e){}
 
 }
+
+function actualizarBotonModificarPlacas(){
+  const btn = document.getElementById("btnPlacasModificar");
+  if(!btn) return;
+  const seleccionadas = Placas.table && Placas.table.getSelectedData ? (Placas.table.getSelectedData() || []) : [];
+  const mostrar = seleccionadas.length === 1;
+  btn.style.display = mostrar ? "inline-flex" : "none";
+  btn.disabled = !mostrar;
+}
+
+async function abrirModalModificarPlaca(){
+  const seleccionadas = Placas.table && Placas.table.getSelectedData ? (Placas.table.getSelectedData() || []) : [];
+  if(seleccionadas.length !== 1){
+    actualizarBotonModificarPlacas();
+    return;
+  }
+  const r = seleccionadas[0] || {};
+  fillSectorOptions();
+
+  const setVal = (id, val)=>{ const el = document.getElementById(id); if(el) el.value = val ?? ""; };
+  setVal("epIDvehiculo", r.IDvehiculo || "");
+  setVal("epPlacaOriginal", r.Placa || "");
+  setVal("epPlaca", r.Placa || "");
+  setVal("epNombre", r.Conductor || "");
+  setVal("epSector", r.Sector || "");
+  setVal("epProceso", r.Proceso || "");
+  setVal("epJefe", r.JefeInmediato || "");
+  setVal("epDesignacion", r.Designacion || "");
+  setVal("epMarca", r.Marca || "");
+  setVal("epModelo", r.Modelo || "");
+  setVal("epEstado", (r.Estado || "ACTIVO").toUpperCase());
+
+  const modal = document.getElementById("modalEditarPlaca");
+  if(modal) modal.style.display = "grid";
+}
+
+function cerrarModalModificarPlaca(){
+  const modal = document.getElementById("modalEditarPlaca");
+  if(modal) modal.style.display = "none";
+}
+
+function normalizarPlacaDesdeModal(raw){
+  const clean = String(raw || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+  if(clean.length > 8) return clean.slice(0,17);
+  const left = clean.slice(0,3);
+  const right = clean.slice(3,7);
+  return right ? `${left}_${right}` : left;
+}
+
+async function guardarModificarPlaca(){
+  if(!placasEndpointsReady()){ alert("Configura el endpoint de Placas."); return; }
+
+  const getVal = (id)=> (document.getElementById(id)?.value || "").trim();
+  const IDvehiculo = getVal("epIDvehiculo");
+  const placaOriginal = getVal("epPlacaOriginal");
+  const placa = normalizarPlacaDesdeModal(getVal("epPlaca"));
+  const conductor = getVal("epNombre");
+  const sector = getVal("epSector");
+  const proceso = getVal("epProceso");
+  const jefe = getVal("epJefe");
+  const designacion = getVal("epDesignacion");
+  const marca = getVal("epMarca");
+  const modelo = getVal("epModelo");
+  const estado = getVal("epEstado") || "ACTIVO";
+
+  if(!IDvehiculo && !placaOriginal){ alert("No se encontró el identificador de la placa."); return; }
+  if(!placa){ alert("La placa/VIN es obligatoria."); return; }
+
+  const placaCmp = placa.replace(/_/g, "").toUpperCase();
+  const duplicada = (Placas.data || []).some(r=>{
+    const mismaFila = String(r.IDvehiculo || "") === String(IDvehiculo || "") || String(r.Placa || "") === String(placaOriginal || "");
+    if(mismaFila) return false;
+    return String(r.Placa || "").replace(/_/g, "").toUpperCase() === placaCmp;
+  });
+  if(duplicada){ alert("Ya existe otra fila con esa placa/VIN."); return; }
+
+  try{
+    overlay.show("Guardando cambios…");
+    const res = await fetch(Config.api.placas, {
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({
+        action:"actualizarVehiculo",
+        IDvehiculo,
+        placaOriginal,
+        placa,
+        conductor,
+        sector,
+        proceso,
+        jefe,
+        designacion,
+        marca,
+        modelo,
+        estado
+      })
+    });
+    const out = await res.json().catch(()=>({}));
+    if(!res.ok || out.error || out.message){
+      throw new Error(out.error || out.message || ("HTTP "+res.status));
+    }
+
+    cerrarModalModificarPlaca();
+    await cargarPlacas();
+    quickToast("✅ Placa modificada correctamente");
+  }catch(e){
+    alert("No fue posible modificar la placa: "+e.message);
+  }finally{
+    overlay.hide();
+  }
+}
+
+function normalizarBusquedaPlaca(valor){
+  return String(valor || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "");
+}
+
 function aplicarFiltrosPlacas(){
   const secSelect = (document.getElementById("fPlacasSector")?.value || "").trim();
   // Si el usuario tiene sectores asignados, filtrar solo por esos (ignora el select)
@@ -2182,13 +2309,23 @@ function aplicarFiltrosPlacas(){
     ? "" // el filtro ya viene del API, no aplicar filtro local adicional
     : secSelect;
 const est = (document.getElementById("fPlacasEstado")?.value || "").trim();
-  const placaQ = (document.getElementById("fPlacasPlaca")?.value || "").trim().toLowerCase();
+  const placaTexto = (document.getElementById("fPlacasPlaca")?.value || "").trim().toLowerCase();
+  const placaNormalizada = normalizarBusquedaPlaca(placaTexto);
   const normalize = (s)=> String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
   const nombreQ = normalize(document.getElementById("fPlacasNombre")?.value || "");
   Placas.filtered = Placas.data.filter(r=>{
     if(sec && String(r.Sector||"") !== sec) return false;
     if(est && r.Estado !== est) return false;
-    if(placaQ && !String(r.Placa||"").toLowerCase().includes(placaQ)) return false;
+
+    if(placaTexto){
+      const placaOriginal = String(r.Placa || "");
+      const placaOriginalLower = placaOriginal.toLowerCase();
+      const placaOriginalNormalizada = normalizarBusquedaPlaca(placaOriginal);
+      const coincideTexto = placaOriginalLower.includes(placaTexto);
+      const coincideNormalizado = placaNormalizada && placaOriginalNormalizada.includes(placaNormalizada);
+      if(!coincideTexto && !coincideNormalizado) return false;
+    }
+
     if(nombreQ && !normalize(r.Conductor).includes(nombreQ)) return false;
     return true;
   });
@@ -6102,6 +6239,66 @@ function renderModalDetalle(rows, filtroMes){
     <div style="display:flex; justify-content:flex-end; gap:10px; padding:1rem 1.25rem; border-top:1px solid var(--border); background:var(--bg-secondary);">
       <button id="btnPlacaCancelar" onclick="toggleFormPlaca(false)" class="btn btn-ghost">Cancelar</button>
       <button id="btnPlacaGuardar" class="btn btn-primary"><i class="lucide-save"></i> Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ MODAL EDITAR PLACA ══════════ -->
+<div id="modalEditarPlaca" class="overlay" style="display:none; z-index:9998;">
+  <div style="background:var(--bg-primary,#fff); border-radius:12px; width:94vw; max-width:620px; box-shadow:0 20px 60px rgba(0,0,0,0.25); overflow:hidden;">
+    <div style="display:flex; align-items:center; justify-content:space-between; padding:1rem 1.25rem; border-bottom:1px solid var(--border);">
+      <h3 style="margin:0; font-size:1.05rem; font-weight:700; color:var(--text-primary);">Modificar Placa</h3>
+      <button onclick="cerrarModalModificarPlaca()" style="background:none;border:none;cursor:pointer;padding:6px;color:var(--muted);">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div style="padding:1.25rem; display:grid; grid-template-columns:1fr 1fr; gap:14px;">
+      <input type="hidden" id="epIDvehiculo">
+      <input type="hidden" id="epPlacaOriginal">
+      <div>
+        <label style="font-size:12px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px;">Placa / VIN *</label>
+        <input id="epPlaca" class="input" autocomplete="off" style="width:100%;box-sizing:border-box;">
+      </div>
+      <div>
+        <label style="font-size:12px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px;">Estado</label>
+        <select id="epEstado" class="input" style="width:100%;box-sizing:border-box;">
+          <option value="ACTIVO">Activo</option>
+          <option value="INACTIVO">Inactivo</option>
+        </select>
+      </div>
+      <div style="grid-column:1 / -1;">
+        <label style="font-size:12px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px;">Conductor</label>
+        <input id="epNombre" class="input" autocomplete="off" style="width:100%;box-sizing:border-box;">
+      </div>
+      <div>
+        <label style="font-size:12px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px;">Sector</label>
+        <input id="epSector" class="input" list="listaSectoresPlacas" autocomplete="off" style="width:100%;box-sizing:border-box;">
+        <datalist id="listaSectoresPlacas"></datalist>
+      </div>
+      <div>
+        <label style="font-size:12px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px;">Proceso</label>
+        <input id="epProceso" class="input" autocomplete="off" style="width:100%;box-sizing:border-box;">
+      </div>
+      <div>
+        <label style="font-size:12px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px;">Jefe inmediato</label>
+        <input id="epJefe" class="input" autocomplete="off" style="width:100%;box-sizing:border-box;">
+      </div>
+      <div>
+        <label style="font-size:12px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px;">Designación</label>
+        <input id="epDesignacion" class="input" autocomplete="off" style="width:100%;box-sizing:border-box;">
+      </div>
+      <div>
+        <label style="font-size:12px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px;">Marca</label>
+        <input id="epMarca" class="input" autocomplete="off" style="width:100%;box-sizing:border-box;">
+      </div>
+      <div>
+        <label style="font-size:12px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px;">Modelo</label>
+        <input id="epModelo" class="input" autocomplete="off" style="width:100%;box-sizing:border-box;">
+      </div>
+    </div>
+    <div style="display:flex; justify-content:flex-end; gap:10px; padding:1rem 1.25rem; border-top:1px solid var(--border); background:var(--bg-secondary);">
+      <button onclick="cerrarModalModificarPlaca()" class="btn btn-ghost">Cancelar</button>
+      <button onclick="guardarModificarPlaca()" class="btn btn-primary"><i class="lucide-save"></i> Guardar cambios</button>
     </div>
   </div>
 </div>
