@@ -2260,20 +2260,14 @@ let placa = document.getElementById("npPlaca").value.trim();
       body: JSON.stringify({ action:"crear", placa, nombre, sector, proceso, designacion, estado })
     });
     if(!res.ok) throw new Error("HTTP "+res.status);
-    // Éxito: mostrar confirmación breve y luego recargar tabla
-    overlay.show("✅ Placa guardada");
-    await new Promise(r=>setTimeout(r,700));
-    await cargarPlacas();
+    overlay.hide();
     toggleFormPlaca(false);
-    document.getElementById("npPlaca").value="";
-    document.getElementById("npNombre").value="";
-    document.getElementById("npSector").value="";
-    document.getElementById("npProceso").value="";
-    document.getElementById("npDesignacion").value="";
-    document.getElementById("npEstado").value="ACTIVO";
+    await cargarPlacas();
+    quickToast("✅ Placa guardada correctamente");
   }catch(e){
-    alert("No fue posible guardar la placa.");
-  }finally{ overlay.hide(); }
+    overlay.hide();
+    alert("No fue posible guardar la placa: "+e.message);
+  }
 }
 
 /** ===== VIN → Placa (AAA_9999) edición controlada ===== */
