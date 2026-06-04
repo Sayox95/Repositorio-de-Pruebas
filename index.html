@@ -276,6 +276,8 @@
       box-shadow: 0 10px 20px rgba(2,8,23,.20);
     }
     .spinner{ width:16px;height:16px;border:2px solid #e5e7eb;border-top-color:#0FA47E;border-radius:50%; animation:spin .9s linear infinite }
+    .placas-modal-loading{min-height:330px; flex-direction:column; text-align:center;}
+    .placas-modal-spinner{width:52px;height:52px;border:5px solid #e5e7eb;border-top-color:#0FA47E;border-radius:50%; animation:spin 1.35s linear infinite; display:inline-block;}
     @keyframes spin{ to{ transform: rotate(360deg) } }
     /* Utilities */
     .hidden{ display:none !important }
@@ -415,7 +417,9 @@
   .placas-tour-card{position:fixed;max-width:390px;background:#fff;color:#111827;border-radius:18px;padding:18px 18px 16px;box-shadow:0 22px 55px rgba(0,0,0,.30);border:1px solid rgba(226,232,240,.9);transition:all .35s ease;}
   .placas-tour-card h3{margin:6px 0 8px;font-size:18px;line-height:1.25;}
   .placas-tour-card p{margin:0;color:#475569;font-size:14px;line-height:1.45;}
+  .placas-tour-badge-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
   .placas-tour-badge{display:inline-flex;align-items:center;border-radius:999px;background:#ecfdf5;color:#047857;border:1px solid #a7f3d0;padding:4px 10px;font-size:12px;font-weight:700;}
+  .placas-tour-feature{font-size:13px;font-weight:700;color:#0f172a;}
   .placas-tour-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px;}
   .placas-tour-steps{display:flex;gap:6px;margin-top:14px;}
   .placas-tour-steps span{width:24px;height:5px;border-radius:999px;background:#e2e8f0;display:block;}
@@ -743,7 +747,10 @@
       <span class="placas-tour-click"></span>
     </div>
     <div id="placasTourCard" class="placas-tour-card" role="dialog" aria-modal="true" aria-labelledby="placasTourTitle">
-      <div class="placas-tour-badge">Nueva función</div>
+      <div class="placas-tour-badge-row">
+        <div class="placas-tour-badge">Nueva función</div>
+        <div class="placas-tour-feature">Modificar placas</div>
+      </div>
       <h3 id="placasTourTitle">Modificar placas ahora es más fácil</h3>
       <p id="placasTourText">Selecciona una placa usando el checkbox de la tabla.</p>
       <div class="placas-tour-steps">
@@ -6484,9 +6491,10 @@ function renderModalDetalle(rows, filtroMes){
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
     </div>
-    <div id="modalEditarPlacaLoading" style="display:none; align-items:center; justify-content:center; gap:10px; padding:2rem 1.25rem; color:var(--text-secondary); font-weight:600;">
-      <span class="spinner"></span>
-      <span>Cargando información de la placa…</span>
+    <div id="modalEditarPlacaLoading" class="placas-modal-loading" style="display:none; align-items:center; justify-content:center; gap:14px; padding:2rem 1.25rem; color:var(--text-secondary); font-weight:600;">
+      <span class="placas-modal-spinner" aria-hidden="true"></span>
+      <span style="font-size:14px;color:var(--text-primary);">Cargando información de la placa…</span>
+      <small style="font-size:12px;color:var(--text-secondary);font-weight:500;">Por favor espera un momento.</small>
     </div>
     <div id="modalEditarPlacaForm" style="padding:1.25rem; display:grid; grid-template-columns:1fr 1fr; gap:14px;">
       <input type="hidden" id="epIDvehiculo">
@@ -6821,7 +6829,10 @@ function renderModalDetalle(rows, filtroMes){
     }
     restoreModificarButton();
     if(markSeen) localStorage.setItem(STORAGE_KEY, "seen");
-    try{ if(typeof actualizarBotonModificarPlacas === "function") actualizarBotonModificarPlacas(window.Placas?.selectedData || []); }catch(e){}
+    try{
+      const seleccionActual = (typeof Placas !== "undefined" && Array.isArray(Placas.selectedData)) ? Placas.selectedData : [];
+      if(typeof actualizarBotonModificarPlacas === "function") actualizarBotonModificarPlacas(seleccionActual);
+    }catch(e){}
   }
   function maybeAutoShowPlacasTour(){
     if(!secPlacasVisible()) return;
