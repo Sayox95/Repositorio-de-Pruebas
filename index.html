@@ -5960,8 +5960,8 @@ function exportPlacasXLSX(){
   const data = Placas.filtered || Placas.data || [];
   if(!data.length){ alert('No hay datos para exportar.'); return; }
 
-  const cols = ['Placa','Conductor','Sector','Proceso','JefeInmediato','Designacion','Estado'];
-  const headers = ['Placa','Conductor','Sector','Proceso','Jefe Inmediato','Designación','Estado'];
+  const cols = ['IDvehiculo','Placa','Conductor','Sector','Proceso','JefeInmediato','Designacion','Estado'];
+  const headers = ['ID Vehículo','Placa','Conductor','Sector','Proceso','Jefe Inmediato','Designación','Estado'];
 
   const rows = data.map(r => {
     const obj = {};
