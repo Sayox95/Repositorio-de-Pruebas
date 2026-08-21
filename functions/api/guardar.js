@@ -6,7 +6,7 @@ const APPSCRIPT_URL = "https://script.google.com/macros/s/AKfycby7FWYij9QbAfougn
 
 const CORS = (origin) => ({
   "Access-Control-Allow-Origin": origin,
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Methods": "POST, OPTIONS", 
   "Access-Control-Allow-Headers": "Content-Type",
   "Content-Type": "application/json",
   "Cache-Control": "no-store",
