@@ -540,9 +540,15 @@
           <span class="label">Revisadas</span>
           <span id="kpiRevisadas" class="value">0</span>
         </div>
-        <div class="card kpi">
-          <span class="label">Pagadas</span>
-          <span id="kpiPagadas" class="value">0</span>
+        <div style="display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; min-width:0;">
+          <div class="card kpi" style="min-width:0; padding-left:10px; padding-right:10px;">
+            <span class="label">Pagadas</span>
+            <span id="kpiPagadas" class="value">0</span>
+          </div>
+          <div class="card kpi" style="min-width:0; padding-left:10px; padding-right:10px;">
+            <span class="label">Enviadas</span>
+            <span id="kpiEnviadas" class="value">0</span>
+          </div>
         </div>
         <div class="card kpi">
           <span class="label">Anuladas/Excluidas</span>
@@ -1578,6 +1584,7 @@ function updateKpis(){
   const registradas = rowsSinAnuladas.filter(r=> (r.Estado||"") === "Registrada").length;
   const revisadas   = rowsSinAnuladas.filter(r=> (r.Estado||"") === "Revisada").length;
   const pagadas     = rowsSinAnuladas.filter(r=> (r.Estado||"") === "Pagada").length;
+  const enviadas    = rowsSinAnuladas.filter(r=> (r.Estado||"") === "Enviada").length;
   const getTotal    = (r) => Number(r["Total Gastado"] ?? r.Total ?? r.TotalGastado) || 0;
   const montoTotal       = rowsSinAnuladas.reduce((a,r) => a + getTotal(r), 0);
   const montoRegistradas = rowsSinAnuladas.filter(r=> (r.Estado||"")==="Registrada").reduce((a,r) => a + getTotal(r), 0);
@@ -1589,6 +1596,7 @@ function updateKpis(){
   if($("kpiRegistradas"))      $("kpiRegistradas").textContent      = registradas.toLocaleString('es-HN');
   if($("kpiRevisadas"))        $("kpiRevisadas").textContent        = revisadas.toLocaleString('es-HN');
   if($("kpiPagadas"))          $("kpiPagadas").textContent          = pagadas.toLocaleString('es-HN');
+  if($("kpiEnviadas"))         $("kpiEnviadas").textContent         = enviadas.toLocaleString('es-HN');
   if($("kpiAnuladas"))         $("kpiAnuladas").textContent         = anuladas;
   if($("kpiTotalGastado"))     $("kpiTotalGastado").textContent     = fmt(montoTotal);
   if($("kpiMontoRegistradas")) $("kpiMontoRegistradas").textContent = fmt(montoRegistradas);
