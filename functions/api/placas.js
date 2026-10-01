@@ -41,9 +41,32 @@ export async function onRequestOptions() {
   return new Response(null, { status: 204, headers: CORS });
 }
 
-export async function onRequestGet({ request, env }) {
+function sectoresDeSesion(data) {
+  return (data && data.user && Array.isArray(data.user.sectores)) ? data.user.sectores : [];
+}
+
+function jsonRes(obj, status = 200) {
+  return new Response(JSON.stringify(obj), { status, headers: { ...CORS, "Content-Type": "application/json" } });
+}
+
+// true si todos los vehículos que cumplen `whereSql` están en los sectores permitidos
+async function vehiculosEnSectores(env, whereSql, whereVals, sectores) {
+  const row = await env.DB.prepare(
+    `SELECT COUNT(*) AS n FROM vehiculos WHERE (${whereSql}) AND (Sector IS NULL OR Sector NOT IN (${sectores.map(() => "?").join(", ")}))`
+  ).bind(...whereVals, ...sectores).first();
+  return Number(row && row.n) === 0;
+}
+
+export async function onRequestGet({ request, env, data }) {
   const params = new URL(request.url).searchParams;
   const estado = (params.get("estado") || "").trim().toUpperCase();
+  // Sectores: los pedidos por la UI, acotados a los de la sesión
+  const sectoresUsuario = sectoresDeSesion(data);
+  let sectoresArr = (params.get("sector") || "").split(",").map(s => s.trim()).filter(Boolean);
+  if (sectoresUsuario.length) {
+    sectoresArr = sectoresArr.length ? sectoresArr.filter(s => sectoresUsuario.includes(s)) : sectoresUsuario;
+    if (!sectoresArr.length) return jsonRes([]);
+  }
   const q      = (params.get("q")      || "").trim().toUpperCase();
   const qPlate = q.replace(/[^A-Z0-9]/g, "");
 
@@ -54,6 +77,10 @@ export async function onRequestGet({ request, env }) {
     if (estado) {
       query += " AND UPPER(Estado) = UPPER(?)";
       bindings.push(estado);
+    }
+    if (sectoresArr.length) {
+      query += ` AND Sector IN (${sectoresArr.map(() => "?").join(", ")})`;
+      bindings.push(...sectoresArr);
     }
     if (q) {
       query += ` AND (
@@ -83,7 +110,10 @@ export async function onRequestGet({ request, env }) {
   }
 }
 
-export async function onRequestPost({ request, env }) {
+export async function onRequestPost({ request, env, data }) {
+  const sectoresUsuario = sectoresDeSesion(data);
+  const restringido = sectoresUsuario.length > 0;
+  const fueraDeSector = () => jsonRes({ ok: false, message: "La placa o el sector no pertenece a tus sectores asignados" }, 403);
   let body = null;
   try { body = await request.json(); } catch (_) {}
 
@@ -99,6 +129,7 @@ export async function onRequestPost({ request, env }) {
     // ── Crear nueva placa ──────────────────────────────────────────────────
     if (action === "crear") {
       const { placa, nombre, sector, proceso, designacion, estado } = body;
+      if (restringido && !sectoresUsuario.includes((sector || "").trim())) return fueraDeSector();
       const placaNorm = normalizePlateVinForStorage(placa);
       if (!placaNorm.ok) {
         return new Response(JSON.stringify({ ok: false, message: placaNorm.message }), {
@@ -158,6 +189,14 @@ export async function onRequestPost({ request, env }) {
           status: 400, headers: { ...CORS, "Content-Type": "application/json" }
         });
       }
+      const placasNorm = placas.map(p => p.toString().trim().toUpperCase());
+      if (restringido) {
+        for (let i = 0; i < placasNorm.length; i += 50) {
+          const lote = placasNorm.slice(i, i + 50);
+          const ok = await vehiculosEnSectores(env, `Placa IN (${lote.map(() => "?").join(", ")})`, lote, sectoresUsuario);
+          if (!ok) return fueraDeSector();
+        }
+      }
       const stmts = placas.map(p =>
         env.DB.prepare("UPDATE vehiculos SET Estado = ? WHERE Placa = ?")
           .bind(estado, p.toString().trim().toUpperCase())
@@ -177,6 +216,11 @@ export async function onRequestPost({ request, env }) {
         return new Response(JSON.stringify({ ok: false, message: "Faltan placa o sector" }), {
           status: 400, headers: { ...CORS, "Content-Type": "application/json" }
         });
+      }
+
+      if (restringido) {
+        if (!sectoresUsuario.includes(sector.trim())) return fueraDeSector();
+        if (!await vehiculosEnSectores(env, "Placa = ?", [placa.toString().trim().toUpperCase()], sectoresUsuario)) return fueraDeSector();
       }
 
       // Buscar jefe del nuevo sector primero
@@ -212,6 +256,9 @@ export async function onRequestPost({ request, env }) {
         });
       }
       const actualClean = cleanPlateVin(placaActual);
+      if (restringido && !await vehiculosEnSectores(env, `${normalizedPlateSql("Placa")} = ?`, [actualClean], sectoresUsuario)) {
+        return fueraDeSector();
+      }
       const dup = await env.DB
         .prepare(`SELECT IDvehiculo FROM vehiculos WHERE ${normalizedPlateSql("Placa")} = ? AND ${normalizedPlateSql("Placa")} != ? LIMIT 1`)
         .bind(nuevaNorm.clean, actualClean)
@@ -264,6 +311,14 @@ export async function onRequestPost({ request, env }) {
       const id = (IDvehiculo || "").toString().trim();
       const placaAnterior = (placaOriginal || "").toString().trim().toUpperCase();
       const placaAnteriorClean = cleanPlateVin(placaAnterior);
+
+      if (restringido) {
+        if (!sectoresUsuario.includes((sector || "").toString().trim())) return fueraDeSector();
+        const ok = id
+          ? await vehiculosEnSectores(env, "IDvehiculo = ?", [id], sectoresUsuario)
+          : await vehiculosEnSectores(env, `${normalizedPlateSql("Placa")} = ?`, [placaAnteriorClean], sectoresUsuario);
+        if (!ok) return fueraDeSector();
+      }
 
       // Evitar duplicar placa/VIN en otra fila, comparando normalizado:
       // AHB_5154, AHB-5154 y AHB5154 cuentan como el mismo valor.

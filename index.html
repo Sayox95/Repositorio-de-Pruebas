@@ -973,13 +973,13 @@
 const Config = {
   // Ajusta estas URLs a tu despliegue (coinciden con tu arquitectura actual)
   api: {
-    leerFacturas: "https://repositorio-de-pruebas.pages.dev/api/leer",
+    leerFacturas: "/api/leer",
     guardar: "/api/guardar",
     anticipos: "/api/Anticipos",
     procesos: "/api/procesos",
     guardarAnti: "/api/GuardarAnti",
     // Proxy para PDFs
-    proxyBase: "https://repositorio-de-pruebas.pages.dev/api",
+    proxyBase: "/api",
       placas: "/api/placas",
 },
   tablaHeight: "900px",
@@ -1097,7 +1097,7 @@ const API = { _facturasCtl:null,
     const ctl = new AbortController();
     this._facturasCtl = ctl;
 
-    const url = new URL(Config.api.leerFacturas);
+    const url = new URL(Config.api.leerFacturas, location.origin);
     url.searchParams.set("leerFacturas", "true");
     if(fechaDesde)    url.searchParams.set("fechaDesde",    fechaDesde);
     if(fechaHasta)    url.searchParams.set("fechaHasta",    fechaHasta);
@@ -3350,30 +3350,24 @@ function showApp(me){
   }
 }
 
-// Login button + Enter key
-(function wireLoginUI(){
-  const btn = document.getElementById("btnDoLogin");
-  const u = document.getElementById("loginUsuario");
-  const p = document.getElementById("loginPassword");
-  const err = document.getElementById("loginError");
-  function doSubmit(){ (async()=>{
-    if(err) err.style.display = "none";
-    const user = (u.value||"").trim(), pass = p.value||"";
-    if(!user || !pass){ if(err){ err.textContent="Ingrese usuario y contraseña."; err.style.display="inline"; } return; }
+// Si la sesión expira o el usuario es desactivado, la API responde 401:
+// volver a la pantalla de login en lugar de mostrar errores sueltos.
+(function(){
+  const _fetch = window.fetch.bind(window);
+  let redirecting = false;
+  window.fetch = async function(input, init){
+    const res = await _fetch(input, init);
     try{
-      btn.disabled = true;
-      const meData = await authLogin(user, pass);
-      showApp(meData);
-      try{ navigateTo('inicio'); } catch (e){}
-    }catch(e){
-      if(err){ err.textContent = "Credenciales inválidas o usuario inactivo."; err.style.display = "inline"; }
-    }finally{ btn.disabled = false; }
-  })(); }
-  if(btn && !btn.dataset.wired){
-    btn.dataset.wired = "1";
-    btn.addEventListener("click", doSubmit);
-    [u,p].forEach(i=> i && i.addEventListener("keydown", ev=>{ if(ev.key==="Enter") doSubmit(); }));
-  }
+      const url = new URL(typeof input === "string" ? input : input.url, location.origin);
+      if(res.status === 401 && url.origin === location.origin && url.pathname.startsWith("/api/")
+         && !url.pathname.startsWith("/api/auth/") && !redirecting){
+        redirecting = true;
+        alert("Tu sesión expiró. Inicia sesión nuevamente.");
+        location.reload();
+      }
+    }catch(_){}
+    return res;
+  };
 })();
 
 // Session check on load
@@ -4165,7 +4159,13 @@ const eligible = sel.filter(r => { const s=String(r.Estado||"").trim().toLowerCa
   if(modal) modal.style.display = "grid";
 }
 
+let __pagoEnCurso = false;
 async function confirmarPago(){
+  // Evita doble envío por doble clic mientras el pago está en curso
+  if(__pagoEnCurso) return;
+  __pagoEnCurso = true;
+  const btnConfirmar = document.getElementById("mpConfirmar");
+  if(btnConfirmar) btnConfirmar.disabled = true;
   try{
     const table = getPagoTable(); if(!table) return;
     const mode = window._pagoMode || 'batch';
@@ -4254,6 +4254,8 @@ async function confirmarPago(){
     alert("No se pudo completar el pago. " + (e && e.message ? e.message : ""));
   }finally{
     overlay.hide();
+    __pagoEnCurso = false;
+    if(btnConfirmar) btnConfirmar.disabled = false;
   }
 }
 
@@ -4278,21 +4280,28 @@ function initPagoMassPay(force=false){
   btn.style.display = "none";
   btn.disabled = true;
 
-  // Eventos
-  table.on("rowSelectionChanged", ()=>{
-    updatePagoButtonVisibility();
-  });
-  btn.addEventListener("click", openPagoModalForSelection);
+  // Eventos — initPagoMassPay(true) puede ejecutarse varias veces (p. ej. atrás/adelante
+  // del navegador); registrar cada listener una sola vez para no duplicar pagos.
+  if(!table.__pagoMassPayHooked){
+    table.on("rowSelectionChanged", ()=>{
+      updatePagoButtonVisibility();
+    });
+    table.__pagoMassPayHooked = true;
+  }
+  if(!btn.dataset.bound){ btn.addEventListener("click", openPagoModalForSelection); btn.dataset.bound = "1"; }
 
   // Controles del modal
   const cancelBtn = document.getElementById("mpCancelar");
   const addCargo  = document.getElementById("mpAddCargo");
   const confirm   = document.getElementById("mpConfirmar");
-  if(cancelBtn) cancelBtn.addEventListener("click", ()=>{
-    const modal = document.getElementById("modalPago"); if(modal) modal.style.display = "none";
-  });
+  if(cancelBtn && !cancelBtn.dataset.bound){
+    cancelBtn.addEventListener("click", ()=>{
+      const modal = document.getElementById("modalPago"); if(modal) modal.style.display = "none";
+    });
+    cancelBtn.dataset.bound = "1";
+  }
   if(addCargo && !addCargo.dataset.bound){ addCargo.addEventListener("click", addCargoRow); addCargo.dataset.bound="1"; }
-  if(confirm)  confirm.addEventListener("click", confirmarPago);
+  if(confirm && !confirm.dataset.bound){ confirm.addEventListener("click", confirmarPago); confirm.dataset.bound = "1"; }
 }
 
 /* =========================
@@ -4336,7 +4345,7 @@ function initPagoMassPay(force=false){
 async function fetchOtrosCargos(ids){
     if(!ids || !ids.length) { otrosCargosById = {};
     hideGroupToast(); return; }
-    const url = new URL(Config.api.leerFacturas);
+    const url = new URL(Config.api.leerFacturas, location.origin);
     url.searchParams.set("otrosCargos", "byId");
     ids.forEach(id => url.searchParams.append("ids", id));
     try{

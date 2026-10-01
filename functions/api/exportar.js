@@ -1,5 +1,21 @@
 // functions/api/exportar.js
-const SYNC_SECRET = "utcd-facturas-2026-sync-xK9mP";
+// El token se configura como variable de entorno SYNC_SECRET en Cloudflare Pages
+// (debe coincidir con el AppScript). Si no está configurada, se rechaza todo.
+
+// Comparación en tiempo constante (vía HMAC) para no filtrar el secreto por timing
+async function tokenValido(token, secret) {
+  if (!secret || !token) return false;
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey("raw", crypto.getRandomValues(new Uint8Array(32)), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const [a, b] = await Promise.all([
+    crypto.subtle.sign("HMAC", key, enc.encode(token)),
+    crypto.subtle.sign("HMAC", key, enc.encode(secret)),
+  ]);
+  const x = new Uint8Array(a), y = new Uint8Array(b);
+  let diff = 0;
+  for (let i = 0; i < x.length; i++) diff |= x[i] ^ y[i];
+  return diff === 0;
+}
 
 export async function onRequestGet({ request, env }) {
   const origin = request.headers.get("Origin") || "*";
@@ -13,7 +29,7 @@ export async function onRequestGet({ request, env }) {
 
   try {
     const token = request.headers.get("X-Sync-Token") || "";
-    if (token !== SYNC_SECRET) {
+    if (!(await tokenValido(token, env.SYNC_SECRET))) {
       return new Response(JSON.stringify({ ok: false, error: "No autorizado" }), {
         status: 401,
         headers: corsHeaders

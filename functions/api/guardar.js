@@ -18,7 +18,7 @@ export async function onRequestOptions({ request }) {
   return new Response(null, { status: 204, headers: CORS(origin) });
 }
 
-export async function onRequestPost({ request, env }) {
+export async function onRequestPost({ request, env, data }) {
   const origin = request.headers.get("Origin") || "*";
   let bodyJson = null;
   try { bodyJson = JSON.parse(await request.text()); } catch (_) {}
@@ -30,6 +30,27 @@ export async function onRequestPost({ request, env }) {
   }
 
   const accion = (bodyJson.accion || "").trim();
+  const sectoresUsuario = (data && data.user && Array.isArray(data.user.sectores)) ? data.user.sectores : [];
+
+  // ── Usuarios con sectores asignados solo pueden tocar facturas de sus sectores ──
+  const filasPedidas = [
+    ...(Array.isArray(bodyJson.filas) ? bodyJson.filas : []),
+    ...(bodyJson.fila != null ? [bodyJson.fila] : []),
+  ];
+  if (sectoresUsuario.length && filasPedidas.length) {
+    try {
+      const fueraDeSector = await contarFilasFueraDeSector(env, filasPedidas, sectoresUsuario);
+      if (fueraDeSector > 0) {
+        return new Response(JSON.stringify({ ok: false, status: "ERROR", message: "Hay facturas fuera de tus sectores asignados" }), {
+          status: 403, headers: CORS(origin)
+        });
+      }
+    } catch (e) {
+      return new Response(JSON.stringify({ ok: false, status: "ERROR", message: e.message }), {
+        status: 500, headers: CORS(origin)
+      });
+    }
+  }
 
   // ── Liquidación: sigue yendo a AppScript ────────────────────────────────
   if (accion === "generarLiquidacion") {
@@ -102,11 +123,23 @@ export async function onRequestPost({ request, env }) {
         });
       }
 
-      // Actualizar estado de facturas
+      // Idempotencia: si este ID_PAGO ya se registró (doble clic / reenvío),
+      // no volver a insertar sus Otros Cargos.
+      let pagoYaRegistrado = false;
+      if (idPago) {
+        const prev = await env.DB
+          .prepare("SELECT COUNT(*) AS n FROM otros_cargos WHERE ID_PAGO = ?")
+          .bind(idPago)
+          .first();
+        pagoYaRegistrado = Number(prev && prev.n) > 0;
+      }
+
+      // Actualizar estado de facturas (nunca reabrir una Pagada/Enviada con otro pago)
       const stmts = filas.map(fila =>
         env.DB.prepare(
-          `UPDATE facturas SET Estado = 'Pagada', FechaPago = ?, ID_PAGO = ? WHERE fila = ?`
-        ).bind(fechaPago, idPago, fila)
+          `UPDATE facturas SET Estado = 'Pagada', FechaPago = ?, ID_PAGO = ?
+           WHERE fila = ? AND (Estado IS NULL OR Estado NOT IN ('Pagada', 'Enviada') OR (Estado = 'Pagada' AND ID_PAGO = ?))`
+        ).bind(fechaPago, idPago, fila, idPago)
       );
       for (let i = 0; i < stmts.length; i += 50) {
         await env.DB.batch(stmts.slice(i, i + 50));
@@ -114,7 +147,7 @@ export async function onRequestPost({ request, env }) {
 
       // Guardar Otros Cargos en D1
       let cargosGuardados = 0;
-      if (cargos.length && idPago) {
+      if (cargos.length && idPago && !pagoYaRegistrado) {
         const hoy = new Date().toISOString().slice(0, 10);
         const cargoStmts = cargos.map(c =>
           env.DB.prepare(`
@@ -161,6 +194,22 @@ export async function onRequestPost({ request, env }) {
       status: 500, headers: CORS(origin)
     });
   }
+}
+
+// Cuenta cuántas de las filas pedidas pertenecen a sectores no permitidos
+// (o no existen). Se consulta en lotes para no exceder el límite de parámetros de D1.
+async function contarFilasFueraDeSector(env, filas, sectores) {
+  const unicas = [...new Set(filas.map(f => String(f)))];
+  const secPh = sectores.map(() => "?").join(", ");
+  let permitidas = 0;
+  for (let i = 0; i < unicas.length; i += 50) {
+    const lote = unicas.slice(i, i + 50);
+    const row = await env.DB.prepare(
+      `SELECT COUNT(*) AS n FROM facturas WHERE fila IN (${lote.map(() => "?").join(", ")}) AND Sector IN (${secPh})`
+    ).bind(...lote, ...sectores).first();
+    permitidas += Number(row && row.n) || 0;
+  }
+  return unicas.length - permitidas;
 }
 
 async function forwardToAppScript(bodyJson, origin) {
