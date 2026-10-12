@@ -339,6 +339,101 @@
 
 </style>
 
+
+<style id="responsive-movil">
+/* ===== Filtros: se acomodan al ancho disponible (antes "Limpiar" quedaba
+   fuera de pantalla en laptops); en pantallas grandes siguen en una fila ===== */
+.filters{ grid-template-columns:repeat(auto-fill, minmax(170px, 1fr)) !important; }
+/* ===== Tabletas (≤1024px) ===== */
+@media (max-width:1024px){
+  .toolbar, .header-row{ flex-wrap:wrap; gap:10px !important; }
+  .actions{ flex-wrap:wrap; gap:8px !important; }
+  .kpi .value{ font-size:1.4rem; }
+  [style*="grid-template-columns:repeat(5"]{ grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)) !important; }
+  #mSectorWrap{ flex-wrap:wrap !important; }
+  #secUsuarios .card{ overflow-x:auto !important; }
+  #tablaUsuarios{ min-width:720px; }
+  #secUsuarios > div:first-child{ flex-wrap:wrap; gap:10px; }
+  #secMetricas .card > div:first-child{ flex-wrap:wrap; gap:8px; }
+  #secMetricas .card > div:first-child > div{ flex-shrink:1 !important; min-width:0; }
+  #secMetricas [style*="grid-template-columns:1fr 1fr"] > *{ min-width:0; }
+}
+/* ===== Móviles (≤768px) ===== */
+@media (max-width:768px){
+  /* La página completa hace scroll (en escritorio lo hace cada sección) */
+  .app{ grid-template-rows:auto !important; min-height:100vh; }
+  .main{ overflow:visible !important; padding:64px 12px 16px !important; min-width:0; }
+  main > section{ padding:0 !important; height:auto !important; overflow:visible !important; }
+
+  /* Barra superior fija con el botón de menú */
+  .app::before{
+    content:"Portal de Facturas"; position:fixed; top:0; left:0; right:0; height:56px; z-index:190;
+    background:#fff; border-bottom:1px solid #e5e7eb; box-shadow:0 2px 8px rgba(15,23,42,.06);
+    display:flex; align-items:center; padding-left:60px; font-weight:800; font-size:15px; color:var(--text);
+  }
+  #sidebarToggle{ top:10px !important; left:12px !important; z-index:240; }
+  .sidebar{ z-index:230 !important; padding-top:64px !important; }
+  #sidebarOverlay.open{ z-index:220; }
+
+  /* Encabezados y botones de acción: se acomodan en varias líneas */
+  .toolbar, .header-row{ flex-wrap:wrap; align-items:flex-start !important; gap:10px !important; margin-bottom:12px; }
+  .toolbar h1, .header-row h2{ width:100%; }
+  .actions{ flex-wrap:wrap; gap:8px !important; width:100%; }
+  .actions .btn{ padding:8px 10px; font-size:13px; border-radius:10px; }
+  .last-updated{ width:100%; font-size:11px; padding:4px 8px; }
+
+  /* KPIs compactos */
+  .card{ padding:10px !important; border-radius:12px; }
+  .kpi .value{ font-size:1.15rem !important; word-break:break-word; }
+  .kpi .label{ font-size:11px !important; }
+  .grid.cols-4{ grid-template-columns:repeat(2,minmax(0,1fr)) !important; gap:8px; }
+  [style*="grid-template-columns:repeat(5"]{ grid-template-columns:repeat(2,minmax(0,1fr)) !important; }
+  .grid.cols-3{ gap:8px; }
+  #secRevision [style*="grid-template-columns:repeat(5"]{ gap:8px !important; }
+
+  /* Campos: 16px evita el zoom automático de iOS al enfocar */
+  .input, select, .msel-toggle, input[type="date"]{ font-size:16px !important; }
+  .filters{ grid-template-columns:1fr 1fr !important; }
+  .filters > *{ min-width:0; }
+
+  /* Tablas Tabulator: scroll horizontal dentro de la tabla */
+  .tabulator{ font-size:12px !important; }
+
+  /* Modales: ocupan el ancho de la pantalla y hacen scroll si son altos */
+  #modalPago, #modalNuevaPlaca, #modalEditarPlaca, #modalUsuario, #modalMetricas{
+    place-items:start center !important; overflow-y:auto; padding:12px;
+  }
+  #modalPago > div, #modalNuevaPlaca > div, #modalEditarPlaca > div, #modalUsuario > div, #modalMetricas > div{
+    margin-block:auto; width:100% !important; max-width:100% !important; min-width:0 !important;
+  }
+  #modalPago .bubble{ padding:14px !important; align-items:stretch !important; }
+  #modalPago .card[style*="grid-template-columns:1fr 1fr"]{ grid-template-columns:1fr 1fr !important; }
+  #modalPago .cargo-row{ grid-template-columns:1fr 1fr !important; }
+  #modalPago #mpFechaPago, #modalPago #mpIdPago{ font-size:16px; }
+  #modalChart, #modalPivot{ padding:8px !important; }
+  #modalChart > div, #modalPivot .pivot-modal-box{ width:100% !important; }
+  .modal-content{ min-width:0 !important; width:100%; margin:12px; max-height:92vh; overflow-y:auto; }
+  .modal .grid{ grid-template-columns:1fr !important; }
+
+  /* Métricas: filtros a lo ancho */
+  .m-filtros{ width:100%; }
+  #mSectorWrap{ flex-wrap:wrap !important; width:100%; }
+  #mSectorWrap > div{ flex:1 1 140px; }
+  #msSectorMetricas, #msProcesoMetricas, #msEstadoMetricas{ width:100% !important; }
+  .m-filtros > label{ flex:0 0 52px; margin:0; align-self:center; }
+  #mDesde, #mHasta{ width:auto !important; flex:1 1 calc(100% - 62px); min-width:0; }
+  #secMetricas .card > div:first-child{ flex-wrap:wrap; gap:8px; }
+  #btnMetricasCargar{ width:100%; justify-content:center; }
+
+  /* Usuarios: la tabla hace scroll horizontal */
+  #secUsuarios .card{ overflow-x:auto !important; }
+  #tablaUsuarios{ min-width:720px; }
+  #secUsuarios > div:first-child{ flex-wrap:wrap; gap:10px; }
+
+  /* Login */
+  #secLogin > div{ margin:16px; }
+}
+</style>
 <style id="modalPago-wide-tweaks">
   /* Ensancha contenidos internos del modal de pago */
   #modalPago .bubble .card { width: 100%; }
@@ -807,7 +902,7 @@
       <h2 style="margin:0; font-size:1.4rem; font-weight:700; color:var(--text-primary);">Métricas de Combustible</h2>
       <p id="mSubtitulo" style="margin:4px 0 0; font-size:13px; color:var(--text-secondary);">Facturas en estado Revisada, Pagada y Enviada</p>
     </div>
-    <div style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap;">
+    <div class="m-filtros" style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap;">
       <div id="mSectorWrap" style="display:none; gap:10px; align-items:flex-end;">
         <div id="msSectorMetricasWrap" style="display:none; flex-direction:column; gap:3px;">
           <span style="font-size:11px; font-weight:600; color:var(--text-secondary); padding-left:4px;">Sectores</span>
@@ -2012,6 +2107,7 @@ const _pathToSec = {
 async function navigateTo(sectionId, loader, pushHistory=true){
   try{
     showOnly(sectionId);
+    if(window.innerWidth <= 768){ try{ window.scrollTo(0, 0); }catch(_){} }
     if(typeof loader === 'function'){ await loader(); }
     // Actualizar URL sin recargar la página
     if(pushHistory){
@@ -5059,6 +5155,8 @@ async function marcarSeleccionComoEnviadas(){
 
   function adjustWrap(wrap){
     if(!wrap) return;
+    // Móvil: la página entera hace scroll; la tabla usa ~70% de la pantalla
+    if(window.innerWidth <= 768){ wrap.style.height = Math.max(360, Math.round(window.innerHeight * 0.7)) + "px"; return; }
     // offsetTop acumulado desde el top del document
     var el = wrap, top = 0;
     while(el){ top += el.offsetTop; el = el.offsetParent; }
