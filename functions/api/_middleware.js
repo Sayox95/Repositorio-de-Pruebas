@@ -3,12 +3,11 @@
 // El usuario autenticado (rol y sectores leídos de D1, no del JWT ni del cliente)
 // queda disponible para los handlers en context.data.user.
 
-// Rutas que se autentican por su cuenta (login) o con token de sincronización
+// Rutas que se autentican por su cuenta (login/logout/me)
 const PUBLIC_PATHS = new Set([
   "/api/auth/login",
   "/api/auth/logout",
   "/api/auth/me",
-  "/api/sincronizar",
 ]);
 
 // Roles sin permiso de escritura por endpoint
