@@ -547,7 +547,11 @@
 
 
 <!-- ===== Login Section ===== -->
-<section id="secLogin" style="display:none;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0f172a10;">
+<!-- Mientras se verifica si ya hay sesión, solo se muestra este indicador -->
+<div id="bootSplash" style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:var(--surface,#F3F5F7);z-index:100000;">
+  <div class="spinner" style="width:28px;height:28px;border-width:3px;"></div>
+</div>
+<section id="secLogin" style="display:none;min-height:100vh;align-items:center;justify-content:center;background:#0f172a10;">
   <div style="width:100%;max-width:440px;background:#fff;border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.08);padding:28px;">
     <h2 style="margin:0 0 10px 0;">Iniciar sesión</h2>
     <p style="margin:0 0 18px 0;color:#64748b;">Ingrese sus credenciales.</p>
@@ -3401,8 +3405,10 @@ function applyRolRestrictions(rol, sectores){
   }
 }
 
-function showLogin(){ const app=document.getElementById("appShell"); if(app) app.style.display="none"; const s=document.getElementById("secLogin"); if(s) s.style.display="flex"; const tb=document.getElementById("sidebarToggle"); if(tb) tb.style.display="none"; }
+function hideBootSplash(){ const b=document.getElementById("bootSplash"); if(b) b.remove(); }
+function showLogin(){ hideBootSplash(); const app=document.getElementById("appShell"); if(app) app.style.display="none"; const s=document.getElementById("secLogin"); if(s) s.style.display="flex"; const tb=document.getElementById("sidebarToggle"); if(tb) tb.style.display="none"; }
 function showApp(me){ 
+  hideBootSplash();
   const s=document.getElementById("secLogin"); if(s) s.style.display="none"; 
   const app=document.getElementById("appShell"); if(app) app.style.display="block";
   const tb=document.getElementById("sidebarToggle"); if(tb) tb.style.display="flex";
