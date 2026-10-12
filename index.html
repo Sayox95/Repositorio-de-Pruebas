@@ -4024,7 +4024,9 @@ function getPagoTable(){
 function updatePagoButtonVisibility(){
   const btn = document.getElementById("btnPagoAbrirModal");
   const table = getPagoTable();
-  if(!btn || !table) return;
+  // Tabulator registra la tabla antes de inicializarla; consultar la selección
+  // antes de tiempo dispara "Table Not Initialized". tableBuilt la reevalúa.
+  if(!btn || !table || !table.initialized) return;
   const sel = table.getSelectedData ? table.getSelectedData() : [];
   const estados = sel.map(r => String(r.Estado||"").trim().toLowerCase());
 const anyBlocked = estados.some(s => s === "pagada" || s === "enviada");
@@ -4433,7 +4435,8 @@ async function fetchOtrosCargos(ids){
 
   function handleGroupCheckboxClicks(){
     const root = document.getElementById("tablaPago");
-    if(!root) return;
+    if(!root || root.__idpagoClicks) return; // registrar una sola vez
+    root.__idpagoClicks = true;
     root.addEventListener("click",(ev)=>{
       const cb = ev.target && ev.target.closest(".group-select-idpago");
       if(!cb) return;
@@ -4766,6 +4769,7 @@ async function marcarSeleccionComoEnviadas(){
 
   function reevaluatePagoActionButtons(){
     const tbl = getPagoTable();
+    if (tbl && !tbl.initialized) return; // se reevalúa en tableBuilt
     const sel = (tbl && typeof tbl.getSelectedData === "function") ? (tbl.getSelectedData() || []) : [];
     const allPaid = sel.length > 0 && sel.every(r => String(((r && r.Estado) || '')).trim() === "Pagada");
 
@@ -4882,6 +4886,7 @@ async function marcarSeleccionComoEnviadas(){
     var btn = document.getElementById("btnRevMarcarRevisadas");
     var tbl = getRevTable();
     if (!btn || !tbl || typeof tbl.getSelectedData !== "function") return;
+    if (!tbl.initialized) return; // se reevalúa en tableBuilt
     var sel = tbl.getSelectedData() || [];
     var ok  = sel.length >= 2 && sel.every(function(r){ return String((r && r.Estado) || "").trim() === "Registrada"; });
     btn.classList.toggle("hidden", !ok);
