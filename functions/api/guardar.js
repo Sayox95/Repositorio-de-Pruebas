@@ -1,6 +1,7 @@
 // functions/api/guardar.js (Portal)
 // Cambios de estado y pagos → directo a D1
-// Liquidación → AppScript (necesita plantilla de Sheets)
+// Liquidación → AppScript (solo arma el Excel con la plantilla de Sheets;
+//                los datos se leen aquí desde D1)
 
 const APPSCRIPT_URL = "https://script.google.com/macros/s/AKfycby7FWYij9QbAfougnJjsQDu4iC3aVkFDjmEYGFbuY6nBJmddu6BwzaveuUfKNW5iAATIw/exec";
 
@@ -54,7 +55,31 @@ export async function onRequestPost({ request, env, data }) {
 
   // ── Liquidación: sigue yendo a AppScript ────────────────────────────────
   if (accion === "generarLiquidacion") {
-    return forwardToAppScript(bodyJson, origin);
+    if (!env.GAS_TOKEN) {
+      return new Response(JSON.stringify({ ok: false, status: "ERROR", message: "Falta configurar GAS_TOKEN" }), {
+        status: 500, headers: CORS(origin)
+      });
+    }
+    let datos;
+    try {
+      datos = await datosLiquidacion(env, Array.isArray(bodyJson.filas) ? bodyJson.filas : []);
+    } catch (e) {
+      return new Response(JSON.stringify({ ok: false, status: "ERROR", message: e.message }), {
+        status: 500, headers: CORS(origin)
+      });
+    }
+    if (!datos.facturas.length) {
+      return new Response(JSON.stringify({ ok: false, status: "ERROR", message: "No hay facturas Pagadas en la selección." }), {
+        status: 400, headers: CORS(origin)
+      });
+    }
+    return forwardToAppScript({
+      accion: "generarLiquidacion",
+      token: env.GAS_TOKEN,
+      headers: bodyJson.headers || {},
+      facturas: datos.facturas,
+      otrosCargos: datos.otrosCargos,
+    }, origin);
   }
 
   // ── Helper: actualizar una fila en D1 ───────────────────────────────────
@@ -210,6 +235,47 @@ async function contarFilasFueraDeSector(env, filas, sectores) {
     permitidas += Number(row && row.n) || 0;
   }
   return unicas.length - permitidas;
+}
+
+// Facturas Pagadas de las filas pedidas + sus Otros Cargos (por ID_PAGO), desde D1
+async function datosLiquidacion(env, filas) {
+  const unicas = [...new Set(filas.map(f => String(f)))];
+  const facturas = [];
+  for (let i = 0; i < unicas.length; i += 50) {
+    const lote = unicas.slice(i, i + 50);
+    const { results } = await env.DB.prepare(
+      `SELECT fila, Fecha, NumeroFactura, NombreComercio, TotalGastado, Placa, Estado, ID_PAGO
+       FROM facturas WHERE fila IN (${lote.map(() => "?").join(", ")}) AND Estado = 'Pagada'`
+    ).bind(...lote).all();
+    (results || []).forEach(r => facturas.push({
+      fila: r.fila,
+      Fecha: r.Fecha || "",
+      NumeroFactura: r.NumeroFactura || "",
+      NombreComercio: r.NombreComercio || "",
+      Total: Number(r.TotalGastado) || 0,
+      Placa: r.Placa || "",
+      Estado: r.Estado,
+      ID_PAGO: r.ID_PAGO || "",
+    }));
+  }
+
+  const ids = [...new Set(facturas.map(f => String(f.ID_PAGO).trim()).filter(Boolean))];
+  const otrosCargos = [];
+  for (let i = 0; i < ids.length; i += 50) {
+    const lote = ids.slice(i, i + 50);
+    const { results } = await env.DB.prepare(
+      `SELECT ID_PAGO, MONTO, TIPO, FECHA, COD_TRANSACCION
+       FROM otros_cargos WHERE ID_PAGO IN (${lote.map(() => "?").join(", ")})`
+    ).bind(...lote).all();
+    (results || []).forEach(r => otrosCargos.push({
+      ID_PAGO: r.ID_PAGO,
+      MONTO: Number(r.MONTO) || 0,
+      TIPO: r.TIPO || "",
+      FECHA: r.FECHA || "",
+      COD_TRANSACCION: r.COD_TRANSACCION || "",
+    }));
+  }
+  return { facturas, otrosCargos };
 }
 
 async function forwardToAppScript(bodyJson, origin) {

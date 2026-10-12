@@ -9,13 +9,11 @@ const PUBLIC_PATHS = new Set([
   "/api/auth/logout",
   "/api/auth/me",
   "/api/sincronizar",
-  "/api/exportar",
 ]);
 
 // Roles sin permiso de escritura por endpoint
 const READ_ONLY = {
   "/api/guardar":     ["viewer", "viewer_2"],
-  "/api/GuardarAnti": ["viewer", "viewer_2"],
   "/api/placas":      ["viewer"],
 };
 
