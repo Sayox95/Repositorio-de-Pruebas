@@ -719,11 +719,6 @@
       </div>
     </div>
 
-    <div style="padding:0 0 8px 0; display:flex; flex-direction:column; gap:3px;">
-      <span id="pagoRangoLabel" style="font-size:0.95rem;font-weight:600;"></span>
-      <span style="font-size:0.78rem;color:var(--muted,#888);">Para ver Enviadas anteriores utiliza el filtro de Rango de fechas</span>
-    </div>
-
     <div class="grid cols-4">
       <div class="card kpi"><span class="label">Pendientes (Revisadas)</span><span id="kpiPagoPendientes" class="value">0</span></div>
       <div class="card kpi"><span class="label">Pagadas</span><span id="kpiPagoPagadas" class="value">0</span></div>
@@ -2361,10 +2356,11 @@ async function loadProcesosOptions(){
       const selSec = document.getElementById("fPlacasSector"); if(selSec){ selSec.addEventListener("change", ()=>{ aplicarFiltrosPlacas(); if(Placas.table) Placas.table.replaceData(Placas.filtered); actualizarKpisPlacas(); }); }
       document.getElementById("fPlacasEstado").addEventListener("change", ()=>{ aplicarFiltrosPlacas(); Placas.table.replaceData(Placas.filtered); actualizarKpisPlacas();
     try{ if(Placas.table){ const cols=Placas.table.getColumns(); const col=(cols||[]).find(c=>c.getField && c.getField()==='Sector'); if(col){ col.updateDefinition({ editor:'list', editorParams:function(){ return {values:getUniqueSectors()}; }, cellEdited:onSectorEdited }); } } } catch (e){ } });
-      document.getElementById("fPlacasPlaca").addEventListener("input", ()=>{ aplicarFiltrosPlacas(); Placas.table.replaceData(Placas.filtered); actualizarKpisPlacas();
-    try{ if(Placas.table){ const cols=Placas.table.getColumns(); const col=(cols||[]).find(c=>c.getField && c.getField()==='Sector'); if(col){ col.updateDefinition({ editor:'list', editorParams:function(){ return {values:getUniqueSectors()}; }, cellEdited:onSectorEdited }); } } } catch (e){ } });
-      document.getElementById("fPlacasNombre").addEventListener("input", ()=>{ aplicarFiltrosPlacas(); Placas.table.replaceData(Placas.filtered); actualizarKpisPlacas();
-    try{ if(Placas.table){ const cols=Placas.table.getColumns(); const col=(cols||[]).find(c=>c.getField && c.getField()==='Sector'); if(col){ col.updateDefinition({ editor:'list', editorParams:function(){ return {values:getUniqueSectors()}; }, cellEdited:onSectorEdited }); } } } catch (e){ } });
+      // Buscadores con debounce: filtrar y redibujar al dejar de escribir, no en cada tecla
+      const filtrarPlacasTexto = debounce(()=>{ aplicarFiltrosPlacas(); Placas.table.replaceData(Placas.filtered); actualizarKpisPlacas();
+    try{ if(Placas.table){ const cols=Placas.table.getColumns(); const col=(cols||[]).find(c=>c.getField && c.getField()==='Sector'); if(col){ col.updateDefinition({ editor:'list', editorParams:function(){ return {values:getUniqueSectors()}; }, cellEdited:onSectorEdited }); } } } catch (e){ } }, 250);
+      document.getElementById("fPlacasPlaca").addEventListener("input", filtrarPlacasTexto);
+      document.getElementById("fPlacasNombre").addEventListener("input", filtrarPlacasTexto);
     }
     actualizarKpisPlacas();
     actualizarBotonModificarPlacas();
@@ -3762,7 +3758,6 @@ function clearPagoFilters(){
   $("#fPagoNumero").value = "";
   $("#fPagoFecha").value = "";
   const f = document.getElementById("fPagoFecha"); if(f){ f._range = null; try{ f._flatpickr && f._flatpickr.clear(false); }catch(_){} }
-  if(Pago.rangoEnviadas){ Pago.rangoEnviadas = null; cargarPago(); return; }
   applyPagoFilters();
 }
 
@@ -3896,23 +3891,10 @@ function clearPagoFilters(){
   $("#fPagoNumero").value = "";
   $("#fPagoFecha").value = "";
   const f = document.getElementById("fPagoFecha"); if(f){ f._range = null; try{ f._flatpickr && f._flatpickr.clear(false); }catch(_){} }
-  if(Pago.rangoEnviadas){ Pago.rangoEnviadas = null; cargarPago(); return; }
   applyPagoFilters();
 }
 
 // ========= Carga principal =========
-/* Pago carga completas las facturas con trabajo pendiente (Revisada y Pagada)
-   y solo un rango de las Enviadas (por defecto los últimos 3 meses): antes
-   descargaba todo el historial en cada visita. */
-function rangoEnviadasDefault(){
-  const d = new Date();
-  return {
-    fechaDesde: fmt.dateISO(new Date(d.getFullYear(), d.getMonth() - 2, 1)),
-    fechaHasta: fmt.dateISO(new Date(d.getFullYear(), d.getMonth() + 1, 0))
-  };
-}
-Pago.rangoEnviadas = null; // null = rango por defecto
-
 // Petición propia (no comparte el AbortController de API.getFacturas, que
 // cancelaba una carga con la otra y podía dejar la tabla vacía)
 async function fetchFacturasPago(params){
@@ -3926,12 +3908,6 @@ async function fetchFacturasPago(params){
   return (Array.isArray(data) ? data : []).map(normalizeRow).filter(Boolean);
 }
 
-function actualizarPagoRangoLabel(rango){
-  const el = document.getElementById("pagoRangoLabel");
-  if(!el) return;
-  el.textContent = `Revisadas y Pagadas: todas · Enviadas: ${rango.fechaDesde} → ${rango.fechaHasta}`;
-}
-
 let __pagoLoadSeq = 0;
 async function cargarPago(){
   try{ console.time("[Pago] cargar"); }catch(_e){}
@@ -3939,17 +3915,9 @@ async function cargarPago(){
 
   if(typeof overlay!=="undefined") overlay.show("Cargando facturas…");
   try {
-    const rango = Pago.rangoEnviadas || rangoEnviadasDefault();
-    const [pendientes, enviadas] = await Promise.all([
-      fetchFacturasPago({ estados: "Revisada,Pagada" }),
-      fetchFacturasPago({ estados: "Enviada", fechaDesde: rango.fechaDesde, fechaHasta: rango.fechaHasta })
-    ]);
+    const data = await fetchFacturasPago({ estados: "Revisada,Pagada,Enviada" });
     if(seq !== __pagoLoadSeq) return; // una carga más reciente ya está en curso
-
-    const porFila = new Map();
-    [...pendientes, ...enviadas].forEach(r => porFila.set(String(r.fila), r));
-    Pago.raw = Array.from(porFila.values());
-    actualizarPagoRangoLabel(rango);
+    Pago.raw = data;
 
     const sectores = Array.from(new Set((Pago.raw||[]).map(r=>r.Sector).filter(Boolean))).sort((a,b)=>a.localeCompare(b));
     if(pagoSectorMS && pagoSectorMS.setItems){ pagoSectorMS.setItems(sectores); }
@@ -3985,17 +3953,8 @@ document.addEventListener("DOMContentLoaded", function(){
           const d0 = new Date(selectedDates[0].getFullYear(), selectedDates[0].getMonth(), selectedDates[0].getDate(), 0, 0, 0, 0);
           const d1 = new Date(selectedDates[1].getFullYear(), selectedDates[1].getMonth(), selectedDates[1].getDate(), 23, 59, 59, 999);
           document.getElementById("fPagoFecha")._range = [d0, d1];
-          // Si el rango pedido sale de las Enviadas cargadas, traerlas del servidor
-          const desde = fmt.dateISO(d0), hasta = fmt.dateISO(d1);
-          const actual = Pago.rangoEnviadas || rangoEnviadasDefault();
-          if(desde < actual.fechaDesde || hasta > actual.fechaHasta){
-            Pago.rangoEnviadas = { fechaDesde: desde, fechaHasta: hasta };
-            cargarPago();
-            return;
-          }
         }else{
           document.getElementById("fPagoFecha")._range = null;
-          if(selectedDates.length === 0 && Pago.rangoEnviadas){ Pago.rangoEnviadas = null; cargarPago(); return; }
         }
         applyPagoFilters();
       }
@@ -4008,8 +3967,10 @@ document.addEventListener("DOMContentLoaded", function(){
   $("#btnPagoExportXLSX")?.addEventListener("click", exportPagoXLSX);
   $("#btnPagoAgrupar")?.addEventListener("click", togglePagoGrouping);
   $("#mpCancelar")?.addEventListener("click", closePagoModal);
-  $("#fPagoNombre")?.addEventListener("input", applyPagoFilters);
-  $("#fPagoNumero")?.addEventListener("input", applyPagoFilters);
+  // Debounce: filtrar al dejar de escribir, no en cada tecla
+  const applyPagoFiltersDebounced = debounce(applyPagoFilters, 250);
+  $("#fPagoNombre")?.addEventListener("input", applyPagoFiltersDebounced);
+  $("#fPagoNumero")?.addEventListener("input", applyPagoFiltersDebounced);
 
   // Carga cuando se navega a #pago o al hacer click en su pestaña
   const navPago = document.querySelector('.sidebar .nav-btn[href="#pago"]');
