@@ -3,7 +3,8 @@
 // Liquidación → AppScript (solo arma el Excel con la plantilla de Sheets;
 //                los datos se leen aquí desde D1)
 
-const APPSCRIPT_URL = "https://script.google.com/macros/s/AKfycby7FWYij9QbAfougnJjsQDu4iC3aVkFDjmEYGFbuY6nBJmddu6BwzaveuUfKNW5iAATIw/exec";
+// Apps Script "AplicativoFacturas" (solo generarLiquidacion; valida GAS_TOKEN)
+const APPSCRIPT_URL = "https://script.google.com/macros/s/AKfycbwyhM9LkijTDsSiWtfGZDe7MVCxTDJJcIFaeG8UXbvyWz7CeKgpmzV9YL1cUvD0nL9PLg/exec";
 
 const CORS = (origin) => ({
   "Access-Control-Allow-Origin": origin,
