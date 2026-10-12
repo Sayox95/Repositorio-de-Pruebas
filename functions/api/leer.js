@@ -82,10 +82,11 @@ export async function onRequestGet({ request, env, data }) {
     } else if (hayRevision) {
       conditions.push("FechaRevision IS NOT NULL AND FechaRevision != ''");
       if (fechaRevDesde) { conditions.push("FechaRevision >= ?"); bindings.push(fechaRevDesde); }
-      if (fechaRevHasta) { conditions.push("FechaRevision <= ?"); bindings.push(fechaRevHasta); }
+      // "< día siguiente" incluye el último día aunque el valor traiga hora (2026-09-30T…)
+      if (fechaRevHasta) { conditions.push("FechaRevision < date(?, '+1 day')"); bindings.push(fechaRevHasta); }
     } else if (hayFecha) {
       if (fechaDesde) { conditions.push("Fecha >= ?"); bindings.push(fechaDesde); }
-      if (fechaHasta) { conditions.push("Fecha <= ?"); bindings.push(fechaHasta); }
+      if (fechaHasta) { conditions.push("Fecha < date(?, '+1 day')"); bindings.push(fechaHasta); }
     }
 
     if (estadosArr.length) {

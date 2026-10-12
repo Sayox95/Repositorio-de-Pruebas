@@ -70,7 +70,7 @@ export async function onRequestGet({ request, env }) {
 
   try {
     const { results } = await env.DB
-      .prepare("SELECT usuario, nombre, rol, activo, intentos, last_login, sectores FROM usuarios ORDER BY rol, usuario")
+      .prepare("SELECT usuario, nombre, rol, activo, intentos, bloqueado_hasta, last_login, sectores FROM usuarios ORDER BY rol, usuario")
       .all();
     return j(results || []);
   } catch (e) {
@@ -164,7 +164,7 @@ export async function onRequestPost({ request, env }) {
       const hash = await hashPass(password, salt, ITER);
 
       await env.DB.prepare(`
-        UPDATE usuarios SET hash = ?, salt = ?, intentos = 0 WHERE usuario = ?
+        UPDATE usuarios SET hash = ?, salt = ?, intentos = 0, bloqueado_hasta = NULL WHERE usuario = ?
       `).bind(hash, salt, usuario.trim().toLowerCase()).run();
 
       return j({ ok: true });
@@ -191,7 +191,7 @@ export async function onRequestPost({ request, env }) {
     if (action === "desbloquear") {
       const { usuario } = body;
       if (!usuario) return j({ error: "usuario requerido" }, 400);
-      await env.DB.prepare("UPDATE usuarios SET intentos = 0 WHERE usuario = ?")
+      await env.DB.prepare("UPDATE usuarios SET intentos = 0, bloqueado_hasta = NULL WHERE usuario = ?")
         .bind(usuario.trim().toLowerCase()).run();
       return j({ ok: true });
     }

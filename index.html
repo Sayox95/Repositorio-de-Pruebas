@@ -1027,8 +1027,14 @@ const overlay = {
 
 const fmt = {
   money(v){ const n=Number(v||0); return "L " + n.toLocaleString("es-HN",{minimumFractionDigits:2, maximumFractionDigits:2}); },
-  dateISO(d){ const x = new Date(d); if(isNaN(x)) return ""; return x.toISOString().slice(0,10); },
+  // Fecha local (YYYY-MM-DD); toISOString() da la fecha UTC, que de noche ya es "mañana"
+  dateISO(d){ const x = new Date(d); if(isNaN(x)) return ""; const p=n=>String(n).padStart(2,"0"); return `${x.getFullYear()}-${p(x.getMonth()+1)}-${p(x.getDate())}`; },
 };
+
+/** Escapa texto para insertarlo como HTML (datos de facturas, placas, usuarios…) */
+function esc(v){
+  return String(v ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+}
 
 /** Mapea alias de campos al esquema esperado por la tabla */
 function normalizeRow(src){
@@ -1185,7 +1191,7 @@ function createMultiSelect(selector, placeholder="Seleccione…", onChange=()=>{
     }else{
       const vals = Array.from(selected);
       const summary = vals.length<=2 ? vals.join(", ") : `${vals.length} seleccionados`;
-      toggle.innerHTML = `<span class="value">${summary}</span><i class="lucide-chevron-down"></i>`;
+      toggle.innerHTML = `<span class="value">${esc(summary)}</span><i class="lucide-chevron-down"></i>`;
     }
     // Render options
     panel.innerHTML = "";
@@ -1194,7 +1200,7 @@ function createMultiSelect(selector, placeholder="Seleccione…", onChange=()=>{
       const lab = document.createElement("label");
       lab.className = "msel-option";
       lab.htmlFor = id;
-      lab.innerHTML = `<input id="${id}" type="checkbox" value="${val}"> <span>${val}</span>`;
+      lab.innerHTML = `<input id="${esc(id)}" type="checkbox" value="${esc(val)}"> <span>${esc(val)}</span>`;
       const input = lab.querySelector("input");
       input.checked = selected.has(val);
       input.addEventListener("change", ()=>{
@@ -1368,10 +1374,10 @@ function buildTable(){
       const suma = (data||[]).reduce((acc,r)=> acc + (Number(r.Total)||0), 0);
       const totalTxt = new Intl.NumberFormat("es-HN",{minimumFractionDigits:2, maximumFractionDigits:2}).format(suma);
       // data-group-key: usamos value (Identidad) + un hash simple para evitar colisiones visuales
-      const key = String(value ?? "").replace(/"/g,"&quot;");
+      const key = esc(value);
       return `<label class="group-toggle">
                 <input type="checkbox" class="group-select-rev" data-group-key="${key}">
-                <span>${nombre} (${count})</span>
+                <span>${esc(nombre)} (${count})</span>
               </label>
               <span class="kpi-mini">L ${totalTxt}</span>`;
     },
@@ -1404,7 +1410,7 @@ function buildTable(){
         }
       },
       { title:"Nombre del comercio", field:"Nombre del comercio", width:220, tooltip:true, formatter:(cell)=>{
-          const v = String(cell.getValue() ?? ""); const max = 28; return v.length>max? v.slice(0,max)+"…": v;
+          const v = String(cell.getValue() ?? ""); const max = 28; return esc(v.length>max? v.slice(0,max)+"…": v);
       }},
       { title:"Número de Factura", field:"Numero de Factura", width:150 },
       { title:"Enlace PDF", field:"Enlace PDF", width:110, formatter:(cell)=>{
@@ -1419,7 +1425,7 @@ function buildTable(){
           const disabled = (v === "Pagada" || v === "Enviada");
           const cls = disabled? "status-pill disabled" : "status-pill";
           const title = disabled? "No editable cuando está Pagada o Enviada" : "Cambiar estado";
-          return `<span class="${cls}" title="${title}"><span class="dot" style="background:${color}"></span>${v}</span>`;
+          return `<span class="${cls}" title="${title}"><span class="dot" style="background:${color}"></span>${esc(v)}</span>`;
       } },
       { title:"Marca", field:"Marca", width:120 },
       { title:"Modelo", field:"Modelo", width:130 },
@@ -1452,7 +1458,7 @@ function buildTable(){
         for(const r of rows){ if(r.getElement && r.getElement() === rowEl) return r; }
         return null;
       })();
-      if(rowCompTmp){ const d = rowCompTmp.getData ? rowCompTmp.getData() : {}; if((d.Estado||"") === "Pagada") return; }
+      if(rowCompTmp){ const d = rowCompTmp.getData ? rowCompTmp.getData() : {}; if(["Pagada","Enviada"].includes(d.Estado||"")) return; }
       try{
         // Fallback robusto: localizar el row component comparando elementos
         if(ev && ev.stopPropagation) ev.stopPropagation();
@@ -1499,20 +1505,18 @@ function openEstadoMenu(cell){
   const row = cell.getRow();
   const data = row.getData();
   const current = data.Estado || "Registrada";
-  // No permitir edición si está Pagada
-  if (current === "Pagada") { return; }
+  // No permitir edición si está Pagada o Enviada
+  if (current === "Pagada" || current === "Enviada") { return; }
 
-  // Siempre mostrar todos los estados válidos en el menú de cambio,
-  // independientemente del rol o de los datos cargados
-  const estadosFijos = ["Registrada","Revisada","Anulada","Excluida","Pagada","Enviada"];
-  const extra = getEstadoOptions().filter(v=>!estadosFijos.includes(v));
-  const options = estadosFijos.concat(extra);
+  // Estados asignables a mano. "Pagada" solo se asigna desde Pago y
+  // "Enviada" solo desde una Pagada (el backend también lo exige).
+  const options = ["Registrada","Revisada","Anulada","Excluida"];
   menu.innerHTML = "";
 
   options.forEach(opt => {
     const div = document.createElement("div");
     div.className = "status-item";
-    div.innerHTML = `<span class="dot" style="background:${estadoColor(opt)}"></span><span>${opt}</span>`;
+    div.innerHTML = `<span class="dot" style="background:${estadoColor(opt)}"></span><span>${esc(opt)}</span>`;
 
     div.addEventListener("click", async ()=>{
       try{
@@ -1749,7 +1753,7 @@ function initFilters(){
             State.loadedRange = null;
             applyFilters();
             toastLoading.hide();
-            try{ toast.info(`Se encontraron ${rows.length} factura(s) en el historial completo`); }catch(_){}
+            try{ toast(`Se encontraron ${rows.length} factura(s) en el historial completo`); }catch(_){}
           } else {
             toastLoading.hide();
           }
@@ -2073,7 +2077,7 @@ function fillSectorOptions(){
     if(!sel) return;
     const current = sel.value;
     const label = id === "epSector" ? "Seleccionar sector…" : "Sector…";
-    sel.innerHTML = `<option value="">${label}</option>` + sectors.map(s => `<option value="${s}">${s}</option>`).join('');
+    sel.innerHTML = `<option value="">${label}</option>` + sectors.map(s => `<option value="${esc(s)}">${esc(s)}</option>`).join('');
     if(sectors.includes(current)) sel.value = current;
   });
 }
@@ -2082,7 +2086,7 @@ function fillSectorFilterOptions(){
   if(!sel) return;
   const sectors = getUniqueSectors();
   const current = sel.value;
-  sel.innerHTML = '<option value="">'+"Sector"+'</option>' + sectors.map(s => `<option value="${s}">${s}</option>`).join('');
+  sel.innerHTML = '<option value="">'+"Sector"+'</option>' + sectors.map(s => `<option value="${esc(s)}">${esc(s)}</option>`).join('');
   if(sectors.includes(current)) sel.value = current;
 }
 
@@ -2111,7 +2115,7 @@ async function loadProcesosOptions(){
     selects.forEach(sel => {
       const current = sel.value;
       const label = sel.id === "epProceso" ? "Seleccionar proceso…" : "Proceso…";
-      sel.innerHTML = `<option value="">${label}</option>` + procesos.map(p => `<option value="${p}">${p}</option>`).join('');
+      sel.innerHTML = `<option value="">${label}</option>` + procesos.map(p => `<option value="${esc(p)}">${esc(p)}</option>`).join('');
       if(procesos.includes(current)) sel.value = current;
     });
   }catch(e){
@@ -2190,7 +2194,7 @@ async function loadProcesosOptions(){
           { title:"Estado", field:"Estado", width:140, formatter:(c)=>{
               const v = (c.getValue() || "ACTIVO").toUpperCase();
               const isActivo = v === "ACTIVO";
-              return `<span class="estado-toggle-btn" data-placa="${c.getRow().getData().Placa}" data-estado="${v}"
+              return `<span class="estado-toggle-btn" data-placa="${esc(c.getRow().getData().Placa)}" data-estado="${esc(v)}"
                 style="display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:20px;cursor:pointer;font-size:12px;font-weight:600;user-select:none;transition:all .2s;
                 background:${isActivo?'#d1fae5':'#fee2e2'};color:${isActivo?'#065f46':'#991b1b'};border:1.5px solid ${isActivo?'#6ee7b7':'#fca5a5'};"
                 title="Clic para cambiar estado">
@@ -3506,9 +3510,9 @@ function buildPagoTable(){
       
       const proceso = (data && data[0] && data[0].Proceso) ? String(data[0].Proceso) : "";const suma = (data||[]).reduce((acc,r)=> acc + (Number(r.Total)||0), 0);
       const totalTxt = new Intl.NumberFormat("es-HN",{minimumFractionDigits:2, maximumFractionDigits:2}).format(suma);
-      const key = String(value ?? "").replace(/"/g,"&quot;");
+      const key = esc(value);
       
-      const labelTxt = `${nombre} (${count})${proceso ? " - " + proceso : ""}`;return `<label class="group-toggle">
+      const labelTxt = `${esc(nombre)} (${count})${proceso ? " - " + esc(proceso) : ""}`;return `<label class="group-toggle">
                 <input type="checkbox" class="group-select-pago" data-group-key="${key}">
                 <span>${labelTxt}</span>
               </label>
@@ -3527,9 +3531,9 @@ function buildPagoTable(){
       
       const proceso = (data && data[0] && data[0].Proceso) ? String(data[0].Proceso) : "";const suma = (data||[]).reduce((acc,r)=> acc + (Number(r.Total)||0), 0);
       const totalTxt = new Intl.NumberFormat("es-HN",{minimumFractionDigits:2, maximumFractionDigits:2}).format(suma);
-      const key = String(value ?? "").replace(/"/g,"&quot;");
+      const key = esc(value);
       
-      const labelTxt = `${nombre} (${count})${proceso ? " - " + proceso : ""}`;return `<label class="group-toggle">
+      const labelTxt = `${esc(nombre)} (${count})${proceso ? " - " + esc(proceso) : ""}`;return `<label class="group-toggle">
                 <input type="checkbox" class="group-select-pago" data-group-key="${key}">
                 <span>${labelTxt}</span>
               </label>
@@ -3549,7 +3553,7 @@ function buildPagoTable(){
       { title:"Fecha", field:"Fecha", width:120,
         formatter:(c)=>{ const v=c.getValue(); return v? String(v).slice(0,10):""; } },
       { title:"Nombre del comercio", field:"Nombre del comercio", width:220, tooltip:true,
-        formatter:(cell)=>{ const v=String(cell.getValue()??""); const m=28; return v.length>m? v.slice(0,m)+"…": v; } },
+        formatter:(cell)=>{ const v=String(cell.getValue()??""); const m=28; return esc(v.length>m? v.slice(0,m)+"…": v); } },
       { title:"Número de Factura", field:"Numero de Factura", width:150 },
       { title:"Enlace PDF", field:"Enlace PDF", width:110,
         formatter:(cell)=>{
@@ -4381,8 +4385,8 @@ async function fetchOtrosCargos(ids){
         const subtotal = (data || []).reduce((acc, r) => acc + (Number(r.Total) || 0), 0);
         const otros = Number(otrosCargosById[id] || 0);
         const total = subtotal + otros;
-        const label = `${id} (${count}) · L ${fmtMoneyHN(subtotal)} + otros cargos L ${fmtMoneyHN(otros)} · Total = L ${fmtMoneyHN(total)}`;
-        const safeKey = id.replace(/"/g,'&quot;');
+        const label = `${esc(id)} (${count}) · L ${fmtMoneyHN(subtotal)} + otros cargos L ${fmtMoneyHN(otros)} · Total = L ${fmtMoneyHN(total)}`;
+        const safeKey = esc(id);
         return `<label class="group-toggle">
                   <input type="checkbox" class="group-select-idpago" data-idpago="${safeKey}">
                   <span>${label}</span>
@@ -4911,11 +4915,12 @@ async function marcarSeleccionComoEnviadas(){
         }
         try{
           if (typeof tbl.blockRedraw === "function") tbl.blockRedraw();
-          var updates = valid.map(function(r){ return { fila: r.fila, Estado: "Revisada", "FechaRevision": nowStr }; });
+          var fechaRev = (res.json && res.json.fechaRevision) || nowStr.slice(0,10);
+          var updates = valid.map(function(r){ return { fila: r.fila, Estado: "Revisada", "FechaRevision": fechaRev }; });
           if (typeof tbl.updateData === "function") tbl.updateData(updates);
           if (typeof window.updateKpis === "function") updateKpis();
         }catch(e){}
-        try{ if (window.toast && toast.success) toast.success("Actualizadas a Revisada"); }catch(e){}
+        try{ if (typeof window.toast === "function") toast("Actualizadas a Revisada"); }catch(e){}
       })
       .catch(function(e){
         alert(e && e.message ? e.message : "Error al actualizar.");
@@ -5716,7 +5721,7 @@ function buildPivot(rows, meses, mesLabel){
     // Fila sector
     const secId = 'sec_'+sec.replace(/\W/g,'_');
     bodyHtml+=`<tr class="pivot-sector" onclick="pivotToggle('${secId}')">`;
-    bodyHtml+=`<td><span class="pivot-toggle">▼</span>${sec}</td>`;
+    bodyHtml+=`<td><span class="pivot-toggle">▼</span>${esc(sec)}</td>`;
     bodyHtml+=`<td class="num mes-sep" style="text-align:center;border-left:2px solid var(--border,#e5e7eb);">${secPlacasSet.size}</td>`;
     allMeses.forEach((m,mi)=>{
       const d=secTotals[sec][m]||{km:0,lit:0,gasto:0};
@@ -5732,7 +5737,7 @@ function buildPivot(rows, meses, mesLabel){
     Object.entries(proMap).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([pro,mesMap])=>{
       const proPlacas = mesMap._placas ? mesMap._placas.size : 0;
       bodyHtml+=`<tr class="pivot-proceso ${secId}">`;
-      bodyHtml+=`<td style="padding-left:22px;">${pro}</td>`;
+      bodyHtml+=`<td style="padding-left:22px;">${esc(pro)}</td>`;
       bodyHtml+=`<td class="num mes-sep" style="text-align:center;border-left:2px solid var(--border,#e5e7eb);">${proPlacas||'—'}</td>`;
       let totPro={km:0,lit:0,gasto:0};
       allMeses.forEach((m,mi)=>{
@@ -6105,36 +6110,42 @@ function renderTablaUsuarios(usuarios){
   const rolBadge = r => {
     const cfg = { master:'#6366F1', admin:'#1C7293', usuario:'#0D9488', viewer:'#F59E0B', viewer_2:'#8B5CF6' };
     const c = cfg[r] || '#6b7280';
-    return `<span style="display:inline-block;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700;background:${c}20;color:${c};">${r}</span>`;
+    return `<span style="display:inline-block;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700;background:${c}20;color:${c};">${esc(r)}</span>`;
   };
 
   const tbody = document.getElementById('tablaUsuariosBody');
   if(!tbody) return;
   tbody.innerHTML = usuarios.map((u,i) => {
     const activo = u.activo === 1 || u.activo === true;
-    const bloq   = Number(u.intentos||0) >= 5;
+    // Bloqueo temporal: bloqueado_hasta es un timestamp (segundos) que vence solo
+    const bloqHasta = Number(u.bloqueado_hasta||0);
+    const bloq   = bloqHasta * 1000 > Date.now();
+    const bloqMin = bloq ? Math.ceil((bloqHasta * 1000 - Date.now()) / 60000) : 0;
     const esMaster = u.rol === 'master';
+    // Argumento JS seguro dentro de un atributo onclick
+    const uArg = esc(JSON.stringify(u.usuario));
+    const btnDesbloquear = bloq ? `<button onclick="desbloquearUsuario(${uArg})" style="font-size:11px;padding:3px 10px;border:1px solid #10B981;border-radius:6px;background:#ECFDF5;cursor:pointer;color:#065f46;">Desbloquear</button>` : '';
     return `<tr style="border-bottom:1px solid var(--border);background:${i%2===0?'transparent':'var(--bg-secondary)'}">
-      <td style="padding:10px 14px;font-weight:600;font-family:monospace;">${u.usuario}</td>
-      <td style="padding:10px 14px;color:var(--text-secondary);">${u.nombre||'—'}</td>
+      <td style="padding:10px 14px;font-weight:600;font-family:monospace;">${esc(u.usuario)}</td>
+      <td style="padding:10px 14px;color:var(--text-secondary);">${esc(u.nombre||'—')}</td>
       <td style="padding:10px 14px;">${rolBadge(u.rol)}</td>
-      <td style="padding:10px 14px;font-size:12px;color:var(--text-secondary);">${u.sectores||'Todos'}</td>
+      <td style="padding:10px 14px;font-size:12px;color:var(--text-secondary);">${esc(u.sectores||'Todos')}</td>
       <td style="padding:10px 14px;text-align:center;">
         <span style="display:inline-block;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700;background:${activo?'#d1fae5':'#fee2e2'};color:${activo?'#065f46':'#991b1b'};">
           ${activo?'Activo':'Inactivo'}
         </span>
       </td>
       <td style="padding:10px 14px;text-align:center;">
-        ${bloq ? `<span style="color:#DC2626;font-weight:700;font-size:12px;">🔒 ${u.intentos}</span>` : `<span style="color:var(--text-secondary);font-size:12px;">${u.intentos||0}</span>`}
+        ${bloq ? `<span style="color:#DC2626;font-weight:700;font-size:12px;" title="Se desbloquea solo en ${bloqMin} min">🔒 ${bloqMin} min</span>` : `<span style="color:var(--text-secondary);font-size:12px;">${esc(u.intentos||0)}</span>`}
       </td>
-      <td style="padding:10px 14px;font-size:12px;color:var(--text-secondary);">${u.last_login||'—'}</td>
+      <td style="padding:10px 14px;font-size:12px;color:var(--text-secondary);">${esc(u.last_login||'—')}</td>
       <td style="padding:10px 14px;text-align:center;">
-        ${esMaster ? '<span style="font-size:11px;color:var(--muted);">—</span>' : `
+        ${esMaster ? (btnDesbloquear || '<span style="font-size:11px;color:var(--muted);">—</span>') : `
           <div style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap;">
-            <button onclick="editarUsuario(${JSON.stringify(u).replace(/"/g,'&quot;')})" style="font-size:11px;padding:3px 10px;border:1px solid var(--border);border-radius:6px;background:none;cursor:pointer;color:var(--text-secondary);">Editar</button>
-            <button onclick="resetPasswordUsuario('${u.usuario}')" style="font-size:11px;padding:3px 10px;border:1px solid #F59E0B;border-radius:6px;background:#FEF3C7;cursor:pointer;color:#92400e;">Contraseña</button>
-            ${bloq ? `<button onclick="desbloquearUsuario('${u.usuario}')" style="font-size:11px;padding:3px 10px;border:1px solid #10B981;border-radius:6px;background:#ECFDF5;cursor:pointer;color:#065f46;">Desbloquear</button>` : ''}
-            <button onclick="eliminarUsuario('${u.usuario}')" style="font-size:11px;padding:3px 10px;border:1px solid #EF4444;border-radius:6px;background:#FEF2F2;cursor:pointer;color:#991b1b;">Eliminar</button>
+            <button onclick="editarUsuario(${esc(JSON.stringify(u))})" style="font-size:11px;padding:3px 10px;border:1px solid var(--border);border-radius:6px;background:none;cursor:pointer;color:var(--text-secondary);">Editar</button>
+            <button onclick="resetPasswordUsuario(${uArg})" style="font-size:11px;padding:3px 10px;border:1px solid #F59E0B;border-radius:6px;background:#FEF3C7;cursor:pointer;color:#92400e;">Contraseña</button>
+            ${btnDesbloquear}
+            <button onclick="eliminarUsuario(${uArg})" style="font-size:11px;padding:3px 10px;border:1px solid #EF4444;border-radius:6px;background:#FEF2F2;cursor:pointer;color:#991b1b;">Eliminar</button>
           </div>`}
       </td>
     </tr>`;
@@ -6334,7 +6345,7 @@ function aplicarFiltroModal(){
   const placaActual = placaSel.value;
   const placaSet = new Set(rowsFilt.map(r=>r.Placa||r['Placa Vehículo']||r.placa||'').filter(Boolean));
   placaSel.innerHTML = '<option value="">Todas las placas</option>' +
-    [...placaSet].sort().map(p=>`<option value="${p}">${p}</option>`).join('');
+    [...placaSet].sort().map(p=>`<option value="${esc(p)}">${esc(p)}</option>`).join('');
   if([...placaSet].includes(placaActual)) placaSel.value = placaActual;
 
   const rowsFin = placaSel.value
@@ -6401,8 +6412,8 @@ function renderModalDetalle(rows, filtroMes){
 
   document.getElementById('mdTablaBody').innerHTML=placas.map(([placa,d],i)=>`
     <tr style="border-bottom:1px solid var(--border,#e5e7eb);background:${i%2===0?'transparent':'var(--bg-secondary,#f8fafc)'}">
-      <td style="padding:5px 8px;font-weight:600;font-family:monospace;color:var(--text-primary)">${placa}</td>
-      <td style="padding:5px 8px;color:var(--text-secondary);font-size:11px">${d.proceso}</td>
+      <td style="padding:5px 8px;font-weight:600;font-family:monospace;color:var(--text-primary)">${esc(placa)}</td>
+      <td style="padding:5px 8px;color:var(--text-secondary);font-size:11px">${esc(d.proceso)}</td>
       <td style="padding:5px 8px;text-align:right">${d.count}</td>
       <td style="padding:5px 8px;text-align:right">${(Number(d.gasto)||0).toLocaleString('es-HN',{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
       <td style="padding:5px 8px;text-align:right">${(Number(d.litros)||0).toLocaleString('es-HN',{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
