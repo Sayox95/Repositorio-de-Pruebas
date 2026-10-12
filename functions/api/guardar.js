@@ -184,31 +184,72 @@ export async function onRequestPost({ request, env, data }) {
         });
       }
 
+      if (!idPago) return error("Falta idPago");
+
       // Idempotencia: si este ID_PAGO ya se registró (doble clic / reenvío),
       // no volver a insertar sus Otros Cargos.
-      let pagoYaRegistrado = false;
-      if (idPago) {
-        const prev = await env.DB
-          .prepare("SELECT COUNT(*) AS n FROM otros_cargos WHERE ID_PAGO = ?")
-          .bind(idPago)
-          .first();
-        pagoYaRegistrado = Number(prev && prev.n) > 0;
+      const prev = await env.DB
+        .prepare("SELECT COUNT(*) AS n FROM otros_cargos WHERE ID_PAGO = ?")
+        .bind(idPago)
+        .first();
+      const pagoYaRegistrado = Number(prev && prev.n) > 0;
+
+      // Estado actual de las facturas: sirve para detectar las que ya pagó otro
+      // usuario y para revertir si otro pago se cruza con este.
+      const unicas = [...new Set(filas.map(f => String(f)))];
+      const antes = new Map();
+      for (let i = 0; i < unicas.length; i += 50) {
+        const lote = unicas.slice(i, i + 50);
+        const { results } = await env.DB.prepare(
+          `SELECT fila, Estado, FechaPago, ID_PAGO FROM facturas WHERE fila IN (${lote.map(() => "?").join(", ")})`
+        ).bind(...lote).all();
+        (results || []).forEach(r => antes.set(String(r.fila), r));
+      }
+      const yaPagadaPorOtro = r => ["Pagada", "Enviada"].includes(r.Estado) && !(r.Estado === "Pagada" && r.ID_PAGO === idPago);
+      const conflicto = unicas.filter(f => !antes.has(f) || yaPagadaPorOtro(antes.get(f)));
+      if (conflicto.length) {
+        return new Response(JSON.stringify({
+          ok: false, status: "ERROR", conflicto,
+          message: `${conflicto.length} de las facturas seleccionadas ya fueron pagadas por otro usuario. Actualiza la tabla y vuelve a seleccionar.`
+        }), { status: 409, headers: CORS(origin) });
       }
 
       // Actualizar estado de facturas (nunca reabrir una Pagada/Enviada con otro pago)
-      const stmts = filas.map(fila =>
+      const stmts = unicas.map(fila =>
         env.DB.prepare(
           `UPDATE facturas SET Estado = 'Pagada', FechaPago = ?, ID_PAGO = ?
            WHERE fila = ? AND (Estado IS NULL OR Estado NOT IN ('Pagada', 'Enviada') OR (Estado = 'Pagada' AND ID_PAGO = ?))`
         ).bind(fechaPago, idPago, fila, idPago)
       );
+      let pagadas = 0;
       for (let i = 0; i < stmts.length; i += 50) {
-        await env.DB.batch(stmts.slice(i, i + 50));
+        const res = await env.DB.batch(stmts.slice(i, i + 50));
+        (res || []).forEach(r => { pagadas += cambios(r); });
+      }
+
+      // Otro pago se cruzó con este entre la verificación y la actualización:
+      // revertir lo que este pago alcanzó a marcar (todo o nada).
+      if (pagadas < unicas.length) {
+        const revertir = unicas
+          .filter(f => !(antes.get(f).Estado === "Pagada" && antes.get(f).ID_PAGO === idPago))
+          .map(f => {
+            const a = antes.get(f);
+            return env.DB.prepare(
+              "UPDATE facturas SET Estado = ?, FechaPago = ?, ID_PAGO = ? WHERE fila = ? AND ID_PAGO = ?"
+            ).bind(a.Estado ?? null, a.FechaPago ?? null, a.ID_PAGO ?? null, f, idPago);
+          });
+        for (let i = 0; i < revertir.length; i += 50) {
+          await env.DB.batch(revertir.slice(i, i + 50));
+        }
+        return new Response(JSON.stringify({
+          ok: false, status: "ERROR",
+          message: "Otro usuario pagó algunas de estas facturas al mismo tiempo. No se registró este pago; actualiza la tabla y vuelve a intentarlo."
+        }), { status: 409, headers: CORS(origin) });
       }
 
       // Guardar Otros Cargos en D1
       let cargosGuardados = 0;
-      if (cargos.length && idPago && !pagoYaRegistrado) {
+      if (cargos.length && !pagoYaRegistrado) {
         const hoy = hoyHN();
         const cargoStmts = cargos.map(c =>
           env.DB.prepare(`
@@ -228,7 +269,7 @@ export async function onRequestPost({ request, env, data }) {
         cargosGuardados = cargos.length;
       }
 
-      return new Response(JSON.stringify({ ok: true, status: "OK", pagoLote: true, pagadas: filas.length, cargos: cargosGuardados }), {
+      return new Response(JSON.stringify({ ok: true, status: "OK", pagoLote: true, pagadas, cargos: cargosGuardados }), {
         status: 200, headers: CORS(origin)
       });
     }
