@@ -343,7 +343,15 @@
 <style id="responsive-movil">
 /* ===== Filtros: se acomodan al ancho disponible (antes "Limpiar" quedaba
    fuera de pantalla en laptops); en pantallas grandes siguen en una fila ===== */
-.filters{ grid-template-columns:repeat(auto-fill, minmax(170px, 1fr)) !important; }
+.filters{ display:flex !important; flex-wrap:wrap; gap:10px; align-items:center; }
+.filters > *{ flex:1 1 130px; min-width:0; max-width:340px; }
+/* Nº de factura y rangos de fecha necesitan más espacio para leerse completos */
+#fPlaca{ flex-basis:120px; }
+#fNombre, #fPagoNombre{ flex-basis:165px; }
+#fNumero, #fPagoNumero{ flex-basis:185px; }
+#fFecha, #fPagoFecha{ flex-basis:215px; }
+#fFechaRev{ flex-basis:185px; }
+.filters > .btn, .filters > div:last-child:not(.msel){ flex:0 0 auto; }
 /* ===== Tabletas (≤1024px) ===== */
 @media (max-width:1024px){
   .toolbar, .header-row{ flex-wrap:wrap; gap:10px !important; }
@@ -393,8 +401,9 @@
 
   /* Campos: 16px evita el zoom automático de iOS al enfocar */
   .input, select, .msel-toggle, input[type="date"]{ font-size:16px !important; }
-  .filters{ grid-template-columns:1fr 1fr !important; }
-  .filters > *{ min-width:0; }
+  .filters{ gap:8px !important; }
+  .filters > *{ flex:1 1 calc(50% - 4px); max-width:none; }
+  #fFecha, #fFechaRev, #fPagoFecha{ flex-basis:100%; }
 
   /* Tablas Tabulator: scroll horizontal dentro de la tabla */
   .tabulator{ font-size:12px !important; }
@@ -689,7 +698,7 @@
           <div id="msEstado" class="msel" data-placeholder="Estado"></div>
           <input id="fNombre" class="input" placeholder="Nombre Colaborador…"/>
           <input id="fNumero" class="input" placeholder="Nº Factura…"/>
-          <input id="fFecha" class="input" placeholder="Rango de fechas (mes actual por defecto)"/>
+          <input id="fFecha" class="input" placeholder="Rango de fecha de Factura"/>
           <input id="fFechaRev" class="input" placeholder="Rango fecha revisión"/>
           <button id="btnLimpiar" class="btn btn-ghost"><i class="lucide-broom"></i> Limpiar</button>
         </div>
