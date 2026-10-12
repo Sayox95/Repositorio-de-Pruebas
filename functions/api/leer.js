@@ -1,8 +1,5 @@
 // functions/api/leer.js
-// Lecturas de facturas → D1 (rápido, con índices reales)
-// Otros cargos        → AppScript (sin cambios)
-
-const APPSCRIPT_URL = "https://script.google.com/macros/s/AKfycbz70oCZkuBJpO09gEhXOXYabFAQ1VL8hiT-8FpN0G9LofBF6VwbfhL1vpcU2SWJCRJHgw/exec";
+// Lecturas de facturas y otros cargos → D1
 
 const CORS = (origin) => ({
   "Access-Control-Allow-Origin": origin,
