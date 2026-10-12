@@ -1,8 +1,9 @@
 // functions/api/auth/login.js
 // Hash: SHA-256 iterativo x15000 (mismo que AppScript)
 
-const MAX_INTENTOS = 5;
-const ITER         = 15000;
+const MAX_INTENTOS   = 5;
+const BLOQUEO_SEG    = 15 * 60; // bloqueo temporal tras MAX_INTENTOS fallidos
+const ITER           = 15000;
 
 export async function onRequest({ request, env }) {
   if (request.method === "OPTIONS") return preflight();
@@ -22,7 +23,7 @@ export async function onRequest({ request, env }) {
   let user = null;
   try {
     const { results } = await env.DB
-      .prepare("SELECT usuario, hash, salt, rol, activo, intentos, sectores FROM usuarios WHERE usuario = ? LIMIT 1")
+      .prepare("SELECT usuario, hash, salt, rol, activo, intentos, bloqueado_hasta, sectores FROM usuarios WHERE usuario = ? LIMIT 1")
       .bind(usuario)
       .all();
     user = results && results.length > 0 ? results[0] : null;
@@ -33,24 +34,35 @@ export async function onRequest({ request, env }) {
   if (!user) return j({ error: "credenciales invalidas" }, 401);
 
   const activo   = user.activo === 1 || user.activo === true || String(user.activo).toLowerCase() === "true";
-  const intentos = Number(user.intentos || 0);
-  if (!activo)                  return j({ error: "usuario inactivo" }, 401);
-  if (intentos >= MAX_INTENTOS) return j({ error: "usuario bloqueado" }, 401);
+  const nowTs    = Math.floor(Date.now() / 1000);
+
+  // Bloqueo temporal: vence solo, así nadie puede dejar una cuenta
+  // (ni la del master) bloqueada para siempre con intentos fallidos.
+  const bloqueadoHasta = Number(user.bloqueado_hasta || 0);
+  if (bloqueadoHasta > nowTs) {
+    const min = Math.ceil((bloqueadoHasta - nowTs) / 60);
+    return j({ error: `Usuario bloqueado por intentos fallidos. Intenta de nuevo en ${min} min.` }, 401);
+  }
 
   // ── Verificar password con mismo algoritmo que AppScript ─────────────────
   const hashCalc = await hashPass(password, user.salt, ITER);
   if (hashCalc !== user.hash) {
-    await env.DB.prepare("UPDATE usuarios SET intentos = intentos + 1 WHERE usuario = ?")
-      .bind(usuario).run().catch(() => {});
+    const intentos = Number(user.intentos || 0) + 1;
+    const stmt = intentos >= MAX_INTENTOS
+      ? env.DB.prepare("UPDATE usuarios SET intentos = 0, bloqueado_hasta = ? WHERE usuario = ?").bind(nowTs + BLOQUEO_SEG, usuario)
+      : env.DB.prepare("UPDATE usuarios SET intentos = ? WHERE usuario = ?").bind(intentos, usuario);
+    await stmt.run().catch(() => {});
     return j({ error: "credenciales invalidas" }, 401);
   }
 
+  // El estado inactivo solo se revela con la contraseña correcta
+  if (!activo) return j({ error: "usuario inactivo" }, 401);
+
   // ── Login exitoso ────────────────────────────────────────────────────────
-  const now = new Date().toISOString().slice(0, 10);
-  await env.DB.prepare("UPDATE usuarios SET intentos = 0, last_login = ? WHERE usuario = ?")
+  const now = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Tegucigalpa" }).format(new Date());
+  await env.DB.prepare("UPDATE usuarios SET intentos = 0, bloqueado_hasta = NULL, last_login = ? WHERE usuario = ?")
     .bind(now, usuario).run().catch(() => {});
 
-  const nowTs   = Math.floor(Date.now() / 1000);
   const sectores = user.sectores ? user.sectores.split(",").map(s => s.trim()).filter(Boolean) : [];
   const payload = { sub: user.usuario, rol: user.rol || "usuario", sectores, iat: nowTs, exp: nowTs + 60*60*24*7 };
   const token   = await signJWT(payload, env.SESSION_SECRET);

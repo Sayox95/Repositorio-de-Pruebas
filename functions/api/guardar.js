@@ -6,6 +6,22 @@
 // Apps Script "AplicativoFacturas" (solo generarLiquidacion; valida GAS_TOKEN)
 const APPSCRIPT_URL = "https://script.google.com/macros/s/AKfycbwyhM9LkijTDsSiWtfGZDe7MVCxTDJJcIFaeG8UXbvyWz7CeKgpmzV9YL1cUvD0nL9PLg/exec";
 
+// Estados que se pueden asignar a mano. "Pagada" solo vía pago (pagoLote) y
+// "Enviada" solo desde Pagada (actualizarEstadoLote).
+const ESTADOS_MANUALES = ["Registrada", "Revisada", "Anulada", "Excluida"];
+const SQL_NO_CERRADA   = "(Estado IS NULL OR Estado NOT IN ('Pagada', 'Enviada'))";
+
+// Fecha de hoy en Honduras (YYYY-MM-DD); toISOString() da la fecha UTC,
+// que después de las 6 pm ya es "mañana".
+function hoyHN() {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Tegucigalpa" }).format(new Date());
+}
+
+// Filas modificadas según la respuesta de D1
+function cambios(r) {
+  return Number((r && r.meta && r.meta.changes) ?? (r && r.changes) ?? 0) || 0;
+}
+
 const CORS = (origin) => ({
   "Access-Control-Allow-Origin": origin,
   "Access-Control-Allow-Methods": "POST, OPTIONS", 
@@ -83,15 +99,18 @@ export async function onRequestPost({ request, env, data }) {
     }, origin);
   }
 
-  // ── Helper: actualizar una fila en D1 ───────────────────────────────────
+  // ── Helper: actualizar una fila en D1 (nunca una Pagada/Enviada) ─────────
   async function actualizarFila(fila, campos) {
-    if (!fila || !Object.keys(campos).length) return;
+    if (!fila || !Object.keys(campos).length) return 0;
     const sets = Object.keys(campos).map(c => `${c} = ?`);
     const vals = [...Object.values(campos), fila];
-    await env.DB.prepare(
-      `UPDATE facturas SET ${sets.join(", ")} WHERE fila = ?`
+    const r = await env.DB.prepare(
+      `UPDATE facturas SET ${sets.join(", ")} WHERE fila = ? AND ${SQL_NO_CERRADA}`
     ).bind(...vals).run();
+    return cambios(r);
   }
+  const error = (message, status = 400) =>
+    new Response(JSON.stringify({ ok: false, status: "ERROR", message }), { status, headers: CORS(origin) });
 
   try {
     // ── Cambio de estado individual ────────────────────────────────────────
@@ -103,12 +122,16 @@ export async function onRequestPost({ request, env, data }) {
           status: 400, headers: CORS(origin)
         });
       }
+      if (!ESTADOS_MANUALES.includes(nuevoEstado)) {
+        return error(`No se puede asignar "${nuevoEstado}" manualmente.`);
+      }
       const campos = { Estado: nuevoEstado };
       if (nuevoEstado === "Revisada") {
-        campos.FechaRevision = new Date().toISOString().slice(0, 10);
+        campos.FechaRevision = hoyHN();
       }
-      await actualizarFila(fila, campos);
-      return new Response(JSON.stringify({ ok: true, status: "OK" }), {
+      const n = await actualizarFila(fila, campos);
+      if (!n) return error("La factura no existe o ya está Pagada/Enviada.", 409);
+      return new Response(JSON.stringify({ ok: true, status: "OK", fechaRevision: campos.FechaRevision }), {
         status: 200, headers: CORS(origin)
       });
     }
@@ -122,17 +145,29 @@ export async function onRequestPost({ request, env, data }) {
           status: 400, headers: CORS(origin)
         });
       }
-      const fechaHoy   = new Date().toISOString().slice(0, 10);
+      // Enviada solo desde Pagada; el resto solo sobre facturas no cerradas
+      const esEnviada = nuevoEstado === "Enviada";
+      if (!esEnviada && !ESTADOS_MANUALES.includes(nuevoEstado)) {
+        return error(`No se puede asignar "${nuevoEstado}" en lote.`);
+      }
+      const fechaHoy   = hoyHN();
       const esRevisada = nuevoEstado === "Revisada";
       const stmts = filas.map(fila =>
-        esRevisada
-          ? env.DB.prepare(`UPDATE facturas SET Estado = ?, FechaRevision = ? WHERE fila = ?`).bind(nuevoEstado, fechaHoy, fila)
-          : env.DB.prepare(`UPDATE facturas SET Estado = ? WHERE fila = ?`).bind(nuevoEstado, fila)
+        esEnviada
+          ? env.DB.prepare(`UPDATE facturas SET Estado = 'Enviada' WHERE fila = ? AND Estado = 'Pagada'`).bind(fila)
+          : esRevisada
+            ? env.DB.prepare(`UPDATE facturas SET Estado = ?, FechaRevision = ? WHERE fila = ? AND ${SQL_NO_CERRADA}`).bind(nuevoEstado, fechaHoy, fila)
+            : env.DB.prepare(`UPDATE facturas SET Estado = ? WHERE fila = ? AND ${SQL_NO_CERRADA}`).bind(nuevoEstado, fila)
       );
+      let actualizadas = 0;
       for (let i = 0; i < stmts.length; i += 50) {
-        await env.DB.batch(stmts.slice(i, i + 50));
+        const res = await env.DB.batch(stmts.slice(i, i + 50));
+        (res || []).forEach(r => { actualizadas += cambios(r); });
       }
-      return new Response(JSON.stringify({ ok: true, status: "OK", actualizadas: filas.length }), {
+      if (!actualizadas) {
+        return error(esEnviada ? "Ninguna de las facturas está Pagada." : "Ninguna factura se pudo actualizar (ya están Pagadas/Enviadas).", 409);
+      }
+      return new Response(JSON.stringify({ ok: true, status: "OK", actualizadas, omitidas: filas.length - actualizadas, fechaRevision: esRevisada ? fechaHoy : undefined }), {
         status: 200, headers: CORS(origin)
       });
     }
@@ -174,7 +209,7 @@ export async function onRequestPost({ request, env, data }) {
       // Guardar Otros Cargos en D1
       let cargosGuardados = 0;
       if (cargos.length && idPago && !pagoYaRegistrado) {
-        const hoy = new Date().toISOString().slice(0, 10);
+        const hoy = hoyHN();
         const cargoStmts = cargos.map(c =>
           env.DB.prepare(`
             INSERT INTO otros_cargos (ID_PAGO, MONTO, TIPO, FECHA, COD_TRANSACCION)
@@ -203,7 +238,8 @@ export async function onRequestPost({ request, env, data }) {
       const campos = { Estado: "Pagada", FechaPago: bodyJson.fechaPago };
       if (bodyJson.fondoPeriodo) campos.Fondo   = bodyJson.fondoPeriodo;
       if (bodyJson.idPago)       campos.ID_PAGO = bodyJson.idPago;
-      await actualizarFila(bodyJson.fila, campos);
+      const n = await actualizarFila(bodyJson.fila, campos);
+      if (!n) return error("La factura no existe o ya está Pagada/Enviada.", 409);
       return new Response(JSON.stringify({ ok: true, status: "OK", pagoLote: true }), {
         status: 200, headers: CORS(origin)
       });
