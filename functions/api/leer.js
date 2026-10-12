@@ -12,14 +12,17 @@ const CORS = (origin) => ({
   "Cache-Control": "no-store",
 });
 
-export async function onRequestGet({ request, env }) {
+export async function onRequestGet({ request, env, data }) {
   const origin   = request.headers.get("Origin") || "*";
   const params   = new URL(request.url).searchParams;
 
   const otrosCargos   = params.get("otrosCargos");
   const ids           = params.getAll("ids");
   const estados       = params.get("estados");
-  const sectoresParam = params.get("sectores"); // filtro de sectores por usuario
+  const sectoresParam = params.get("sectores"); // filtro opcional de sectores desde la UI
+  // Sectores permitidos: vienen de la sesión (middleware), nunca del cliente.
+  // [] = sin restricción (acceso a todos los sectores)
+  const sectoresUsuario = (data && data.user && Array.isArray(data.user.sectores)) ? data.user.sectores : [];
   const fechaDesde    = params.get("fechaDesde") || null;
   // Si fechaHasta está vacío pero fechaDesde tiene valor, usar fechaDesde como fechaHasta
   const _fechaHastaRaw = params.get("fechaHasta") || null;
@@ -94,22 +97,11 @@ export async function onRequestGet({ request, env }) {
       estadosArr.forEach(s => bindings.push(s));
     }
 
-    // Filtro de sectores del usuario — solo muestra sus sectores asignados
-    if (sectoresParam) {
-      const sectoresArr = sectoresParam.split(",").map(s => s.trim()).filter(Boolean);
-      if (sectoresArr.length > 0) {
-        const placeholders = sectoresArr.map(() => "?").join(", ");
-        conditions.push(`Sector IN (${placeholders})`);
-        sectoresArr.forEach(s => bindings.push(s));
-      }
-    }
-
-    const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
-
     // Endpoint especial: lista de sectores para filtro de métricas
     if (params.get("sectoresLista") === "true") {
       const { results: sRes } = await env.DB.prepare("SELECT DISTINCT Sector FROM facturas WHERE Sector IS NOT NULL ORDER BY Sector").all();
-      const sectores = (sRes || []).map(r => r.Sector).filter(Boolean);
+      let sectores = (sRes || []).map(r => r.Sector).filter(Boolean);
+      if (sectoresUsuario.length) sectores = sectores.filter(s => sectoresUsuario.includes(s));
       return new Response(JSON.stringify({ sectores }), { status: 200, headers: CORS(origin) });
     }
 
@@ -117,6 +109,21 @@ export async function onRequestGet({ request, env }) {
     if (!conditions.length) {
       return new Response(JSON.stringify([]), { status: 200, headers: CORS(origin) });
     }
+
+    // Filtro de sectores: el pedido por la UI, acotado a los sectores del usuario
+    let sectoresArr = sectoresParam ? sectoresParam.split(",").map(s => s.trim()).filter(Boolean) : [];
+    if (sectoresUsuario.length) {
+      sectoresArr = sectoresArr.length ? sectoresArr.filter(s => sectoresUsuario.includes(s)) : sectoresUsuario;
+      if (!sectoresArr.length) {
+        return new Response(JSON.stringify([]), { status: 200, headers: CORS(origin) });
+      }
+    }
+    if (sectoresArr.length) {
+      conditions.push(`Sector IN (${sectoresArr.map(() => "?").join(", ")})`);
+      sectoresArr.forEach(s => bindings.push(s));
+    }
+
+    const where = `WHERE ${conditions.join(" AND ")}`;
 
     const sql = `SELECT * FROM facturas ${where} ORDER BY fila ASC`;
 
