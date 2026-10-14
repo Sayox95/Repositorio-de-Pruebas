@@ -1,10 +1,10 @@
 // functions/api/sectores.js
 // Jefe inmediato por sector (fuente única de verdad; ver migrations/0002_sectores.sql)
 // GET  → lista de sectores con su jefe
-// POST → { sector, jefe }: crea o actualiza el jefe de un sector (admin/master)
+// POST → { sector, jefe }: crea o actualiza el jefe de un sector (solo master)
 //        y lo refleja en todos los vehículos de ese sector.
 
-const ROLES_EDICION = ["master", "admin"];
+const ROLES_EDICION = ["master"];
 
 function j(obj, status = 200) {
   return new Response(JSON.stringify(obj), {
@@ -29,7 +29,7 @@ export async function onRequestGet({ env, data }) {
 
 export async function onRequestPost({ request, env, data }) {
   const user = (data && data.user) || {};
-  if (!ROLES_EDICION.includes(user.rol)) return j({ ok: false, message: "Solo admin o master pueden editar jefes de sector" }, 403);
+  if (!ROLES_EDICION.includes(user.rol)) return j({ ok: false, message: "Solo el rol master puede editar jefes de sector" }, 403);
 
   let body = null;
   try { body = await request.json(); } catch (_) {}

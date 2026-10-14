@@ -818,6 +818,7 @@
         </button>
         <button id="btnPlacasModificar" class="btn btn-primary" style="display:none;"><i class="lucide-edit-3"></i> Modificar</button>
         <button id="btnPlacasJefes" class="btn btn-ghost" onclick="abrirModalJefesSector()" style="display:none;align-items:center;gap:6px;"><i class="lucide-users"></i> Jefes por sector</button>
+        <button id="btnPlacasProcesos" class="btn btn-ghost" onclick="abrirModalProcesos()" style="display:none;align-items:center;gap:6px;"><i class="lucide-list"></i> Procesos</button>
         <button id="btnPlacasGuia" class="btn btn-ghost" title="Ver guía de la nueva función" style="display:inline-flex;align-items:center;gap:6px;"><i class="lucide-help-circle"></i> Guía</button>
         <button id="btnPlacasNueva" class="btn btn-primary"><i class="lucide-plus"></i> Nueva placa</button>
       </div>
@@ -3020,7 +3021,66 @@ function getJefeBySector(sector){
   return (fila && fila.Jefe) || "";
 }
 
-/* ===== Modal "Jefes por sector" (admin/master) ===== */
+/* ===== Modal "Procesos" (solo master): catálogo de la tabla procesos ===== */
+async function abrirModalProcesos(){
+  const m = document.getElementById("modalProcesos"); if(m) m.style.display = "grid";
+  await renderProcesosCatalogo();
+}
+function cerrarModalProcesos(){
+  const m = document.getElementById("modalProcesos"); if(m) m.style.display = "none";
+}
+async function renderProcesosCatalogo(){
+  const tbody = document.getElementById("tablaProcesosBody"); if(!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="3" style="padding:16px;text-align:center;color:var(--muted);">Cargando…</td></tr>';
+  try{
+    const res = await fetch("/api/procesos?detalle=1", { cache:"no-store" });
+    const lista = res.ok ? await res.json() : [];
+    tbody.innerHTML = (Array.isArray(lista) ? lista : []).map(p => {
+      const protegido = String(p.Proceso).toUpperCase() === "SIN ASIGNAR";
+      const enUso = Number(p.vehiculos) > 0;
+      const motivo = protegido ? "Se usa para vehículos pendientes de homologar" : (enUso ? "Asignado a vehículos: cámbiales el proceso antes de quitarlo" : "");
+      return `<tr style="border-top:1px solid var(--border,#e5e7eb);">
+        <td style="padding:8px 10px;font-weight:600;">${esc(p.Proceso)}</td>
+        <td style="padding:8px 10px;text-align:right;color:var(--muted);white-space:nowrap;">${Number(p.vehiculos)||0} vehículo(s)</td>
+        <td style="padding:6px 10px;text-align:right;"><button class="btn btn-ghost js-quitar-proceso" data-id="${esc(p.id)}" data-nombre="${esc(p.Proceso)}" ${protegido || enUso ? "disabled" : ""} title="${esc(motivo)}" style="padding:6px 10px;color:#b91c1c;">Quitar</button></td>
+      </tr>`;
+    }).join("") || '<tr><td colspan="3" style="padding:16px;text-align:center;color:var(--muted);">No hay procesos</td></tr>';
+  }catch(e){
+    tbody.innerHTML = '<tr><td colspan="3" style="padding:16px;text-align:center;color:#b91c1c;">No fue posible cargar los procesos</td></tr>';
+  }
+}
+async function accionProceso(datos, mensajeOk){
+  overlay.show("Guardando…");
+  try{
+    const res = await fetch("/api/procesos", { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(datos) });
+    const out = await res.json().catch(()=>({}));
+    if(!res.ok || !out.ok) throw new Error(out.message || ("HTTP " + res.status));
+    await renderProcesosCatalogo();
+    await loadProcesosOptions().catch(()=>{}); // refrescar los selectores de crear/editar placa
+    quickToast(mensajeOk);
+    return true;
+  }catch(e){
+    alert(e.message);
+    return false;
+  }finally{ overlay.hide(); }
+}
+document.addEventListener("click", async (ev)=>{
+  const quitar = ev.target.closest && ev.target.closest(".js-quitar-proceso");
+  if(quitar && !quitar.disabled){
+    const nombre = quitar.getAttribute("data-nombre");
+    if(!confirm(`¿Quitar el proceso "${nombre}" del catálogo?`)) return;
+    await accionProceso({ accion:"quitar", id: Number(quitar.getAttribute("data-id")) }, `✅ Proceso "${nombre}" quitado`);
+    return;
+  }
+  if(ev.target && ev.target.id === "btnProcesoAgregar"){
+    const input = document.getElementById("nuevoProcesoNombre");
+    const nombre = (input?.value || "").trim();
+    if(!nombre){ alert("Escribe el nombre del proceso."); return; }
+    if(await accionProceso({ accion:"agregar", proceso: nombre }, `✅ Proceso "${nombre}" agregado`) && input) input.value = "";
+  }
+});
+
+/* ===== Modal "Jefes por sector" (solo master) ===== */
 function abrirModalJefesSector(){
   renderJefesSector();
   const m = document.getElementById("modalJefesSector"); if(m) m.style.display = "grid";
@@ -3439,9 +3499,11 @@ window.userSectores = []; // [] = acceso a todos los sectores
 
 function applyRolRestrictions(rol, sectores){
   window.userRol = rol || "admin";
-  // Editar jefes por sector: solo admin y master (el backend también lo exige)
+  // Jefes por sector y catálogo de procesos: solo master (el backend también lo exige)
   const btnJefes = document.getElementById("btnPlacasJefes");
-  if(btnJefes) btnJefes.style.display = (rol === "master" || rol === "admin") ? "inline-flex" : "none";
+  if(btnJefes) btnJefes.style.display = rol === "master" ? "inline-flex" : "none";
+  const btnProcesos = document.getElementById("btnPlacasProcesos");
+  if(btnProcesos) btnProcesos.style.display = rol === "master" ? "inline-flex" : "none";
   const btnNueva = document.getElementById("btnPlacasNueva");
   if(btnNueva && ["viewer", "viewer_2"].includes(rol)) btnNueva.style.display = "none";
   window.userSectores = Array.isArray(sectores) && sectores.length ? sectores : [];
@@ -6689,6 +6751,26 @@ function renderModalDetalle(rows, filtroMes){
 
 </script>
 
+
+<!-- ══════════ MODAL PROCESOS (solo master) ══════════ -->
+<div id="modalProcesos" class="overlay" style="display:none; z-index:9998;">
+  <div style="background:var(--bg-primary,#fff); border-radius:12px; width:94vw; max-width:560px; max-height:90vh; display:flex; flex-direction:column; box-shadow:0 20px 60px rgba(0,0,0,0.25); overflow:hidden;">
+    <div style="display:flex; align-items:center; justify-content:space-between; padding:1rem 1.25rem; border-bottom:1px solid var(--border,#e5e7eb);">
+      <div>
+        <h3 style="margin:0; font-size:1.05rem; font-weight:700;">Catálogo de procesos</h3>
+        <p style="margin:4px 0 0; font-size:12px; color:var(--muted);">Solo se puede quitar un proceso que no esté asignado a ningún vehículo.</p>
+      </div>
+      <button onclick="cerrarModalProcesos()" style="background:none;border:none;cursor:pointer;padding:6px;color:var(--muted);font-size:18px;">✕</button>
+    </div>
+    <div style="overflow:auto; padding:0.5rem 1.25rem;">
+      <table style="width:100%; border-collapse:collapse; font-size:13px;"><tbody id="tablaProcesosBody"></tbody></table>
+    </div>
+    <div style="display:flex; gap:8px; flex-wrap:wrap; padding:1rem 1.25rem; border-top:1px solid var(--border,#e5e7eb); background:var(--bg-secondary,#f8fafc);">
+      <input id="nuevoProcesoNombre" class="input" placeholder="Nuevo proceso" maxlength="120" style="flex:1 1 220px;">
+      <button id="btnProcesoAgregar" class="btn btn-primary">Agregar proceso</button>
+    </div>
+  </div>
+</div>
 
 <!-- ══════════ MODAL JEFES POR SECTOR ══════════ -->
 <div id="modalJefesSector" class="overlay" style="display:none; z-index:9998;">
