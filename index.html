@@ -2472,6 +2472,14 @@ async function abrirModalModificarPlaca(){
     setVal("epPlaca", r.Placa || "");
     setVal("epNombre", r.Conductor || "");
     setVal("epSector", r.Sector || "");
+    // Si el vehículo tiene un proceso fuera del catálogo (dato antiguo), se
+    // agrega como opción para no perderlo al guardar
+    const selProceso = document.getElementById("epProceso");
+    if(selProceso && r.Proceso && !Array.from(selProceso.options).some(o => o.value === r.Proceso)){
+      const opt = document.createElement("option");
+      opt.value = r.Proceso; opt.textContent = r.Proceso + " (fuera de catálogo)";
+      selProceso.appendChild(opt);
+    }
     setVal("epProceso", r.Proceso || "");
     actualizarJefeModalModificarPorSector();
     if(!document.getElementById("epJefe")?.value){ setVal("epJefe", r.JefeInmediato || ""); }

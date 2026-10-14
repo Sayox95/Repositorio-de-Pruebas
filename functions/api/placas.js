@@ -65,6 +65,16 @@ async function sectorRegistrado(env, sector) {
   return row ? row.Sector : null;
 }
 
+// Proceso tal como está en el catálogo `procesos` (o null si no existe)
+async function procesoRegistrado(env, proceso) {
+  const p = String(proceso || "").trim();
+  if (!p) return null;
+  const row = await env.DB
+    .prepare("SELECT Proceso FROM procesos WHERE UPPER(TRIM(Proceso)) = UPPER(?) LIMIT 1")
+    .bind(p).first();
+  return row ? String(row.Proceso).trim() : null;
+}
+
 const ESTADOS_VEHICULO = ["ACTIVO", "INACTIVO"];
 const MAX_TEXTO = 120; // largo máximo de conductor, proceso, designación, marca y modelo
 
@@ -171,6 +181,8 @@ export async function onRequestPost({ request, env, data }) {
       if (restringido && !sectoresUsuario.map(x => x.toUpperCase()).includes(sectorOk.toUpperCase())) return fueraDeSector();
 
       if (!texto(proceso)) return jsonRes({ ok: false, message: "El proceso es obligatorio" }, 400);
+      const procesoOk = await procesoRegistrado(env, proceso);
+      if (!procesoOk) return jsonRes({ ok: false, message: `El proceso "${String(proceso).trim()}" no está en el catálogo de procesos` }, 400);
       const estadoOk = (estado || "ACTIVO").toString().trim().toUpperCase();
       if (!ESTADOS_VEHICULO.includes(estadoOk)) return jsonRes({ ok: false, message: "Estado inválido (ACTIVO o INACTIVO)" }, 400);
 
@@ -187,7 +199,7 @@ export async function onRequestPost({ request, env, data }) {
         placaNorm.value,
         texto(nombre),
         sectorOk,
-        texto(proceso),
+        procesoOk,
         texto(designacion),
         estadoOk,
         await jefeDeSector(env, sectorOk),
@@ -339,6 +351,23 @@ export async function onRequestPost({ request, env, data }) {
 
       const nuevaPlaca = placaNorm.value;
       const id = (IDvehiculo || "").toString().trim();
+
+      // Proceso: debe estar en el catálogo, salvo que sea el que ya tenía el
+      // vehículo (datos antiguos fuera del catálogo se conservan al editar)
+      let procesoOk = null;
+      if (texto(proceso)) {
+        procesoOk = await procesoRegistrado(env, proceso);
+        if (!procesoOk) {
+          const actual = id
+            ? await env.DB.prepare("SELECT Proceso FROM vehiculos WHERE IDvehiculo = ?").bind(id).first()
+            : await env.DB.prepare(`SELECT Proceso FROM vehiculos WHERE ${normalizedPlateSql("Placa")} = ?`).bind(cleanPlateVin(placaOriginal)).first();
+          if (actual && String(actual.Proceso || "").trim().toUpperCase() === texto(proceso).toUpperCase()) {
+            procesoOk = texto(proceso);
+          } else {
+            return jsonRes({ ok: false, message: `El proceso "${String(proceso).trim()}" no está en el catálogo de procesos` }, 400);
+          }
+        }
+      }
       const placaAnterior = (placaOriginal || "").toString().trim().toUpperCase();
       const placaAnteriorClean = cleanPlateVin(placaAnterior);
 
@@ -381,7 +410,7 @@ export async function onRequestPost({ request, env, data }) {
         nuevaPlaca,
         texto(conductor),
         sectorOk,
-        texto(proceso),
+        procesoOk,
         await jefeDeSector(env, sectorOk),
         texto(designacion),
         texto(marca),

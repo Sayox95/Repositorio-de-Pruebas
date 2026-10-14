@@ -1,13 +1,10 @@
 // functions/api/procesos.js
-// GET → lista de procesos existentes (vehículos y facturas) desde D1
+// GET → catálogo oficial de procesos (tabla `procesos` en D1)
 export async function onRequestGet({ env }) {
   try {
-    const { results } = await env.DB.prepare(`
-      SELECT Proceso FROM vehiculos WHERE Proceso IS NOT NULL AND TRIM(Proceso) != ''
-      UNION
-      SELECT Proceso FROM facturas  WHERE Proceso IS NOT NULL AND TRIM(Proceso) != ''
-      ORDER BY Proceso
-    `).all();
+    const { results } = await env.DB
+      .prepare("SELECT Proceso FROM procesos WHERE TRIM(Proceso) != '' ORDER BY Proceso")
+      .all();
     const procesos = [...new Set((results || []).map(r => String(r.Proceso).trim()).filter(Boolean))];
     return j(procesos);
   } catch (e) {
