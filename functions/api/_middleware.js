@@ -14,6 +14,7 @@ const PUBLIC_PATHS = new Set([
 const READ_ONLY = {
   "/api/guardar":     ["viewer", "viewer_2"],
   "/api/placas":      ["viewer"],
+  "/api/sectores":    ["viewer", "viewer_2"],
 };
 
 export async function onRequest(context) {

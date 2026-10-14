@@ -45,6 +45,14 @@ function sectoresDeSesion(data) {
   return (data && data.user && Array.isArray(data.user.sectores)) ? data.user.sectores : [];
 }
 
+// Jefe inmediato de un sector según la tabla `sectores` (fuente única de verdad)
+async function jefeDeSector(env, sector) {
+  const s = String(sector || "").trim();
+  if (!s) return null;
+  const row = await env.DB.prepare("SELECT Jefe FROM sectores WHERE Sector = ?").bind(s).first();
+  return (row && row.Jefe) || null;
+}
+
 function jsonRes(obj, status = 200) {
   return new Response(JSON.stringify(obj), { status, headers: { ...CORS, "Content-Type": "application/json" } });
 }
@@ -71,28 +79,32 @@ export async function onRequestGet({ request, env, data }) {
   const qPlate = q.replace(/[^A-Z0-9]/g, "");
 
   try {
-    let query = "SELECT IDvehiculo, Estado, Placa, Sector, Conductor, Proceso, Jefe AS JefeInmediato, Designacion, Marca, Modelo FROM vehiculos WHERE 1=1";
+    // El jefe se toma de la tabla sectores; la columna Jefe del vehículo es solo respaldo
+    let query = `SELECT v.IDvehiculo, v.Estado, v.Placa, v.Sector, v.Conductor, v.Proceso,
+                        COALESCE(s.Jefe, v.Jefe) AS JefeInmediato, v.Designacion, v.Marca, v.Modelo
+                 FROM vehiculos v LEFT JOIN sectores s ON s.Sector = TRIM(v.Sector)
+                 WHERE 1=1`;
     const bindings = [];
 
     if (estado) {
-      query += " AND UPPER(Estado) = UPPER(?)";
+      query += " AND UPPER(v.Estado) = UPPER(?)";
       bindings.push(estado);
     }
     if (sectoresArr.length) {
-      query += ` AND Sector IN (${sectoresArr.map(() => "?").join(", ")})`;
+      query += ` AND v.Sector IN (${sectoresArr.map(() => "?").join(", ")})`;
       bindings.push(...sectoresArr);
     }
     if (q) {
       query += ` AND (
-        UPPER(Placa) LIKE ?
-        OR REPLACE(REPLACE(REPLACE(REPLACE(UPPER(Placa), '_', ''), '-', ''), ' ', ''), '.', '') LIKE ?
-        OR UPPER(Conductor) LIKE ?
-        OR UPPER(Sector) LIKE ?
+        UPPER(v.Placa) LIKE ?
+        OR REPLACE(REPLACE(REPLACE(REPLACE(UPPER(v.Placa), '_', ''), '-', ''), ' ', ''), '.', '') LIKE ?
+        OR UPPER(v.Conductor) LIKE ?
+        OR UPPER(v.Sector) LIKE ?
       )`;
       bindings.push(`%${q}%`, `%${qPlate}%`, `%${q}%`, `%${q}%`);
     }
 
-    query += " ORDER BY Sector, Placa";
+    query += " ORDER BY v.Sector, v.Placa";
 
     const stmt = env.DB.prepare(query);
     const { results } = await (bindings.length ? stmt.bind(...bindings) : stmt).all();
@@ -163,8 +175,8 @@ export async function onRequestPost({ request, env, data }) {
       }
 
       await env.DB.prepare(`
-        INSERT INTO vehiculos (IDvehiculo, Placa, Conductor, Sector, Proceso, Designacion, Estado)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO vehiculos (IDvehiculo, Placa, Conductor, Sector, Proceso, Designacion, Estado, Jefe)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `).bind(
         nuevoId,
         placaNorm.value,
@@ -172,7 +184,8 @@ export async function onRequestPost({ request, env, data }) {
         (sector      || "").trim() || null,
         (proceso     || "").trim() || null,
         (designacion || "").trim() || null,
-        (estado      || "ACTIVO").trim()
+        (estado      || "ACTIVO").trim(),
+        await jefeDeSector(env, sector)
       ).run();
 
       return new Response(JSON.stringify({ ok: true, IDvehiculo: nuevoId }), {
@@ -223,12 +236,8 @@ export async function onRequestPost({ request, env, data }) {
         if (!await vehiculosEnSectores(env, "Placa = ?", [placa.toString().trim().toUpperCase()], sectoresUsuario)) return fueraDeSector();
       }
 
-      // Buscar jefe del nuevo sector primero
-      const { results: jefeResults } = await env.DB
-        .prepare("SELECT Jefe FROM vehiculos WHERE Sector = ? AND Jefe IS NOT NULL AND Jefe != '' LIMIT 1")
-        .bind(sector.trim())
-        .all();
-      const jefe = jefeResults && jefeResults.length > 0 ? jefeResults[0].Jefe : null;
+      // Jefe del nuevo sector según la tabla sectores
+      const jefe = await jefeDeSector(env, sector);
 
       // Actualizar Sector y Jefe del vehículo
       await env.DB.prepare("UPDATE vehiculos SET Sector = ?, Jefe = ? WHERE Placa = ?")
@@ -352,7 +361,7 @@ export async function onRequestPost({ request, env, data }) {
         (conductor   || "").toString().trim() || null,
         (sector      || "").toString().trim() || null,
         (proceso     || "").toString().trim() || null,
-        (jefe        || "").toString().trim() || null,
+        await jefeDeSector(env, sector),
         (designacion || "").toString().trim() || null,
         (marca       || "").toString().trim() || null,
         (modelo      || "").toString().trim() || null,
