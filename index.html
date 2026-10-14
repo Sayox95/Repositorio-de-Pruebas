@@ -1146,6 +1146,131 @@ function esc(v){
   return String(v ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
 }
 
+/* ===== Diálogos propios (reemplazan alert/confirm/prompt del navegador) =====
+   uiAlert(msg, opts)   → Promise<void>
+   uiConfirm(msg, opts) → Promise<boolean>
+   uiPrompt(msg, opts)  → Promise<string|null>
+   opts: { title, tipo:"info"|"error"|"warning"|"success", okText, cancelText,
+           peligro (botón rojo), type ("text"|"password"), placeholder, minLength } */
+const uiDialog = (function(){
+  let cola = Promise.resolve();
+  let root = null;
+  function montar(){
+    if(root) return root;
+    const st = document.createElement("style");
+    st.textContent = `
+      #uiDialog{position:fixed;inset:0;z-index:100001;display:none;align-items:center;justify-content:center;
+        background:rgba(15,23,42,.45);padding:16px;}
+      #uiDialog.open{display:flex;}
+      #uiDialog .uid-box{background:var(--bg-primary,#fff);color:inherit;border-radius:14px;width:100%;max-width:440px;
+        box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden;animation:uidIn .15s ease-out;}
+      @keyframes uidIn{from{transform:translateY(8px);opacity:0}to{transform:none;opacity:1}}
+      #uiDialog .uid-head{display:flex;align-items:center;gap:10px;padding:16px 18px 6px;}
+      #uiDialog .uid-ico{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+        font-weight:700;font-size:16px;flex:0 0 32px;}
+      #uiDialog .uid-title{margin:0;font-size:1.02rem;font-weight:700;}
+      #uiDialog .uid-msg{padding:4px 18px 4px 60px;font-size:14px;line-height:1.45;white-space:pre-line;word-break:break-word;}
+      #uiDialog .uid-input{display:block;width:calc(100% - 78px);margin:10px 18px 0 60px;padding:9px 11px;
+        border:1px solid var(--border,#d1d5db);border-radius:10px;font-size:14px;box-sizing:border-box;}
+      #uiDialog .uid-err{color:#b91c1c;font-size:12px;margin:6px 18px 0 60px;display:none;}
+      #uiDialog .uid-actions{display:flex;justify-content:flex-end;gap:8px;padding:16px 18px;}
+      #uiDialog .uid-btn{border:0;border-radius:10px;padding:9px 16px;font-size:14px;font-weight:600;cursor:pointer;}
+      #uiDialog .uid-cancel{background:#e5e7eb;color:#111827;}
+      #uiDialog .uid-ok{background:#2563eb;color:#fff;}
+      #uiDialog .uid-ok.peligro{background:#dc2626;}
+      @media (max-width:520px){
+        #uiDialog .uid-msg,#uiDialog .uid-err{margin-left:0;padding-left:18px;}
+        #uiDialog .uid-input{margin-left:18px;width:calc(100% - 36px);}
+        #uiDialog .uid-actions .uid-btn{flex:1;}
+      }`;
+    document.head.appendChild(st);
+    root = document.createElement("div");
+    root.id = "uiDialog";
+    root.setAttribute("role", "dialog");
+    root.setAttribute("aria-modal", "true");
+    root.innerHTML = `<div class="uid-box">
+      <div class="uid-head"><div class="uid-ico"></div><h3 class="uid-title"></h3></div>
+      <div class="uid-msg"></div>
+      <input class="uid-input" autocomplete="new-password">
+      <div class="uid-err"></div>
+      <div class="uid-actions"><button type="button" class="uid-btn uid-cancel"></button><button type="button" class="uid-btn uid-ok"></button></div>
+    </div>`;
+    document.body.appendChild(root);
+    return root;
+  }
+  const ICONOS = {
+    info:    ["i", "#dbeafe", "#1d4ed8", "Aviso"],
+    error:   ["!", "#fee2e2", "#b91c1c", "Error"],
+    warning: ["!", "#fef3c7", "#b45309", "Atención"],
+    success: ["✓", "#d1fae5", "#047857", "Listo"],
+    question:["?", "#e0e7ff", "#4338ca", "Confirmar"],
+  };
+  function abrir(modo, msg, o){
+    o = o || {};
+    const el = montar();
+    const tipo = ICONOS[o.tipo] ? o.tipo : (modo === "confirm" ? "question" : "info");
+    const [ch, bg, fg, tituloDef] = ICONOS[tipo];
+    const ico = el.querySelector(".uid-ico");
+    ico.textContent = ch; ico.style.background = bg; ico.style.color = fg;
+    el.querySelector(".uid-title").textContent = o.title || (modo === "prompt" ? "Ingresar valor" : tituloDef);
+    el.querySelector(".uid-msg").textContent = String(msg ?? "");
+    const input = el.querySelector(".uid-input");
+    const err = el.querySelector(".uid-err");
+    const ok = el.querySelector(".uid-ok");
+    const cancel = el.querySelector(".uid-cancel");
+    input.style.display = modo === "prompt" ? "block" : "none";
+    input.type = o.type || "text";
+    input.value = o.value || "";
+    input.placeholder = o.placeholder || "";
+    err.style.display = "none";
+    ok.textContent = o.okText || "Aceptar";
+    ok.classList.toggle("peligro", !!o.peligro);
+    cancel.textContent = o.cancelText || "Cancelar";
+    cancel.style.display = modo === "alert" ? "none" : "";
+    const previo = document.activeElement;
+    el.classList.add("open");
+    setTimeout(()=> (modo === "prompt" ? input : ok).focus(), 0);
+    return new Promise(resolve => {
+      function cerrar(valor){
+        el.classList.remove("open");
+        ok.onclick = cancel.onclick = el.onclick = null;
+        document.removeEventListener("keydown", onKey, true);
+        try{ previo && previo.focus && previo.focus(); }catch(_){}
+        resolve(valor);
+      }
+      const aceptar = () => {
+        if(modo === "prompt"){
+          const v = input.value;
+          if(o.minLength && v.trim().length < o.minLength){
+            err.textContent = `Debe tener mínimo ${o.minLength} caracteres.`;
+            err.style.display = "block"; input.focus(); return;
+          }
+          return cerrar(v);
+        }
+        cerrar(modo === "confirm" ? true : undefined);
+      };
+      const cancelar = () => cerrar(modo === "confirm" ? false : modo === "prompt" ? null : undefined);
+      function onKey(e){
+        if(e.key === "Escape"){ e.preventDefault(); e.stopPropagation(); cancelar(); }
+        else if(e.key === "Enter" && (modo !== "confirm" || document.activeElement !== cancel)){ e.preventDefault(); e.stopPropagation(); aceptar(); }
+      }
+      ok.onclick = aceptar;
+      cancel.onclick = cancelar;
+      el.onclick = (e) => { if(e.target === el && modo !== "alert") cancelar(); };
+      document.addEventListener("keydown", onKey, true);
+    });
+  }
+  // Un diálogo a la vez: los siguientes esperan su turno
+  return function(modo, msg, o){
+    const p = cola.then(() => abrir(modo, msg, o));
+    cola = p.catch(()=>{});
+    return p;
+  };
+})();
+function uiAlert(msg, opts){ return uiDialog("alert", msg, opts); }
+function uiConfirm(msg, opts){ return uiDialog("confirm", msg, opts); }
+function uiPrompt(msg, opts){ return uiDialog("prompt", msg, opts); }
+
 /** Mapea alias de campos al esquema esperado por la tabla */
 function normalizeRow(src){
   if(!src || typeof src!=="object") return null;
@@ -1653,7 +1778,7 @@ function openEstadoMenu(cell){
         // rollback visual si falla
         row.update({Estado: current});
         updateKpis();
-        alert("No se pudo guardar el estado. Intenta de nuevo.");
+        uiAlert("No se pudo guardar el estado. Intenta de nuevo.", { tipo:"error" });
       }finally{
         overlay.hide();
         menu.classList.remove("open");
@@ -1963,7 +2088,7 @@ function exportXLSX(){
   const selData = table.getSelectedData ? table.getSelectedData() : [];
   const sourceData = selData.length > 0 ? selData : (table.getData ? table.getData("active") : []);
 
-  if(!sourceData.length){ alert("No hay filas para exportar."); return; }
+  if(!sourceData.length){ uiAlert("No hay filas para exportar.", { tipo:"warning" }); return; }
 
   if(typeof XLSX === "undefined" || !XLSX || !XLSX.utils){
     table.download("xlsx", fname, { sheetName:"Revisión", rowRange: selData.length > 0 ? "selected" : "active" });
@@ -2321,12 +2446,12 @@ async function loadProcesosOptions(){
             }, cellClick: async (e, cell)=>{
               const btn = e.target.closest('.estado-toggle-btn');
               if(!btn || placasSoloLectura()) return;
-              if(!placasEndpointsReady()){ alert('Configura el endpoint de Placas.'); return; }
+              if(!placasEndpointsReady()){ uiAlert('Configura el endpoint de Placas.', { tipo:"warning" }); return; }
               const placa = btn.dataset.placa;
               const estadoActual = btn.dataset.estado;
               const nuevoEstadoDB = estadoActual === 'ACTIVO' ? 'INACTIVO' : 'ACTIVO';
               const nuevoEstadoLabel = nuevoEstadoDB === 'ACTIVO' ? 'Activo' : 'Inactivo';
-              if(!confirm(`¿Cambiar estado de ${placa} a ${nuevoEstadoLabel}?`)) return;
+              if(!(await uiConfirm(`¿Cambiar estado de ${placa} a ${nuevoEstadoLabel}?`, { title:'Cambiar estado' }))) return;
               try{
                 overlay.show('Actualizando estado…');
                 // Usar el mismo valor que los botones masivos para consistencia con el worker
@@ -2344,7 +2469,7 @@ async function loadProcesosOptions(){
                 if(idx>=0) Placas.data[idx].Estado = nuevoEstadoDB;
                 actualizarKpisPlacas();
               }catch(err){
-                alert('No fue posible actualizar el estado: '+err.message);
+                uiAlert('No fue posible actualizar el estado: '+err.message, { tipo:"error" });
               }finally{ overlay.hide(); }
             }},
           { title:"Conductor", field:"Conductor" },
@@ -2390,7 +2515,7 @@ async function loadProcesosOptions(){
     document.getElementById("placasNotice").style.display = placasEndpointsReady()? "none":"inline-block";
     try{ if(typeof maybeAutoShowPlacasTour === "function") setTimeout(maybeAutoShowPlacasTour, 500); }catch(e){}
   }catch(e){
-    alert("No fue posible cargar las placas.");
+    uiAlert("No fue posible cargar las placas.", { tipo:"error" });
     const n = document.getElementById("placasNotice"); if(n){ n.style.display="inline-block"; n.textContent="No fue posible cargar las placas. Intenta nuevamente."; }
   }finally{
     overlay.hide();
@@ -2539,7 +2664,7 @@ function normalizarPlacaDesdeModal(raw){
 }
 
 async function guardarModificarPlaca(){
-  if(!placasEndpointsReady()){ alert("Configura el endpoint de Placas."); return; }
+  if(!placasEndpointsReady()){ uiAlert("Configura el endpoint de Placas.", { tipo:"warning" }); return; }
 
   const getVal = (id)=> (document.getElementById(id)?.value || "").trim();
   const IDvehiculo = getVal("epIDvehiculo");
@@ -2556,7 +2681,7 @@ async function guardarModificarPlaca(){
   const modelo = getVal("epModelo");
   const estado = getVal("epEstado") || "ACTIVO";
 
-  if(!IDvehiculo && !placaOriginal){ alert("No se encontró el identificador de la placa."); return; }
+  if(!IDvehiculo && !placaOriginal){ uiAlert("No se encontró el identificador de la placa.", { tipo:"warning" }); return; }
   if(!placaValidacion.ok){
     mostrarErrorEditarPlaca(placaValidacion.mensaje || "La placa/VIN es obligatoria.");
     return;
@@ -2568,7 +2693,7 @@ async function guardarModificarPlaca(){
     if(mismaFila) return false;
     return limpiarPlacaVinAlfanumerico(r.Placa || "") === placaCmp;
   });
-  if(duplicada){ alert("Ya existe otra fila con esa placa/VIN."); return; }
+  if(duplicada){ uiAlert("Ya existe otra fila con esa placa/VIN.", { tipo:"warning" }); return; }
 
   try{
     overlay.show("Guardando cambios…");
@@ -2599,7 +2724,7 @@ async function guardarModificarPlaca(){
     await cargarPlacas();
     quickToast("✅ Placa modificada correctamente");
   }catch(e){
-    alert("No fue posible modificar la placa: "+e.message);
+    uiAlert("No fue posible modificar la placa: "+e.message, { tipo:"error" });
   }finally{
     overlay.hide();
   }
@@ -2681,7 +2806,7 @@ function toggleFormPlaca(show){
 async function guardarNuevaPlaca(){
   const val = id => (document.getElementById(id)?.value || "").trim();
   const errEl = document.getElementById("npError");
-  const mostrarError = (msg) => { if(errEl){ errEl.textContent = msg; errEl.style.display = "block"; } else { alert(msg); } };
+  const mostrarError = (msg) => { if(errEl){ errEl.textContent = msg; errEl.style.display = "block"; } else { uiAlert(msg, { tipo:"error" }); } };
   if(errEl) errEl.style.display = "none";
 
   // Misma regla que el servidor: 3 letras + 4 números (AAA_9999) o VIN de 17
@@ -2703,7 +2828,7 @@ async function guardarNuevaPlaca(){
   };
   if(!datos.sector){ mostrarError("Selecciona el sector."); return; }
   if(!datos.proceso){ mostrarError("Selecciona el proceso."); return; }
-  if(!placasEndpointsReady()){ alert("Configura el endpoint de Placas."); return; }
+  if(!placasEndpointsReady()){ uiAlert("Configura el endpoint de Placas.", { tipo:"warning" }); return; }
 
   try{
     overlay.show("Guardando placa…");
@@ -2764,9 +2889,9 @@ async function onPlacaEdited(cell){
     // Usar toast no bloqueante si existe; de lo contrario alert
     try{
       if (typeof quickToast === "function") { quickToast(msg || "Valor inválido"); }
-      else { alert(msg || "Valor inválido"); }
+      else { uiAlert(msg || "Valor inválido", { tipo:"warning" }); }
     } catch (e){
-      alert(msg || "Valor inválido");
+      uiAlert(msg || "Valor inválido", { tipo:"warning" });
     }
   }
 
@@ -2838,9 +2963,9 @@ async function onPlacaEdited(cell){
 }
 
 async function cambiarEstadoPlacas(nuevoEstado){
-  if(!placasEndpointsReady()){ alert("Configura el endpoint de Placas."); return; }
+  if(!placasEndpointsReady()){ uiAlert("Configura el endpoint de Placas.", { tipo:"warning" }); return; }
   const rows = Placas.table ? (Placas.table.getSelectedData ? Placas.table.getSelectedData() : []) : [];
-  if(!rows.length){ alert("Selecciona al menos una placa."); return; }
+  if(!rows.length){ uiAlert("Selecciona al menos una placa.", { tipo:"warning" }); return; }
   try{
     overlay.show("Actualizando estado…");
     const placas = rows.map(r=> r.Placa).filter(Boolean);
@@ -2852,7 +2977,7 @@ async function cambiarEstadoPlacas(nuevoEstado){
     if(!res.ok) throw new Error("HTTP "+res.status);
     await cargarPlacas();
   }catch(e){
-    alert("No fue posible actualizar el estado.");
+    uiAlert("No fue posible actualizar el estado.", { tipo:"error" });
   }finally{ overlay.hide(); }
 }
 
@@ -2990,7 +3115,7 @@ async function onSectorEdited(cell){
   }catch(err){
     console.error("No se pudo actualizar sector:", err);
     overlay.hide();
-    alert("No se pudo actualizar el sector: "+err.message);
+    uiAlert("No se pudo actualizar el sector: "+err.message, { tipo:"error" });
     cell.restoreOldValue();
   }
 }
@@ -3060,7 +3185,7 @@ async function accionProceso(datos, mensajeOk){
     quickToast(mensajeOk);
     return true;
   }catch(e){
-    alert(e.message);
+    uiAlert(e.message, { tipo:"error" });
     return false;
   }finally{ overlay.hide(); }
 }
@@ -3068,14 +3193,14 @@ document.addEventListener("click", async (ev)=>{
   const quitar = ev.target.closest && ev.target.closest(".js-quitar-proceso");
   if(quitar && !quitar.disabled){
     const nombre = quitar.getAttribute("data-nombre");
-    if(!confirm(`¿Quitar el proceso "${nombre}" del catálogo?`)) return;
+    if(!(await uiConfirm(`¿Quitar el proceso "${nombre}" del catálogo?`, { title:'Quitar proceso', okText:'Quitar', peligro:true }))) return;
     await accionProceso({ accion:"quitar", id: Number(quitar.getAttribute("data-id")) }, `✅ Proceso "${nombre}" quitado`);
     return;
   }
   if(ev.target && ev.target.id === "btnProcesoAgregar"){
     const input = document.getElementById("nuevoProcesoNombre");
     const nombre = (input?.value || "").trim();
-    if(!nombre){ alert("Escribe el nombre del proceso."); return; }
+    if(!nombre){ uiAlert("Escribe el nombre del proceso.", { tipo:"warning" }); return; }
     if(await accionProceso({ accion:"agregar", proceso: nombre }, `✅ Proceso "${nombre}" agregado`) && input) input.value = "";
   }
 });
@@ -3111,7 +3236,7 @@ async function guardarJefeSector(sector, jefe){
     renderJefesSector();
     quickToast(`✅ Jefe de ${out.sector} actualizado`);
   }catch(e){
-    alert("No fue posible guardar el jefe: " + e.message);
+    uiAlert("No fue posible guardar el jefe: " + e.message, { tipo:"error" });
   }finally{ overlay.hide(); }
 }
 document.addEventListener("click", (ev)=>{
@@ -3125,7 +3250,7 @@ document.addEventListener("click", (ev)=>{
   if(ev.target && ev.target.id === "btnJefeSectorAgregar"){
     const sector = (document.getElementById("nuevoSectorNombre")?.value || "").trim();
     const jefe   = (document.getElementById("nuevoSectorJefe")?.value || "").trim();
-    if(!sector){ alert("Escribe el nombre del sector."); return; }
+    if(!sector){ uiAlert("Escribe el nombre del sector.", { tipo:"warning" }); return; }
     guardarJefeSector(sector, jefe).then(()=>{
       const a = document.getElementById("nuevoSectorNombre"); if(a) a.value = "";
       const b = document.getElementById("nuevoSectorJefe");   if(b) b.value = "";
@@ -3466,7 +3591,7 @@ async function loadData(fechaDesde, fechaHasta, fechaRevDesde, fechaRevHasta){
         table.on("tableBuilt", handler);
       })();
     }
-}catch(e){ if(String(e&&e.message)==="ABORTED"){ /* silencioso */ } else { alert("No fue posible cargar las facturas."); } }finally{
+}catch(e){ if(String(e&&e.message)==="ABORTED"){ /* silencioso */ } else { uiAlert("No fue posible cargar las facturas.", { tipo:"error" }); } }finally{
     overlay.hide();
   }
 }
@@ -3630,8 +3755,8 @@ function showApp(me){
       if(res.status === 401 && url.origin === location.origin && url.pathname.startsWith("/api/")
          && !url.pathname.startsWith("/api/auth/") && !redirecting){
         redirecting = true;
-        alert("Tu sesión expiró. Inicia sesión nuevamente.");
-        location.reload();
+        uiAlert("Tu sesión expiró. Inicia sesión nuevamente.", { title:"Sesión expirada", tipo:"warning" })
+          .then(()=> location.reload());
       }
     }catch(_){}
     return res;
@@ -3884,7 +4009,7 @@ function exportPagoXLSX(){
   const selData = pagoTable.getSelectedData ? pagoTable.getSelectedData() : [];
   const sourceData = selData.length > 0 ? selData : (pagoTable.getData ? pagoTable.getData("active") : []);
 
-  if(!sourceData.length){ alert("No hay filas para exportar."); return; }
+  if(!sourceData.length){ uiAlert("No hay filas para exportar.", { tipo:"warning" }); return; }
 
   if(typeof XLSX === "undefined" || !XLSX || !XLSX.utils){
     pagoTable.download("xlsx", fname, { sheetName:"Pago", rowRange: selData.length > 0 ? "selected" : "active" });
@@ -4100,7 +4225,7 @@ async function cargarPago(){
     updatePagoKpis();
     setLastUpdatedPago();
   } catch(e) {
-    if(seq === __pagoLoadSeq) alert("No fue posible cargar las facturas de Pago. Intenta de nuevo.");
+    if(seq === __pagoLoadSeq) uiAlert("No fue posible cargar las facturas de Pago. Intenta de nuevo.", { tipo:"error" });
   } finally {
     if(typeof overlay!=="undefined" && seq === __pagoLoadSeq) overlay.hide();
   }
@@ -4278,7 +4403,7 @@ document.addEventListener("DOMContentLoaded", function(){
         el.style.transform = "translateY(8px)";
         setTimeout(()=>{ el.remove(); }, 300);
       }, timeoutMs);
-    } catch (e){ alert(msg); }
+    } catch (e){ uiAlert(msg); }
   }
 })();
 
@@ -4372,7 +4497,7 @@ function updateOtrosCargosTotal(){
 function openPagoModalSingle(row){
   if(!row) return;
   if(String(row.Estado||'').trim().toLowerCase()==='pagada'){
-    alert('Esta factura ya está Pagada.');
+    uiAlert('Esta factura ya está Pagada.', { tipo:"warning" });
     return;
   }
   window._pagoMode = 'single';
@@ -4404,7 +4529,7 @@ function openPagoModalForSelection(){
   const estados = sel.map(r => String(r.Estado||"").trim().toLowerCase());
 const anyBlocked = estados.some(s => s === "pagada" || s === "enviada");
 const eligible = sel.filter(r => { const s=String(r.Estado||"").trim().toLowerCase(); return s !== "pagada" && s !== "enviada"; });
-  if (anyBlocked || eligible.length < 2) { alert("Seleccione al menos 2 facturas y ninguna debe estar Pagada."); return; }
+  if (anyBlocked || eligible.length < 2) { uiAlert("Seleccione al menos 2 facturas y ninguna debe estar Pagada.", { tipo:"warning" }); return; }
 // Subtotal de las facturas
   const subtotal = eligible.reduce((acc, r)=> acc + (Number(r.Total)||0), 0);
   window._mpSubtotalRaw = subtotal;
@@ -4448,7 +4573,7 @@ async function confirmarPago(){
 
     const fechaPago = (document.getElementById("mpFechaPago")?.value || "").trim();
     const idPago    = (document.getElementById("mpIdPago")?.value || "").trim();
-    if(!fechaPago || !idPago){ alert("Falta Fecha de pago o ID_PAGO"); return; }
+    if(!fechaPago || !idPago){ uiAlert("Falta Fecha de pago o ID_PAGO", { tipo:"warning" }); return; }
 
     // Helper para leer cargos del modal
     const list = document.getElementById("mpCargosList");
@@ -4467,7 +4592,7 @@ async function confirmarPago(){
 
     if(mode === 'single'){
       const row = (Array.isArray(window._pagoEligibleSelected) ? window._pagoEligibleSelected[0] : null);
-      if(!row){ alert("No hay factura seleccionada."); overlay.hide(); return; }
+      if(!row){ uiAlert("No hay factura seleccionada.", { tipo:"warning" }); overlay.hide(); return; }
 
       // Usar pagoLote con una sola fila para registrar también "Otros Cargos"
       const payload = { accion:"pagoLote", filas:[row.fila || row._fila], fechaPago, idPago, cargos };
@@ -4500,7 +4625,7 @@ async function confirmarPago(){
     const anyBlocked = estados.some(s => s === "pagada" || s === "enviada");
     const eligible = sel.filter(r => String(r.Estado||'').trim().toLowerCase() !== 'pagada');
     if (anyBlocked || eligible.length < 2) {
-      alert("Seleccione al menos 2 facturas y ninguna debe estar Pagada.");
+      uiAlert("Seleccione al menos 2 facturas y ninguna debe estar Pagada.", { tipo:"warning" });
       return;
     }
 
@@ -4531,14 +4656,14 @@ async function confirmarPago(){
   }catch(e){
     if(e && e.conflicto){
       // Otro usuario pagó estas facturas: avisar y recargar para ver el estado real
-      alert(e.message);
+      uiAlert(e.message, { tipo:"error" });
       const modal = document.getElementById("modalPago"); if(modal) modal.style.display = "none";
       try{ const t = getPagoTable(); if(t && t.deselectRow) t.deselectRow(); }catch(_){}
       overlay.hide();
       cargarPago();
       return;
     }
-    alert("No se pudo completar el pago. " + (e && e.message ? e.message : ""));
+    uiAlert("No se pudo completar el pago. " + (e && e.message ? e.message : ""), { tipo:"error" });
   }finally{
     overlay.hide();
     __pagoEnCurso = false;
@@ -4818,7 +4943,7 @@ async function marcarSeleccionComoEnviadas(){
     });
     const json = await resp.json().catch(()=>({status:"ERROR"}));
     if(!resp.ok || json.status !== "OK"){
-      alert(json.message || "No se pudo actualizar el estado en lote.");
+      uiAlert(json.message || "No se pudo actualizar el estado en lote.", { tipo:"error" });
       return;
     }
 
@@ -4943,11 +5068,11 @@ async function marcarSeleccionComoEnviadas(){
   }
   async function generarLiquiWithPopup(){
     var tbl = pagoTableSafe();
-    if(!tbl || typeof tbl.getSelectedData !== "function"){ alert("No hay selección"); return; }
+    if(!tbl || typeof tbl.getSelectedData !== "function"){ uiAlert("No hay selección", { tipo:"warning" }); return; }
     var sel = tbl.getSelectedData() || [];
-    if(!sel.length){ alert("Selecciona al menos una factura Pagada"); return; }
+    if(!sel.length){ uiAlert("Selecciona al menos una factura Pagada", { tipo:"warning" }); return; }
     var allPaid = sel.every(function(r){ return String((r && r.Estado)||'').trim() === 'Pagada'; });
-    if(!allPaid){ alert("Solo puedes generar liquidación con facturas en estado Pagada."); return; }
+    if(!allPaid){ uiAlert("Solo puedes generar liquidación con facturas en estado Pagada.", { tipo:"warning" }); return; }
 
     var filas = sel.map(function(r){ return parseInt(r.fila,10); }).filter(Boolean);
     var facturas = sel.map(function(r){
@@ -5000,7 +5125,7 @@ async function marcarSeleccionComoEnviadas(){
       }
     } catch(err){
       try{ if(popupWin && !popupWin.closed){ popupWin.close(); } }catch(_){}
-      alert(err.message || 'No se pudo generar la liquidación.');
+      uiAlert(err.message || 'No se pudo generar la liquidación.', { tipo:"error" });
     } finally {
       if(window.busy) try{ busy.hide(); }catch(_){}
       var m=document.getElementById('modalGenerarLiqui'); if(m) m.classList.add('hidden');
@@ -5178,11 +5303,11 @@ async function marcarSeleccionComoEnviadas(){
 
   function bulkMarkRevisadas(){
     var tbl = getRevTable();
-    if (!tbl){ alert("Tabla no disponible"); return; }
+    if (!tbl){ uiAlert("Tabla no disponible", { tipo:"warning" }); return; }
     var sel = (typeof tbl.getSelectedData === "function") ? (tbl.getSelectedData() || []) : [];
     var valid = sel.filter(function(r){ return String((r && r.Estado) || "").trim() === "Registrada"; });
     var filas = valid.map(function(r){ return parseInt(r.fila,10); }).filter(function(x){return !!x;});
-    if (filas.length < 2){ alert("Selecciona al menos dos facturas en estado Registrada."); return; }
+    if (filas.length < 2){ uiAlert("Selecciona al menos dos facturas en estado Registrada.", { tipo:"warning" }); return; }
 
     // now string for UI
     function pad(n){ return (n<10?'0':'')+n; }
@@ -5211,7 +5336,7 @@ async function marcarSeleccionComoEnviadas(){
         try{ if (typeof window.toast === "function") toast("Actualizadas a Revisada"); }catch(e){}
       })
       .catch(function(e){
-        alert(e && e.message ? e.message : "Error al actualizar.");
+        uiAlert(e && e.message ? e.message : "Error al actualizar.", { tipo:"error" });
       })
       .finally(function(){
         try{ if (typeof tbl.restoreRedraw === "function") tbl.restoreRedraw(); }catch(e){}
@@ -5219,7 +5344,7 @@ async function marcarSeleccionComoEnviadas(){
         setTimeout(reevaluateRevBtns, 50);
       });
     }catch(e){
-      alert(e.message || "Error al actualizar.");
+      uiAlert(e.message || "Error al actualizar.", { tipo:"error" });
       try{ if (window.overlay && overlay.hide) overlay.hide(); }catch(_){}
     }
   }
@@ -5477,7 +5602,7 @@ async function initMetricas(){
 async function cargarMetricas(){
   const desde = document.getElementById('mDesde').value;
   const hasta  = document.getElementById('mHasta').value;
-  if(!desde || !hasta){ alert('Selecciona un rango de fechas.'); return; }
+  if(!desde || !hasta){ uiAlert('Selecciona un rango de fechas.', { tipo:"warning" }); return; }
   const btn = document.getElementById('btnMetricasCargar');
   if(btn){ btn.disabled=true; btn.innerHTML='<i class="lucide-loader-2"></i> Cargando…'; }
   try{
@@ -5503,7 +5628,7 @@ async function cargarMetricas(){
     const raw  = await res.json().catch(()=>[]);
     const rows = (Array.isArray(raw)?raw:[]).map(r=>typeof normalizeRow==='function'?normalizeRow(r):r).filter(Boolean);
     renderMetricas(rows);
-  }catch(e){ alert('Error cargando métricas: '+e.message); }
+  }catch(e){ uiAlert('Error cargando métricas: '+e.message, { tipo:"error" }); }
   finally{ if(btn){ btn.disabled=false; btn.innerHTML='<i class="lucide-refresh-cw"></i> Actualizar'; } }
 }
 
@@ -6268,7 +6393,7 @@ function pivotToggleAll(expand){
 // ══════════ EXPORTAR PLACAS A EXCEL ══════════
 function exportPlacasXLSX(){
   const data = Placas.filtered || Placas.data || [];
-  if(!data.length){ alert('No hay datos para exportar.'); return; }
+  if(!data.length){ uiAlert('No hay datos para exportar.', { tipo:"warning" }); return; }
 
   const cols = ['IDvehiculo','Placa','Conductor','Sector','Proceso','JefeInmediato','Designacion','Estado'];
   const headers = ['ID Vehículo','Placa','Conductor','Sector','Proceso','Jefe Inmediato','Designación','Estado'];
@@ -6303,7 +6428,7 @@ function exportModalTablaXLSX(){
     return obj;
   });
 
-  if(!rowsData.length){ alert('No hay datos para exportar.'); return; }
+  if(!rowsData.length){ uiAlert('No hay datos para exportar.', { tipo:"warning" }); return; }
 
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.json_to_sheet(rowsData, { header: ths });
@@ -6316,7 +6441,7 @@ function exportModalTablaXLSX(){
 // ══════════ EXPORTAR EXCEL — PIVOT SECTOR / PROCESO ══════════
 function exportPivotXLSX(){
   const table = document.getElementById('tablaPivot');
-  if(!table){ alert('No hay tabla para exportar.'); return; }
+  if(!table){ uiAlert('No hay tabla para exportar.', { tipo:"warning" }); return; }
 
   // Mostrar todas las filas temporalmente para exportar completo
   const hidden = [...table.querySelectorAll('tr.pivot-proceso')].filter(r=>r.style.display==='none');
@@ -6392,7 +6517,7 @@ async function cargarUsuarios(){
     const data = await res.json();
     renderTablaUsuarios(Array.isArray(data) ? data : []);
   }catch(e){
-    alert('Error al cargar usuarios: '+e.message);
+    uiAlert('Error al cargar usuarios: '+e.message, { tipo:"error" });
   }finally{ overlay.hide(); }
 }
 
@@ -6506,22 +6631,22 @@ async function guardarUsuario(){
 }
 
 async function resetPasswordUsuario(usuario){
-  const nueva = prompt(`Nueva contraseña para "${usuario}" (mínimo 8 caracteres):`);
+  const nueva = await uiPrompt(`Nueva contraseña para "${usuario}" (mínimo 8 caracteres):`,
+    { title:'Restablecer contraseña', type:'password', minLength:8, okText:'Guardar' });
   if(!nueva) return;
-  if(nueva.length < 8){ alert('La contraseña debe tener mínimo 8 caracteres.'); return; }
   try{
     overlay.show('Actualizando contraseña…');
     const res = await fetch(USUARIOS_API, { method:'POST', headers:{'Content-Type':'application/json'},
       body:JSON.stringify({ action:'resetPassword', usuario, password:nueva }) });
     const data = await res.json();
     if(!res.ok || data.error) throw new Error(data.error);
-    alert(`Contraseña de "${usuario}" actualizada correctamente.`);
-  }catch(e){ alert('Error: '+e.message); }
+    uiAlert(`Contraseña de "${usuario}" actualizada correctamente.`, { tipo:'success' });
+  }catch(e){ uiAlert('Error: '+e.message, { tipo:"error" }); }
   finally{ overlay.hide(); }
 }
 
 async function desbloquearUsuario(usuario){
-  if(!confirm(`¿Desbloquear al usuario "${usuario}"?`)) return;
+  if(!(await uiConfirm(`¿Desbloquear al usuario "${usuario}"?`, { title:'Desbloquear usuario', okText:'Desbloquear' }))) return;
   try{
     overlay.show('Desbloqueando…');
     const res = await fetch(USUARIOS_API, { method:'POST', headers:{'Content-Type':'application/json'},
@@ -6529,12 +6654,12 @@ async function desbloquearUsuario(usuario){
     const data = await res.json();
     if(!res.ok || data.error) throw new Error(data.error);
     await cargarUsuarios();
-  }catch(e){ alert('Error: '+e.message); }
+  }catch(e){ uiAlert('Error: '+e.message, { tipo:"error" }); }
   finally{ overlay.hide(); }
 }
 
 async function eliminarUsuario(usuario){
-  if(!confirm(`¿Eliminar permanentemente al usuario "${usuario}"? Esta acción no se puede deshacer.`)) return;
+  if(!(await uiConfirm(`¿Eliminar permanentemente al usuario "${usuario}"? Esta acción no se puede deshacer.`, { title:'Eliminar usuario', okText:'Eliminar', peligro:true }))) return;
   try{
     overlay.show('Eliminando…');
     const res = await fetch(USUARIOS_API, { method:'POST', headers:{'Content-Type':'application/json'},
@@ -6542,7 +6667,7 @@ async function eliminarUsuario(usuario){
     const data = await res.json();
     if(!res.ok || data.error) throw new Error(data.error);
     await cargarUsuarios();
-  }catch(e){ alert('Error: '+e.message); }
+  }catch(e){ uiAlert('Error: '+e.message, { tipo:"error" }); }
   finally{ overlay.hide(); }
 }
 
