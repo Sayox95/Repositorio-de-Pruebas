@@ -817,6 +817,7 @@
           <i class="lucide-download"></i> Excel
         </button>
         <button id="btnPlacasModificar" class="btn btn-primary" style="display:none;"><i class="lucide-edit-3"></i> Modificar</button>
+        <button id="btnPlacasJefes" class="btn btn-ghost" onclick="abrirModalJefesSector()" style="display:none;align-items:center;gap:6px;"><i class="lucide-users"></i> Jefes por sector</button>
         <button id="btnPlacasGuia" class="btn btn-ghost" title="Ver guía de la nueva función" style="display:inline-flex;align-items:center;gap:6px;"><i class="lucide-help-circle"></i> Guía</button>
         <button id="btnPlacasNueva" class="btn btn-primary"><i class="lucide-plus"></i> Nueva placa</button>
       </div>
@@ -2178,7 +2179,7 @@ function waitForPlacasTableBuilt(table){
 
 function fillSectorOptions(){
   // construir lista única de sectores desde los datos cargados
-  const sectors = Array.from(new Set((Placas.data||[]).map(r => String(r.Sector||"").trim()).filter(Boolean))).sort((a,b)=>a.localeCompare(b));
+  const sectors = getUniqueSectors();
 
   // Reutilizar la misma lista tanto para Nueva Placa como para Modificar Placa
   ["npSector", "epSector"].forEach(id=>{
@@ -2267,7 +2268,10 @@ async function loadProcesosOptions(){
       if(window.userSectores && window.userSectores.length > 0){
         urlPlacas.searchParams.set("sector", window.userSectores.join(","));
       }
-      const res = await fetch(urlPlacas.toString(), { cache:"no-store", signal: __ctl.signal });
+      const [res] = await Promise.all([
+        fetch(urlPlacas.toString(), { cache:"no-store", signal: __ctl.signal }),
+        cargarSectoresJefes()
+      ]);
       if(!res.ok) throw new Error("HTTP "+res.status);
       rows = await res.json();
     }
@@ -2970,21 +2974,84 @@ async function onSectorEdited(cell){
   }
 }
 
+/* Jefe inmediato por sector: la tabla `sectores` es la fuente única
+   (antes se copiaba el jefe de "cualquier" vehículo del mismo sector). */
+Placas.sectores = []; // [{ Sector, Jefe }]
+async function cargarSectoresJefes(){
+  try{
+    const res = await fetch("/api/sectores", { cache:"no-store" });
+    const data = res.ok ? await res.json() : [];
+    Placas.sectores = Array.isArray(data) ? data : [];
+  }catch(e){ Placas.sectores = []; }
+}
 function getUniqueSectors(){
-  const all = (Placas.data || [])
-    .map(r => String(r.Sector||"").trim())
-    .filter(Boolean);
-  return Array.from(new Set(all)).sort((a,b)=>a.localeCompare(b));
+  const all = [
+    ...(Placas.sectores || []).map(r => String(r.Sector||"").trim()),
+    ...(Placas.data || []).map(r => String(r.Sector||"").trim())
+  ].filter(Boolean);
+  // Sin duplicados por mayúsculas/minúsculas
+  const unicos = new Map();
+  all.forEach(s => { if(!unicos.has(s.toUpperCase())) unicos.set(s.toUpperCase(), s); });
+  return Array.from(unicos.values()).sort((a,b)=>a.localeCompare(b));
 }
 function getJefeBySector(sector){
   const s = String(sector||"").trim().toUpperCase();
-  for(const r of (Placas.data||[])){
-    if(String(r.Sector||"").trim().toUpperCase() === s){
-      return r.JefeInmediato || r["Jefe inmediato"] || "";
-    }
-  }
-  return "";
+  const fila = (Placas.sectores || []).find(r => String(r.Sector||"").trim().toUpperCase() === s);
+  return (fila && fila.Jefe) || "";
 }
+
+/* ===== Modal "Jefes por sector" (admin/master) ===== */
+function abrirModalJefesSector(){
+  renderJefesSector();
+  const m = document.getElementById("modalJefesSector"); if(m) m.style.display = "grid";
+}
+function cerrarModalJefesSector(){
+  const m = document.getElementById("modalJefesSector"); if(m) m.style.display = "none";
+}
+function renderJefesSector(){
+  const tbody = document.getElementById("tablaJefesSectorBody"); if(!tbody) return;
+  const filas = getUniqueSectors().map(sec => ({ Sector: sec, Jefe: getJefeBySector(sec) }));
+  tbody.innerHTML = filas.map(f => `
+    <tr>
+      <td style="padding:8px 10px;font-weight:600;white-space:nowrap;">${esc(f.Sector)}</td>
+      <td style="padding:6px 10px;"><input class="input js-jefe" data-sector="${esc(f.Sector)}" value="${esc(f.Jefe)}" placeholder="Sin jefe" style="width:100%;box-sizing:border-box;"></td>
+      <td style="padding:6px 10px;"><button class="btn btn-primary js-guardar-jefe" data-sector="${esc(f.Sector)}" style="padding:8px 12px;">Guardar</button></td>
+    </tr>`).join("") || '<tr><td colspan="3" style="padding:16px;text-align:center;color:var(--muted);">No hay sectores</td></tr>';
+}
+async function guardarJefeSector(sector, jefe){
+  overlay.show("Guardando jefe del sector…");
+  try{
+    const res = await fetch("/api/sectores", {
+      method:"POST", headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({ sector, jefe })
+    });
+    const out = await res.json().catch(()=>({}));
+    if(!res.ok || !out.ok) throw new Error(out.message || ("HTTP " + res.status));
+    await cargarPlacas();
+    renderJefesSector();
+    quickToast(`✅ Jefe de ${out.sector} actualizado`);
+  }catch(e){
+    alert("No fue posible guardar el jefe: " + e.message);
+  }finally{ overlay.hide(); }
+}
+document.addEventListener("click", (ev)=>{
+  const btn = ev.target.closest && ev.target.closest(".js-guardar-jefe");
+  if(btn){
+    const sector = btn.getAttribute("data-sector");
+    const input = Array.from(document.querySelectorAll("#tablaJefesSectorBody .js-jefe")).find(i => i.getAttribute("data-sector") === sector);
+    guardarJefeSector(sector, input ? input.value : "");
+    return;
+  }
+  if(ev.target && ev.target.id === "btnJefeSectorAgregar"){
+    const sector = (document.getElementById("nuevoSectorNombre")?.value || "").trim();
+    const jefe   = (document.getElementById("nuevoSectorJefe")?.value || "").trim();
+    if(!sector){ alert("Escribe el nombre del sector."); return; }
+    guardarJefeSector(sector, jefe).then(()=>{
+      const a = document.getElementById("nuevoSectorNombre"); if(a) a.value = "";
+      const b = document.getElementById("nuevoSectorJefe");   if(b) b.value = "";
+    });
+  }
+});
 
 /* ---- Toasts mejorados ---- */
 (function(){
@@ -3352,6 +3419,9 @@ window.userSectores = []; // [] = acceso a todos los sectores
 
 function applyRolRestrictions(rol, sectores){
   window.userRol = rol || "admin";
+  // Editar jefes por sector: solo admin y master (el backend también lo exige)
+  const btnJefes = document.getElementById("btnPlacasJefes");
+  if(btnJefes) btnJefes.style.display = (rol === "master" || rol === "admin") ? "inline-flex" : "none";
   window.userSectores = Array.isArray(sectores) && sectores.length ? sectores : [];
 
   // Si el usuario tiene sectores asignados, pre-filtrar el selector de sector
@@ -6597,6 +6667,30 @@ function renderModalDetalle(rows, filtroMes){
 
 </script>
 
+
+<!-- ══════════ MODAL JEFES POR SECTOR ══════════ -->
+<div id="modalJefesSector" class="overlay" style="display:none; z-index:9998;">
+  <div style="background:var(--bg-primary,#fff); border-radius:12px; width:94vw; max-width:640px; max-height:90vh; display:flex; flex-direction:column; box-shadow:0 20px 60px rgba(0,0,0,0.25); overflow:hidden;">
+    <div style="display:flex; align-items:center; justify-content:space-between; padding:1rem 1.25rem; border-bottom:1px solid var(--border,#e5e7eb);">
+      <div>
+        <h3 style="margin:0; font-size:1.05rem; font-weight:700;">Jefes por sector</h3>
+        <p style="margin:4px 0 0; font-size:12px; color:var(--muted);">El jefe inmediato de cada placa se toma de su sector. Al guardar, se actualiza en todas las placas del sector.</p>
+      </div>
+      <button onclick="cerrarModalJefesSector()" style="background:none;border:none;cursor:pointer;padding:6px;color:var(--muted);font-size:18px;">✕</button>
+    </div>
+    <div style="overflow:auto; padding:0.5rem 1.25rem;">
+      <table style="width:100%; border-collapse:collapse; font-size:13px;">
+        <thead><tr style="text-align:left; color:var(--muted);"><th style="padding:8px 10px;">Sector</th><th style="padding:8px 10px;">Jefe inmediato</th><th></th></tr></thead>
+        <tbody id="tablaJefesSectorBody"></tbody>
+      </table>
+    </div>
+    <div style="display:flex; gap:8px; flex-wrap:wrap; padding:1rem 1.25rem; border-top:1px solid var(--border,#e5e7eb); background:var(--bg-secondary,#f8fafc);">
+      <input id="nuevoSectorNombre" class="input" placeholder="Nuevo sector" style="flex:1 1 140px;">
+      <input id="nuevoSectorJefe" class="input" placeholder="Jefe inmediato (opcional)" style="flex:2 1 200px;">
+      <button id="btnJefeSectorAgregar" class="btn btn-primary">Agregar sector</button>
+    </div>
+  </div>
+</div>
 
 <!-- ══════════ MODAL NUEVA PLACA ══════════ -->
 <div id="modalNuevaPlaca" class="overlay" style="display:none; z-index:9998;">
