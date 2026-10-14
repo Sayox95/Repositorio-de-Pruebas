@@ -1961,6 +1961,7 @@ function initFilters(){
   if(nombreInput){ nombreInput.addEventListener("input", debouncedNombre); }
 
   // Búsqueda de Nº Factura: primero local, si no hay resultados busca en D1
+  let histSeq = 0;
   const debouncedNumero = debounce(async () => {
     const q = ($("#fNumero")?.value || "").trim();
 
@@ -1971,6 +1972,7 @@ function initFilters(){
     if (q.length >= 4) {
       const localCount = State.filtered.length;
       if (localCount === 0) {
+        const seq = ++histSeq;
         try {
           toastLoading.show("Buscando en historial completo…");
           const base = Config?.api?.leerFacturas || "/api/leer";
@@ -1983,33 +1985,56 @@ function initFilters(){
           const res = await fetch(url.toString(), { cache: "no-store", mode: "cors" });
           if (!res.ok) throw new Error("Error al buscar");
           const data = await res.json();
+          // Ignorar respuestas viejas: el usuario siguió escribiendo o lanzó otra búsqueda
+          if (seq !== histSeq) return;
+          if (($("#fNumero")?.value || "").trim() !== q) { toastLoading.hide(); return; }
           const rows = Array.isArray(data) ? data.map(normalizeRow).filter(Boolean) : [];
+          toastLoading.hide();
           if (rows.length > 0) {
-            // Guardar rango anterior para restaurarlo al borrar la búsqueda
-            State.preSearchRange = State.loadedRange;
+            // Guardar lo que estaba cargado antes de la PRIMERA búsqueda en historial,
+            // para restaurarlo al borrar (búsquedas encadenadas no lo sobrescriben)
+            if (!State.enHistorial) {
+              const rev = $("#fFechaRev")?._range;
+              State.preSearch = State.loadedRange
+                ? { desde: State.loadedRange.desde, hasta: State.loadedRange.hasta }
+                : (rev ? { revDesde: fmt.dateISO(rev[0]), revHasta: fmt.dateISO(rev[1]) } : null);
+              State.enHistorial = true;
+            }
             State.raw = rows;
             State.loadedRange = null;
             applyFilters();
-            toastLoading.hide();
-            try{ toast(`Se encontraron ${rows.length} factura(s) en el historial completo`); }catch(_){}
+            // Contar lo que realmente queda visible con los demás filtros activos
+            const visibles = State.filtered.length;
+            const ocultas = rows.length - visibles;
+            let msg = `Se encontraron ${rows.length} factura(s) en el historial completo`;
+            if (ocultas > 0) {
+              msg = visibles
+                ? `Se encontraron ${rows.length} factura(s) en el historial; ${ocultas} oculta(s) por los filtros activos`
+                : `Se encontraron ${rows.length} factura(s) en el historial, pero los filtros activos (fecha, sector, estado…) las ocultan`;
+            }
+            try{ toast(msg, ocultas > 0 ? 4500 : 2500); }catch(_){}
           } else {
-            toastLoading.hide();
+            try{ toast(`No se encontró ninguna factura con "${q}"`, 3000); }catch(_){}
           }
         } catch (e) {
           toastLoading.hide();
           console.warn("Error buscando en historial:", e);
+          if (seq === histSeq) { try{ toast("No fue posible buscar en el historial. Intenta de nuevo.", 3000); }catch(_){} }
         }
       }
     }
 
     // Si se borra el campo, restaurar el rango previo a la búsqueda
     if (q.length === 0) {
-      const lr = State.loadedRange;
-      if (!lr) {
-        // Datos vienen de historial — restaurar rango anterior si existe, sino mes actual
-        const restore = State.preSearchRange;
-        State.preSearchRange = null;
-        if(restore){
+      histSeq++; // descartar una búsqueda en historial que siga en curso
+      if (State.enHistorial) {
+        // Datos vienen de historial — restaurar lo cargado antes de la búsqueda, sino mes actual
+        const restore = State.preSearch;
+        State.preSearch = null;
+        if(restore && restore.revDesde){
+          await loadData(null, null, restore.revDesde, restore.revHasta);
+          updateRangoLabel(null, null, restore.revDesde, restore.revHasta);
+        } else if(restore){
           await loadData(restore.desde, restore.hasta);
           updateRangoLabel(restore.desde, restore.hasta, null, null);
           // Restaurar el valor visual del flatpickr
@@ -3573,6 +3598,7 @@ async function loadData(fechaDesde, fechaHasta, fechaRevDesde, fechaRevHasta){
 
     const data = await API.getFacturas(params);
     State.raw = data;
+    State.enHistorial = false;
     // Guardar el rango cargado para evitar peticiones innecesarias
     if(params.fechaDesde && params.fechaHasta && !params.fechaRevDesde && !params.fechaRevHasta){
       State.loadedRange = { desde: params.fechaDesde, hasta: params.fechaHasta };
