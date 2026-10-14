@@ -53,6 +53,27 @@ async function jefeDeSector(env, sector) {
   return (row && row.Jefe) || null;
 }
 
+function cambios(r) {
+  return Number((r && r.meta && r.meta.changes) ?? (r && r.changes) ?? 0) || 0;
+}
+
+// Sector tal como está registrado en la tabla `sectores` (o null si no existe)
+async function sectorRegistrado(env, sector) {
+  const s = String(sector || "").trim();
+  if (!s) return null;
+  const row = await env.DB.prepare("SELECT Sector FROM sectores WHERE Sector = ?").bind(s).first();
+  return row ? row.Sector : null;
+}
+
+const ESTADOS_VEHICULO = ["ACTIVO", "INACTIVO"];
+const MAX_TEXTO = 120; // largo máximo de conductor, proceso, designación, marca y modelo
+
+// Texto limpio y acotado; null si viene vacío
+function texto(v) {
+  const t = (v ?? "").toString().trim().replace(/\s+/g, " ");
+  return t ? t.slice(0, MAX_TEXTO) : null;
+}
+
 function jsonRes(obj, status = 200) {
   return new Response(JSON.stringify(obj), { status, headers: { ...CORS, "Content-Type": "application/json" } });
 }
@@ -140,63 +161,55 @@ export async function onRequestPost({ request, env, data }) {
   try {
     // ── Crear nueva placa ──────────────────────────────────────────────────
     if (action === "crear") {
-      const { placa, nombre, sector, proceso, designacion, estado } = body;
-      if (restringido && !sectoresUsuario.includes((sector || "").trim())) return fueraDeSector();
+      const { placa, nombre, sector, proceso, designacion, estado, marca, modelo } = body;
       const placaNorm = normalizePlateVinForStorage(placa);
-      if (!placaNorm.ok) {
-        return new Response(JSON.stringify({ ok: false, message: placaNorm.message }), {
-          status: 400, headers: { ...CORS, "Content-Type": "application/json" }
-        });
-      }
+      if (!placaNorm.ok) return jsonRes({ ok: false, message: placaNorm.message }, 400);
 
-      const dupCreate = await env.DB
+      // Sector obligatorio y registrado (de él sale el jefe inmediato)
+      const sectorOk = await sectorRegistrado(env, sector);
+      if (!sectorOk) return jsonRes({ ok: false, message: sector ? `El sector "${String(sector).trim()}" no está registrado` : "El sector es obligatorio" }, 400);
+      if (restringido && !sectoresUsuario.map(x => x.toUpperCase()).includes(sectorOk.toUpperCase())) return fueraDeSector();
+
+      if (!texto(proceso)) return jsonRes({ ok: false, message: "El proceso es obligatorio" }, 400);
+      const estadoOk = (estado || "ACTIVO").toString().trim().toUpperCase();
+      if (!ESTADOS_VEHICULO.includes(estadoOk)) return jsonRes({ ok: false, message: "Estado inválido (ACTIVO o INACTIVO)" }, 400);
+
+      // Verificar duplicado, generar el ID consecutivo e insertar en UNA sola
+      // instrucción: D1 la ejecuta de forma atómica, así dos creaciones
+      // simultáneas no duplican la placa ni el IDvehiculo.
+      const r = await env.DB.prepare(`
+        INSERT INTO vehiculos (IDvehiculo, Placa, Conductor, Sector, Proceso, Designacion, Estado, Jefe, Marca, Modelo)
+        SELECT 'VEH-' || printf('%05d', siguiente), ?, ?, ?, ?, ?, ?, ?, ?, ?
+        FROM (SELECT COALESCE(MAX(CAST(SUBSTR(IDvehiculo, 5) AS INTEGER)), 0) + 1 AS siguiente
+              FROM vehiculos WHERE IDvehiculo LIKE 'VEH-%')
+        WHERE NOT EXISTS (SELECT 1 FROM vehiculos WHERE ${normalizedPlateSql("Placa")} = ?)
+      `).bind(
+        placaNorm.value,
+        texto(nombre),
+        sectorOk,
+        texto(proceso),
+        texto(designacion),
+        estadoOk,
+        await jefeDeSector(env, sectorOk),
+        texto(marca),
+        texto(modelo),
+        placaNorm.clean
+      ).run();
+
+      if (!cambios(r)) return jsonRes({ ok: false, message: "La placa/VIN ya existe en el registro" }, 409);
+
+      const creado = await env.DB
         .prepare(`SELECT IDvehiculo FROM vehiculos WHERE ${normalizedPlateSql("Placa")} = ? LIMIT 1`)
         .bind(placaNorm.clean)
         .first();
-      if (dupCreate) {
-        return new Response(JSON.stringify({ ok: false, message: "La placa/VIN ya existe en el registro" }), {
-          status: 409, headers: { ...CORS, "Content-Type": "application/json" }
-        });
-      }
-
-      // Generar IDvehiculo consecutivo (VEH-00001)
-      let nuevoId = "VEH-00001";
-      try {
-        const { results } = await env.DB
-          .prepare("SELECT IDvehiculo FROM vehiculos WHERE IDvehiculo LIKE 'VEH-%' ORDER BY IDvehiculo DESC LIMIT 1")
-          .all();
-        if (results && results.length > 0) {
-          const ultimo = results[0].IDvehiculo || "";
-          const num = parseInt(ultimo.replace("VEH-", "")) || 0;
-          nuevoId = "VEH-" + String(num + 1).padStart(5, "0");
-        }
-      } catch (e) {
-        console.error("Error generando IDvehiculo:", e.message);
-      }
-
-      await env.DB.prepare(`
-        INSERT INTO vehiculos (IDvehiculo, Placa, Conductor, Sector, Proceso, Designacion, Estado, Jefe)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `).bind(
-        nuevoId,
-        placaNorm.value,
-        (nombre      || "").trim() || null,
-        (sector      || "").trim() || null,
-        (proceso     || "").trim() || null,
-        (designacion || "").trim() || null,
-        (estado      || "ACTIVO").trim(),
-        await jefeDeSector(env, sector)
-      ).run();
-
-      return new Response(JSON.stringify({ ok: true, IDvehiculo: nuevoId }), {
-        status: 200, headers: { ...CORS, "Content-Type": "application/json" }
-      });
+      return jsonRes({ ok: true, IDvehiculo: creado && creado.IDvehiculo });
     }
 
     // ── Cambiar estado (Activa/Inactiva) ───────────────────────────────────
     if (action === "cambiarEstado") {
       const placas  = Array.isArray(body.placas) ? body.placas : [];
-      const estado  = (body.estado || "").trim();
+      const estado  = (body.estado || "").trim().toUpperCase();
+      if (!ESTADOS_VEHICULO.includes(estado)) return jsonRes({ ok: false, message: "Estado inválido (ACTIVO o INACTIVO)" }, 400);
       if (!placas.length || !estado) {
         return new Response(JSON.stringify({ ok: false, message: "Faltan placas o estado" }), {
           status: 400, headers: { ...CORS, "Content-Type": "application/json" }
@@ -236,12 +249,15 @@ export async function onRequestPost({ request, env, data }) {
         if (!await vehiculosEnSectores(env, "Placa = ?", [placa.toString().trim().toUpperCase()], sectoresUsuario)) return fueraDeSector();
       }
 
+      const sectorOk = await sectorRegistrado(env, sector);
+      if (!sectorOk) return jsonRes({ ok: false, message: `El sector "${String(sector).trim()}" no está registrado` }, 400);
+
       // Jefe del nuevo sector según la tabla sectores
-      const jefe = await jefeDeSector(env, sector);
+      const jefe = await jefeDeSector(env, sectorOk);
 
       // Actualizar Sector y Jefe del vehículo
       await env.DB.prepare("UPDATE vehiculos SET Sector = ?, Jefe = ? WHERE Placa = ?")
-        .bind(sector.trim(), jefe, placa.toString().trim().toUpperCase())
+        .bind(sectorOk, jefe, placa.toString().trim().toUpperCase())
         .run();
 
       return new Response(JSON.stringify({ ok: true, jefe }), {
@@ -316,6 +332,11 @@ export async function onRequestPost({ request, env, data }) {
         });
       }
 
+      const sectorOk = await sectorRegistrado(env, sector);
+      if (!sectorOk) return jsonRes({ ok: false, message: sector ? `El sector "${String(sector).trim()}" no está registrado` : "El sector es obligatorio" }, 400);
+      const estadoOk = (estado || "ACTIVO").toString().trim().toUpperCase();
+      if (!ESTADOS_VEHICULO.includes(estadoOk)) return jsonRes({ ok: false, message: "Estado inválido (ACTIVO o INACTIVO)" }, 400);
+
       const nuevaPlaca = placaNorm.value;
       const id = (IDvehiculo || "").toString().trim();
       const placaAnterior = (placaOriginal || "").toString().trim().toUpperCase();
@@ -358,14 +379,14 @@ export async function onRequestPost({ request, env, data }) {
         WHERE ${whereSql}
       `).bind(
         nuevaPlaca,
-        (conductor   || "").toString().trim() || null,
-        (sector      || "").toString().trim() || null,
-        (proceso     || "").toString().trim() || null,
-        await jefeDeSector(env, sector),
-        (designacion || "").toString().trim() || null,
-        (marca       || "").toString().trim() || null,
-        (modelo      || "").toString().trim() || null,
-        (estado      || "ACTIVO").toString().trim().toUpperCase(),
+        texto(conductor),
+        sectorOk,
+        texto(proceso),
+        await jefeDeSector(env, sectorOk),
+        texto(designacion),
+        texto(marca),
+        texto(modelo),
+        estadoOk,
         whereVal
       ).run();
 

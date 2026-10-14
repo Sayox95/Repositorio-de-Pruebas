@@ -2317,7 +2317,7 @@ async function loadProcesosOptions(){
               </span>`;
             }, cellClick: async (e, cell)=>{
               const btn = e.target.closest('.estado-toggle-btn');
-              if(!btn) return;
+              if(!btn || placasSoloLectura()) return;
               if(!placasEndpointsReady()){ alert('Configura el endpoint de Placas.'); return; }
               const placa = btn.dataset.placa;
               const estadoActual = btn.dataset.estado;
@@ -2345,7 +2345,7 @@ async function loadProcesosOptions(){
               }finally{ overlay.hide(); }
             }},
           { title:"Conductor", field:"Conductor" },
-          { title:"Sector", field:"Sector", width:140 , editor:"list" , editorParams:function(){ return {values:getUniqueSectors()}; } , cellEdited:onSectorEdited },
+          { title:"Sector", field:"Sector", width:140 , editor:"list" , editable:()=>!placasSoloLectura(), editorParams:function(){ return {values:getUniqueSectors()}; } , cellEdited:onSectorEdited },
           { title:"Proceso", field:"Proceso", width:180 },
           { title:"Jefe inmediato", field:"JefeInmediato", width:200 },
           { title:"Designación", field:"Designacion", width:200 },
@@ -2407,7 +2407,7 @@ function actualizarBotonModificarPlacas(data){
   const seleccionadas = Array.isArray(data) ? data : [];
   Placas.selectedData = seleccionadas;
 
-  const mostrar = seleccionadas.length === 1;
+  const mostrar = seleccionadas.length === 1 && !placasSoloLectura();
   btn.style.display = mostrar ? "inline-flex" : "none";
   btn.disabled = !mostrar;
 }
@@ -2661,49 +2661,56 @@ function toggleFormPlaca(show){
   if(modal) modal.style.display = show ? 'grid' : 'none';
   if(!show){
     // Limpiar campos al cerrar
-    ['npPlaca','npNombre','npDesignacion'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+    ['npPlaca','npNombre','npDesignacion','npMarca','npModelo'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+    const err=document.getElementById('npError'); if(err){ err.style.display='none'; err.textContent=''; }
     ['npSector','npProceso'].forEach(id=>{ const el=document.getElementById(id); if(el) el.selectedIndex=0; });
     const dup=document.getElementById('npPlacaDup'); if(dup) dup.style.display='none';
   }
 }
 async function guardarNuevaPlaca(){
-let placa = document.getElementById("npPlaca").value.trim();
-  // Normalizar antes de enviar
-  const normOnly = placa.toUpperCase().replace(/[^A-Z0-9_]/g,"");
-  // Si es VIN (más de 8 alfanuméricos sin guion), quitar guion si lo tuviera
-  const only = normOnly.replace(/_/g,"");
-  if(only.length > 8){ placa = only.slice(0,17); 
+  const val = id => (document.getElementById(id)?.value || "").trim();
+  const errEl = document.getElementById("npError");
+  const mostrarError = (msg) => { if(errEl){ errEl.textContent = msg; errEl.style.display = "block"; } else { alert(msg); } };
+  if(errEl) errEl.style.display = "none";
 
-} else {
-    const al = only.slice(0,7); // 3 + 4
-    const left = al.slice(0,3), right = al.slice(3,7);
-    placa = right ? (left + "_" + right) : left;
-  }
-  // Duplicados en cliente
-  const dupExists = (Placas.data||[]).some(r=> String((r.Placa||r.PLACA||"")).replace(/_/g,"").toUpperCase() === only.toUpperCase());
-  if(dupExists){ alert("La placa/VIN ya existe en el registro."); return; }
-  const nombre = document.getElementById("npNombre").value.trim();
-  const sector = document.getElementById("npSector").value.trim();
-  const proceso = document.getElementById("npProceso").value.trim();
-  const designacion = document.getElementById("npDesignacion").value.trim();
-  const estado = document.getElementById("npEstado").value;
-  if(!placa){ alert("La placa es obligatoria."); return; }
+  // Misma regla que el servidor: 3 letras + 4 números (AAA_9999) o VIN de 17
+  const placaVal = validarPlacaVinCompleto(val("npPlaca"));
+  if(!placaVal.ok){ mostrarError(placaVal.mensaje); return; }
+  const dupExists = (Placas.data||[]).some(r => limpiarPlacaVinAlfanumerico(r.Placa||r.PLACA||"") === placaVal.clean);
+  if(dupExists){ mostrarError("La placa/VIN ya existe en el registro."); return; }
+
+  const datos = {
+    action: "crear",
+    placa: placaVal.value,
+    nombre: val("npNombre"),
+    sector: val("npSector"),
+    proceso: val("npProceso"),
+    designacion: val("npDesignacion"),
+    marca: val("npMarca"),
+    modelo: val("npModelo"),
+    estado: val("npEstado") || "ACTIVO"
+  };
+  if(!datos.sector){ mostrarError("Selecciona el sector."); return; }
+  if(!datos.proceso){ mostrarError("Selecciona el proceso."); return; }
   if(!placasEndpointsReady()){ alert("Configura el endpoint de Placas."); return; }
+
   try{
     overlay.show("Guardando placa…");
     const res = await fetch(Config.api.placas, {
       method:"POST",
       headers:{ "Content-Type":"application/json" },
-      body: JSON.stringify({ action:"crear", placa, nombre, sector, proceso, designacion, estado })
+      body: JSON.stringify(datos)
     });
-    if(!res.ok) throw new Error("HTTP "+res.status);
+    const out = await res.json().catch(()=>({}));
+    // Mostrar el motivo real del rechazo (antes solo "HTTP 409")
+    if(!res.ok || out.ok === false) throw new Error(out.message || out.error || ("HTTP " + res.status));
     overlay.hide();
     toggleFormPlaca(false);
     await cargarPlacas();
     quickToast("✅ Placa guardada correctamente");
   }catch(e){
     overlay.hide();
-    alert("No fue posible guardar la placa: "+e.message);
+    mostrarError("No fue posible guardar la placa: " + e.message);
   }
 }
 
@@ -2726,7 +2733,10 @@ function formatPlateCandidate(raw){
 function isValidPlateAAA9999(p){
   return /^[A-Z]{3}_[0-9]{4}$/.test(String(p||"").toUpperCase());
 }
+// viewer y viewer_2 solo consultan Placas (el backend también lo exige)
+function placasSoloLectura(){ return ["viewer", "viewer_2"].includes(window.userRol); }
 function canEditPlaca(cell){
+  if(placasSoloLectura()) return false;
   // Solo permitir editor si el valor actual luce como VIN
   const val = cell.getValue();
   return isVINValue(val);
@@ -3422,6 +3432,8 @@ function applyRolRestrictions(rol, sectores){
   // Editar jefes por sector: solo admin y master (el backend también lo exige)
   const btnJefes = document.getElementById("btnPlacasJefes");
   if(btnJefes) btnJefes.style.display = (rol === "master" || rol === "admin") ? "inline-flex" : "none";
+  const btnNueva = document.getElementById("btnPlacasNueva");
+  if(btnNueva && ["viewer", "viewer_2"].includes(rol)) btnNueva.style.display = "none";
   window.userSectores = Array.isArray(sectores) && sectores.length ? sectores : [];
 
   // Si el usuario tiene sectores asignados, pre-filtrar el selector de sector
@@ -6709,19 +6721,30 @@ function renderModalDetalle(rows, filtroMes){
       </div>
       <div>
         <label style="font-size:12px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px;">Conductor</label>
-        <input id="npNombre" class="input" placeholder="Nombre del conductor" autocomplete="off" style="width:100%;box-sizing:border-box;">
+        <input id="npNombre" class="input" placeholder="Nombre del conductor" maxlength="120" autocomplete="off" style="width:100%;box-sizing:border-box;">
       </div>
       <div>
-        <label style="font-size:12px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px;">Sector</label>
+        <label style="font-size:12px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px;">Sector *</label>
         <select id="npSector" class="input" style="width:100%;box-sizing:border-box;"><option value="">Seleccionar sector…</option></select>
       </div>
       <div>
-        <label style="font-size:12px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px;">Proceso</label>
+        <label style="font-size:12px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px;">Proceso *</label>
         <select id="npProceso" class="input" style="width:100%;box-sizing:border-box;"><option value="">Seleccionar proceso…</option></select>
       </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+        <div>
+          <label style="font-size:12px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px;">Marca</label>
+          <input id="npMarca" class="input" placeholder="Ej. Toyota" maxlength="120" autocomplete="off" style="width:100%;box-sizing:border-box;">
+        </div>
+        <div>
+          <label style="font-size:12px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px;">Modelo</label>
+          <input id="npModelo" class="input" placeholder="Ej. Hilux" maxlength="120" autocomplete="off" style="width:100%;box-sizing:border-box;">
+        </div>
+      </div>
+      <small id="npError" style="display:none;color:#b91c1c;font-weight:600;"></small>
       <div>
         <label style="font-size:12px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px;">Designación</label>
-        <input id="npDesignacion" class="input" placeholder="Cargo o designación" autocomplete="off" style="width:100%;box-sizing:border-box;">
+        <input id="npDesignacion" class="input" placeholder="Cargo o designación" maxlength="120" autocomplete="off" style="width:100%;box-sizing:border-box;">
       </div>
       <div>
         <label style="font-size:12px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px;">Estado</label>
