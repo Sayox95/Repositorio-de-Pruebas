@@ -76,6 +76,7 @@ async function procesoRegistrado(env, proceso) {
 }
 
 const ESTADOS_VEHICULO = ["ACTIVO", "INACTIVO"];
+const PROCESO_SIN_ASIGNAR = "Sin asignar";
 const MAX_TEXTO = 120; // largo máximo de conductor, proceso, designación, marca y modelo
 
 // Texto limpio y acotado; null si viene vacío
@@ -183,6 +184,8 @@ export async function onRequestPost({ request, env, data }) {
       if (!texto(proceso)) return jsonRes({ ok: false, message: "El proceso es obligatorio" }, 400);
       const procesoOk = await procesoRegistrado(env, proceso);
       if (!procesoOk) return jsonRes({ ok: false, message: `El proceso "${String(proceso).trim()}" no está en el catálogo de procesos` }, 400);
+      // "Sin asignar" es solo para datos antiguos pendientes; una placa nueva debe tener proceso real
+      if (procesoOk.toUpperCase() === PROCESO_SIN_ASIGNAR.toUpperCase()) return jsonRes({ ok: false, message: "Selecciona el proceso real de la placa" }, 400);
       const estadoOk = (estado || "ACTIVO").toString().trim().toUpperCase();
       if (!ESTADOS_VEHICULO.includes(estadoOk)) return jsonRes({ ok: false, message: "Estado inválido (ACTIVO o INACTIVO)" }, 400);
 

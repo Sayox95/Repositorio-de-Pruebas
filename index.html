@@ -2225,8 +2225,10 @@ async function loadProcesosOptions(){
     selects.forEach(sel => {
       const current = sel.value;
       const label = sel.id === "epProceso" ? "Seleccionar proceso…" : "Proceso…";
-      sel.innerHTML = `<option value="">${label}</option>` + procesos.map(p => `<option value="${esc(p)}">${esc(p)}</option>`).join('');
-      if(procesos.includes(current)) sel.value = current;
+      // "Sin asignar" solo existe para datos antiguos: no se ofrece al crear una placa
+      const opciones = sel.id === "npProceso" ? procesos.filter(p => p.toUpperCase() !== "SIN ASIGNAR") : procesos;
+      sel.innerHTML = `<option value="">${label}</option>` + opciones.map(p => `<option value="${esc(p)}">${esc(p)}</option>`).join('');
+      if(opciones.includes(current)) sel.value = current;
     });
   }catch(e){
     selects.forEach(sel => {
