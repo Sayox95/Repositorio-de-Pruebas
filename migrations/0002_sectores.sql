@@ -20,5 +20,7 @@ INSERT OR REPLACE INTO sectores (Sector, Jefe) VALUES
   ('CORPORATIVO',    NULL);
 
 -- Alinear la columna Jefe de cada vehículo con el jefe de su sector
+-- (solo vehículos cuyo sector está en la tabla; los demás conservan su valor)
 UPDATE vehiculos
-SET Jefe = (SELECT s.Jefe FROM sectores s WHERE s.Sector = TRIM(vehiculos.Sector));
+SET Jefe = (SELECT s.Jefe FROM sectores s WHERE s.Sector = TRIM(vehiculos.Sector))
+WHERE EXISTS (SELECT 1 FROM sectores s WHERE s.Sector = TRIM(vehiculos.Sector));
