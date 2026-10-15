@@ -2264,7 +2264,7 @@ const _secToPath = {
 // Mapa directo: path → { sectionId, loader }
 const _pathToSec = {
   '/revision':  { id:'secRevision',  load: async()=>{ await hardRefresh(); } },
-  '/pago':      { id:'secPago',      load: async()=>{ await cargarPago(); initPagoMassPay(true); } },
+  '/pago':      { id:'secPago',      load: async()=>{ await cargarPago({ usarCache:true }); initPagoMassPay(true); } },
   '/anticipos': { id:'secAnticipos', load: null },
   '/placas':    { id:'secPlacas',    load: async()=>{ await cargarPlacas(); } },
   '/metricas':  { id:'secMetricas',  load: async()=>{ await initMetricas(); } },
@@ -3781,6 +3781,12 @@ function showApp(me){
     const res = await _fetch(input, init);
     try{
       const url = new URL(typeof input === "string" ? input : input.url, location.origin);
+      // Escritura de facturas → invalidar cachés (Pago/Métricas). Generar liquidación solo lee.
+      if(res.ok && url.pathname === "/api/guardar" && String((init && init.method) || "GET").toUpperCase() === "POST"){
+        let accion = "";
+        try{ accion = JSON.parse(init.body).accion || ""; }catch(_){}
+        if(accion !== "generarLiquidacion") window.__facturasVersion = (window.__facturasVersion || 0) + 1;
+      }
       if(res.status === 401 && url.origin === location.origin && url.pathname.startsWith("/api/")
          && !url.pathname.startsWith("/api/auth/") && !redirecting){
         redirecting = true;
@@ -3874,8 +3880,13 @@ function setLastUpdatedPago(){
 let pagoTable=null, pagoTableReady=false, pagoPendingData=null, pagoGrouped=false, pagoGroupMode="none";
 let pagoSectorMS=null, pagoEstadoMS=null;
 
+// Caché de Pago: al volver a la sección no se relee D1 si los datos tienen menos de
+// PAGO_CACHE_MS y nadie guardó facturas en esta sesión. "Actualizar" siempre relee.
+const PAGO_CACHE_MS = 5 * 60 * 1000;
 const Pago = {
   raw: [],
+  cargadoEn: 0,     // Date.now() de la última lectura de D1
+  cacheVer: -1,     // window.__facturasVersion al momento de esa lectura
   get filtered(){
     const sectores = pagoSectorMS ? pagoSectorMS.getSelected() : [];
     const estados  = pagoEstadoMS ? pagoEstadoMS.getSelected() : [];
@@ -4232,15 +4243,24 @@ async function fetchFacturasPago(params){
 }
 
 let __pagoLoadSeq = 0;
-async function cargarPago(){
+async function cargarPago(opciones){
+  // Navegar a Pago usa el caché; el botón Actualizar y las recargas tras conflictos no
+  const usarCache = !!(opciones && opciones.usarCache);
+  if(usarCache && Pago.cargadoEn && (Date.now() - Pago.cargadoEn) < PAGO_CACHE_MS
+     && Pago.cacheVer === (window.__facturasVersion || 0)){
+    return;
+  }
   try{ console.time("[Pago] cargar"); }catch(_e){}
   const seq = ++__pagoLoadSeq;
 
   if(typeof overlay!=="undefined") overlay.show("Cargando facturas…");
   try {
+    const verAntes = window.__facturasVersion || 0;
     const data = await fetchFacturasPago({ estados: "Revisada,Pagada,Enviada" });
     if(seq !== __pagoLoadSeq) return; // una carga más reciente ya está en curso
     Pago.raw = data;
+    Pago.cargadoEn = Date.now();
+    Pago.cacheVer = verAntes;
 
     const sectores = Array.from(new Set((Pago.raw||[]).map(r=>r.Sector).filter(Boolean))).sort((a,b)=>a.localeCompare(b));
     if(pagoSectorMS && pagoSectorMS.setItems){ pagoSectorMS.setItems(sectores); }
@@ -4286,7 +4306,7 @@ document.addEventListener("DOMContentLoaded", function(){
 
   const $ = (sel)=>document.querySelector(sel);
   $("#btnPagoLimpiar")?.addEventListener("click", clearPagoFilters);
-  $("#btnPagoActualizar")?.addEventListener("click", cargarPago);
+  $("#btnPagoActualizar")?.addEventListener("click", () => cargarPago());
   $("#btnPagoExportXLSX")?.addEventListener("click", exportPagoXLSX);
   $("#btnPagoAgrupar")?.addEventListener("click", togglePagoGrouping);
   $("#mpCancelar")?.addEventListener("click", closePagoModal);
@@ -4297,8 +4317,8 @@ document.addEventListener("DOMContentLoaded", function(){
 
   // Carga cuando se navega a #pago o al hacer click en su pestaña
   const navPago = document.querySelector('.sidebar .nav-btn[href="#pago"]');
-  if(navPago){ navPago.addEventListener("click", function(){ setTimeout(function(){ cargarPago(); }, 0); }); }
-  window.addEventListener("hashchange", function(){ if(location.hash==="#pago"){ setTimeout(function(){ cargarPago(); }, 0); } });
+  if(navPago){ navPago.addEventListener("click", function(){ setTimeout(function(){ cargarPago({ usarCache:true }); }, 0); }); }
+  window.addEventListener("hashchange", function(){ if(location.hash==="#pago"){ setTimeout(function(){ cargarPago({ usarCache:true }); }, 0); } });
 });
 
 /* ====== Pago: resumen, cargos e integración pagoLote (sin Fondo/Periodo) ====== */
@@ -4643,6 +4663,7 @@ async function confirmarPago(){
       // Cerrar modal y refrescar KPI
       const modal = document.getElementById("modalPago"); if(modal) modal.style.display = "none";
       try{ toast("✅ Pago registrado correctamente."); }catch(_){}
+      Pago.cacheVer = window.__facturasVersion || 0; // fila ya actualizada en memoria
       if(table.deselectRow) table.deselectRow();
       updatePagoButtonVisibility();
       return;
@@ -4679,6 +4700,8 @@ async function confirmarPago(){
 
     const modal = document.getElementById("modalPago"); if(modal) modal.style.display = "none";
     try{ toast(`✅ ${filas.length} factura(s) pagadas correctamente.`); }catch(_){}
+    // Las filas ya se actualizaron en memoria: el caché de Pago sigue vigente
+    Pago.cacheVer = window.__facturasVersion || 0;
     if(table.deselectRow) table.deselectRow();
     updatePagoButtonVisibility();
 
@@ -5615,20 +5638,25 @@ async function initMetricas(){
     if(!metricasSectorMS && document.getElementById('msSectorMetricas')){
       metricasSectorMS = createMultiSelect('#msSectorMetricas', 'Sectores', ()=>{});
     }
-    if(metricasSectorMS){
+    if(metricasSectorMS && !metricasSectorMS.__cargado){
       try{
         const base = (typeof Config!=='undefined' && Config?.api?.placas) || "/api/placas";
         const res = await fetch(base, { cache:'no-store' });
         const data = await res.json().catch(()=>[]);
         const secs = [...new Set((Array.isArray(data)?data:[]).map(r=>r.Sector).filter(Boolean))].sort();
-        if(secs.length > 0) metricasSectorMS.setItems(secs);
+        if(secs.length > 0){ metricasSectorMS.setItems(secs); metricasSectorMS.__cargado = true; }
       }catch(e){}
     }
   }
-  await cargarMetricas();
+  await cargarMetricas({ usarCache:true });
 }
 
-async function cargarMetricas(){
+// Caché de Métricas por combinación de filtros. Navegar a la sección lo usa;
+// el botón "Cargar" siempre relee D1.
+const METRICAS_CACHE_MS = 10 * 60 * 1000;
+const _metricasCache = new Map();
+async function cargarMetricas(opciones){
+  const usarCache = !!(opciones && opciones.usarCache);
   const desde = document.getElementById('mDesde').value;
   const hasta  = document.getElementById('mHasta').value;
   if(!desde || !hasta){ uiAlert('Selecciona un rango de fechas.', { tipo:"warning" }); return; }
@@ -5653,9 +5681,19 @@ async function cargarMetricas(){
     // Filtro de proceso
     const procesosSel = metricasProcesoMS ? metricasProcesoMS.getSelected() : [];
     if(procesosSel.length > 0) url.searchParams.set("procesos", procesosSel.join(","));
-    const res  = await fetch(url.toString(), { cache:"no-store" });
+    const clave = url.toString();
+    const ver = window.__facturasVersion || 0;
+    const enCache = _metricasCache.get(clave);
+    if(usarCache && enCache && enCache.ver === ver && (Date.now() - enCache.en) < METRICAS_CACHE_MS){
+      renderMetricas(enCache.rows);
+      return;
+    }
+    const res  = await fetch(clave, { cache:"no-store" });
+    if(!res.ok) throw new Error("HTTP " + res.status);
     const raw  = await res.json().catch(()=>[]);
     const rows = (Array.isArray(raw)?raw:[]).map(r=>typeof normalizeRow==='function'?normalizeRow(r):r).filter(Boolean);
+    _metricasCache.clear(); // solo se guarda la última consulta (evita acumular memoria)
+    _metricasCache.set(clave, { rows, en: Date.now(), ver });
     renderMetricas(rows);
   }catch(e){ uiAlert('Error cargando métricas: '+e.message, { tipo:"error" }); }
   finally{ if(btn){ btn.disabled=false; btn.innerHTML='<i class="lucide-refresh-cw"></i> Actualizar'; } }
