@@ -942,6 +942,7 @@
       <button id="btnMetricasCargar" class="btn btn-primary" onclick="cargarMetricas()">
         <i class="lucide-refresh-cw"></i> Actualizar
       </button>
+      <span id="lastUpdatedMetricas" class="last-updated" title="Última actualización">—</span>
     </div>
   </div>
 
@@ -3871,9 +3872,11 @@ async function doLogout(){ await authLogout(); showLogin(); }
 
 <script>
 // ============ Util Pago ============
-function setLastUpdatedPago(){
-  const el=document.getElementById("lastUpdatedPago"); if(!el) return;
-  const t=new Date(), pad=n=>String(n).padStart(2,"0");
+function setLastUpdatedPago(){ setLastUpdated("lastUpdatedPago"); }
+/** Muestra "Actualizado: AAAA-MM-DD HH:MM" con la hora en que se leyeron los datos de D1 */
+function setLastUpdated(id, cuando){
+  const el=document.getElementById(id); if(!el) return;
+  const t=new Date(cuando || Date.now()), pad=n=>String(n).padStart(2,"0");
   el.textContent = "Actualizado: " + t.getFullYear()+"-"+pad(t.getMonth()+1)+"-"+pad(t.getDate())+" "+pad(t.getHours())+":"+pad(t.getMinutes());
 }
 
@@ -5686,6 +5689,7 @@ async function cargarMetricas(opciones){
     const enCache = _metricasCache.get(clave);
     if(usarCache && enCache && enCache.ver === ver && (Date.now() - enCache.en) < METRICAS_CACHE_MS){
       renderMetricas(enCache.rows);
+      setLastUpdated("lastUpdatedMetricas", enCache.en); // hora de la lectura original, no la de ahora
       return;
     }
     const res  = await fetch(clave, { cache:"no-store" });
@@ -5693,8 +5697,10 @@ async function cargarMetricas(opciones){
     const raw  = await res.json().catch(()=>[]);
     const rows = (Array.isArray(raw)?raw:[]).map(r=>typeof normalizeRow==='function'?normalizeRow(r):r).filter(Boolean);
     _metricasCache.clear(); // solo se guarda la última consulta (evita acumular memoria)
-    _metricasCache.set(clave, { rows, en: Date.now(), ver });
+    const en = Date.now();
+    _metricasCache.set(clave, { rows, en, ver });
     renderMetricas(rows);
+    setLastUpdated("lastUpdatedMetricas", en);
   }catch(e){ uiAlert('Error cargando métricas: '+e.message, { tipo:"error" }); }
   finally{ if(btn){ btn.disabled=false; btn.innerHTML='<i class="lucide-refresh-cw"></i> Actualizar'; } }
 }
