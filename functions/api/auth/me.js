@@ -1,18 +1,33 @@
 // functions/api/auth/me.js
+// Rol, sectores y estado se leen de D1 (no del JWT): así un cambio de perfil hecho
+// por el master se refleja con solo recargar la página, igual que en el middleware.
 export async function onRequest({ request, env }) {
   const token = getCookie(request.headers.get("Cookie")||"", "utcd_session");
   if (!token) return j({ error: "no_session" }, 401);
   const payload = await verifyJWT(token, env.SESSION_SECRET);
   if (!payload)  return j({ error: "invalid_or_expired" }, 401);
-  const sectores = Array.isArray(payload.sectores) ? payload.sectores : [];
-  return j({ ok:true, usuario: payload.sub, rol: payload.rol || "usuario", sectores });
+  let row = null;
+  try {
+    row = await env.DB
+      .prepare("SELECT usuario, nombre, rol, activo, sectores FROM usuarios WHERE usuario = ? LIMIT 1")
+      .bind(payload.sub)
+      .first();
+  } catch (e) {
+    return j({ error: "db_error" }, 500);
+  }
+  const activo = row && (row.activo === 1 || row.activo === true || String(row.activo).toLowerCase() === "true");
+  if (!row || !activo) return j({ error: "no_session" }, 401);
+  const sectores = row.sectores
+    ? String(row.sectores).split(",").map(s => s.trim()).filter(Boolean)
+    : [];
+  return j({ ok:true, usuario: row.usuario, nombre: row.nombre || null, rol: row.rol || "usuario", sectores });
 }
 
 function getCookie(cookie, name){
   const m = cookie.match(new RegExp('(?:^|; )' + name.replace(/([$?*|{}\]\\^])/g,'\\$1') + '=([^;]*)'));
   return m ? decodeURIComponent(m[1]) : null;
 }
-function j(obj, status=200){ return new Response(JSON.stringify(obj), { status, headers: { "Content-Type":"application/json" }}); }
+function j(obj, status=200){ return new Response(JSON.stringify(obj), { status, headers: { "Content-Type":"application/json", "Cache-Control":"no-store" }}); }
 
 async function verifyJWT(token, secret){
   try{
