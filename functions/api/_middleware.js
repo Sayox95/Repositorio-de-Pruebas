@@ -13,7 +13,7 @@ const PUBLIC_PATHS = new Set([
 // Roles sin permiso de escritura por endpoint
 const READ_ONLY = {
   "/api/guardar":     ["viewer", "viewer_2"],
-  "/api/placas":      ["viewer", "viewer_2"],
+  "/api/placas":      ["viewer_2"],            // viewer sí puede crear/editar placas
   "/api/sectores":    ["viewer", "viewer_2"],
   "/api/procesos":    ["viewer", "viewer_2"],
 };
