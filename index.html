@@ -2899,7 +2899,8 @@ function isValidPlateAAA9999(p){
   return /^[A-Z]{3}_[0-9]{4}$/.test(String(p||"").toUpperCase());
 }
 // viewer y viewer_2 solo consultan Placas (el backend también lo exige)
-function placasSoloLectura(){ return ["viewer", "viewer_2"].includes(window.userRol); }
+// viewer_2 solo consulta placas; viewer puede crearlas y editarlas (permiso extra)
+function placasSoloLectura(){ return window.userRol === "viewer_2"; }
 function canEditPlaca(cell){
   if(placasSoloLectura()) return false;
   // Solo permitir editor si el valor actual luce como VIN
@@ -3660,7 +3661,10 @@ function applyRolRestrictions(rol, sectores){
   const btnProcesos = document.getElementById("btnPlacasProcesos");
   if(btnProcesos) btnProcesos.style.display = rol === "master" ? "inline-flex" : "none";
   const btnNueva = document.getElementById("btnPlacasNueva");
-  if(btnNueva && ["viewer", "viewer_2"].includes(rol)) btnNueva.style.display = "none";
+  if(btnNueva && rol === "viewer_2") btnNueva.style.display = "none";
+  // La guía explica cómo modificar placas: no aplica a quien solo consulta
+  const btnGuia = document.getElementById("btnPlacasGuia");
+  if(btnGuia && rol === "viewer_2") btnGuia.style.display = "none";
   window.userSectores = Array.isArray(sectores) && sectores.length ? sectores : [];
 
   // Si el usuario tiene sectores asignados, pre-filtrar el selector de sector
@@ -3700,8 +3704,8 @@ function applyRolRestrictions(rol, sectores){
   if(navU) navU.style.display = rol === 'master' ? 'flex' : 'none';
 
   if(rol === "viewer"){
-    // Solo mostrar sección Revisión en el sidebar
-    document.querySelectorAll('.nav-btn[href="#pago"], .nav-btn[href="#placas"], .nav-btn[href="#anticipos"], .nav-btn[href="#metricas"]').forEach(el => el.style.display = "none");
+    // Revisión (solo lectura) y Placas (con creación/edición)
+    document.querySelectorAll('.nav-btn[href="#pago"], .nav-btn[href="#anticipos"], .nav-btn[href="#metricas"]').forEach(el => el.style.display = "none");
     // Ocultar botones de acción en Revisión
     const hideIds = ["btnRevMarcarRevisadas","btnDescargar"];
     hideIds.forEach(id => { const el = document.getElementById(id); if(el) el.style.display = "none"; });
@@ -3729,17 +3733,17 @@ function showApp(me){
   const initPath = window.location.pathname.toLowerCase().replace(/\/+$/,'') || '/';
   const initSec  = _pathToSec[initPath] || _pathToSec['/'];
 
-  // Verificar si el rol tiene acceso a la sección del URL
-  // Secciones restringidas por rol
-  const seccionesRestringidas = {
-    '/usuarios':  ['master'],
-    '/revision':  ['master', 'admin', 'viewer'],
-    '/pago':      ['master', 'admin', 'viewer'],
-    '/anticipos': ['master', 'admin', 'viewer']
+  // Secciones que cada rol puede abrir por URL: las mismas que ve en su menú
+  const TODAS = ['/', '/revision', '/pago', '/anticipos', '/placas', '/metricas'];
+  const seccionesPorRol = {
+    master:   TODAS.concat('/usuarios'),
+    admin:    TODAS,
+    usuario:  TODAS,                          // rol heredado: mismo menú que admin
+    viewer:   ['/', '/revision', '/placas'],
+    viewer_2: ['/', '/placas', '/metricas'],
   };
-  const rolesPermitidos = seccionesRestringidas[initPath];
-  const rolActual = me?.rol || 'viewer';
-  const tieneAcceso = !rolesPermitidos || rolesPermitidos.includes(rolActual);
+  const permitidas = seccionesPorRol[me?.rol] || ['/'];
+  const tieneAcceso = permitidas.includes(initPath);
 
   // Si no tiene acceso, redirigir al inicio limpiando el URL
   const secDestino = tieneAcceso ? initSec : _pathToSec['/'];
@@ -3759,6 +3763,8 @@ function showApp(me){
       ? "Master"
       : rol === "viewer_2"
       ? "Viewer (Métricas y Placas)"
+      : rol === "viewer" && !sectores
+      ? "Viewer (Revisión y Placas)"
       : rol === "admin"
       ? "Administrador"
       : sectores ? `Sector: ${sectores}` : rol.charAt(0).toUpperCase() + rol.slice(1);
@@ -7148,7 +7154,7 @@ function renderModalDetalle(rows, filtroMes){
         <label style="font-size:12px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px;">Rol *</label>
         <select id="muRol" class="input" style="width:100%;box-sizing:border-box;">
           <option value="admin">Admin</option>
-          <option value="viewer">Viewer</option>
+          <option value="viewer">Viewer (Revisión y Placas)</option>
           <option value="viewer_2">Viewer 2 (Métricas y Placas)</option>
         </select>
       </div>
@@ -7405,6 +7411,7 @@ function renderModalDetalle(rows, filtroMes){
   }
   function maybeAutoShowPlacasTour(){
     if(!secPlacasVisible()) return;
+    if(window.userRol === "viewer_2") return; // solo consulta: la guía de modificar no aplica
     if(localStorage.getItem(STORAGE_KEY) === "seen") return;
     let tries = 0;
     const timer = setInterval(function(){

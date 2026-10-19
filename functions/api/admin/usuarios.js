@@ -30,6 +30,10 @@ function generateSalt(len = 24) {
   return Array.from(arr).map(b => chars[b % chars.length]).join("");
 }
 
+// Roles que el master puede asignar desde la pantalla de Usuarios
+const ROLES_ASIGNABLES = ["admin", "viewer", "viewer_2"];
+const ROL_INVALIDO = "Rol inválido: elige Admin, Viewer o Viewer 2";
+
 // ── Verificar sesión y rol master ────────────────────────────────────────────
 async function verifyMaster(request, env) {
   const cookie = request.headers.get("Cookie") || "";
@@ -102,6 +106,7 @@ export async function onRequestPost({ request, env }) {
 
       // No permitir crear otro master
       if (rol === "master") return j({ error: "no_se_puede_crear_otro_master" }, 403);
+      if (!ROLES_ASIGNABLES.includes(rol)) return j({ error: ROL_INVALIDO }, 400);
 
       const salt = generateSalt();
       const hash = await hashPass(password, salt, ITER);
@@ -114,7 +119,7 @@ export async function onRequestPost({ request, env }) {
         (nombre || "").trim() || null,
         hash,
         salt,
-        rol || "usuario",
+        rol,
         activo !== false ? 1 : 0,
         (sectores || "").trim() || null
       ).run();
@@ -129,6 +134,7 @@ export async function onRequestPost({ request, env }) {
 
       // No permitir cambiar el rol a master
       if (rol === "master") return j({ error: "no_se_puede_asignar_rol_master" }, 403);
+      if (!ROLES_ASIGNABLES.includes(rol)) return j({ error: ROL_INVALIDO }, 400);
 
       // No permitir editar al master desde aquí
       const { results: target } = await env.DB
@@ -140,7 +146,7 @@ export async function onRequestPost({ request, env }) {
         UPDATE usuarios SET nombre = ?, rol = ?, activo = ?, sectores = ? WHERE usuario = ?
       `).bind(
         (nombre || "").trim() || null,
-        rol || "usuario",
+        rol,
         activo !== false ? 1 : 0,
         (sectores || "").trim() || null,
         usuario.trim().toLowerCase()
