@@ -2898,7 +2898,6 @@ function formatPlateCandidate(raw){
 function isValidPlateAAA9999(p){
   return /^[A-Z]{3}_[0-9]{4}$/.test(String(p||"").toUpperCase());
 }
-// viewer y viewer_2 solo consultan Placas (el backend también lo exige)
 // viewer_2 solo consulta placas; viewer puede crearlas y editarlas (permiso extra)
 function placasSoloLectura(){ return window.userRol === "viewer_2"; }
 function canEditPlaca(cell){
@@ -3703,18 +3702,19 @@ function applyRolRestrictions(rol, sectores){
   const navU = document.getElementById('navUsuarios');
   if(navU) navU.style.display = rol === 'master' ? 'flex' : 'none';
 
-  if(rol === "viewer"){
-    // Revisión (solo lectura) y Placas (con creación/edición)
-    document.querySelectorAll('.nav-btn[href="#pago"], .nav-btn[href="#anticipos"], .nav-btn[href="#metricas"]').forEach(el => el.style.display = "none");
-    // Ocultar botones de acción en Revisión
+  if(rol === "viewer" || rol === "viewer_2"){
+    // Revisión en solo lectura: sin cambiar estados, marcar revisadas ni descargar PDFs
     const hideIds = ["btnRevMarcarRevisadas","btnDescargar"];
     hideIds.forEach(id => { const el = document.getElementById(id); if(el) el.style.display = "none"; });
     window.__viewerMode = true;
   }
-
+  if(rol === "viewer"){
+    // Revisión (solo lectura) y Placas (con creación/edición)
+    document.querySelectorAll('.nav-btn[href="#pago"], .nav-btn[href="#anticipos"], .nav-btn[href="#metricas"]').forEach(el => el.style.display = "none");
+  }
   if(rol === "viewer_2"){
-    // Solo Métricas y Placas — ocultar Revisión, Pago, Anticipos
-    document.querySelectorAll('.nav-btn[href="#revision"], .nav-btn[href="#pago"], .nav-btn[href="#anticipos"]').forEach(el => el.style.display = "none");
+    // Revisión, Métricas y Placas, todo en solo lectura
+    document.querySelectorAll('.nav-btn[href="#pago"], .nav-btn[href="#anticipos"]').forEach(el => el.style.display = "none");
   }
 }
 
@@ -3740,7 +3740,7 @@ function showApp(me){
     admin:    TODAS,
     usuario:  TODAS,                          // rol heredado: mismo menú que admin
     viewer:   ['/', '/revision', '/placas'],
-    viewer_2: ['/', '/placas', '/metricas'],
+    viewer_2: ['/', '/revision', '/placas', '/metricas'],
   };
   const permitidas = seccionesPorRol[me?.rol] || ['/'];
   const tieneAcceso = permitidas.includes(initPath);
@@ -3762,7 +3762,7 @@ function showApp(me){
     const rolLabel = rol === "master"
       ? "Master"
       : rol === "viewer_2"
-      ? "Viewer (Métricas y Placas)"
+      ? "Viewer (solo lectura)"
       : rol === "viewer" && !sectores
       ? "Viewer (Revisión y Placas)"
       : rol === "admin"
@@ -5356,6 +5356,7 @@ async function marcarSeleccionComoEnviadas(){
     var tbl = getRevTable();
     if (!btn || !tbl || typeof tbl.getSelectedData !== "function") return;
     if (!tbl.initialized) return; // se reevalúa en tableBuilt
+    if (window.__viewerMode){ btn.classList.add("hidden"); btn.disabled = true; return; } // solo lectura
     var sel = tbl.getSelectedData() || [];
     var ok  = sel.length >= 2 && sel.every(function(r){ return String((r && r.Estado) || "").trim() === "Registrada"; });
     btn.classList.toggle("hidden", !ok);
@@ -7155,7 +7156,7 @@ function renderModalDetalle(rows, filtroMes){
         <select id="muRol" class="input" style="width:100%;box-sizing:border-box;">
           <option value="admin">Admin</option>
           <option value="viewer">Viewer (Revisión y Placas)</option>
-          <option value="viewer_2">Viewer 2 (Métricas y Placas)</option>
+          <option value="viewer_2">Viewer 2 (Revisión, Métricas y Placas — solo lectura)</option>
         </select>
       </div>
       <div>
