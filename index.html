@@ -1776,6 +1776,9 @@ function openEstadoMenu(cell){
             // Solo recargar si era Revisada y el backend no devolvió fecha
             try { await refreshAfterEstado(); } catch(_) {}
           }
+        } else if (opt === "Registrada") {
+          // El servidor borra la fecha de revisión al volver a Registrada
+          try { row.update({ FechaRevision: "" }); } catch(_) {}
         } // Para Anulada u otros estados, no recargamos (update optimista + KPIs)
 
       }catch(err){

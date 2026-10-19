@@ -128,6 +128,9 @@ export async function onRequestPost({ request, env, data }) {
       const campos = { Estado: nuevoEstado };
       if (nuevoEstado === "Revisada") {
         campos.FechaRevision = hoyHN();
+      } else if (nuevoEstado === "Registrada") {
+        // Vuelve a estar pendiente de revisión: se borra la fecha de la revisión anterior
+        campos.FechaRevision = null;
       }
       const n = await actualizarFila(fila, campos);
       if (!n) return error("La factura no existe o ya está Pagada/Enviada.", 409);
@@ -152,12 +155,15 @@ export async function onRequestPost({ request, env, data }) {
       }
       const fechaHoy   = hoyHN();
       const esRevisada = nuevoEstado === "Revisada";
+      const esRegistrada = nuevoEstado === "Registrada";
       const stmts = filas.map(fila =>
         esEnviada
           ? env.DB.prepare(`UPDATE facturas SET Estado = 'Enviada' WHERE fila = ? AND Estado = 'Pagada'`).bind(fila)
           : esRevisada
             ? env.DB.prepare(`UPDATE facturas SET Estado = ?, FechaRevision = ? WHERE fila = ? AND ${SQL_NO_CERRADA}`).bind(nuevoEstado, fechaHoy, fila)
-            : env.DB.prepare(`UPDATE facturas SET Estado = ? WHERE fila = ? AND ${SQL_NO_CERRADA}`).bind(nuevoEstado, fila)
+            : esRegistrada // vuelve a pendiente: sin fecha de revisión
+              ? env.DB.prepare(`UPDATE facturas SET Estado = ?, FechaRevision = NULL WHERE fila = ? AND ${SQL_NO_CERRADA}`).bind(nuevoEstado, fila)
+              : env.DB.prepare(`UPDATE facturas SET Estado = ? WHERE fila = ? AND ${SQL_NO_CERRADA}`).bind(nuevoEstado, fila)
       );
       let actualizadas = 0;
       for (let i = 0; i < stmts.length; i += 50) {
